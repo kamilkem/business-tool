@@ -1,0 +1,22 @@
+{
+  "name": "@business-tool/api-client",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "generate": "openapi-typescript ${API_URL:-http://localhost:8000}/api/docs.jsonopenapi --default-non-nullable false -o src/schema.d.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "oxlint": "^1.90.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~6.0.2"
+  }
+}

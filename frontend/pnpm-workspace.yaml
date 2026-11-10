@@ -1,0 +1,7 @@
+packages:
+  - admin
+  - timeclock
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild

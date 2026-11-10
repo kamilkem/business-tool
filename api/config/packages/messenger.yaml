@@ -1,0 +1,19 @@
+framework:
+    messenger:
+        # In-process CQRS buses without default middleware: validation happens at the API Platform
+        # boundary (Inputs), and repositories flush their own writes. Handlers register themselves
+        # through the _instanceof tags in config/services.yaml.
+        default_bus: messenger.bus.command
+        buses:
+            messenger.bus.command:
+                default_middleware: false
+                middleware: [handle_message]
+            messenger.bus.query:
+                default_middleware: false
+                middleware: [handle_message]
+            messenger.bus.event:
+                default_middleware: false
+                middleware: [handle_message]
+
+        transports:
+            sync: 'sync://'

@@ -1,0 +1,41 @@
+services:
+  php:
+    build:
+      context: ./api
+      target: dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@database:5432/${POSTGRES_DB:-app}?serverVersion=17&charset=utf8
+      SERVER_NAME: ":80"
+      XDEBUG_MODE: "${XDEBUG_MODE:-off}"
+    volumes:
+      - ./api:/app
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "${API_PORT:-8000}:80"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+
+volumes:
+  database_data:
+  caddy_data:
+  caddy_config:

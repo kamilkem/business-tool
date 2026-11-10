@@ -1,0 +1,32 @@
+# Module services are registered per module (docs: CLAUDE.md "Backend module structure").
+# Domain models are excluded: entities are not services.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Command, query and event handlers register themselves on their bus (no per-handler config).
+    _instanceof:
+        App\Shared\Application\Command\CommandHandlerInterface:
+            tags: [{ name: messenger.message_handler, bus: messenger.bus.command }]
+        App\Shared\Application\Query\QueryHandlerInterface:
+            tags: [{ name: messenger.message_handler, bus: messenger.bus.query }]
+        App\Shared\Domain\Event\EventHandlerInterface:
+            tags: [{ name: messenger.message_handler, bus: messenger.bus.event }]
+
+    App\Shared\:
+        resource: '../src/App/Shared/'
+
+    App\User\:
+        resource: '../src/App/User/'
+        exclude:
+            - '../src/App/User/Domain/Model/'
+
+    App\Organization\:
+        resource: '../src/App/Organization/'
+        exclude:
+            - '../src/App/Organization/Domain/Model/'
+
+    Ui\:
+        resource: '../src/Ui/'
