@@ -1,0 +1,72 @@
+# Enforces the layer dependency rules from CLAUDE.md "Backend module structure".
+# Run: make deptrac (part of make qa).
+deptrac:
+    paths:
+        - ./src
+    exclude_files:
+        - '#.*Kernel\.php$#'
+    layers:
+        # ── our code ─────────────────────────────────────────────────────────────
+        -   name: Domain
+            collectors:
+                -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Domain\\#' }
+        -   name: Application
+            collectors:
+                -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Application\\#' }
+        -   name: Infrastructure
+            collectors:
+                -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Infrastructure\\#' }
+        -   name: Ui
+            collectors:
+                -   { type: classNameRegex, value: '#^Ui\\(?!Fixture\\)#' }
+        # Dev data fixtures persist domain models directly through Doctrine.
+        -   name: UiFixture
+            collectors:
+                -   { type: classNameRegex, value: '#^Ui\\Fixture\\#' }
+        # ── vendors named in the rules ───────────────────────────────────────────
+        -   name: Symfony
+            collectors:
+                -   { type: classNameRegex, value: '#^Symfony\\#' }
+        -   name: Doctrine
+            collectors:
+                -   { type: classNameRegex, value: '#^Doctrine\\#' }
+        -   name: ApiPlatform
+            collectors:
+                -   { type: classNameRegex, value: '#^ApiPlatform\\#' }
+    ruleset:
+        # Domain: own and other modules' Domain; Doctrine mapping attributes and collections;
+        # Symfony for Uid and the security user interfaces.
+        Domain:
+            - Domain
+            - Doctrine
+            - Symfony
+        # Application: Domain (ports, models, exceptions), other Application code only through the
+        # buses (App\Shared\Application), Symfony (Uid, Messenger). Never Infrastructure, Ui,
+        # Doctrine or API Platform: that is the ports rule.
+        Application:
+            - Domain
+            - Application
+            - Symfony
+        # Infrastructure may depend on anything except Ui.
+        Infrastructure:
+            - Domain
+            - Application
+            - Infrastructure
+            - Symfony
+            - Doctrine
+            - ApiPlatform
+        # Ui: Application through the buses, Domain (exceptions, models for the current user and
+        # the tenant header), API Platform, Symfony. Never Infrastructure, never Doctrine.
+        Ui:
+            - Domain
+            - Application
+            - Ui
+            - Symfony
+            - ApiPlatform
+        UiFixture:
+            - Domain
+            - Doctrine
+            - Symfony
+        Symfony: ~
+        Doctrine: ~
+        ApiPlatform: ~

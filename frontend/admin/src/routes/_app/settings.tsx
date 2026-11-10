@@ -1,0 +1,111 @@
+import { useState, type FormEvent } from "react"
+import { type components, unwrap } from "@business-tool/api-client"
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import { createFileRoute } from "@tanstack/react-router"
+import { toast } from "sonner"
+
+import { Button } from "@business-tool/ui/components/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
+import { Input } from "@business-tool/ui/components/input"
+
+import { api } from "@/lib/api"
+import { meQuery, organizationQuery } from "@/lib/queries"
+
+type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
+
+export const Route = createFileRoute("/_app/settings")({
+  loader: ({ context }) => {
+    const id = context.membership?.organization.id
+    if (id) return context.queryClient.ensureQueryData(organizationQuery(id))
+  },
+  component: SettingsPage,
+})
+
+function SettingsPage() {
+  const { membership } = Route.useRouteContext()
+  const id = membership?.organization.id ?? ""
+  const { data: organization } = useSuspenseQuery(organizationQuery(id))
+  const queryClient = useQueryClient()
+  const [error, setError] = useState<string | null>(null)
+  const canManage = membership?.role !== "employee"
+
+  const save = useMutation({
+    mutationFn: (body: OrganizationPatch) =>
+      unwrap(
+        api.PATCH("/api/organizations/{id}", {
+          params: { path: { id } },
+          body,
+          headers: { "Content-Type": "application/merge-patch+json" },
+        }),
+      ),
+    onSuccess: async (data) => {
+      setError(null)
+      queryClient.setQueryData(organizationQuery(id).queryKey, data)
+      await queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
+      toast.success("Settings saved")
+    },
+    onError: (e) => setError(e.message),
+  })
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    save.mutate({
+      name: String(form.get("name")),
+      taxId: String(form.get("taxId")) || null,
+      countryCode: String(form.get("countryCode")),
+      currency: String(form.get("currency")),
+      timezone: String(form.get("timezone")),
+    })
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Organization settings</CardTitle>
+          <CardDescription>Used across all modules: invoices, payroll and reports.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit}>
+            <fieldset disabled={!canManage || save.isPending}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="name">Business name</FieldLabel>
+                  <Input id="name" name="name" defaultValue={organization.name} required />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="taxId">Tax ID (NIP)</FieldLabel>
+                  <Input id="taxId" name="taxId" defaultValue={organization.taxId ?? ""} inputMode="numeric" />
+                  <FieldDescription>Needed to fetch purchase invoices from KSeF.</FieldDescription>
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field>
+                    <FieldLabel htmlFor="countryCode">Country</FieldLabel>
+                    <Input id="countryCode" name="countryCode" defaultValue={organization.countryCode} maxLength={2} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="currency">Currency</FieldLabel>
+                    <Input id="currency" name="currency" defaultValue={organization.currency} maxLength={3} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="timezone">Time zone</FieldLabel>
+                    <Input id="timezone" name="timezone" defaultValue={organization.timezone} />
+                  </Field>
+                </div>
+                <Field data-invalid={error ? true : undefined}>
+                  {error && <FieldError>{error}</FieldError>}
+                  {!canManage && <FieldDescription>Only owners and managers can change these settings.</FieldDescription>}
+                </Field>
+                <Button type="submit" className="self-start">
+                  {save.isPending ? "Saving…" : "Save changes"}
+                </Button>
+              </FieldGroup>
+            </fieldset>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

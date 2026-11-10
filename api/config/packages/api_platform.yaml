@@ -1,0 +1,46 @@
+api_platform:
+    title: Business Tool API
+    version: 0.1.0
+    # Resources live only in the Ui layer (src/Ui/Http/<Module>); entities are never resources.
+    mapping:
+        paths:
+            - '%kernel.project_dir%/src/Ui'
+    patch_formats:
+        json: ['application/merge-patch+json']
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+    docs_formats:
+        jsonld: ['application/ld+json']
+        jsonopenapi: ['application/vnd.openapi+json']
+        html: ['text/html']
+    defaults:
+        stateless: true
+        pagination_items_per_page: 30
+        # Missing or mistyped input fields become 422 violations (like validation errors), not a
+        # 400 "misformatted" error, so readonly Inputs can have required constructor parameters.
+        collect_denormalization_errors: true
+        # Resources always serialize every field, including nulls.
+        normalization_context:
+            skip_null_values: false
+        cache_headers:
+            vary: ['Content-Type', 'Authorization', 'Origin', 'X-Organization-Id']
+    swagger:
+        api_keys:
+            JWT:
+                name: Authorization
+                type: header
+    # Domain exceptions thrown by handlers are translated to HTTP statuses here, at the Ui
+    # boundary. Add every new domain exception in the same change: an unmapped one is a 500.
+    exception_to_status:
+        # API Platform's defaults (replaced, not merged, when this key is set):
+        Symfony\Component\Serializer\Exception\ExceptionInterface: 400
+        ApiPlatform\Metadata\Exception\InvalidArgumentException: 400
+        Doctrine\ORM\OptimisticLockException: 409
+        Doctrine\DBAL\Exception\UniqueConstraintViolationException: 422
+        # Ours:
+        App\Organization\Domain\Exception\OrganizationNotFoundException: 404
+        App\Organization\Domain\Exception\OrganizationManagementForbiddenException: 403
+        App\Organization\Domain\Exception\AlreadyAMemberException: 409
+        App\Organization\Domain\Exception\NoOrganizationSelectedException: 400
+        App\User\Domain\Exception\UserNotFoundException: 404

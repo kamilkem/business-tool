@@ -1,0 +1,19 @@
+{
+  "name": "business-tool-frontend",
+  "private": true,
+  "packageManager": "pnpm@9.13.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:admin": "pnpm --filter admin dev",
+    "dev:timeclock": "pnpm --filter timeclock dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "api:types": "pnpm --filter @business-tool/api-client generate"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
+  }
+}

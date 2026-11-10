@@ -1,0 +1,20 @@
+when@dev: &dev
+    # See https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#full-default-bundle-configuration
+    zenstruck_foundry:
+        persistence:
+            # Flush only once per call of `PersistentObjectFactory::create()`
+            flush_once: true
+        orm:
+            reset:
+                mode: auto
+
+when@test:
+    zenstruck_foundry:
+        persistence:
+            flush_once: true
+        orm:
+            reset:
+                # Build the test schema from mapping (not migrations) so that
+                # test-only entities in tests/Fixtures/Entity get tables.
+                # Migrations are checked separately by `make db-validate`.
+                mode: schema
