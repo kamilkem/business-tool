@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Organization\Domain;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
+use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
 use App\Organization\Domain\Model\MembershipRole;
@@ -216,5 +217,59 @@ final class OrganizationTest extends TestCase
         $this->expectException(OrganizationManagementForbiddenException::class);
 
         $organization->membersVisibleTo(Uuid::v7());
+    }
+
+    /** @return iterable<string, array{MembershipRole, MembershipRole, bool}> */
+    public static function memberManagement(): iterable
+    {
+        yield 'owner acts on an owner' => [MembershipRole::Owner, MembershipRole::Owner, true];
+        yield 'owner acts on a manager' => [MembershipRole::Owner, MembershipRole::Manager, true];
+        yield 'owner acts on an employee' => [MembershipRole::Owner, MembershipRole::Employee, true];
+        yield 'manager acts on a manager' => [MembershipRole::Manager, MembershipRole::Manager, false];
+        yield 'manager acts on an employee' => [MembershipRole::Manager, MembershipRole::Employee, true];
+    }
+
+    #[DataProvider('memberManagement')]
+    public function test_it_lets_owners_act_on_any_member_and_managers_only_on_employees(
+        MembershipRole $actorRole,
+        MembershipRole $targetRole,
+        bool $allowed,
+    ): void {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $actor = $owner;
+        if (MembershipRole::Owner !== $actorRole) {
+            $actor = UserMother::any('actor@example.com');
+            OrganizationMother::addMember($organization, $actor, $actorRole);
+        }
+        $target = UserMother::any('target@example.com');
+        OrganizationMother::addMember($organization, $target, $targetRole);
+
+        if (!$allowed) {
+            $this->expectException(RoleAssignmentForbiddenException::class);
+        }
+
+        self::assertSame($target, $organization->manageableMembership($actor->getId(), $target->getId())->getUser());
+    }
+
+    public function test_it_refuses_to_act_on_a_user_who_is_not_a_member(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+
+        $this->expectException(MemberNotFoundException::class);
+
+        $organization->manageableMembership($owner->getId(), Uuid::v7());
+    }
+
+    public function test_it_refuses_an_employee_acting_on_a_member(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->manageableMembership($employee->getId(), $employee->getId());
     }
 }

@@ -68,6 +68,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/{userId}/invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends a new invitation e-mail to a member who has not set a password yet.
+         * @description The new link replaces the previous one. Owners resend to anyone, managers to employees only (403 otherwise); a person who is not a member is a 404, one who already has a password a 409.
+         */
+        post: operations["api_members_userIdinvitation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/organizations": {
         parameters: {
             query?: never;
@@ -114,6 +134,26 @@ export interface paths {
          * @description Updates the Organization resource.
          */
         patch: operations["api_organizations_id_patch"];
+        trace?: never;
+    };
+    "/api/auth/set-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets a password with the token from an invitation or password reset link.
+         * @description Public. Does not sign the person in: send them to sign-in afterwards. An unknown, used or expired token is always the same 404. Rate-limited per client IP (429).
+         */
+        post: operations["api_authset-password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -288,7 +328,7 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them; managers add employees only.
+         *     and managers may list and add them and resend invitations; managers act on employees only.
          */
         Member: {
             userId: string;
@@ -307,7 +347,7 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them; managers add employees only.
+         *     and managers may list and add them and resend invitations; managers act on employees only.
          */
         "Member.AddMemberInput": {
             /** Format: email */
@@ -324,7 +364,7 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them; managers add employees only.
+         *     and managers may list and add them and resend invitations; managers act on employees only.
          */
         "Member.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             userId: string;
@@ -385,6 +425,16 @@ export interface components {
             timezone: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description Public endpoints that set a password with an e-mailed one-time link (ADR 0013). They answer with
+         *     no body, so this resource has no fields; nobody is signed in by them.
+         */
+        "Password.SetPasswordInput": {
+            /** @description The secret from the e-mailed link (the `token` in its URL fragment). */
+            token: string;
+            /** @description The new password: at least 8 characters, at most 4096 bytes; no composition rules. */
+            password: string;
         };
     };
     responses: never;
@@ -515,6 +565,70 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_members_userIdinvitation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Member identifier */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invitation e-mail is queued. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The actor may not act on this member. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member has already set a password. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description An error occurred */
             422: {
@@ -698,6 +812,66 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_authset-password_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Password resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Password.SetPasswordInput"];
+                "application/json": components["schemas"]["Password.SetPasswordInput"];
+            };
+        };
+        responses: {
+            /** @description The password is set; the person can sign in. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The token is unknown, used or expired. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description Too many attempts from this IP address; see Retry-After. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -9,9 +9,12 @@ use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Fixtures\OrganizationMother;
+use App\User\Domain\Model\PasswordToken;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Uid\Uuid;
 
 final class MemberApiTest extends ApiTestCase
 {
@@ -301,6 +304,189 @@ final class MemberApiTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(401);
+    }
+
+    public function test_it_queues_an_invitation_email_whose_link_sets_the_password(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com', 'firstName' => 'Eve', 'lastName' => 'Nowak', 'role' => 'employee',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertQueuedEmailCount(1);
+        $email = self::queuedEmail();
+        self::assertEmailAddressContains($email, 'To', 'eve@example.com');
+        self::assertEmailSubjectContains($email, 'You are invited to '.$organization->getName());
+        self::assertEmailHtmlBodyContains($email, 'Hello Eve');
+        self::assertEmailHtmlBodyContains($email, $owner->getFirstName().' '.$owner->getLastName().' invited you');
+        // Employees work in the time clock (TIMECLOCK_URL in .env).
+        self::assertEmailHtmlBodyContains($email, 'http://localhost:5174/set-password#token=');
+
+        self::setPassword(self::secretFrom($email));
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertTrue(self::userByEmail('eve@example.com')?->hasPassword());
+    }
+
+    public function test_it_links_an_invited_manager_to_the_admin_panel(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'max@example.com', 'firstName' => 'Max', 'lastName' => 'Adamski', 'role' => 'manager',
+        ]]);
+
+        self::assertEmailHtmlBodyContains(self::queuedEmail(), 'http://localhost:5173/set-password#token=');
+    }
+
+    public function test_it_notifies_an_existing_user_with_a_sign_in_link_and_issues_no_token(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        UserFactory::createOne(['email' => 'max@example.com', 'firstName' => 'Max']);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'max@example.com', 'firstName' => 'Max', 'lastName' => 'Adamski', 'role' => 'employee',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertQueuedEmailCount(1);
+        $email = self::queuedEmail();
+        self::assertEmailAddressContains($email, 'To', 'max@example.com');
+        self::assertEmailSubjectContains($email, 'You now have access to '.$organization->getName());
+        self::assertEmailHtmlBodyContains($email, 'http://localhost:5174/login');
+        self::assertEmailHtmlBodyNotContains($email, 'set-password');
+        self::assertSame(0, self::tokenCount());
+    }
+
+    public function test_it_resends_an_invitation_whose_new_link_replaces_the_old_one(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $client = static::clientFor($owner, $organization);
+        $userId = $client->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com', 'firstName' => 'Eve', 'lastName' => 'Nowak', 'role' => 'employee',
+        ]])->toArray()['userId'];
+        $firstSecret = self::secretFrom(self::queuedEmail());
+
+        $response = static::clientFor($owner, $organization)->request('POST', '/api/members/'.$userId.'/invitation');
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('', $response->getContent());
+        self::assertQueuedEmailCount(1);
+        $email = self::queuedEmail();
+        self::assertEmailAddressContains($email, 'To', 'eve@example.com');
+        $secondSecret = self::secretFrom($email);
+        self::assertNotSame($firstSecret, $secondSecret);
+
+        self::setPassword($firstSecret);
+        self::assertResponseStatusCodeSame(404);
+        self::setPassword($secondSecret);
+        self::assertResponseStatusCodeSame(204);
+    }
+
+    /** @return iterable<string, array{MembershipRole, MembershipRole, int}> */
+    public static function resendAuthorization(): iterable
+    {
+        yield 'owner to an owner' => [MembershipRole::Owner, MembershipRole::Owner, 204];
+        yield 'owner to a manager' => [MembershipRole::Owner, MembershipRole::Manager, 204];
+        yield 'owner to an employee' => [MembershipRole::Owner, MembershipRole::Employee, 204];
+        yield 'manager to a manager' => [MembershipRole::Manager, MembershipRole::Manager, 403];
+        yield 'manager to an employee' => [MembershipRole::Manager, MembershipRole::Employee, 204];
+        yield 'employee to an employee' => [MembershipRole::Employee, MembershipRole::Employee, 403];
+    }
+
+    #[DataProvider('resendAuthorization')]
+    public function test_it_authorizes_resending_an_invitation_by_role(MembershipRole $actorRole, MembershipRole $inviteeRole, int $expectedStatus): void
+    {
+        [$actor, $organization] = self::memberWithRole($actorRole);
+        $invited = UserFactory::new()->invited()->create();
+        OrganizationMother::addMember($organization, $invited, $inviteeRole);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($actor, $organization)->request('POST', '/api/members/'.$invited->getId()->toRfc4122().'/invitation');
+
+        self::assertResponseStatusCodeSame($expectedStatus);
+        self::assertQueuedEmailCount(204 === $expectedStatus ? 1 : 0);
+        self::assertSame(204 === $expectedStatus ? 1 : 0, self::tokenCount());
+    }
+
+    public function test_it_refuses_to_resend_to_a_member_who_already_has_a_password(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members/'.$employee->getId()->toRfc4122().'/invitation');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertQueuedEmailCount(0);
+    }
+
+    public function test_it_refuses_to_resend_to_another_organizations_member(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $other = OrganizationFactory::createOne();
+        $otherInvited = UserFactory::new()->invited()->create();
+        OrganizationMother::addMember($other, $otherInvited, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members/'.$otherInvited->getId()->toRfc4122().'/invitation');
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertQueuedEmailCount(0);
+        self::assertSame(0, self::tokenCount());
+    }
+
+    public function test_it_refuses_to_resend_to_an_unknown_or_malformed_user_id(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members/'.Uuid::v7()->toRfc4122().'/invitation');
+        self::assertResponseStatusCodeSame(404);
+        static::clientFor($owner, $organization)->request('POST', '/api/members/not-a-uuid/invitation');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function test_it_requires_authentication_to_resend(): void
+    {
+        $invited = UserFactory::new()->invited()->create();
+
+        static::createClient()->request('POST', '/api/members/'.$invited->getId()->toRfc4122().'/invitation', [
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    private static function queuedEmail(): Email
+    {
+        $email = self::getMailerMessage();
+        self::assertInstanceOf(Email::class, $email);
+
+        return $email;
+    }
+
+    /** The secret from the link in an invitation e-mail, as the set-password page reads it. */
+    private static function secretFrom(Email $email): string
+    {
+        self::assertSame(1, preg_match('~/set-password#token=([A-Za-z0-9_-]+)"~', (string) $email->getHtmlBody(), $matches));
+
+        return $matches[1];
+    }
+
+    private static function setPassword(string $secret): void
+    {
+        static::createClient()->request('POST', '/api/auth/set-password', [
+            'json' => ['token' => $secret, 'password' => 'correct horse battery'],
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+    }
+
+    private static function tokenCount(): int
+    {
+        return static::getContainer()->get(EntityManagerInterface::class)->getRepository(PasswordToken::class)->count();
     }
 
     private static function userByEmail(string $email): ?User

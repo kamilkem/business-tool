@@ -36,6 +36,7 @@ src/App/<Module>/
     Application/
         Command/<UseCase>/  <UseCase>Command + <UseCase>Handler
         Query/<UseCase>/    <UseCase>Query + <UseCase>Handler + <Name>View
+        EventHandler/       <Action>On<Event> handlers of domain events, own or other modules'
     Infrastructure/
         Doctrine/Orm/Repository/   repository adapters
         ...                        Doctrine filters/listeners, external clients (KSeF), ...

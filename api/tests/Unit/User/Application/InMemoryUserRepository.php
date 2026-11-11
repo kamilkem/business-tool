@@ -34,4 +34,9 @@ final class InMemoryUserRepository implements UserRepositoryInterface
     {
         $this->byId[$user->getId()->toRfc4122()] = $user;
     }
+
+    public function save(User $user): void
+    {
+        $this->byId[$user->getId()->toRfc4122()] = $user;
+    }
 }
