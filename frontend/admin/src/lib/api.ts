@@ -1,4 +1,4 @@
-import { createApiClient, createSession } from "@business-tool/api-client"
+import { createApiClient, createSession, signInAgainUrl } from "@business-tool/api-client"
 import { QueryClient } from "@tanstack/react-query"
 
 export const session = createSession("business-tool.admin.session")
@@ -7,7 +7,7 @@ export const api = createApiClient({
   session,
   onUnauthorized: () => {
     queryClient.clear()
-    window.location.assign("/login")
+    window.location.assign(signInAgainUrl())
   },
 })
 

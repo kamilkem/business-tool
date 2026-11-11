@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { login } from "@business-tool/api-client"
+import { login, safeRedirectPath } from "@business-tool/api-client"
 import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { CircleCheckIcon } from "lucide-react"
 
@@ -37,7 +37,7 @@ function LoginPage() {
       const token = await login(String(form.get("email")), String(form.get("password")))
       queryClient.clear()
       session.signIn(token)
-      await navigate({ to: redirectTo?.startsWith("/") ? redirectTo : "/" })
+      await navigate({ href: safeRedirectPath(redirectTo) })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed")
     } finally {
