@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Organization;
 
+use App\Organization\Domain\Model\Membership;
 use App\Organization\Domain\Model\MembershipRole;
+use App\Organization\Domain\Model\Organization;
 use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Factory\UserFactory;
@@ -15,6 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 final class MemberApiTest extends ApiTestCase
 {
@@ -458,6 +461,234 @@ final class MemberApiTest extends ApiTestCase
         ]);
 
         self::assertResponseStatusCodeSame(401);
+    }
+
+    public function test_it_changes_a_members_role(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = UserFactory::createOne(['email' => 'eve@example.com', 'firstName' => 'Eve', 'lastName' => 'Nowak']);
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $data = self::changeRole($owner, $organization, $employee->getId()->toRfc4122(), ['role' => 'manager'])->toArray();
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([
+            'userId' => $employee->getId()->toRfc4122(),
+            'email' => 'eve@example.com',
+            'firstName' => 'Eve',
+            'lastName' => 'Nowak',
+            'role' => 'manager',
+            'joinedAt' => $data['joinedAt'],
+            'invitationPending' => false,
+        ], $data);
+        self::assertSame(MembershipRole::Manager, self::roleIn($organization, $employee));
+    }
+
+    public function test_it_keeps_the_role_when_a_patch_does_not_send_it(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $data = self::changeRole($owner, $organization, $employee->getId()->toRfc4122(), [])->toArray();
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('employee', $data['role']);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function invalidRoleChanges(): iterable
+    {
+        yield 'unknown role' => [['role' => 'admin']];
+        yield 'null role' => [['role' => null]];
+        yield 'role of the wrong type' => [['role' => 1]];
+    }
+
+    /** @param array<string, mixed> $payload */
+    #[DataProvider('invalidRoleChanges')]
+    public function test_it_validates_the_role_change(array $payload): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $data = self::changeRole($owner, $organization, $employee->getId()->toRfc4122(), $payload)->toArray(throw: false);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertContains('role', array_column($data['violations'] ?? [], 'propertyPath'));
+        self::assertSame(MembershipRole::Employee, self::roleIn($organization, $employee));
+    }
+
+    /** @return iterable<string, array{MembershipRole, MembershipRole, MembershipRole, int}> */
+    public static function roleChangeAuthorization(): iterable
+    {
+        foreach (MembershipRole::cases() as $actor) {
+            foreach (MembershipRole::cases() as $target) {
+                foreach (MembershipRole::cases() as $role) {
+                    $expectedStatus = match ($actor) {
+                        MembershipRole::Owner => 200,
+                        // Managers act on employees only and promote no one.
+                        MembershipRole::Manager => MembershipRole::Employee === $target && MembershipRole::Employee === $role ? 200 : 403,
+                        MembershipRole::Employee => 403,
+                    };
+
+                    yield \sprintf('%s makes a %s %s', $actor->value, $target->value, $role->value) => [$actor, $target, $role, $expectedStatus];
+                }
+            }
+        }
+    }
+
+    #[DataProvider('roleChangeAuthorization')]
+    public function test_it_authorizes_the_role_change_by_role(
+        MembershipRole $actorRole,
+        MembershipRole $targetRole,
+        MembershipRole $role,
+        int $expectedStatus,
+    ): void {
+        [$actor, $organization] = self::memberWithRole($actorRole);
+        $target = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $target, $targetRole);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::changeRole($actor, $organization, $target->getId()->toRfc4122(), ['role' => $role->value]);
+
+        self::assertResponseStatusCodeSame($expectedStatus);
+        self::assertSame(200 === $expectedStatus ? $role : $targetRole, self::roleIn($organization, $target));
+    }
+
+    #[DataProvider('demotionRoles')]
+    public function test_it_refuses_to_demote_the_last_owner(string $role): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        self::changeRole($owner, $organization, $owner->getId()->toRfc4122(), ['role' => $role]);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(MembershipRole::Owner, self::roleIn($organization, $owner));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function demotionRoles(): iterable
+    {
+        yield 'to manager' => ['manager'];
+        yield 'to employee' => ['employee'];
+    }
+
+    public function test_it_lets_an_owner_step_down_while_another_owner_remains(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $coOwner = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $coOwner, MembershipRole::Owner);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $data = self::changeRole($owner, $organization, $owner->getId()->toRfc4122(), ['role' => 'employee'])->toArray();
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([$owner->getId()->toRfc4122(), 'employee'], [$data['userId'], $data['role']]);
+        // Now an employee, they no longer manage the team; the remaining owner cannot step down.
+        static::clientFor($owner, $organization)->request('GET', '/api/members');
+        self::assertResponseStatusCodeSame(403);
+        self::changeRole($coOwner, $organization, $coOwner->getId()->toRfc4122(), ['role' => 'manager']);
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function test_it_refuses_to_change_the_role_of_an_unknown_or_malformed_user_id(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        self::changeRole($owner, $organization, Uuid::v7()->toRfc4122(), ['role' => 'manager']);
+        self::assertResponseStatusCodeSame(404);
+        self::changeRole($owner, $organization, 'not-a-uuid', ['role' => 'manager']);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function test_it_refuses_to_change_the_role_of_another_organizations_member(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $other = OrganizationFactory::createOne();
+        $otherEmployee = UserFactory::createOne();
+        OrganizationMother::addMember($other, $otherEmployee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::changeRole($owner, $organization, $otherEmployee->getId()->toRfc4122(), ['role' => 'manager']);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(MembershipRole::Employee, self::roleIn($other, $otherEmployee));
+    }
+
+    public function test_it_changes_the_role_in_the_selected_organization_only(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $other = OrganizationFactory::createOne();
+        $shared = UserFactory::createOne();
+        OrganizationMother::addMember($organization, $shared, MembershipRole::Employee);
+        OrganizationMother::addMember($other, $shared, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::changeRole($owner, $organization, $shared->getId()->toRfc4122(), ['role' => 'manager']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(MembershipRole::Manager, self::roleIn($organization, $shared));
+        self::assertSame(MembershipRole::Employee, self::roleIn($other, $shared));
+    }
+
+    public function test_it_refuses_a_role_change_in_an_organization_the_actor_does_not_belong_to(): void
+    {
+        [$owner] = self::memberWithRole(MembershipRole::Owner);
+        $other = OrganizationFactory::createOne();
+        $otherOwner = OrganizationMother::ownerOf($other);
+
+        self::changeRole($owner, $other, $otherOwner->getId()->toRfc4122(), ['role' => 'employee']);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(MembershipRole::Owner, self::roleIn($other, $otherOwner));
+    }
+
+    public function test_it_requires_a_selected_organization_to_change_a_role(): void
+    {
+        [$owner] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner)->request('PATCH', '/api/members/'.$owner->getId()->toRfc4122(), [
+            'json' => ['role' => 'manager'],
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function test_it_requires_authentication_to_change_a_role(): void
+    {
+        [$owner] = self::memberWithRole(MembershipRole::Owner);
+
+        static::createClient()->request('PATCH', '/api/members/'.$owner->getId()->toRfc4122(), [
+            'json' => ['role' => 'manager'],
+            'headers' => ['Accept' => 'application/json', 'Content-Type' => 'application/merge-patch+json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private static function changeRole(User $actor, Organization $organization, string $userId, array $payload): ResponseInterface
+    {
+        return static::clientFor($actor, $organization)->request('PATCH', '/api/members/'.$userId, [
+            'json' => $payload,
+            'headers' => ['Content-Type' => 'application/merge-patch+json'],
+        ]);
+    }
+
+    /** The user's role in the organization, read from the database. */
+    private static function roleIn(Organization $organization, User $user): ?MembershipRole
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->clear();
+
+        return $entityManager->getRepository(Membership::class)
+            ->findOneBy(['organization' => $organization->getId(), 'user' => $user->getId()])
+            ?->getRole();
     }
 
     private static function queuedEmail(): Email

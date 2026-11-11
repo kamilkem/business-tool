@@ -17,7 +17,7 @@ final readonly class GetMemberHandler implements QueryHandlerInterface
     ) {
     }
 
-    /** @throws OrganizationManagementForbiddenException when the actor is an employee */
+    /** @throws OrganizationManagementForbiddenException when an employee asks about another member */
     public function __invoke(GetMemberQuery $query): ?MemberView
     {
         if (!Uuid::isValid($query->organizationId) || !Uuid::isValid($query->actorId) || !Uuid::isValid($query->userId)) {
@@ -30,13 +30,8 @@ final readonly class GetMemberHandler implements QueryHandlerInterface
             return null;
         }
 
-        $userId = Uuid::fromString($query->userId);
-        foreach ($organization->membersVisibleTo($actorId) as $membership) {
-            if ($membership->getUser()->getId()->equals($userId)) {
-                return MemberView::fromMembership($membership);
-            }
-        }
+        $membership = $organization->memberVisibleTo($actorId, Uuid::fromString($query->userId));
 
-        return null;
+        return null === $membership ? null : MemberView::fromMembership($membership);
     }
 }

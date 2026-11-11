@@ -56,6 +56,13 @@ final class GetMemberHandlerTest extends TestCase
         self::assertNull($this->ask(UserMother::any('stranger@example.com'), $this->employee->getId()->toRfc4122()));
     }
 
+    public function test_it_returns_an_employee_their_own_membership(): void
+    {
+        $view = $this->ask($this->employee, $this->employee->getId()->toRfc4122());
+
+        self::assertSame($this->employee->getId()->toRfc4122(), $view?->userId);
+    }
+
     public function test_it_refuses_an_employee(): void
     {
         $this->expectException(OrganizationManagementForbiddenException::class);

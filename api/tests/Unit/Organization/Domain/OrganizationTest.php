@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Organization\Domain;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
+use App\Organization\Domain\Exception\LastOwnerException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
@@ -271,5 +272,178 @@ final class OrganizationTest extends TestCase
         $this->expectException(OrganizationManagementForbiddenException::class);
 
         $organization->manageableMembership($employee->getId(), $employee->getId());
+    }
+
+    /** @return iterable<string, array{MembershipRole, MembershipRole, MembershipRole, bool}> */
+    public static function roleChanges(): iterable
+    {
+        foreach (MembershipRole::cases() as $target) {
+            foreach (MembershipRole::cases() as $role) {
+                yield \sprintf('owner makes a %s %s', $target->value, $role->value) => [MembershipRole::Owner, $target, $role, true];
+                yield \sprintf('manager makes a %s %s', $target->value, $role->value) => [
+                    MembershipRole::Manager,
+                    $target,
+                    $role,
+                    MembershipRole::Employee === $target && MembershipRole::Employee === $role,
+                ];
+            }
+        }
+    }
+
+    #[DataProvider('roleChanges')]
+    public function test_it_lets_owners_change_any_role_and_managers_only_keep_employees_as_employees(
+        MembershipRole $actorRole,
+        MembershipRole $targetRole,
+        MembershipRole $role,
+        bool $allowed,
+    ): void {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $actor = $owner;
+        if (MembershipRole::Owner !== $actorRole) {
+            $actor = UserMother::any('actor@example.com');
+            OrganizationMother::addMember($organization, $actor, $actorRole);
+        }
+        $target = UserMother::any('target@example.com');
+        OrganizationMother::addMember($organization, $target, $targetRole);
+
+        try {
+            $organization->changeMemberRole($actor->getId(), $target->getId(), $role);
+            self::assertTrue($allowed, 'Expected the change to be refused.');
+            self::assertSame($role, $organization->membershipOf($target->getId())?->getRole());
+        } catch (RoleAssignmentForbiddenException) {
+            self::assertFalse($allowed, 'Expected the change to be allowed.');
+            self::assertSame($targetRole, $organization->membershipOf($target->getId())?->getRole());
+        }
+    }
+
+    public function test_it_refuses_role_changes_from_an_employee(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->changeMemberRole($employee->getId(), $employee->getId(), MembershipRole::Manager);
+    }
+
+    public function test_it_refuses_role_changes_from_a_non_member(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->changeMemberRole(Uuid::v7(), $owner->getId(), MembershipRole::Employee);
+    }
+
+    public function test_it_refuses_to_change_the_role_of_a_user_who_is_not_a_member(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+
+        $this->expectException(MemberNotFoundException::class);
+
+        $organization->changeMemberRole($owner->getId(), Uuid::v7(), MembershipRole::Manager);
+    }
+
+    /** @return iterable<string, array{MembershipRole}> */
+    public static function demotions(): iterable
+    {
+        yield 'to manager' => [MembershipRole::Manager];
+        yield 'to employee' => [MembershipRole::Employee];
+    }
+
+    #[DataProvider('demotions')]
+    public function test_it_refuses_to_demote_the_last_owner(MembershipRole $role): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        OrganizationMother::addMember($organization, UserMother::any('max@example.com'), MembershipRole::Manager);
+
+        try {
+            $organization->changeMemberRole($owner->getId(), $owner->getId(), $role);
+            self::fail('Expected the last owner to stay an owner.');
+        } catch (LastOwnerException) {
+        }
+
+        self::assertSame(MembershipRole::Owner, $organization->membershipOf($owner->getId())?->getRole());
+    }
+
+    public function test_it_keeps_the_last_owner_an_owner_when_their_role_is_set_to_owner_again(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+
+        $organization->changeMemberRole($owner->getId(), $owner->getId(), MembershipRole::Owner);
+
+        self::assertSame(MembershipRole::Owner, $organization->membershipOf($owner->getId())?->getRole());
+    }
+
+    #[DataProvider('demotions')]
+    public function test_it_lets_an_owner_step_down_when_another_owner_remains(MembershipRole $role): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $coOwner = UserMother::any('otto@example.com');
+        OrganizationMother::addMember($organization, $coOwner, MembershipRole::Owner);
+
+        $organization->changeMemberRole($owner->getId(), $owner->getId(), $role);
+
+        self::assertSame($role, $organization->membershipOf($owner->getId())?->getRole());
+        // The remaining owner is now the last one.
+        $this->expectException(LastOwnerException::class);
+        $organization->changeMemberRole($coOwner->getId(), $coOwner->getId(), $role);
+    }
+
+    public function test_it_lets_an_owner_demote_another_owner_when_one_remains(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $coOwner = UserMother::any('otto@example.com');
+        OrganizationMother::addMember($organization, $coOwner, MembershipRole::Owner);
+
+        $organization->changeMemberRole($owner->getId(), $coOwner->getId(), MembershipRole::Employee);
+
+        self::assertSame(MembershipRole::Employee, $organization->membershipOf($coOwner->getId())?->getRole());
+    }
+
+    public function test_it_shows_a_member_their_own_membership_whatever_their_role(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        self::assertSame($employee, $organization->memberVisibleTo($employee->getId(), $employee->getId())?->getUser());
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_shows_any_member_to_owners_and_managers(MembershipRole $role): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $actor = $owner;
+        if (MembershipRole::Manager === $role) {
+            $actor = UserMother::any('max@example.com');
+            OrganizationMother::addMember($organization, $actor, $role);
+        }
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        self::assertSame($employee, $organization->memberVisibleTo($actor->getId(), $employee->getId())?->getUser());
+        self::assertNull($organization->memberVisibleTo($actor->getId(), Uuid::v7()));
+    }
+
+    public function test_it_hides_other_members_from_an_employee(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->memberVisibleTo($employee->getId(), $owner->getId());
     }
 }

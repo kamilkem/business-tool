@@ -68,6 +68,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Changes a member's role in the selected organization.
+         * @description Owners give anyone any role, themselves included; managers act on employees only and cannot promote them (403 otherwise). The organization keeps at least one owner: demoting the last owner is a 409. A person who is not a member is a 404.
+         */
+        patch: operations["api_members_userId_patch"];
+        trace?: never;
+    };
     "/api/members/{userId}/invitation": {
         parameters: {
             query?: never;
@@ -328,7 +348,8 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them and resend invitations; managers act on employees only.
+         *     and managers may list and add them, change their roles and resend invitations; managers act on
+         *     employees only.
          */
         Member: {
             userId: string;
@@ -347,7 +368,8 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them and resend invitations; managers act on employees only.
+         *     and managers may list and add them, change their roles and resend invitations; managers act on
+         *     employees only.
          */
         "Member.AddMemberInput": {
             /** Format: email */
@@ -364,7 +386,20 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them and resend invitations; managers act on employees only.
+         *     and managers may list and add them, change their roles and resend invitations; managers act on
+         *     employees only.
+         */
+        "Member.UpdateMemberInput.jsonMergePatch": {
+            /**
+             * @description Owners give any role, themselves included, as long as an owner remains; managers keep employees as employees.
+             * @enum {string}
+             */
+            role?: "owner" | "manager" | "employee";
+        };
+        /**
+         * @description People with access to the organization selected by the X-Organization-Id header. Only owners
+         *     and managers may list and add them, change their roles and resend invitations; managers act on
+         *     employees only.
          */
         "Member.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             userId: string;
@@ -565,6 +600,78 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_members_userId_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Member identifier */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated Member resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["Member.UpdateMemberInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description Member resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Member.jsonld"];
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The actor may not act on this member or give this role. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The change would leave the organization without an owner. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description An error occurred */
             422: {

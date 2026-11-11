@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Grants a user access to an organization with a role. Part of the Organization aggregate:
- * created only through Organization::addMember().
+ * created only through Organization::addMember(), changed through Organization::changeMemberRole().
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'membership')]
@@ -38,6 +38,12 @@ class Membership
     ) {
         $this->id = Uuid::v7();
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    /** @internal use Organization::changeMemberRole() */
+    public function changeRole(MembershipRole $role): void
+    {
+        $this->role = $role;
     }
 
     public function getId(): Uuid
