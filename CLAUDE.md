@@ -126,6 +126,8 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 - Use the generated types by name: a Resource is `components["schemas"]["<shortName>"]` (e.g. `"Organization"`), an Input is `"<shortName>.<InputClass>"` (merge-patch: `"<shortName>.<InputClass>.jsonMergePatch"`).
 - Use `unwrap(api.GET(...))` inside TanStack Query `queryOptions`. Include anything organization-specific in query keys, or clear the cache on organization switch (see `frontend/admin/src/components/app-sidebar.tsx`).
 - PATCH uses `application/merge-patch+json`.
+- Dates and times from the API are shown in the selected organization's time zone, never the browser's (ADR 0019): `useDateTimeFormat()` (`@business-tool/ui/hooks/use-organization-time-zone`) for instants, and `@business-tool/ui/lib/date-time` for business dates (`"YYYY-MM-DD"`), periods (`{ from, to }`, inclusive), "today", "this month" and durations. Each app provides the zone with `<OrganizationTimeZoneContext>` from `/me`. Never call `toLocale*String()`, `new Date("YYYY-MM-DD")` or `Intl.DateTimeFormat` directly on API data. Month and period filters use `PeriodPicker` (`@business-tool/ui/components/period-picker`).
+- Unit tests (Vitest, ADR 0018) sit next to the code as `*.test.ts`, with `test_it_` names, and run with `TZ=America/New_York`: `pnpm test` in `frontend/` or `make test-frontend`.
 - After changing API resources: `make types`, then fix TS errors (`make qa`, or `pnpm typecheck` in `frontend/`).
 
 ## Commands
@@ -138,8 +140,8 @@ GitHub Actions in `.github/workflows/`; guard logic in `.github/scripts/`, runna
 
 | Workflow | Runs on | Checks | Locally |
 |---|---|---|---|
-| `ci.yaml` | PRs (not ADR/Markdown-only), `main` | API static (composer validate/audit, YAML and container lint, PHPStan, Deptrac); migrations + `schema:validate` + PHPUnit on PostgreSQL 17; frontend typecheck, lint, build, committed `routeTree.gen.ts`; `schema.d.ts` matches the OpenAPI export | `make qa`, `make types` |
-| `pr-guards.yaml` | every PR | no new suppressions (`@phpstan-ignore`, `ignoreErrors`, baselines, lint/TS disables, skipped tests, Deptrac `skip_violations`), no net drop in tests; merged migrations are never edited | `make guards` |
+| `ci.yaml` | PRs (not ADR/Markdown-only), `main` | API static (composer validate/audit, YAML and container lint, PHPStan, Deptrac); migrations + `schema:validate` + PHPUnit on PostgreSQL 17; frontend typecheck, lint, unit tests (Vitest, ADR 0018), build, committed `routeTree.gen.ts`; `schema.d.ts` matches the OpenAPI export | `make qa`, `make types` |
+| `pr-guards.yaml` | every PR | no new suppressions (`@phpstan-ignore`, `ignoreErrors`, baselines, lint/TS disables, skipped tests, Deptrac `skip_violations`), no net drop in tests (PHPUnit methods plus Vitest cases); merged migrations are never edited | `make guards` |
 | `secret-scan.yaml` | PRs, `main` | gitleaks on the PR's commits | — |
 | `adr-hygiene.yaml` | changes under `adr/` | ADR numbering, statuses, index | `make adr-check` |
 

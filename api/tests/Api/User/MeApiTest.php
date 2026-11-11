@@ -6,6 +6,7 @@ namespace App\Tests\Api\User;
 
 use App\Organization\Domain\Model\MembershipRole;
 use App\Tests\Api\ApiTestCase;
+use App\Tests\Factory\OrganizationFactory;
 
 final class MeApiTest extends ApiTestCase
 {
@@ -21,8 +22,25 @@ final class MeApiTest extends ApiTestCase
             'email' => $user->getEmail(),
             'memberships' => [[
                 'role' => 'manager',
-                'organization' => ['id' => $organization->getId()->toRfc4122(), 'name' => $organization->getName()],
+                'organization' => [
+                    'id' => $organization->getId()->toRfc4122(),
+                    'name' => $organization->getName(),
+                    'timezone' => $organization->getTimezone(),
+                ],
             ]],
+        ]);
+    }
+
+    public function test_it_returns_each_organizations_time_zone(): void
+    {
+        $organization = OrganizationFactory::createOne(['timezone' => 'America/New_York']);
+        $owner = ($organization->getMemberships()->first() ?: throw new \LogicException('Owner expected.'))->getUser();
+
+        static::clientFor($owner)->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains([
+            'memberships' => [['organization' => ['id' => $organization->getId()->toRfc4122(), 'timezone' => 'America/New_York']]],
         ]);
     }
 }

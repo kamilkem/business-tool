@@ -11,6 +11,8 @@ final readonly class MeMembershipView
         public string $role,
         public string $organizationId,
         public string $organizationName,
+        /** IANA time zone of the organization's business dates (ADR 0002). */
+        public string $organizationTimezone,
     ) {
     }
 }

@@ -41,7 +41,11 @@ final readonly class MeResource
                 static fn (MeMembershipView $membership): MeMembership => new MeMembership(
                     id: $membership->id,
                     role: MembershipRole::from($membership->role),
-                    organization: new MeOrganization($membership->organizationId, $membership->organizationName),
+                    organization: new MeOrganization(
+                        $membership->organizationId,
+                        $membership->organizationName,
+                        $membership->organizationTimezone,
+                    ),
                 ),
                 $view->memberships,
             ),

@@ -481,10 +481,14 @@ export interface components {
         MeOrganization: {
             id: string;
             name: string;
+            /** @description IANA time zone in which the organization's dates and times are shown, e.g. "Europe/Warsaw". */
+            timezone: string;
         };
         "MeOrganization.jsonld": {
             id: string;
             name: string;
+            /** @description IANA time zone in which the organization's dates and times are shown, e.g. "Europe/Warsaw". */
+            timezone: string;
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners

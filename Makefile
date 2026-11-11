@@ -73,6 +73,9 @@ timeclock: ## Start the timeclock PWA dev server (http://localhost:5174)
 types: ## Regenerate the TypeScript API client from OpenAPI
 	$(PNPM) api:types
 
+test-frontend: ## Run the frontend unit tests (vitest)
+	$(PNPM) test
+
 ## —— Quality ————————————————————————————————————————————————————
 adr-check: ## Check ADR numbering, statuses and index (adr/)
 	.github/scripts/check-adr-hygiene.sh
@@ -84,6 +87,7 @@ guards: ## PR guards from CI: no new suppressions, no edited merged migrations (
 qa: adr-check guards db-validate deptrac phpstan test ## Run every check
 	$(PNPM) typecheck
 	$(PNPM) lint
+	$(PNPM) test
 	$(PNPM) build
 
 help:

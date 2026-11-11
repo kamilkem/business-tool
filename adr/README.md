@@ -25,3 +25,5 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0015](0015-time-from-symfony-clock-passed-into-domain.md) | Time comes from Symfony Clock in the Application layer and is passed into the Domain | Accepted |
 | [0016](0016-clock-in-on-own-phone-server-time.md) | Employees clock in on their own phones with their own account; the server's clock sets the time | Accepted |
 | [0017](0017-business-dates-and-periods-as-value-objects.md) | Business dates and periods are value objects converted to UTC ranges with an explicit time zone | Accepted |
+| [0018](0018-frontend-unit-tests-with-vitest.md) | Frontend unit tests run with Vitest, in a browser time zone that is not the organization's | Accepted |
+| [0019](0019-frontend-dates-in-the-organizations-time-zone.md) | The frontend shows dates and times in the organization's time zone, with `Intl` and no date library | Accepted |
