@@ -29,11 +29,11 @@ final readonly class ListMembersHandler implements QueryHandlerInterface
 
         $userId = Uuid::fromString($query->userId);
         $organization = $this->organizations->findById(Uuid::fromString($query->organizationId));
-        if (null === $organization || null === $organization->membershipOf($userId)) {
+        if (null === $organization || !$organization->isActiveMember($userId)) {
             return null;
         }
 
-        $members = array_map(MemberView::fromMembership(...), $organization->membersVisibleTo($userId));
+        $members = array_map(MemberView::fromMembership(...), $organization->membersVisibleTo($userId, $query->includeDeactivated));
         usort($members, static fn (MemberView $a, MemberView $b): int => self::sortKey($a) <=> self::sortKey($b));
 
         return $members;

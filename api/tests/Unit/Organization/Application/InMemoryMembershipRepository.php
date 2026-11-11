@@ -20,12 +20,12 @@ final readonly class InMemoryMembershipRepository implements MembershipRepositor
         return $this->organizations->findById($organizationId)?->membershipOf($userId);
     }
 
-    public function findByUser(Uuid $userId): array
+    public function findActiveByUser(Uuid $userId): array
     {
         $memberships = [];
         foreach ($this->organizations->findByMember($userId) as $organization) {
             $membership = $organization->membershipOf($userId);
-            if (null !== $membership) {
+            if (null !== $membership && $membership->isActive()) {
                 $memberships[] = $membership;
             }
         }

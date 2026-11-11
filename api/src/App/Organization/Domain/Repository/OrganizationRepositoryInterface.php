@@ -11,7 +11,7 @@ interface OrganizationRepositoryInterface
 {
     public function findById(Uuid $id): ?Organization;
 
-    /** @return list<Organization> organizations the user is a member of, by name */
+    /** @return list<Organization> organizations the user is an active member of, by name */
     public function findByMember(Uuid $userId): array;
 
     public function add(Organization $organization): void;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Application\Command\ChangeMemberRole;
 
 use App\Organization\Domain\Exception\LastOwnerException;
+use App\Organization\Domain\Exception\MemberDeactivatedException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
@@ -26,13 +27,14 @@ final readonly class ChangeMemberRoleHandler implements CommandHandlerInterface
      * @throws OrganizationManagementForbiddenException when the actor is an employee
      * @throws MemberNotFoundException                  when the user is not a member
      * @throws RoleAssignmentForbiddenException         when the actor may not act on this member or give this role
-     * @throws LastOwnerException                       when the organization would be left without an owner
+     * @throws MemberDeactivatedException               when the member is deactivated
+     * @throws LastOwnerException                       when the organization would be left without an active owner
      */
     public function __invoke(ChangeMemberRoleCommand $command): void
     {
         $actorId = Uuid::fromString($command->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($command->organizationId));
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             throw OrganizationNotFoundException::forId($command->organizationId);
         }
 

@@ -29,7 +29,7 @@ final class OrganizationRepository extends ServiceEntityRepository implements Or
     {
         /** @var list<Organization> */
         return $this->createQueryBuilder('o')
-            ->andWhere(\sprintf('EXISTS (SELECT 1 FROM %s m WHERE m.organization = o AND m.user = :user)', Membership::class))
+            ->andWhere(\sprintf('EXISTS (SELECT 1 FROM %s m WHERE m.organization = o AND m.user = :user AND m.deactivatedAt IS NULL)', Membership::class))
             ->setParameter('user', $userId, UuidType::NAME)
             ->orderBy('o.name')
             ->getQuery()

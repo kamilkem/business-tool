@@ -32,7 +32,7 @@ final readonly class CanAddMemberHandler implements QueryHandlerInterface
 
         $actorId = Uuid::fromString($query->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($query->organizationId));
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             return null;
         }
 

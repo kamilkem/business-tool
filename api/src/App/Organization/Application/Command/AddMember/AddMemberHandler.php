@@ -6,6 +6,7 @@ namespace App\Organization\Application\Command\AddMember;
 
 use App\Organization\Domain\Event\MemberAdded;
 use App\Organization\Domain\Exception\AlreadyAMemberException;
+use App\Organization\Domain\Exception\MemberDeactivatedException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
@@ -33,12 +34,13 @@ final readonly class AddMemberHandler implements CommandHandlerInterface
      * @throws RoleAssignmentForbiddenException         when the actor may not give this role
      * @throws UserNotFoundException
      * @throws AlreadyAMemberException
+     * @throws MemberDeactivatedException               when the user is a deactivated member
      */
     public function __invoke(AddMemberCommand $command): void
     {
         $actorId = Uuid::fromString($command->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($command->organizationId));
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             throw OrganizationNotFoundException::forId($command->organizationId);
         }
 

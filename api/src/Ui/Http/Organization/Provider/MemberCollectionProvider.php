@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\Organization\Provider;
 
 use ApiPlatform\Metadata\Operation;
+use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\State\ProviderInterface;
 use App\Organization\Application\Query\ListMembers\ListMembersQuery;
 use App\Organization\Application\Query\ListMembers\MemberView;
@@ -16,7 +17,8 @@ use Ui\Http\Shared\Security\CurrentUser;
 
 /**
  * Lists the members of the organization selected by the X-Organization-Id header (400 without
- * it). Employees are refused by the domain (Organization::membersVisibleTo()).
+ * it): the active ones, or all with ?includeDeactivated=true. Employees are refused by the domain
+ * (Organization::membersVisibleTo()).
  *
  * @implements ProviderInterface<MemberResource>
  */
@@ -34,8 +36,10 @@ final readonly class MemberCollectionProvider implements ProviderInterface
     {
         $organizationId = $this->tenantContext->getOrganization()->getId()->toRfc4122();
 
+        $includeDeactivated = true === $operation->getParameters()?->get('includeDeactivated', QueryParameter::class)?->getValue();
+
         /** @var list<MemberView>|null $views */
-        $views = $this->queryBus->ask(new ListMembersQuery($organizationId, $this->currentUser->id()));
+        $views = $this->queryBus->ask(new ListMembersQuery($organizationId, $this->currentUser->id(), $includeDeactivated));
 
         return array_map(
             MemberResource::fromView(...),

@@ -24,10 +24,17 @@ final class OrganizationMother
         return $organization->addMember(self::ownerOf($organization)->getId(), $user, $role);
     }
 
+    /** Deactivates a member on behalf of the organization's first active owner. */
+    public static function deactivateMember(Organization $organization, User $user, ?\DateTimeImmutable $now = null): void
+    {
+        $organization->deactivateMember(self::ownerOf($organization)->getId(), $user->getId(), $now ?? new \DateTimeImmutable());
+    }
+
+    /** The organization's first active owner. */
     public static function ownerOf(Organization $organization): User
     {
         foreach ($organization->getMemberships() as $membership) {
-            if (MembershipRole::Owner === $membership->getRole()) {
+            if (MembershipRole::Owner === $membership->getRole() && $membership->isActive()) {
                 return $membership->getUser();
             }
         }

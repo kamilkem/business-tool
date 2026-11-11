@@ -52,14 +52,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Retrieves the collection of Member resources.
-         * @description Retrieves the collection of Member resources.
+         * Lists the members of the selected organization.
+         * @description Active members only, unless includeDeactivated is true. Owners and managers only (403 otherwise).
          */
         get: operations["api_members_get_collection"];
         put?: never;
         /**
          * Adds a person to the selected organization.
-         * @description An unknown e-mail gets a new account without a password (an invitation e-mail follows); a known one keeps its own name and password. Owners give any role, managers add employees only (403 otherwise); an existing member is a 409.
+         * @description An unknown e-mail gets a new account without a password (an invitation e-mail follows); a known one keeps its own name and password. Owners give any role, managers add employees only (403 otherwise); an existing member is a 409, and so is a deactivated one (reactivate them instead).
          */
         post: operations["api_members_post"];
         delete?: never;
@@ -83,9 +83,29 @@ export interface paths {
         head?: never;
         /**
          * Changes a member's role in the selected organization.
-         * @description Owners give anyone any role, themselves included; managers act on employees only and cannot promote them (403 otherwise). The organization keeps at least one owner: demoting the last owner is a 409. A person who is not a member is a 404.
+         * @description Owners give anyone any role, themselves included; managers act on employees only and cannot promote them (403 otherwise). The organization keeps at least one active owner: demoting the last one is a 409, as is changing a deactivated member. A person who is not a member is a 404.
          */
         patch: operations["api_members_userId_patch"];
+        trace?: never;
+    };
+    "/api/members/{userId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Removes a member's access to the selected organization.
+         * @description The membership is kept for the history that refers to it: the person no longer sees the organization, and requests that select it are a 403. A pending invitation stops working. Owners deactivate anyone, themselves included; managers employees only (403 otherwise). The organization keeps at least one active owner (409). A person who is not a member is a 404; deactivating a deactivated member changes nothing.
+         */
+        post: operations["api_members_userIddeactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/members/{userId}/invitation": {
@@ -99,9 +119,29 @@ export interface paths {
         put?: never;
         /**
          * Sends a new invitation e-mail to a member who has not set a password yet.
-         * @description The new link replaces the previous one. Owners resend to anyone, managers to employees only (403 otherwise); a person who is not a member is a 404, one who already has a password a 409.
+         * @description The new link replaces the previous one. Owners resend to anyone, managers to employees only (403 otherwise); a person who is not a member is a 404, one who already has a password or is deactivated a 409.
          */
         post: operations["api_members_userIdinvitation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/{userId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gives a deactivated member their access to the selected organization back, with their previous role.
+         * @description Owners reactivate anyone, managers employees only (403 otherwise). A person who is not a member is a 404; reactivating an active member changes nothing. An invitation that stopped working on deactivation is not resent: use POST /members/{userId}/invitation.
+         */
+        post: operations["api_members_userIdreactivate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -348,8 +388,9 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them, change their roles and resend invitations; managers act on
-         *     employees only.
+         *     and managers may list and add them, change their roles, resend invitations, and deactivate and
+         *     reactivate them; managers act on employees only. A deactivated member keeps their membership (for
+         *     the history that refers to it) but loses access to the organization.
          */
         Member: {
             userId: string;
@@ -365,11 +406,17 @@ export interface components {
             joinedAt: string;
             /** @description The person was invited but has not set a password yet, so they cannot sign in. */
             invitationPending: boolean;
+            /**
+             * Format: date-time
+             * @description When the person's access was removed; null for an active member.
+             */
+            deactivatedAt: string | null;
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them, change their roles and resend invitations; managers act on
-         *     employees only.
+         *     and managers may list and add them, change their roles, resend invitations, and deactivate and
+         *     reactivate them; managers act on employees only. A deactivated member keeps their membership (for
+         *     the history that refers to it) but loses access to the organization.
          */
         "Member.AddMemberInput": {
             /** Format: email */
@@ -386,8 +433,9 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them, change their roles and resend invitations; managers act on
-         *     employees only.
+         *     and managers may list and add them, change their roles, resend invitations, and deactivate and
+         *     reactivate them; managers act on employees only. A deactivated member keeps their membership (for
+         *     the history that refers to it) but loses access to the organization.
          */
         "Member.UpdateMemberInput.jsonMergePatch": {
             /**
@@ -398,8 +446,9 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list and add them, change their roles and resend invitations; managers act on
-         *     employees only.
+         *     and managers may list and add them, change their roles, resend invitations, and deactivate and
+         *     reactivate them; managers act on employees only. A deactivated member keeps their membership (for
+         *     the history that refers to it) but loses access to the organization.
          */
         "Member.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             userId: string;
@@ -415,6 +464,11 @@ export interface components {
             joinedAt: string;
             /** @description The person was invited but has not set a password yet, so they cannot sign in. */
             invitationPending: boolean;
+            /**
+             * Format: date-time
+             * @description When the person's access was removed; null for an active member.
+             */
+            deactivatedAt: string | null;
         };
         /** @description Organizations the signed-in user belongs to. */
         Organization: {
@@ -544,7 +598,10 @@ export interface operations {
     };
     api_members_get_collection: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Also list deactivated members. */
+                includeDeactivated?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -666,7 +723,71 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The change would leave the organization without an owner. */
+            /** @description The change would leave the organization without an active owner, or the member is deactivated. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_members_userIddeactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Member identifier */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The member is deactivated. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The actor may not act on this member. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member is the last active owner. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -730,8 +851,65 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The member has already set a password. */
+            /** @description The member has already set a password, or is deactivated. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_members_userIdreactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Member identifier */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The member is active. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The actor may not act on this member. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

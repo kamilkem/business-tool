@@ -16,6 +16,7 @@ final readonly class MemberView
         public string $role,
         public \DateTimeImmutable $joinedAt,
         public bool $invitationPending,
+        public ?\DateTimeImmutable $deactivatedAt,
     ) {
     }
 
@@ -31,6 +32,7 @@ final readonly class MemberView
             $membership->getRole()->value,
             $membership->getCreatedAt(),
             !$user->hasPassword(),
+            $membership->getDeactivatedAt(),
         );
     }
 }

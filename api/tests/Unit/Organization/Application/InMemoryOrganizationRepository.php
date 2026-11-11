@@ -25,7 +25,7 @@ final class InMemoryOrganizationRepository implements OrganizationRepositoryInte
     {
         $organizations = array_values(array_filter(
             $this->byId,
-            static fn (Organization $organization): bool => null !== $organization->membershipOf($userId),
+            static fn (Organization $organization): bool => $organization->isActiveMember($userId),
         ));
         usort($organizations, static fn (Organization $a, Organization $b): int => $a->getName() <=> $b->getName());
 

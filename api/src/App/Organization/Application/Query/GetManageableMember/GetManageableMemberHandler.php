@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Application\Query\GetManageableMember;
 
 use App\Organization\Application\Query\ListMembers\MemberView;
+use App\Organization\Domain\Exception\MemberDeactivatedException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
@@ -23,6 +24,7 @@ final readonly class GetManageableMemberHandler implements QueryHandlerInterface
      * @throws OrganizationManagementForbiddenException when the actor is an employee
      * @throws MemberNotFoundException                  when the user is not a member
      * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
+     * @throws MemberDeactivatedException               when the member is deactivated
      */
     public function __invoke(GetManageableMemberQuery $query): ?MemberView
     {
@@ -32,7 +34,7 @@ final readonly class GetManageableMemberHandler implements QueryHandlerInterface
 
         $actorId = Uuid::fromString($query->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($query->organizationId));
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             return null;
         }
 
