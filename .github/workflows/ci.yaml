@@ -1,0 +1,310 @@
+# The `make qa` gates, run on GitHub (adr/0011-continuous-integration-on-github-actions.md).
+#
+# Jobs run on the runner (setup-php, setup-node), not in the compose stack: same PHP, Node and
+# PostgreSQL majors as compose.yaml and api/Dockerfile, without building the FrankenPHP image.
+# Keep the versions below in step with those files.
+name: CI
+
+on:
+    pull_request:
+        paths-ignore:
+            # ADRs have their own workflow (adr-hygiene.yaml); Markdown changes nothing that runs.
+            - "adr/**"
+            - "**/*.md"
+    push:
+        branches:
+            - main
+    workflow_dispatch: ~
+
+permissions:
+    contents: read
+
+concurrency:
+    # A PR builds once per push (pull_request event); a merge builds on main.
+    group: ci-${{ github.event_name }}-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    PHP_VERSION: "8.4"
+    PHP_EXTENSIONS: apcu, intl, opcache, pdo_pgsql, zip
+    NODE_VERSION: "22"
+
+jobs:
+    changes:
+        name: Detect changed paths
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            api: ${{ steps.filter.outputs.api }}
+            frontend: ${{ steps.filter.outputs.frontend }}
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   # Outside pull_request (push to main, manual run) every filter is true.
+                name: Filter
+                id: filter
+                uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+                with:
+                    filters: |
+                        workflow: &workflow
+                            - ".github/workflows/ci.yaml"
+                        api:
+                            - *workflow
+                            - "api/**"
+                        frontend:
+                            - *workflow
+                            - "frontend/**"
+
+    api-static:
+        name: "API: static checks"
+        needs: changes
+        if: needs.changes.outputs.api == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        defaults:
+            run:
+                working-directory: api
+        env:
+            # PHPStan reads the dev container (phpstan.dist.neon), so the cache is warmed in dev.
+            APP_ENV: dev
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+                with:
+                    php-version: ${{ env.PHP_VERSION }}
+                    extensions: ${{ env.PHP_EXTENSIONS }}
+                    coverage: none
+                    tools: composer:v2
+
+            -   name: Get the Composer cache directory
+                id: composer-cache
+                run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            -   name: Cache Composer packages
+                uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+                with:
+                    path: ${{ steps.composer-cache.outputs.dir }}
+                    key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('api/composer.lock') }}
+                    restore-keys: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+            -   # Always from the lock, so CI sees the versions `make qa` sees locally.
+                name: Install dependencies
+                run: composer install --no-interaction --no-progress --prefer-dist
+
+            -   name: Validate composer.json and composer.lock
+                run: composer validate --strict --no-check-version --no-check-publish
+
+            -   # Abandoned packages are reported, not failed on: only advisories fail the build.
+                name: Check dependencies for security advisories
+                run: composer audit --abandoned=report
+
+            -   name: Lint YAML config
+                run: bin/console lint:yaml config --parse-tags
+
+            -   name: Lint the service container
+                run: bin/console lint:container
+
+            -   name: Warm up the dev cache (container XML for PHPStan)
+                run: bin/console cache:warmup --quiet
+
+            -   name: PHPStan
+                run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress --error-format=github
+
+            -   name: Deptrac (layer dependencies)
+                run: vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress
+
+    api-tests:
+        name: "API: migrations and PHPUnit"
+        needs: changes
+        if: needs.changes.outputs.api == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        defaults:
+            run:
+                working-directory: api
+        services:
+            database:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_DB: app
+                    POSTGRES_USER: app
+                    POSTGRES_PASSWORD: app
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -d app -U app"
+                    --health-interval 2s
+                    --health-timeout 5s
+                    --health-retries 30
+        env:
+            # Same DSN as api/.env; the test env adds the `_test` suffix (doctrine.yaml).
+            DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app?serverVersion=17&charset=utf8
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+                with:
+                    php-version: ${{ env.PHP_VERSION }}
+                    extensions: ${{ env.PHP_EXTENSIONS }}
+                    coverage: none
+                    tools: composer:v2
+
+            -   name: Get the Composer cache directory
+                id: composer-cache
+                run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            -   name: Cache Composer packages
+                uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+                with:
+                    path: ${{ steps.composer-cache.outputs.dir }}
+                    key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('api/composer.lock') }}
+                    restore-keys: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+            -   name: Install dependencies
+                run: composer install --no-interaction --no-progress --prefer-dist
+
+            -   # The keys are git-ignored; dev and test share the passphrase from .env.dev / .env.test.
+                name: Generate the JWT keypair
+                run: bin/console lexik:jwt:generate-keypair --env=test
+
+            -   # Tests build their schema from mapping (Foundry `mode: schema`), so this is the only
+                # place where the migrations themselves run in CI. Like `make db-validate`, it then
+                # checks that the database they built matches the mapping.
+                name: Run migrations on an empty database
+                run: bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing --env=dev
+
+            -   name: Validate the mapping against the migrated schema
+                run: bin/console doctrine:schema:validate --env=dev
+
+            -   name: PHPUnit
+                run: vendor/bin/phpunit --colors=always
+
+            -   name: Upload logs
+                if: failure()
+                uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+                with:
+                    name: api-logs-${{ github.run_id }}-${{ github.run_attempt }}
+                    path: api/var/log
+                    if-no-files-found: ignore
+
+    frontend:
+        name: "Frontend: typecheck, lint, build"
+        needs: changes
+        if: needs.changes.outputs.frontend == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   # The pnpm version comes from `packageManager` in frontend/package.json.
+                name: Set up pnpm
+                uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+                with:
+                    package_json_file: frontend/package.json
+
+            -   name: Set up Node
+                uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+                with:
+                    node-version: ${{ env.NODE_VERSION }}
+                    cache: pnpm
+                    cache-dependency-path: frontend/pnpm-lock.yaml
+
+            -   name: Install dependencies
+                run: pnpm install --frozen-lockfile
+
+            -   name: Typecheck
+                run: pnpm typecheck
+
+            -   name: Lint
+                run: pnpm lint
+
+            -   name: Build
+                run: pnpm build
+
+            -   # The TanStack Router plugin regenerates src/routeTree.gen.ts during the build.
+                name: Check generated route trees are committed
+                run: |
+                    git diff --exit-code -- '*/src/routeTree.gen.ts' || {
+                        echo "::error::routeTree.gen.ts is out of date: run 'pnpm build' (or the dev server) in frontend/ and commit the result"
+                        exit 1
+                    }
+
+    api-types:
+        name: "API client types match the OpenAPI document"
+        needs: changes
+        # The drift comes from API resources (api/**) or from the generator (frontend/**).
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.frontend == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   name: Set up PHP
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+                with:
+                    php-version: ${{ env.PHP_VERSION }}
+                    extensions: ${{ env.PHP_EXTENSIONS }}
+                    coverage: none
+                    tools: composer:v2
+
+            -   name: Get the Composer cache directory
+                id: composer-cache
+                working-directory: api
+                run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            -   name: Cache Composer packages
+                uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+                with:
+                    path: ${{ steps.composer-cache.outputs.dir }}
+                    key: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-${{ hashFiles('api/composer.lock') }}
+                    restore-keys: ${{ runner.os }}-php-${{ env.PHP_VERSION }}-composer-
+
+            -   name: Install PHP dependencies
+                working-directory: api
+                run: composer install --no-interaction --no-progress --prefer-dist
+
+            -   # The same document `make types` reads from /api/docs.jsonopenapi; exporting it needs
+                # no running server and no database.
+                name: Export the OpenAPI document
+                working-directory: api
+                run: bin/console api:openapi:export --output=var/openapi.json
+
+            -   name: Set up pnpm
+                uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+                with:
+                    package_json_file: frontend/package.json
+
+            -   name: Set up Node
+                uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+                with:
+                    node-version: ${{ env.NODE_VERSION }}
+                    cache: pnpm
+                    cache-dependency-path: frontend/pnpm-lock.yaml
+
+            -   name: Install JS dependencies
+                working-directory: frontend
+                run: pnpm install --frozen-lockfile --filter @business-tool/api-client
+
+            -   name: Check schema.d.ts is up to date
+                working-directory: frontend
+                env:
+                    API_SPEC: ${{ github.workspace }}/api/var/openapi.json
+                run: |
+                    pnpm --filter @business-tool/api-client generate
+                    git diff --exit-code -- packages/api-client/src/schema.d.ts || {
+                        echo "::error::packages/api-client/src/schema.d.ts is out of date: run 'make types' and commit the result"
+                        exit 1
+                    }

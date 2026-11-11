@@ -123,3 +123,18 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 ## Commands
 
 Run `make help`. Before committing, run `make qa`.
+
+## CI (ADR 0011)
+
+GitHub Actions in `.github/workflows/`; guard logic in `.github/scripts/`, runnable locally.
+
+| Workflow | Runs on | Checks | Locally |
+|---|---|---|---|
+| `ci.yaml` | PRs (not ADR/Markdown-only), `main` | API static (composer validate/audit, YAML and container lint, PHPStan, Deptrac); migrations + `schema:validate` + PHPUnit on PostgreSQL 17; frontend typecheck, lint, build, committed `routeTree.gen.ts`; `schema.d.ts` matches the OpenAPI export | `make qa`, `make types` |
+| `pr-guards.yaml` | every PR | no new suppressions (`@phpstan-ignore`, `ignoreErrors`, baselines, lint/TS disables, skipped tests, Deptrac `skip_violations`), no net drop in tests; merged migrations are never edited | `make guards` |
+| `secret-scan.yaml` | PRs, `main` | gitleaks on the PR's commits | — |
+| `adr-hygiene.yaml` | changes under `adr/` | ADR numbering, statuses, index | `make adr-check` |
+
+- The only way past `pr-guards` is the `intentional-exception` label on the PR, with the reason in the PR description and in a comment next to the suppression.
+- CI runs on the runner, not in Docker: when bumping PHP, Node or PostgreSQL in `api/Dockerfile` or `compose.yaml`, bump `.github/workflows/ci.yaml` too.
+- Actions are pinned to a commit SHA with the version in a comment. A new CI gate gets a local `make` target or script in the same change.

@@ -1,0 +1,47 @@
+# Weekly grouped updates. CI installs from the lock files, so newer tool versions arrive only
+# through these PRs, where every CI job runs.
+version: 2
+updates:
+  - package-ecosystem: composer
+    directory: "/api"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    ignore:
+      # Symfony minor upgrades are pinned by extra.symfony.require (8.1.*), which only the Flex
+      # plugin enforces; Dependabot runs Composer without plugins. Upgrade Symfony by hand.
+      - dependency-name: "symfony/*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+    groups:
+      api-composer:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    groups:
+      frontend-npm:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
