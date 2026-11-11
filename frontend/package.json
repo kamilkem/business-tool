@@ -11,9 +11,11 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
     "api:types": "pnpm --filter @business-tool/api-client generate"
   },
   "devDependencies": {
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^5.1.0"
   }
 }

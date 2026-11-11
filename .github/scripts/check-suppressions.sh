@@ -10,7 +10,7 @@
 #      eslint-disable / oxlint-disable, @ts-ignore / @ts-expect-error / @ts-nocheck,
 #      it.skip( / describe.skip( / test.skip(,
 #   3. adds an entry under Deptrac `skip_violations:` in api/deptrac.yaml,
-#   4. lowers the number of test methods (net).
+#   4. lowers the number of test methods (net): PHPUnit methods plus vitest `it(`/`test(` cases.
 #
 # Escape hatch: ALLOW_SUPPRESSIONS=1 (the workflow sets it when the PR has the
 # `intentional-exception` label). The reason goes in a comment next to the suppression and in the
@@ -123,9 +123,14 @@ fi
 # --- 4. Net drop in test methods -----------------------------------------------------------
 # --threads=1: threaded `git grep` on a tree (seen with git 2.47 on macOS) sometimes drops a
 # matching line, so the same revision counted 261-263 and the guard failed at random.
+# PHPUnit methods in api/tests plus vitest cases (`it(` / `test(`) in frontend *.test.ts(x) files.
 test_count() {
-    git grep --threads=1 -h -I -E 'function test_?[A-Za-z0-9_]*\(|#\[Test\]' "$1" -- api/tests 2>/dev/null \
-        | wc -l | tr -d ' '
+    local php js
+    php="$(git grep --threads=1 -h -I -E 'function test_?[A-Za-z0-9_]*\(|#\[Test\]' "$1" -- api/tests 2>/dev/null \
+        | wc -l | tr -d ' ')"
+    js="$(git grep --threads=1 -h -I -E '(^|[^A-Za-z0-9_$.])(it|test)\(' "$1" -- \
+        'frontend/*.test.ts' 'frontend/*.test.tsx' 2>/dev/null | wc -l | tr -d ' ')"
+    echo $((php + js))
 }
 
 BASE_TESTS="$(test_count "$BASE_REF")"

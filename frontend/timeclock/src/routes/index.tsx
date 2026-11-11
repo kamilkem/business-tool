@@ -6,18 +6,12 @@ import { CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LogOutIcon, WifiOff
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
 import { Skeleton } from "@business-tool/ui/components/skeleton"
+import { OrganizationTimeZoneContext, useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { browserTimeZone, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 
 import { currentShiftQuery, meQuery, type Shift } from "@/lib/queries"
-import {
-  clockErrorMessage,
-  elapsedMs,
-  formatClockTime,
-  formatElapsed,
-  formatWorked,
-  useClockMutation,
-  useNow,
-  useOnline,
-} from "@/lib/shifts"
+import { elapsedMs, formatClockTime, formatElapsed, formatWorked } from "@/lib/format"
+import { clockErrorMessage, useClockMutation, useNow, useOnline } from "@/lib/shifts"
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context, location }) => {
@@ -75,7 +69,9 @@ function ClockScreen() {
       </header>
 
       {membership ? (
-        <ClockPanel organizationId={membership.organization.id} />
+        <OrganizationTimeZoneContext value={membership.organization.timezone}>
+          <ClockPanel organizationId={membership.organization.id} />
+        </OrganizationTimeZoneContext>
       ) : (
         <main className="flex flex-1 flex-col items-center justify-center px-4 text-center">
           <p className="max-w-xs text-muted-foreground">
@@ -92,6 +88,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
   const online = useOnline()
   const current = useQuery(currentShiftQuery(organizationId))
   const clock = useClockMutation(organizationId)
+  const format = useDateTimeFormat()
 
   const shift = current.data
   const action = shift ? "out" : "in"
@@ -104,17 +101,18 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
         {current.isPending ? (
           <Skeleton className="h-24 w-56" />
         ) : shift ? (
-          <RunningShift shift={shift} now={now} />
+          <RunningShift shift={shift} now={now} format={format} />
         ) : (
           <>
             <div className="text-sm font-medium text-muted-foreground">Not clocked in</div>
             <div className="text-6xl font-semibold tabular-nums tracking-tight">
-              {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {format.time(now)}
             </div>
-            <div className="text-muted-foreground">
-              {now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}
-            </div>
+            <div className="text-muted-foreground">{format.date(now, TODAY)}</div>
           </>
+        )}
+        {format.timeZone !== browserTimeZone() && (
+          <p className="text-xs text-muted-foreground">Times in {format.timeZone.replaceAll("_", " ")}</p>
         )}
       </main>
 
@@ -141,7 +139,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           <Alert>
             <CircleCheckIcon />
             <AlertDescription>
-              Clocked out at {formatClockTime(endedShift.endedAt, now)}. You worked{" "}
+              Clocked out at {formatClockTime(format, endedShift.endedAt, now)}. You worked{" "}
               {formatWorked(elapsedMs(endedShift.startedAt, endedShift.endedAt))}.
             </AlertDescription>
           </Alert>
@@ -175,19 +173,20 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
   )
 }
 
-function RunningShift({ shift, now }: { shift: Shift; now: Date }) {
+/** "Wednesday, 11 November" (the locale decides the order). */
+const TODAY: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" }
+
+function RunningShift({ shift, now, format }: { shift: Shift; now: Date; format: DateTimeFormat }) {
   return (
     <>
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className="size-2 rounded-full bg-green-600" aria-hidden />
-        On shift since {formatClockTime(shift.startedAt, now)}
+        On shift since {formatClockTime(format, shift.startedAt, now)}
       </div>
       <div className="text-6xl font-semibold tabular-nums tracking-tight" aria-label="Time on shift">
         {formatElapsed(elapsedMs(shift.startedAt, now))}
       </div>
-      <div className="text-muted-foreground">
-        {now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}
-      </div>
+      <div className="text-muted-foreground">{format.date(now, TODAY)}</div>
     </>
   )
 }

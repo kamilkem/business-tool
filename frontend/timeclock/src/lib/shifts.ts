@@ -93,34 +93,3 @@ function subscribeOnline(listener: () => void) {
 export function useOnline(): boolean {
   return useSyncExternalStore(subscribeOnline, () => navigator.onLine)
 }
-
-/** Milliseconds between two moments, never negative (the phone's clock may be behind the server's). */
-export function elapsedMs(from: string, to: Date | string): number {
-  return Math.max(0, new Date(to).getTime() - new Date(from).getTime())
-}
-
-/** "2:05:09" for a running shift. */
-export function formatElapsed(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-}
-
-/** "7 h 32 min" for a finished shift. */
-export function formatWorked(ms: number): string {
-  const totalMinutes = Math.floor(ms / 60_000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  if (hours === 0) return minutes === 0 ? "less than a minute" : `${minutes} min`
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`
-}
-
-/** "14:02" today, "Mon 22:10" for a shift that started on an earlier day. */
-export function formatClockTime(moment: string, now: Date): string {
-  const date = new Date(moment)
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  if (date.toDateString() === now.toDateString()) return time
-  return `${date.toLocaleDateString([], { weekday: "short" })} ${time}`
-}

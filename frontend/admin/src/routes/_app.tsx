@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@business-tool/ui/components/sidebar"
 import { Separator } from "@business-tool/ui/components/separator"
+import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { CreateOrganization } from "@/components/create-organization"
@@ -36,19 +37,22 @@ function AppLayout() {
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      {/* min-w-0 lets wide content (tables) scroll inside the page instead of widening it. */}
-      <SidebarInset className="min-w-0">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <span className="text-sm font-medium">{membership.organization.name}</span>
-        </header>
-        <main className="flex-1 p-4 md:p-6">
-          <Outlet />
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    // Dates and times on every page are shown in the organization's time zone (ADR 0002 §4).
+    <OrganizationTimeZoneContext value={membership.organization.timezone}>
+      <SidebarProvider>
+        <AppSidebar />
+        {/* min-w-0 lets wide content (tables) scroll inside the page instead of widening it. */}
+        <SidebarInset className="min-w-0">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+            <span className="text-sm font-medium">{membership.organization.name}</span>
+          </header>
+          <main className="flex-1 p-4 md:p-6">
+            <Outlet />
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </OrganizationTimeZoneContext>
   )
 }

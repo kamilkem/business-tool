@@ -30,6 +30,7 @@ final readonly class GetMeHandler implements QueryHandlerInterface
                 $membership->getRole()->value,
                 $membership->getOrganization()->getId()->toRfc4122(),
                 $membership->getOrganization()->getName(),
+                $membership->getOrganization()->getTimezone(),
             );
         }
 

@@ -196,7 +196,7 @@ jobs:
                     if-no-files-found: ignore
 
     frontend:
-        name: "Frontend: typecheck, lint, build"
+        name: "Frontend: typecheck, lint, test, build"
         needs: changes
         if: needs.changes.outputs.frontend == 'true'
         runs-on: ubuntu-latest
@@ -229,6 +229,10 @@ jobs:
 
             -   name: Lint
                 run: pnpm lint
+
+            -   # vitest, with TZ=America/New_York set in vitest.config.mts (ADR 0018).
+                name: Unit tests
+                run: pnpm test
 
             -   name: Build
                 run: pnpm build

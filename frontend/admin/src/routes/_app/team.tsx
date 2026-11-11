@@ -36,6 +36,7 @@ import {
   TableRow,
 } from "@business-tool/ui/components/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@business-tool/ui/components/tooltip"
+import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { AddMemberDialog } from "@/components/add-member-dialog"
 import { api } from "@/lib/api"
@@ -292,8 +293,6 @@ const statusBadges: Record<MemberStatus, { label: string; variant: "secondary" |
   deactivated: { label: "Deactivated", variant: "ghost" },
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
-
 interface MemberRowProps {
   member: Member
   isSelf: boolean
@@ -317,6 +316,7 @@ function MemberRow({
   onDeactivate,
   onReactivate,
 }: MemberRowProps) {
+  const format = useDateTimeFormat()
   const active = isActive(member)
   const allowed = canActOn(actorRole, member)
   const roles = assignableRoles(actorRole)
@@ -346,7 +346,7 @@ function MemberRow({
       <TableCell>
         <Badge variant={status.variant}>{status.label}</Badge>
       </TableCell>
-      <TableCell>{dateFormat.format(new Date(member.joinedAt))}</TableCell>
+      <TableCell>{format.date(member.joinedAt)}</TableCell>
       <TableCell className="pr-4 text-right">
         {(canResend || canDeactivate || canReactivate) && (
           <DropdownMenu>
