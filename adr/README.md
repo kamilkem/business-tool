@@ -22,3 +22,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0012](0012-transactional-email-smtp-async-queue.md) | Transactional e-mail: Symfony Mailer over SMTP, queued in PostgreSQL and sent by a worker | Accepted |
 | [0013](0013-member-access-by-one-time-email-link.md) | New members get access through a one-time e-mailed link; the same tokens reset forgotten passwords | Accepted |
 | [0014](0014-deactivate-members-never-delete.md) | Members are deactivated, never deleted; a deactivated membership gives no access | Accepted |
+| [0015](0015-time-from-symfony-clock-passed-into-domain.md) | Time comes from Symfony Clock in the Application layer and is passed into the Domain | Accepted |

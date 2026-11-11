@@ -53,15 +53,16 @@ class Organization
         #[ORM\Column(length: 255)]
         private string $name,
         User $owner,
+        \DateTimeImmutable $createdAt,
         ?string $taxId = null,
         string $countryCode = 'PL',
         string $currency = 'PLN',
         string $timezone = 'Europe/Warsaw',
     ) {
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = $createdAt;
         $this->memberships = new ArrayCollection();
         $this->apply($name, $taxId, $countryCode, $currency, $timezone);
-        $this->grantMembership($owner, MembershipRole::Owner);
+        $this->grantMembership($owner, MembershipRole::Owner, $createdAt);
     }
 
     /**
@@ -72,11 +73,11 @@ class Organization
      * @throws AlreadyAMemberException                  when the user is already a member
      * @throws MemberDeactivatedException               when the user is a deactivated member (reactivate them instead)
      */
-    public function addMember(Uuid $actorId, User $user, MembershipRole $role): Membership
+    public function addMember(Uuid $actorId, User $user, MembershipRole $role, \DateTimeImmutable $now): Membership
     {
         $this->assertCanAddMember($actorId, $role);
 
-        return $this->grantMembership($user, $role);
+        return $this->grantMembership($user, $role, $now);
     }
 
     /**
@@ -242,7 +243,7 @@ class Organization
         ));
     }
 
-    private function grantMembership(User $user, MembershipRole $role): Membership
+    private function grantMembership(User $user, MembershipRole $role, \DateTimeImmutable $now): Membership
     {
         $existing = $this->membershipOf($user->getId());
         if (null !== $existing) {
@@ -251,7 +252,7 @@ class Organization
                 : MemberDeactivatedException::of($user->getId()->toRfc4122(), $this->id->toRfc4122());
         }
 
-        $membership = new Membership($this, $user, $role);
+        $membership = new Membership($this, $user, $role, $now);
         $this->memberships->add($membership);
 
         return $membership;

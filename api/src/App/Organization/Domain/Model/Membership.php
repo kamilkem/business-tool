@@ -43,9 +43,10 @@ class Membership
         private User $user,
         #[ORM\Column(length: 20, enumType: MembershipRole::class)]
         private MembershipRole $role,
+        \DateTimeImmutable $createdAt,
     ) {
         $this->id = Uuid::v7();
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = $createdAt;
     }
 
     /** @internal use Organization::changeMemberRole() */

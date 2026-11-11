@@ -24,6 +24,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(Membership::class)]
 final class MemberDeactivationTest extends TestCase
 {
+    private const string NOW = '2026-11-11 12:00:00';
+
     private User $owner;
     private Organization $organization;
 
@@ -81,7 +83,7 @@ final class MemberDeactivationTest extends TestCase
         $target = $this->member('target@example.com', $targetRole);
 
         try {
-            $this->organization->deactivateMember($actor->getId(), $target->getId(), new \DateTimeImmutable());
+            $this->organization->deactivateMember($actor->getId(), $target->getId(), self::now());
             self::assertTrue($allowed, 'Expected the deactivation to be refused.');
         } catch (RoleAssignmentForbiddenException) {
             self::assertFalse($allowed, 'Expected the deactivation to be allowed.');
@@ -96,21 +98,21 @@ final class MemberDeactivationTest extends TestCase
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 
-        $this->organization->deactivateMember($employee->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($employee->getId(), $employee->getId(), self::now());
     }
 
     public function test_it_refuses_a_deactivation_from_a_non_member(): void
     {
         $this->expectException(OrganizationManagementForbiddenException::class);
 
-        $this->organization->deactivateMember(Uuid::v7(), $this->owner->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember(Uuid::v7(), $this->owner->getId(), self::now());
     }
 
     public function test_it_refuses_to_deactivate_a_user_who_is_not_a_member(): void
     {
         $this->expectException(MemberNotFoundException::class);
 
-        $this->organization->deactivateMember($this->owner->getId(), Uuid::v7(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), Uuid::v7(), self::now());
     }
 
     public function test_it_refuses_to_let_the_last_owner_deactivate_themselves(): void
@@ -118,7 +120,7 @@ final class MemberDeactivationTest extends TestCase
         $this->member('max@example.com', MembershipRole::Manager);
 
         try {
-            $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), new \DateTimeImmutable());
+            $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), self::now());
             self::fail('Expected the last owner to stay active.');
         } catch (LastOwnerException) {
         }
@@ -129,18 +131,18 @@ final class MemberDeactivationTest extends TestCase
     public function test_it_counts_only_active_owners_when_keeping_the_last_one(): void
     {
         $coOwner = $this->member('otto@example.com', MembershipRole::Owner);
-        $this->organization->deactivateMember($this->owner->getId(), $coOwner->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $coOwner->getId(), self::now());
 
         $this->expectException(LastOwnerException::class);
 
-        $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), self::now());
     }
 
     public function test_it_lets_an_owner_deactivate_themselves_while_another_owner_remains(): void
     {
         $coOwner = $this->member('otto@example.com', MembershipRole::Owner);
 
-        $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $this->owner->getId(), self::now());
 
         self::assertFalse($this->organization->isActiveMember($this->owner->getId()));
         self::assertTrue($this->organization->isActiveMember($coOwner->getId()));
@@ -149,7 +151,7 @@ final class MemberDeactivationTest extends TestCase
     public function test_it_refuses_to_demote_the_last_active_owner(): void
     {
         $coOwner = $this->member('otto@example.com', MembershipRole::Owner);
-        $this->organization->deactivateMember($this->owner->getId(), $coOwner->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $coOwner->getId(), self::now());
 
         $this->expectException(LastOwnerException::class);
 
@@ -160,17 +162,17 @@ final class MemberDeactivationTest extends TestCase
     {
         $manager = $this->member('max@example.com', MembershipRole::Manager);
         $employee = $this->member('eve@example.com', MembershipRole::Employee);
-        $this->organization->deactivateMember($this->owner->getId(), $manager->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $manager->getId(), self::now());
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 
-        $this->organization->deactivateMember($manager->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($manager->getId(), $employee->getId(), self::now());
     }
 
     public function test_it_hides_deactivated_members_from_the_list_unless_asked(): void
     {
         $employee = $this->member('eve@example.com', MembershipRole::Employee);
-        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), self::now());
 
         self::assertSame([$this->owner], self::users($this->organization->membersVisibleTo($this->owner->getId())));
         self::assertSame([$this->owner, $employee], self::users($this->organization->membersVisibleTo($this->owner->getId(), includeDeactivated: true)));
@@ -179,17 +181,17 @@ final class MemberDeactivationTest extends TestCase
     public function test_it_refuses_to_add_a_deactivated_member_again(): void
     {
         $employee = $this->member('eve@example.com', MembershipRole::Employee);
-        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), self::now());
 
         $this->expectException(MemberDeactivatedException::class);
 
-        $this->organization->addMember($this->owner->getId(), $employee, MembershipRole::Manager);
+        $this->organization->addMember($this->owner->getId(), $employee, MembershipRole::Manager, self::now());
     }
 
     public function test_it_refuses_to_change_the_role_of_a_deactivated_member(): void
     {
         $employee = $this->member('eve@example.com', MembershipRole::Employee);
-        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), self::now());
 
         $this->expectException(MemberDeactivatedException::class);
 
@@ -199,7 +201,7 @@ final class MemberDeactivationTest extends TestCase
     public function test_it_refuses_to_act_on_a_deactivated_member(): void
     {
         $employee = $this->member('eve@example.com', MembershipRole::Employee);
-        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $employee->getId(), self::now());
 
         $this->expectException(MemberDeactivatedException::class);
 
@@ -209,7 +211,7 @@ final class MemberDeactivationTest extends TestCase
     public function test_it_reactivates_a_member_with_the_role_they_had(): void
     {
         $manager = $this->member('max@example.com', MembershipRole::Manager);
-        $this->organization->deactivateMember($this->owner->getId(), $manager->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $manager->getId(), self::now());
 
         $this->organization->reactivateMember($this->owner->getId(), $manager->getId());
 
@@ -237,7 +239,7 @@ final class MemberDeactivationTest extends TestCase
     ): void {
         $actor = MembershipRole::Owner === $actorRole ? $this->owner : $this->member('actor@example.com', $actorRole);
         $target = $this->member('target@example.com', $targetRole);
-        $this->organization->deactivateMember($this->owner->getId(), $target->getId(), new \DateTimeImmutable());
+        $this->organization->deactivateMember($this->owner->getId(), $target->getId(), self::now());
 
         try {
             $this->organization->reactivateMember($actor->getId(), $target->getId());
@@ -281,5 +283,10 @@ final class MemberDeactivationTest extends TestCase
     private static function users(array $memberships): array
     {
         return array_map(static fn (Membership $membership): User => $membership->getUser(), $memberships);
+    }
+
+    private static function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(self::NOW);
     }
 }

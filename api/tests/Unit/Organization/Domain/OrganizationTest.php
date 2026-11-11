@@ -21,6 +21,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(Organization::class)]
 final class OrganizationTest extends TestCase
 {
+    private const string NOW = '2026-11-11 12:00:00';
+
     public function test_it_makes_the_creator_its_owner(): void
     {
         $owner = UserMother::any();
@@ -30,9 +32,20 @@ final class OrganizationTest extends TestCase
         self::assertSame(MembershipRole::Owner, $organization->membershipOf($owner->getId())?->getRole());
     }
 
+    public function test_it_records_its_creation_time_as_the_owners_joining_time(): void
+    {
+        $owner = UserMother::any();
+        $createdAt = new \DateTimeImmutable('2026-11-01 09:00:00');
+
+        $organization = new Organization(Uuid::v7(), 'Corner Pub', $owner, $createdAt);
+
+        self::assertEquals($createdAt, $organization->getCreatedAt());
+        self::assertEquals($createdAt, $organization->membershipOf($owner->getId())?->getCreatedAt());
+    }
+
     public function test_it_normalizes_settings_on_creation(): void
     {
-        $organization = new Organization(Uuid::v7(), 'Corner Pub', UserMother::any(), '  ', 'pl', 'pln', 'Europe/Warsaw');
+        $organization = new Organization(Uuid::v7(), 'Corner Pub', UserMother::any(), self::now(), '  ', 'pl', 'pln', 'Europe/Warsaw');
 
         self::assertNull($organization->getTaxId());
         self::assertSame('PL', $organization->getCountryCode());
@@ -45,10 +58,11 @@ final class OrganizationTest extends TestCase
         $organization = OrganizationMother::ownedBy($owner);
         $employee = UserMother::any('eve@example.com');
 
-        $membership = $organization->addMember($owner->getId(), $employee, MembershipRole::Employee);
+        $membership = $organization->addMember($owner->getId(), $employee, MembershipRole::Employee, self::now());
 
         self::assertSame($membership, $organization->membershipOf($employee->getId()));
         self::assertSame(MembershipRole::Employee, $membership->getRole());
+        self::assertEquals(self::now(), $membership->getCreatedAt());
     }
 
     public function test_it_refuses_to_add_the_same_user_twice(): void
@@ -58,7 +72,7 @@ final class OrganizationTest extends TestCase
 
         $this->expectException(AlreadyAMemberException::class);
 
-        $organization->addMember($owner->getId(), $owner, MembershipRole::Employee);
+        $organization->addMember($owner->getId(), $owner, MembershipRole::Employee, self::now());
     }
 
     /** @return iterable<string, array{MembershipRole, MembershipRole, bool}> */
@@ -91,7 +105,7 @@ final class OrganizationTest extends TestCase
             $this->expectException(RoleAssignmentForbiddenException::class);
         }
 
-        $organization->addMember($actor->getId(), $newcomer, $role);
+        $organization->addMember($actor->getId(), $newcomer, $role, self::now());
 
         self::assertSame($role, $organization->membershipOf($newcomer->getId())?->getRole());
     }
@@ -104,7 +118,7 @@ final class OrganizationTest extends TestCase
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 
-        $organization->addMember($employee->getId(), UserMother::any('new@example.com'), MembershipRole::Employee);
+        $organization->addMember($employee->getId(), UserMother::any('new@example.com'), MembershipRole::Employee, self::now());
     }
 
     public function test_it_refuses_member_additions_from_a_non_member(): void
@@ -113,7 +127,7 @@ final class OrganizationTest extends TestCase
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 
-        $organization->addMember(Uuid::v7(), UserMother::any('new@example.com'), MembershipRole::Employee);
+        $organization->addMember(Uuid::v7(), UserMother::any('new@example.com'), MembershipRole::Employee, self::now());
     }
 
     public function test_it_checks_the_permission_before_the_existing_membership(): void
@@ -125,7 +139,7 @@ final class OrganizationTest extends TestCase
 
         $this->expectException(RoleAssignmentForbiddenException::class);
 
-        $organization->addMember($manager->getId(), $owner, MembershipRole::Manager);
+        $organization->addMember($manager->getId(), $owner, MembershipRole::Manager, self::now());
     }
 
     public function test_it_checks_a_member_addition_without_adding_anyone(): void
@@ -445,5 +459,10 @@ final class OrganizationTest extends TestCase
         $this->expectException(OrganizationManagementForbiddenException::class);
 
         $organization->memberVisibleTo($employee->getId(), $owner->getId());
+    }
+
+    private static function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(self::NOW);
     }
 }

@@ -123,7 +123,7 @@ final class ListMembersHandlerTest extends TestCase
 
     private static function user(string $email, string $firstName, string $lastName, bool $hasPassword = true): User
     {
-        $user = new User(Uuid::v7(), $email, $firstName, $lastName);
+        $user = new User(Uuid::v7(), $email, new \DateTimeImmutable('2026-11-01 09:00:00'), $firstName, $lastName);
         if ($hasPassword) {
             $user->changePassword('hashed');
         }

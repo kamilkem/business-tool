@@ -32,13 +32,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         #[ORM\Column(type: UuidType::NAME, unique: true)]
         private Uuid $id,
         string $email,
+        \DateTimeImmutable $createdAt,
         #[ORM\Column(length: 100)]
         private string $firstName = '',
         #[ORM\Column(length: 100)]
         private string $lastName = '',
     ) {
         $this->email = self::normalizeEmail($email);
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = $createdAt;
     }
 
     /** E-mails are stored trimmed and lower-cased; look them up the same way. */

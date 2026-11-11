@@ -14,12 +14,18 @@ use App\Tests\Fixtures\OrganizationMother;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Ui\Http\Listener\SelectOrganizationFromHeaderListener;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
+/**
+ * self::mockTime() (ClockSensitiveTrait) freezes or moves the global clock, which the `clock` service,
+ * the Foundry factories and the mothers read; it is restored after each test.
+ */
 abstract class ApiTestCase extends BaseApiTestCase
 {
+    use ClockSensitiveTrait;
     use Factories;
     use ResetDatabase;
 

@@ -16,6 +16,7 @@ use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Domain\Event\EventPublisherInterface;
 use App\User\Domain\Exception\UserNotFoundException;
 use App\User\Domain\Repository\UserRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /** Adds the membership, then publishes MemberAdded (the invitation or notification e-mail, #9). */
@@ -25,6 +26,7 @@ final readonly class AddMemberHandler implements CommandHandlerInterface
         private OrganizationRepositoryInterface $organizations,
         private UserRepositoryInterface $users,
         private EventPublisherInterface $events,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -47,7 +49,7 @@ final readonly class AddMemberHandler implements CommandHandlerInterface
         $user = $this->users->findById(Uuid::fromString($command->userId))
             ?? throw UserNotFoundException::forId($command->userId);
 
-        $organization->addMember($actorId, $user, MembershipRole::from($command->role));
+        $organization->addMember($actorId, $user, MembershipRole::from($command->role), $this->clock->now());
         $this->organizations->save($organization);
 
         $this->events->publish(new MemberAdded(

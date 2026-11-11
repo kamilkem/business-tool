@@ -9,6 +9,7 @@ use App\Organization\Domain\Model\Organization;
 use App\User\Domain\Model\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -23,24 +24,27 @@ final class AppFixtures extends Fixture
 {
     public const string DEMO_PASSWORD = 'password';
 
-    public function __construct(private readonly UserPasswordHasherInterface $passwordHasher)
-    {
+    public function __construct(
+        private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly ClockInterface $clock,
+    ) {
     }
 
     public function load(ObjectManager $manager): void
     {
-        $owner = $this->user($manager, 'owner@example.com', 'Olivia', 'Owner');
-        $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner);
-        $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager'), MembershipRole::Manager);
-        $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee'), MembershipRole::Employee);
+        $now = $this->clock->now();
+        $owner = $this->user($manager, 'owner@example.com', 'Olivia', 'Owner', $now);
+        $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner, $now);
+        $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager', $now), MembershipRole::Manager, $now);
+        $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee', $now), MembershipRole::Employee, $now);
         $manager->persist($bar);
 
         $manager->flush();
     }
 
-    private function user(ObjectManager $manager, string $email, string $firstName, string $lastName): User
+    private function user(ObjectManager $manager, string $email, string $firstName, string $lastName, \DateTimeImmutable $now): User
     {
-        $user = new User(Uuid::v7(), $email, $firstName, $lastName);
+        $user = new User(Uuid::v7(), $email, $now, $firstName, $lastName);
         $user->changePassword($this->passwordHasher->hashPassword($user, self::DEMO_PASSWORD));
         $manager->persist($user);
 

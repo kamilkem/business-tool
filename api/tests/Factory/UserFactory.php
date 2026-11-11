@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Factory;
 
 use App\User\Domain\Model\User;
+use Symfony\Component\Clock\Clock;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
@@ -23,6 +24,7 @@ final class UserFactory extends PersistentObjectFactory
         return [
             'id' => Uuid::v7(),
             'email' => self::faker()->unique()->safeEmail(),
+            'createdAt' => Clock::get()->now(), // the global clock, so mockTime() applies
             'firstName' => self::faker()->firstName(),
             'lastName' => self::faker()->lastName(),
         ];
