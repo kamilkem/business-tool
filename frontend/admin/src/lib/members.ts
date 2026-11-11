@@ -1,4 +1,4 @@
-import { ApiError, type components } from "@business-tool/api-client"
+import type { components } from "@business-tool/api-client"
 
 export type Member = components["schemas"]["Member"]
 export type Role = Member["role"]
@@ -56,17 +56,6 @@ export function statusOf(member: Member): MemberStatus {
 
 export function fullName(member: Pick<Member, "firstName" | "lastName">): string {
   return `${member.firstName} ${member.lastName}`.trim()
-}
-
-/** 422 violations from API Platform, keyed by property path. */
-export function violationsOf(error: unknown): Record<string, string> {
-  if (!(error instanceof ApiError) || error.status !== 422) return {}
-  const body = error.body as components["schemas"]["ConstraintViolation"] | null
-  const result: Record<string, string> = {}
-  for (const violation of body?.violations ?? []) {
-    result[violation.propertyPath] ??= violation.message
-  }
-  return result
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
