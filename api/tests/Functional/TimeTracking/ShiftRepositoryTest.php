@@ -6,6 +6,7 @@ namespace App\Tests\Functional\TimeTracking;
 
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Shared\Domain\Time\UtcRange;
 use App\Tests\Factory\OrganizationFactory;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Model\Shift;
@@ -135,6 +136,65 @@ final class ShiftRepositoryTest extends KernelTestCase
         $this->shifts->add($inB);
 
         self::assertSame($inB, $this->shifts->findOpenByUser($userId));
+    }
+
+    public function test_it_finds_the_shifts_that_started_in_a_range_newest_first(): void
+    {
+        [$here, $elsewhere] = OrganizationFactory::createMany(2);
+        $eve = Uuid::v7();
+        $adam = Uuid::v7();
+        $this->switchTo($elsewhere);
+        $this->shifts->add(Shift::clockIn(Uuid::v7(), $eve, new \DateTimeImmutable('2026-11-11 12:00:00'), null));
+        $this->entityManager->clear();
+        $this->switchTo($here);
+        $this->add($eve, '2026-11-10 22:59:59', '2026-11-11 02:00:00'); // just before the range
+        $atStart = $this->add($eve, '2026-11-10 23:00:00', '2026-11-11 07:00:00');
+        $adams = $this->add($adam, '2026-11-11 15:00:00', '2026-11-11 23:00:00');
+        $open = $this->add($eve, '2026-11-11 22:59:59', null);
+        $this->add($adam, '2026-11-11 23:00:00', '2026-11-12 03:00:00'); // `to` is excluded
+        $this->entityManager->clear();
+
+        // 11 November in Warsaw (UTC+1), given in local time: the range converts it to UTC.
+        $warsaw = new \DateTimeZone('Europe/Warsaw');
+        $range = new UtcRange(new \DateTimeImmutable('2026-11-11 00:00:00', $warsaw), new \DateTimeImmutable('2026-11-12 00:00:00', $warsaw));
+
+        self::assertSame([$open, $adams, $atStart], self::ids($this->shifts->findStartedIn($range)));
+        self::assertSame([$open, $atStart], self::ids($this->shifts->findStartedIn($range, $eve)));
+        self::assertSame([], $this->shifts->findStartedIn($range, Uuid::v7()));
+    }
+
+    public function test_it_orders_shifts_that_started_in_the_same_second_by_id(): void
+    {
+        $this->switchTo(OrganizationFactory::createOne());
+        $first = $this->add(Uuid::v7(), '2026-11-11 15:00:00', null);
+        $second = $this->add(Uuid::v7(), '2026-11-11 15:00:00', null);
+        $this->entityManager->clear();
+
+        $range = new UtcRange(new \DateTimeImmutable('2026-11-11 00:00:00'), new \DateTimeImmutable('2026-11-12 00:00:00'));
+
+        self::assertSame([$second, $first], self::ids($this->shifts->findStartedIn($range)));
+    }
+
+    /** @return string the shift's id */
+    private function add(Uuid $userId, string $startedAt, ?string $endedAt): string
+    {
+        $shift = Shift::clockIn(Uuid::v7(), $userId, new \DateTimeImmutable($startedAt), null);
+        if (null !== $endedAt) {
+            $shift->clockOut(new \DateTimeImmutable($endedAt));
+        }
+        $this->shifts->add($shift);
+
+        return $shift->getId()->toRfc4122();
+    }
+
+    /**
+     * @param list<Shift> $shifts
+     *
+     * @return list<string>
+     */
+    private static function ids(array $shifts): array
+    {
+        return array_map(static fn (Shift $shift): string => $shift->getId()->toRfc4122(), $shifts);
     }
 
     private function switchTo(Organization $organization): void

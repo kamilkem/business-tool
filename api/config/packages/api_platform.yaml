@@ -56,5 +56,6 @@ api_platform:
         App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException: 422
         App\TimeTracking\Domain\Exception\NotClockedInException: 409
         App\TimeTracking\Domain\Exception\ShiftNotFoundException: 404
+        App\TimeTracking\Domain\Exception\ShiftPeriodTooLongException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422

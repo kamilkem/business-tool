@@ -296,6 +296,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the shifts of the selected organization that started from one business date to another.
+         * @description Newest first. A shift belongs to the business date (in the organization's time zone) it started on, also when it ends after midnight; open shifts are included. Owners and managers see everyone's shifts, deactivated members' too, and may narrow them to one person with userId; employees see their own only, and asking for someone else's is a 403. A userId that is not a member is a 404. Invalid dates, to before from and periods longer than 92 days are a 422.
+         */
+        get: operations["api_shifts_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -663,6 +683,60 @@ export interface components {
              * @description When the person clocked out (server time); null while they are clocked in.
              */
             endedAt: string | null;
+            note: string | null;
+        };
+        /**
+         * @description A shift in the list of shifts of the organization selected by the X-Organization-Id header, with
+         *     the person's name and the time worked. Dates are business dates in the organization's time zone
+         *     (ADR 0017); a shift belongs to the date it started on.
+         */
+        ShiftListItem: {
+            id: string;
+            /** @description The person who worked the shift. */
+            userId: string;
+            firstName: string;
+            lastName: string;
+            /** @description The business date the shift belongs to: the date in the organization's time zone on which it started (YYYY-MM-DD). */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked in (server time).
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked out (server time); null while they are clocked in.
+             */
+            endedAt: string | null;
+            /** @description Whole minutes from clock-in to clock-out; null while the shift is open. */
+            durationMinutes: number | null;
+            note: string | null;
+        };
+        /**
+         * @description A shift in the list of shifts of the organization selected by the X-Organization-Id header, with
+         *     the person's name and the time worked. Dates are business dates in the organization's time zone
+         *     (ADR 0017); a shift belongs to the date it started on.
+         */
+        "ShiftListItem.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The person who worked the shift. */
+            userId: string;
+            firstName: string;
+            lastName: string;
+            /** @description The business date the shift belongs to: the date in the organization's time zone on which it started (YYYY-MM-DD). */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked in (server time).
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked out (server time); null while they are clocked in.
+             */
+            endedAt: string | null;
+            /** @description Whole minutes from clock-in to clock-out; null while the shift is open. */
+            durationMinutes: number | null;
             note: string | null;
         };
     };
@@ -1474,6 +1548,57 @@ export interface operations {
             };
             /** @description The person is not clocked in. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_shifts_get_collection: {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD in the organization's time zone). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD in the organization's time zone); at most 92 days from the first. */
+                to: string;
+                /** @description Only this person's shifts. Employees may pass only their own id. */
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ShiftListItem collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["ShiftListItem.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["ShiftListItem"][];
+                };
+            };
+            /** @description An employee asked for someone else's shifts. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, or the period is too long. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

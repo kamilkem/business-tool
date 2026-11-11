@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\TimeTracking\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Shared\Domain\Time\UtcRange;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<Shift> */
@@ -28,6 +31,24 @@ final class ShiftRepository extends ServiceEntityRepository implements ShiftRepo
     public function findOpenByUser(Uuid $userId): ?Shift
     {
         return $this->findOneBy(['userId' => $userId, 'endedAt' => null]);
+    }
+
+    public function findStartedIn(UtcRange $range, ?Uuid $userId = null): array
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->where('s.startedAt >= :from')
+            ->andWhere('s.startedAt < :to')
+            ->setParameter('from', $range->from, Types::DATETIME_IMMUTABLE)
+            ->setParameter('to', $range->to, Types::DATETIME_IMMUTABLE)
+            ->orderBy('s.startedAt', 'DESC')
+            ->addOrderBy('s.id', 'DESC');
+
+        if (null !== $userId) {
+            $qb->andWhere('s.userId = :userId')->setParameter('userId', $userId, UuidType::NAME);
+        }
+
+        /** @var list<Shift> */
+        return $qb->getQuery()->getResult();
     }
 
     public function add(Shift $shift): void

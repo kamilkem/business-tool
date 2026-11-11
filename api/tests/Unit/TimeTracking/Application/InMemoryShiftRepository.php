@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\TimeTracking\Application;
 
+use App\Shared\Domain\Time\UtcRange;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
@@ -31,6 +32,18 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
     public function findOpenByUser(Uuid $userId): ?Shift
     {
         return $this->staleReads ? null : $this->openOf($userId);
+    }
+
+    public function findStartedIn(UtcRange $range, ?Uuid $userId = null): array
+    {
+        $shifts = array_values(array_filter(
+            $this->byId,
+            static fn (Shift $shift): bool => $range->contains($shift->getStartedAt())
+                && (null === $userId || $shift->getUserId()->equals($userId)),
+        ));
+        usort($shifts, static fn (Shift $a, Shift $b): int => [$b->getStartedAt(), $b->getId()->toRfc4122()] <=> [$a->getStartedAt(), $a->getId()->toRfc4122()]);
+
+        return $shifts;
     }
 
     public function add(Shift $shift): void
