@@ -48,6 +48,9 @@ final class ShiftApiTest extends ApiTestCase
             'startedAt' => '2026-11-11T16:00:00+00:00',
             'endedAt' => null,
             'note' => null,
+            'source' => 'clock',
+            'correctedBy' => null,
+            'correctedAt' => null,
         ], $in);
 
         self::mockTime(self::END);

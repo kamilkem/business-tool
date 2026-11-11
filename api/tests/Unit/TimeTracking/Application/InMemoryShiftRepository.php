@@ -46,9 +46,20 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
         return $shifts;
     }
 
+    public function findOverlapping(Uuid $userId, \DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    {
+        return array_values(array_filter(
+            $this->byId,
+            static fn (Shift $shift): bool => $shift->getUserId()->equals($userId)
+                && (null === $shift->getEndedAt() || $shift->getEndedAt() > $from)
+                && (null === $to || $shift->getStartedAt() < $to),
+        ));
+    }
+
     public function add(Shift $shift): void
     {
-        if (null !== $this->openOf($shift->getUserId())) {
+        // Like the partial unique index: only a second open shift is refused.
+        if ($shift->isOpen() && null !== $this->openOf($shift->getUserId())) {
             throw ShiftAlreadyOpenException::forUser($shift->getUserId()->toRfc4122());
         }
 

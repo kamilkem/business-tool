@@ -22,6 +22,11 @@ final readonly class ShiftListItemView
         /** Whole minutes worked; null while the shift is open. */
         public ?int $durationMinutes,
         public ?string $note,
+        /** How the shift came to be: ShiftSource, `clock` or `manager`. */
+        public string $source,
+        /** The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+        public ?string $correctedBy,
+        public ?\DateTimeImmutable $correctedAt,
     ) {
     }
 
@@ -39,6 +44,9 @@ final readonly class ShiftListItemView
             $endedAt,
             null === $endedAt ? null : intdiv($endedAt->getTimestamp() - $shift->getStartedAt()->getTimestamp(), 60),
             $shift->getNote(),
+            $shift->getSource()->value,
+            $shift->getCorrectedBy()?->toRfc4122(),
+            $shift->getCorrectedAt(),
         );
     }
 }

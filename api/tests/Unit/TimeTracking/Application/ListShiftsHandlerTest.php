@@ -89,6 +89,9 @@ final class ListShiftsHandlerTest extends TestCase
             new \DateTimeImmutable('2026-11-11 23:30:59'),
             510, // whole minutes: 8 h 30 min 59 s
             'Covered for Adam',
+            'clock',
+            null,
+            null,
         )], $this->ask($this->owner, '2026-11-11', '2026-11-11'));
     }
 

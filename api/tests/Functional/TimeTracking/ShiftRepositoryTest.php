@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\TimeTracking;
 
+use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Domain\Time\UtcRange;
 use App\Tests\Factory\OrganizationFactory;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftSource;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
 use App\TimeTracking\Infrastructure\Doctrine\Orm\Repository\ShiftRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -173,6 +175,54 @@ final class ShiftRepositoryTest extends KernelTestCase
         $range = new UtcRange(new \DateTimeImmutable('2026-11-11 00:00:00'), new \DateTimeImmutable('2026-11-12 00:00:00'));
 
         self::assertSame([$second, $first], self::ids($this->shifts->findStartedIn($range)));
+    }
+
+    public function test_it_finds_the_persons_shifts_that_share_a_moment_with_a_range(): void
+    {
+        [$here, $elsewhere] = OrganizationFactory::createMany(2);
+        $eve = Uuid::v7();
+        $this->switchTo($elsewhere);
+        $this->shifts->add(Shift::clockIn(Uuid::v7(), $eve, new \DateTimeImmutable('2026-11-11 12:00:00'), null));
+        $this->entityManager->clear();
+        $this->switchTo($here);
+        $this->add($eve, '2026-11-11 08:00:00', '2026-11-11 10:00:00'); // ends at `from`
+        $overlapsStart = $this->add($eve, '2026-11-11 09:00:00', '2026-11-11 10:00:01');
+        $inside = $this->add($eve, '2026-11-11 12:00:00', '2026-11-11 13:00:00');
+        $evening = $this->add($eve, '2026-11-11 18:00:00', '2026-11-11 20:00:00'); // starts at `to`
+        $this->add(Uuid::v7(), '2026-11-11 12:00:00', '2026-11-11 13:00:00'); // someone else's
+        $open = $this->add($eve, '2026-11-12 08:00:00', null);
+        $this->entityManager->clear();
+
+        $from = new \DateTimeImmutable('2026-11-11 10:00:00');
+        self::assertSame([$overlapsStart, $inside], self::ids($this->shifts->findOverlapping($eve, $from, new \DateTimeImmutable('2026-11-11 18:00:00'))));
+        self::assertSame([$open], self::ids($this->shifts->findOverlapping($eve, new \DateTimeImmutable('2026-11-12 09:00:00'), new \DateTimeImmutable('2026-11-12 10:00:00'))));
+        self::assertSame([$overlapsStart, $inside, $evening, $open], self::ids($this->shifts->findOverlapping($eve, $from, null)));
+    }
+
+    public function test_it_stores_who_entered_a_shift_and_when(): void
+    {
+        $this->switchTo(OrganizationFactory::createOne());
+        $managerId = Uuid::v7();
+        $shift = Shift::record(
+            Uuid::v7(),
+            Uuid::v7(),
+            new \DateTimeImmutable(self::START),
+            new \DateTimeImmutable(self::END),
+            null,
+            $managerId,
+            MembershipRole::Manager,
+            [],
+            new \DateTimeImmutable('2026-11-12 09:30:00'),
+        );
+        $this->shifts->add($shift);
+        $this->entityManager->clear();
+
+        $found = $this->shifts->findById($shift->getId());
+        self::assertNotNull($found);
+        self::assertSame(ShiftSource::Manager, $found->getSource());
+        self::assertTrue($managerId->equals($found->getCorrectedBy() ?? Uuid::v7()));
+        self::assertEquals(new \DateTimeImmutable('2026-11-12 09:30:00'), $found->getCorrectedAt());
+        self::assertEquals(new \DateTimeImmutable(self::END), $found->getEndedAt());
     }
 
     /** @return string the shift's id */

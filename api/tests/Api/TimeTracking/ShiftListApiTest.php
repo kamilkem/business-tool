@@ -56,6 +56,9 @@ final class ShiftListApiTest extends ApiTestCase
             'endedAt' => '2026-11-10T23:30:59+00:00',
             'durationMinutes' => 510,
             'note' => null,
+            'source' => 'clock',
+            'correctedBy' => null,
+            'correctedAt' => null,
         ], $shifts[2]);
         self::assertSame(['Adam', 'Zieliński', '2026-11-12', null, null], [
             $shifts[0]['firstName'], $shifts[0]['lastName'], $shifts[0]['date'], $shifts[0]['endedAt'], $shifts[0]['durationMinutes'],

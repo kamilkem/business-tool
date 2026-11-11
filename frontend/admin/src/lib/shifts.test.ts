@@ -19,6 +19,9 @@ function shift(userId: string, firstName: string, lastName: string, durationMinu
     endedAt: durationMinutes === null ? null : "2026-11-10T23:00:00+00:00",
     durationMinutes,
     note: null,
+    source: "clock",
+    correctedBy: null,
+    correctedAt: null,
   }
 }
 

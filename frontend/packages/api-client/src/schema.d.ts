@@ -236,6 +236,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the shifts of the selected organization that started from one business date to another.
+         * @description Newest first. A shift belongs to the business date (in the organization's time zone) it started on, also when it ends after midnight; open shifts are included. Owners and managers see everyone's shifts, deactivated members' too, and may narrow them to one person with userId; employees see their own only, and asking for someone else's is a 403. A userId that is not a member is a 404. Invalid dates, to before from and periods longer than 92 days are a 422.
+         */
+        get: operations["api_shifts_get_collection"];
+        put?: never;
+        /**
+         * Enters a shift a member worked but did not clock.
+         * @description Owners and managers only (403 otherwise), for any member, a deactivated one or themselves included; a person who is not a member is a 404. The shift is entered whole: it must end after it starts (422), not after now (422), and not overlap another shift of the person, an open one counting as running on (409). Times are stored in UTC to the second. The shift records who entered it (source "manager", correctedBy, correctedAt).
+         */
+        post: operations["api_shifts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shifts/clock-in": {
         parameters: {
             query?: never;
@@ -296,24 +320,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/shifts": {
+    "/api/shifts/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Lists the shifts of the selected organization that started from one business date to another.
-         * @description Newest first. A shift belongs to the business date (in the organization's time zone) it started on, also when it ends after midnight; open shifts are included. Owners and managers see everyone's shifts, deactivated members' too, and may narrow them to one person with userId; employees see their own only, and asking for someone else's is a 403. A userId that is not a member is a 404. Invalid dates, to before from and periods longer than 92 days are a 422.
-         */
-        get: operations["api_shifts_get_collection"];
+        get?: never;
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Corrects a shift's times and note.
+         * @description Owners and managers only (403 otherwise), for anyone's shift, their own included; a shift that is not the selected organization's is a 404. Setting endedAt on an open shift ends it (a forgotten clock-out); an open shift may also stay open with a corrected start. An ended shift keeps an end: null is a 422. The shift must end after it starts (422), not after now (422), and not overlap another shift of the person (409). A change records who made it and when (correctedBy, correctedAt); sending the values the shift already has changes nothing.
+         */
+        patch: operations["api_shifts_id_patch"];
         trace?: never;
     };
 }
@@ -648,9 +672,11 @@ export interface components {
             password: string;
         };
         /**
-         * @description The signed-in user's working time in the organization selected by the X-Organization-Id header.
-         *     Every member clocks in and out for themselves only, on their own phone (ADR 0016); the server's
-         *     clock sets the times, so the requests carry no body. There is no location check.
+         * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
+         *     clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
+         *     times, so those requests carry no body. There is no location check. Owners and managers enter
+         *     missing shifts and correct shifts' times and notes for anyone (ADR 0016 §5); the shift keeps who
+         *     did it last and when.
          */
         Shift: {
             id: string;
@@ -658,20 +684,80 @@ export interface components {
             userId: string;
             /**
              * Format: date-time
-             * @description When the person clocked in (server time).
+             * @description When the person clocked in (server time), or as an owner or manager entered or corrected it.
              */
             startedAt: string;
             /**
              * Format: date-time
-             * @description When the person clocked out (server time); null while they are clocked in.
+             * @description When the person clocked out (server time), or as an owner or manager entered or corrected it; null while the shift is open.
              */
             endedAt: string | null;
             note: string | null;
+            /**
+             * @description How the shift came to be: the person clocked in, or an owner or manager entered it.
+             * @enum {string}
+             */
+            source: "clock" | "manager";
+            /** @description The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+            correctedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
+             */
+            correctedAt: string | null;
         };
         /**
-         * @description The signed-in user's working time in the organization selected by the X-Organization-Id header.
-         *     Every member clocks in and out for themselves only, on their own phone (ADR 0016); the server's
-         *     clock sets the times, so the requests carry no body. There is no location check.
+         * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
+         *     clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
+         *     times, so those requests carry no body. There is no location check. Owners and managers enter
+         *     missing shifts and correct shifts' times and notes for anyone (ADR 0016 §5); the shift keeps who
+         *     did it last and when.
+         */
+        "Shift.AddShiftInput": {
+            /**
+             * Format: uuid
+             * @description The member who worked the shift; a deactivated member too.
+             */
+            userId: string;
+            /**
+             * Format: date-time
+             * @description When the shift started, with a time zone offset.
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the shift ended, with a time zone offset: a shift is entered whole, never open.
+             */
+            endedAt: string;
+            note?: string | null;
+        };
+        /**
+         * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
+         *     clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
+         *     times, so those requests carry no body. There is no location check. Owners and managers enter
+         *     missing shifts and correct shifts' times and notes for anyone (ADR 0016 §5); the shift keeps who
+         *     did it last and when.
+         */
+        "Shift.CorrectShiftInput.jsonMergePatch": {
+            /**
+             * Format: date-time
+             * @description When the shift started, with a time zone offset; not after now.
+             */
+            startedAt?: string;
+            /**
+             * Format: date-time
+             * @description When the shift ended, with a time zone offset; not after now. An open shift may stay open (null); an ended one keeps an end.
+             */
+            endedAt?: string | null;
+            /** @description An empty note removes it. */
+            note?: string | null;
+        };
+        /**
+         * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
+         *     clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
+         *     times, so those requests carry no body. There is no location check. Owners and managers enter
+         *     missing shifts and correct shifts' times and notes for anyone (ADR 0016 §5); the shift keeps who
+         *     did it last and when.
          */
         "Shift.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             id: string;
@@ -679,15 +765,27 @@ export interface components {
             userId: string;
             /**
              * Format: date-time
-             * @description When the person clocked in (server time).
+             * @description When the person clocked in (server time), or as an owner or manager entered or corrected it.
              */
             startedAt: string;
             /**
              * Format: date-time
-             * @description When the person clocked out (server time); null while they are clocked in.
+             * @description When the person clocked out (server time), or as an owner or manager entered or corrected it; null while the shift is open.
              */
             endedAt: string | null;
             note: string | null;
+            /**
+             * @description How the shift came to be: the person clocked in, or an owner or manager entered it.
+             * @enum {string}
+             */
+            source: "clock" | "manager";
+            /** @description The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+            correctedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
+             */
+            correctedAt: string | null;
         };
         /**
          * @description A shift in the list of shifts of the organization selected by the X-Organization-Id header, with
@@ -704,17 +802,29 @@ export interface components {
             date: string;
             /**
              * Format: date-time
-             * @description When the person clocked in (server time).
+             * @description When the person clocked in (server time), or as an owner or manager entered or corrected it.
              */
             startedAt: string;
             /**
              * Format: date-time
-             * @description When the person clocked out (server time); null while they are clocked in.
+             * @description When the person clocked out (server time), or as an owner or manager entered or corrected it; null while the shift is open.
              */
             endedAt: string | null;
-            /** @description Whole minutes from clock-in to clock-out; null while the shift is open. */
+            /** @description Whole minutes from start to end; null while the shift is open. */
             durationMinutes: number | null;
             note: string | null;
+            /**
+             * @description How the shift came to be: the person clocked in, or an owner or manager entered it.
+             * @enum {string}
+             */
+            source: "clock" | "manager";
+            /** @description The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+            correctedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
+             */
+            correctedAt: string | null;
         };
         /**
          * @description A shift in the list of shifts of the organization selected by the X-Organization-Id header, with
@@ -731,17 +841,29 @@ export interface components {
             date: string;
             /**
              * Format: date-time
-             * @description When the person clocked in (server time).
+             * @description When the person clocked in (server time), or as an owner or manager entered or corrected it.
              */
             startedAt: string;
             /**
              * Format: date-time
-             * @description When the person clocked out (server time); null while they are clocked in.
+             * @description When the person clocked out (server time), or as an owner or manager entered or corrected it; null while the shift is open.
              */
             endedAt: string | null;
-            /** @description Whole minutes from clock-in to clock-out; null while the shift is open. */
+            /** @description Whole minutes from start to end; null while the shift is open. */
             durationMinutes: number | null;
             note: string | null;
+            /**
+             * @description How the shift came to be: the person clocked in, or an owner or manager entered it.
+             * @enum {string}
+             */
+            source: "clock" | "manager";
+            /** @description The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+            correctedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
+             */
+            correctedAt: string | null;
         };
     };
     responses: never;
@@ -1431,6 +1553,127 @@ export interface operations {
             };
         };
     };
+    api_shifts_get_collection: {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD in the organization's time zone). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD in the organization's time zone); at most 92 days from the first. */
+                to: string;
+                /** @description Only this person's shifts. Employees may pass only their own id. */
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ShiftListItem collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["ShiftListItem.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["ShiftListItem"][];
+                };
+            };
+            /** @description An employee asked for someone else's shifts. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, or the period is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_shifts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Shift resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Shift.AddShiftInput"];
+                "application/json": components["schemas"]["Shift.AddShiftInput"];
+            };
+        };
+        responses: {
+            /** @description The entered shift. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Shift.jsonld"];
+                    "application/json": components["schemas"]["Shift"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The shift overlaps another shift of the person. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, the shift does not end after it starts, or it is in the future. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     "api_shiftsclock-in_post": {
         parameters: {
             query?: never;
@@ -1559,54 +1802,75 @@ export interface operations {
             };
         };
     };
-    api_shifts_get_collection: {
+    api_shifts_id_patch: {
         parameters: {
-            query: {
-                /** @description First business date, inclusive (YYYY-MM-DD in the organization's time zone). */
-                from: string;
-                /** @description Last business date, inclusive (YYYY-MM-DD in the organization's time zone); at most 92 days from the first. */
-                to: string;
-                /** @description Only this person's shifts. Employees may pass only their own id. */
-                userId?: string;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description Shift identifier */
+                id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description The updated Shift resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["Shift.CorrectShiftInput.jsonMergePatch"];
+            };
+        };
         responses: {
-            /** @description ShiftListItem collection */
+            /** @description Shift resource updated */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
-                        member: components["schemas"]["ShiftListItem.jsonld"][];
-                    };
-                    "application/json": components["schemas"]["ShiftListItem"][];
+                    "application/ld+json": components["schemas"]["Shift.jsonld"];
+                    "application/json": components["schemas"]["Shift"];
                 };
             };
-            /** @description An employee asked for someone else's shifts. */
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The userId is not a member of the selected organization. */
+            /** @description The shift is not one of the selected organization's. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description A date is missing or invalid, to is before from, or the period is too long. */
-            422: {
+            /** @description The shift would overlap another shift of the person. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description A field is invalid, the shift would not end after it starts, would be in the future, or would lose its end. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
             };
         };
     };
