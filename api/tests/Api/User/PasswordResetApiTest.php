@@ -10,14 +10,11 @@ use App\Tests\Factory\UserFactory;
 use App\Tests\Fixtures\OrganizationMother;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Symfony\Component\Mime\Email;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 final class PasswordResetApiTest extends ApiTestCase
 {
-    use ClockSensitiveTrait;
-
     private const string NEW_PASSWORD = 'correct horse battery';
 
     public function test_it_answers_known_and_unknown_emails_alike_and_mails_only_the_known_one(): void

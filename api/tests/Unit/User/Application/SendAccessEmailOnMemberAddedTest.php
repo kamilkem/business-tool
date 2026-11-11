@@ -36,9 +36,9 @@ final class SendAccessEmailOnMemberAddedTest extends TestCase
         $this->commandBus = new RecordingCommandBus();
         $this->mailer = new RecordingMailer();
         $this->organizationId = Uuid::v7()->toRfc4122();
-        $this->owner = new User(Uuid::v7(), 'olivia@example.com', 'Olivia', 'Owner');
+        $this->owner = new User(Uuid::v7(), 'olivia@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Olivia', 'Owner');
         $this->owner->changePassword('hash');
-        $this->member = new User(Uuid::v7(), 'eve@example.com', 'Eve', 'Nowak');
+        $this->member = new User(Uuid::v7(), 'eve@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Eve', 'Nowak');
         $this->users->add($this->owner);
         $this->users->add($this->member);
     }

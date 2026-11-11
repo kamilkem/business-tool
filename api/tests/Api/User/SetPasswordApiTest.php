@@ -12,6 +12,7 @@ use App\User\Domain\Model\PasswordTokenSecret;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Clock\Clock;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -22,7 +23,8 @@ final class SetPasswordApiTest extends ApiTestCase
     public function test_it_sets_the_password_without_authentication_so_the_person_can_sign_in(): void
     {
         $user = UserFactory::new()->invited()->create(['email' => 'eve@example.com']);
-        $secret = self::issueToken($user, PasswordTokenPurpose::Invitation, new \DateTimeImmutable('-1 day'));
+        $secret = self::issueToken($user, PasswordTokenPurpose::Invitation);
+        self::mockTime('+1 day');
 
         $response = self::setPassword($secret, self::NEW_PASSWORD);
 
@@ -37,7 +39,8 @@ final class SetPasswordApiTest extends ApiTestCase
     public function test_it_replaces_a_forgotten_password_with_a_reset_token(): void
     {
         $user = UserFactory::createOne(['email' => 'max@example.com']);
-        $secret = self::issueToken($user, PasswordTokenPurpose::PasswordReset, new \DateTimeImmutable('-10 minutes'));
+        $secret = self::issueToken($user, PasswordTokenPurpose::PasswordReset);
+        self::mockTime('+10 minutes');
 
         self::setPassword($secret, self::NEW_PASSWORD);
 
@@ -51,10 +54,12 @@ final class SetPasswordApiTest extends ApiTestCase
     public function test_it_answers_unknown_used_and_expired_tokens_alike(): void
     {
         $user = UserFactory::new()->invited()->create();
-        $used = self::issueToken($user, PasswordTokenPurpose::Invitation, new \DateTimeImmutable('-1 day'));
+        self::mockTime();
+        $used = self::issueToken($user, PasswordTokenPurpose::Invitation);
         self::setPassword($used, self::NEW_PASSWORD);
         self::assertResponseStatusCodeSame(204);
-        $expired = self::issueToken($user, PasswordTokenPurpose::PasswordReset, new \DateTimeImmutable('-61 minutes'));
+        $expired = self::issueToken($user, PasswordTokenPurpose::PasswordReset); // after the password, so only expiry stops it
+        self::mockTime('+61 minutes');
 
         $answers = [];
         foreach (['unknown' => PasswordTokenSecret::generate()->value, 'used' => $used, 'expired' => $expired] as $case => $secret) {
@@ -73,8 +78,9 @@ final class SetPasswordApiTest extends ApiTestCase
     public function test_it_invalidates_the_other_links_once_the_password_is_set(): void
     {
         $user = UserFactory::new()->invited()->create();
-        $invitation = self::issueToken($user, PasswordTokenPurpose::Invitation, new \DateTimeImmutable('-1 day'));
-        $reset = self::issueToken($user, PasswordTokenPurpose::PasswordReset, new \DateTimeImmutable('-5 minutes'));
+        $invitation = self::issueToken($user, PasswordTokenPurpose::Invitation);
+        $reset = self::issueToken($user, PasswordTokenPurpose::PasswordReset);
+        self::mockTime('+5 minutes');
 
         self::setPassword($invitation, self::NEW_PASSWORD);
         self::assertResponseStatusCodeSame(204);
@@ -112,16 +118,16 @@ final class SetPasswordApiTest extends ApiTestCase
     {
         $user = UserFactory::new()->invited()->create();
 
-        self::setPassword(self::issueToken($user, PasswordTokenPurpose::Invitation, new \DateTimeImmutable('-1 hour')), 'aaaaaaaa');
+        self::setPassword(self::issueToken($user, PasswordTokenPurpose::Invitation), 'aaaaaaaa');
         self::assertResponseStatusCodeSame(204);
-        self::setPassword(self::issueToken($user, PasswordTokenPurpose::PasswordReset, new \DateTimeImmutable('-1 minute')), str_repeat('ż', 2048));
+        self::setPassword(self::issueToken($user, PasswordTokenPurpose::PasswordReset), str_repeat('ż', 2048));
         self::assertResponseStatusCodeSame(204);
     }
 
     public function test_it_limits_attempts_per_client_ip(): void
     {
         $user = UserFactory::new()->invited()->create();
-        $valid = self::issueToken($user, PasswordTokenPurpose::Invitation, new \DateTimeImmutable('-1 hour'));
+        $valid = self::issueToken($user, PasswordTokenPurpose::Invitation);
         $client = static::createClient(defaultOptions: ['headers' => ['Accept' => 'application/json']]);
         $client->disableReboot(); // the limiter's state lives in the kernel (array cache in tests)
 
@@ -144,13 +150,13 @@ final class SetPasswordApiTest extends ApiTestCase
         ]);
     }
 
-    /** @return string the secret, as it would appear in the e-mailed link */
-    private static function issueToken(User $user, PasswordTokenPurpose $purpose, \DateTimeImmutable $issuedAt): string
+    /** @return string the secret, as it would appear in the e-mailed link; issued at the clock's now (mockTime()) */
+    private static function issueToken(User $user, PasswordTokenPurpose $purpose): string
     {
         $secret = PasswordTokenSecret::generate();
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $managedUser = $entityManager->find(User::class, $user->getId()) ?? throw new \LogicException('User expected.');
-        $entityManager->persist(new PasswordToken(Uuid::v7(), $managedUser, $purpose, $secret, $issuedAt));
+        $entityManager->persist(new PasswordToken(Uuid::v7(), $managedUser, $purpose, $secret, Clock::get()->now()));
         $entityManager->flush();
 
         return $secret->value;

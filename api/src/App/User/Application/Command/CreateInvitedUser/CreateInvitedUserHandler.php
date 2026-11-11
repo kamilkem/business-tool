@@ -8,12 +8,14 @@ use App\Shared\Application\Command\CommandHandlerInterface;
 use App\User\Domain\Exception\EmailAlreadyRegisteredException;
 use App\User\Domain\Model\User;
 use App\User\Domain\Repository\UserRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class CreateInvitedUserHandler implements CommandHandlerInterface
 {
     public function __construct(
         private UserRepositoryInterface $users,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -27,6 +29,7 @@ final readonly class CreateInvitedUserHandler implements CommandHandlerInterface
         $this->users->add(new User(
             Uuid::fromString($command->userId),
             $command->email,
+            $this->clock->now(),
             trim($command->firstName),
             trim($command->lastName),
         ));

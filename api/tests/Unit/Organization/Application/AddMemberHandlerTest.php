@@ -21,12 +21,15 @@ use App\User\Domain\Exception\UserNotFoundException;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(AddMemberHandler::class)]
 #[CoversClass(MemberAdded::class)]
 final class AddMemberHandlerTest extends TestCase
 {
+    private const string NOW = '2026-11-11 12:00:00';
+
     private InMemoryOrganizationRepository $organizations;
     private InMemoryUserRepository $users;
     private RecordingEventPublisher $events;
@@ -52,6 +55,7 @@ final class AddMemberHandlerTest extends TestCase
         $this->handle($this->owner, $this->newcomer->getId()->toRfc4122(), 'manager');
 
         self::assertSame(MembershipRole::Manager, $this->organization->membershipOf($this->newcomer->getId())?->getRole());
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->organization->membershipOf($this->newcomer->getId())->getCreatedAt());
         self::assertSame(1, $this->organizations->saveCallCount);
         self::assertEquals([new MemberAdded(
             organizationId: $this->organization->getId()->toRfc4122(),
@@ -111,7 +115,7 @@ final class AddMemberHandlerTest extends TestCase
 
     private function handle(User $actor, string $userId, string $role): void
     {
-        (new AddMemberHandler($this->organizations, $this->users, $this->events))(new AddMemberCommand(
+        (new AddMemberHandler($this->organizations, $this->users, $this->events, new MockClock(self::NOW)))(new AddMemberCommand(
             $this->organization->getId()->toRfc4122(),
             $actor->getId()->toRfc4122(),
             $userId,

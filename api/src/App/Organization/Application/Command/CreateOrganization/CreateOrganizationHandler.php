@@ -9,6 +9,7 @@ use App\Organization\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\User\Domain\Exception\UserNotFoundException;
 use App\User\Domain\Repository\UserRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /** Creates an organization with the given user as its owner. */
@@ -17,6 +18,7 @@ final readonly class CreateOrganizationHandler implements CommandHandlerInterfac
     public function __construct(
         private OrganizationRepositoryInterface $organizations,
         private UserRepositoryInterface $users,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -29,6 +31,7 @@ final readonly class CreateOrganizationHandler implements CommandHandlerInterfac
             Uuid::fromString($command->organizationId),
             $command->name,
             $owner,
+            $this->clock->now(),
             $command->taxId,
             $command->countryCode,
             $command->currency,

@@ -34,7 +34,7 @@ final class RequestPasswordResetHandlerTest extends TestCase
         $this->users = new InMemoryUserRepository();
         $this->tokens = new InMemoryPasswordTokenRepository();
         $this->mailer = new RecordingMailer();
-        $this->user = new User(Uuid::v7(), 'max@example.com', 'Max', 'Kowalski');
+        $this->user = new User(Uuid::v7(), 'max@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Max', 'Kowalski');
         $this->user->changePassword('hash');
         $this->users->add($this->user);
     }
@@ -95,7 +95,7 @@ final class RequestPasswordResetHandlerTest extends TestCase
 
     public function test_it_invalidates_the_previous_reset_but_not_an_invitation(): void
     {
-        $invited = new User(Uuid::v7(), 'eve@example.com', 'Eve');
+        $invited = new User(Uuid::v7(), 'eve@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Eve');
         $this->users->add($invited);
         $invitation = new PasswordToken(Uuid::v7(), $invited, PasswordTokenPurpose::Invitation, PasswordTokenSecret::generate(), new \DateTimeImmutable('2026-11-10 12:00:00'));
         $previous = new PasswordToken(Uuid::v7(), $invited, PasswordTokenPurpose::PasswordReset, PasswordTokenSecret::generate(), new \DateTimeImmutable('2026-11-11 11:50:00'));

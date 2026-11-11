@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Factory;
 
 use App\Organization\Domain\Model\Organization;
+use Symfony\Component\Clock\Clock;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
@@ -22,6 +23,7 @@ final class OrganizationFactory extends PersistentObjectFactory
             'id' => Uuid::v7(),
             'name' => self::faker()->company(),
             'owner' => UserFactory::new(),
+            'createdAt' => Clock::get()->now(), // the global clock, so mockTime() applies
         ];
     }
 }
