@@ -40,7 +40,7 @@ src/App/<Module>/
     Infrastructure/
         Doctrine/Orm/Repository/   repository adapters
         ...                        Doctrine filters/listeners, external clients (KSeF), ...
-src/App/Shared/             bus interfaces (Application), event interfaces (Domain), Messenger buses (Infrastructure)
+src/App/Shared/             bus interfaces (Application), event interfaces (Domain), business date/period value objects (Domain/Time), Messenger buses (Infrastructure)
 src/Ui/
     Http/<Module>/          <Name>Resource, <UseCase>Input, Provider/, Processor/
     Http/Listener/          request listeners (SelectOrganizationFromHeaderListener)
@@ -60,6 +60,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 | Background or scheduled job | console command in `Ui\Console\<Module>\` → query bus for ids → one command per aggregate; call `TenantContextInterface::switchTo()` before tenant data |
 | Side effect of a write | domain event on the event bus (`EventPublisherInterface`), handled by an `EventHandlerInterface` |
 | Current time | the handler injects `Psr\Clock\ClockInterface`, calls `now()` once and passes the moment into the aggregate (`new Organization(..., $createdAt)`, `addMember(..., $now)`); the Domain never reads the clock (ADR 0015) |
+| Business date or period ("today", "this month", `?from=&to=`) | `App\Shared\Domain\Time`: `BusinessDate::containing($clock->now(), $timeZone)` for today, `BusinessDate::fromString()` / `BusinessPeriod::fromStrings()` for API `Y-m-d` values, `BusinessPeriod::month()`; `toUtcRange($timeZone)` with the organization's time zone gives `[from, to)` to query UTC timestamps (`>= from AND < to`). Never compute day boundaries by hand (ADR 0017) |
 | Transactional e-mail | after the write succeeded (command or event handler): `App\Shared\Application\Mail\TransactionalMailerInterface::send()` with a `TransactionalEmail` (HTML Twig template in `api/templates/email/`, primitives only in the context); it is queued and the worker renders and sends it (ADR 0012) |
 
 ### Dependency rules (enforced by Deptrac: `make deptrac`, part of `make qa`)
@@ -101,7 +102,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 
 ## Backend conventions
 
-- Timestamps are `DateTimeImmutable` stored in UTC.
+- Timestamps are `DateTimeImmutable` stored in UTC. Business dates and periods are `BusinessDate`/`BusinessPeriod`, converted with the organization's time zone, never the server default (ADR 0017).
 - "Now" comes from `Psr\Clock\ClockInterface` (Symfony's `clock` service) in handlers, fixtures and commands, and is passed into entity constructors and methods as a parameter. Domain code never calls `new \DateTimeImmutable()` without an argument, `time()` or `Clock::get()` (ADR 0015).
 - Money: store integer minor units (grosze) with a currency code; never floats (ADR 0010).
 - Schema changes go through migrations (`make migration`); read the generated SQL. Tests build the schema from mapping (Foundry `mode: schema`), and `make db-validate` checks that migrations match.
