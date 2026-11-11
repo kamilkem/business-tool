@@ -1,4 +1,5 @@
-# Limits for the public endpoints that change an account (ADR 0013), keyed by client IP.
+# Limits for the public endpoints that change an account (ADR 0013), keyed by client IP (and by
+# e-mail for the reset request).
 # Behind a reverse proxy, the client IP needs framework.trusted_proxies (hosting, #35).
 framework:
     rate_limiter:
@@ -7,6 +8,18 @@ framework:
         set_password:
             policy: sliding_window
             limit: 30
+            interval: '15 minutes'
+        # POST /api/auth/password-reset, per client IP: stops one client from mailing many addresses.
+        # Generous, so a team behind one bar's Wi-Fi is not locked out.
+        password_reset_per_ip:
+            policy: sliding_window
+            limit: 20
+            interval: '15 minutes'
+        # POST /api/auth/password-reset, per e-mail (normalized): stops anyone from flooding one inbox.
+        # Counts unknown e-mails too, so a 429 tells nothing about whether an account exists.
+        password_reset_per_email:
+            policy: sliding_window
+            limit: 3
             interval: '15 minutes'
 
 when@test:
@@ -19,4 +32,8 @@ when@test:
     framework:
         rate_limiter:
             set_password:
+                storage_service: rate_limiter.storage.test
+            password_reset_per_ip:
+                storage_service: rate_limiter.storage.test
+            password_reset_per_email:
                 storage_service: rate_limiter.storage.test

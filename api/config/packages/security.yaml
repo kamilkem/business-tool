@@ -28,6 +28,8 @@ security:
         - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
         # Set a password with an e-mailed token (ADR 0013); rate-limited in its processor.
         - { path: ^/api/auth/set-password$, roles: PUBLIC_ACCESS }
+        # Ask for a password reset link (ADR 0013, #13); rate-limited in its processor.
+        - { path: ^/api/auth/password-reset$, roles: PUBLIC_ACCESS }
         - { path: ^/api(/docs.*)?$, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
