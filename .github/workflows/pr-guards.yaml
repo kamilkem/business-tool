@@ -1,0 +1,61 @@
+# Repository rules checked on every PR, whatever files it touches (ci.yaml skips Markdown-only
+# PRs, but a test can be deleted in a "docs" PR too). Each guard is a script in .github/scripts/,
+# runnable locally with BASE_REF=origin/main.
+name: PR guards
+
+on:
+    pull_request:
+        # `labeled`/`unlabeled`: the `intentional-exception` label changes the suppressions result.
+        types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: pr-guards-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+
+jobs:
+    suppressions:
+        name: "No new suppressions or deleted tests"
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    fetch-depth: 0
+
+            -   name: Fetch the base branch
+                env:
+                    BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+                run: |
+                    git fetch --no-tags --quiet origin \
+                        "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+
+            -   name: Check for new suppressions
+                env:
+                    BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+                    # Escape hatch: only a label on the PR, never a file in the repository.
+                    ALLOW_SUPPRESSIONS: ${{ contains(github.event.pull_request.labels.*.name, 'intentional-exception') && '1' || '0' }}
+                run: .github/scripts/check-suppressions.sh
+
+    merged-migrations:
+        name: "Merged migrations are not edited"
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    fetch-depth: 0
+
+            -   name: Fetch the base branch
+                env:
+                    BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+                run: |
+                    git fetch --no-tags --quiet origin \
+                        "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+
+            -   name: Check merged migrations
+                env:
+                    BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+                run: .github/scripts/check-merged-migrations.sh

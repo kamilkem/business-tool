@@ -70,7 +70,11 @@ types: ## Regenerate the TypeScript API client from OpenAPI
 adr-check: ## Check ADR numbering, statuses and index (adr/)
 	.github/scripts/check-adr-hygiene.sh
 
-qa: adr-check db-validate deptrac phpstan test ## Run every check
+guards: ## PR guards from CI: no new suppressions, no edited merged migrations (BASE_REF=origin/main)
+	BASE_REF=$(or $(BASE_REF),origin/main) .github/scripts/check-suppressions.sh
+	BASE_REF=$(or $(BASE_REF),origin/main) .github/scripts/check-merged-migrations.sh
+
+qa: adr-check guards db-validate deptrac phpstan test ## Run every check
 	$(PNPM) typecheck
 	$(PNPM) lint
 	$(PNPM) build
@@ -78,4 +82,4 @@ qa: adr-check db-validate deptrac phpstan test ## Run every check
 help:
 	@grep -hE '(^[a-zA-Z_-]+:.*?## .*$$)|(^## )' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-14s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m## /\n[33m/'
 
-.PHONY: up down build logs sh install setup console migration migrate db-reset db-validate deptrac test phpstan admin timeclock types adr-check qa help
+.PHONY: up down build logs sh install setup console migration migrate db-reset db-validate deptrac test phpstan admin timeclock types adr-check guards qa help

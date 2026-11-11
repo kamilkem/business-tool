@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "generate": "openapi-typescript ${API_URL:-http://localhost:8000}/api/docs.jsonopenapi --default-non-nullable false -o src/schema.d.ts",
+    "generate": "openapi-typescript ${API_SPEC:-${API_URL:-http://localhost:8000}/api/docs.jsonopenapi} --default-non-nullable false -o src/schema.d.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src"
   },
