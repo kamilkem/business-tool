@@ -16,6 +16,7 @@ import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
+import { Route as AppTimeRouteImport } from './routes/_app/time'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -51,6 +52,11 @@ const AppTeamRoute = AppTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTimeRoute = AppTimeRouteImport.update({
+  id: '/time',
+  path: '/time',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/set-password': typeof SetPasswordRoute
   '/settings': typeof AppSettingsRoute
   '/team': typeof AppTeamRoute
+  '/time': typeof AppTimeRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/settings': typeof AppSettingsRoute
   '/team': typeof AppTeamRoute
+  '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/set-password': typeof SetPasswordRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/team': typeof AppTeamRoute
+  '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/settings'
     | '/team'
+    | '/time'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/settings'
     | '/team'
+    | '/time'
     | '/'
   id:
     | '__root__'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/_app/settings'
     | '/_app/team'
+    | '/_app/time'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -164,18 +176,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeamRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/time': {
+      id: '/_app/time'
+      path: '/time'
+      fullPath: '/time'
+      preLoaderRoute: typeof AppTimeRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppTeamRoute: typeof AppTeamRoute
+  AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppTeamRoute: AppTeamRoute,
+  AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

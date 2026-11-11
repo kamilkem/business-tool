@@ -1,10 +1,17 @@
+import type { LinkProps } from "@tanstack/react-router"
 import { ClockIcon, ReceiptIcon, TrendingUpIcon, WalletIcon, type LucideIcon } from "lucide-react"
+
+import { type Role, canManageTeam } from "./members"
 
 export interface ModuleInfo {
   key: string
   title: string
   description: string
   icon: LucideIcon
+  /** The module's page, once it is built; until then it is shown as "coming soon". */
+  to?: LinkProps["to"]
+  /** Who may open the page; the API refuses everyone else. */
+  allowed?: (role: Role | undefined) => boolean
 }
 
 /** Business modules shown in navigation and on the dashboard. */
@@ -32,5 +39,13 @@ export const modules: ModuleInfo[] = [
     title: "Time tracking",
     description: "Shifts clocked in the timeclock app.",
     icon: ClockIcon,
+    to: "/time",
+    // Employees see only their own shifts (in the timeclock app); the table of everyone's is for managers.
+    allowed: canManageTeam,
   },
 ]
+
+/** Modules the role sees: built ones it may open, and the ones still to come. */
+export function modulesFor(role: Role | undefined): ModuleInfo[] {
+  return modules.filter((module) => !module.to || !module.allowed || module.allowed(role))
+}
