@@ -10,8 +10,8 @@ use App\Shared\Application\Command\CommandBusInterface;
 use App\User\Application\Command\SetPassword\SetPasswordCommand;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+use Ui\Http\Shared\Security\RateLimit;
 use Ui\Http\User\SetPasswordInput;
 
 /**
@@ -34,10 +34,7 @@ final readonly class SetPasswordProcessor implements ProcessorInterface
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
         $clientIp = $this->requestStack->getMainRequest()?->getClientIp() ?? 'unknown';
-        $limit = $this->limiter->create($clientIp)->consume();
-        if (!$limit->isAccepted()) {
-            throw new TooManyRequestsHttpException(max(1, $limit->getRetryAfter()->getTimestamp() - time()), 'Too many attempts. Try again later.');
-        }
+        RateLimit::consumeOrFail($this->limiter->create($clientIp));
 
         $this->commandBus->handle(new SetPasswordCommand($data->token, $data->password));
 

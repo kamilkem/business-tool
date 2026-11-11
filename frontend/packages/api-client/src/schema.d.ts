@@ -196,6 +196,26 @@ export interface paths {
         patch: operations["api_organizations_id_patch"];
         trace?: never;
     };
+    "/api/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * E-mails a link to set a new password, if the e-mail has an account.
+         * @description Public. Always answers 202, whether or not the e-mail has an account, so accounts cannot be discovered. For a known e-mail it issues a reset token valid for 1 hour (older unused reset links stop working) and e-mails a link to the set-password page of the requested app; the new password is then set with POST /api/auth/set-password. Rate-limited per client IP and per e-mail (429).
+         */
+        post: operations["api_authpassword-reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/set-password": {
         parameters: {
             query?: never;
@@ -516,8 +536,26 @@ export interface components {
             createdAt: string;
         };
         /**
-         * @description Public endpoints that set a password with an e-mailed one-time link (ADR 0013). They answer with
-         *     no body, so this resource has no fields; nobody is signed in by them.
+         * @description Public endpoints that set a password with an e-mailed one-time link, or ask for such a link to
+         *     reset a forgotten one (ADR 0013). They answer with no body, so this resource has no fields; nobody
+         *     is signed in by them.
+         */
+        "Password.RequestPasswordResetInput": {
+            /**
+             * Format: email
+             * @description The e-mail the person signs in with.
+             */
+            email: string;
+            /**
+             * @description The app whose "set a new password" page the e-mailed link opens.
+             * @enum {string}
+             */
+            app: "admin" | "timeclock";
+        };
+        /**
+         * @description Public endpoints that set a password with an e-mailed one-time link, or ask for such a link to
+         *     reset a forgotten one (ADR 0013). They answer with no body, so this resource has no fields; nobody
+         *     is signed in by them.
          */
         "Password.SetPasswordInput": {
             /** @description The secret from the e-mailed link (the `token` in its URL fragment). */
@@ -1097,6 +1135,59 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_authpassword-reset_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Password resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Password.RequestPasswordResetInput"];
+                "application/json": components["schemas"]["Password.RequestPasswordResetInput"];
+            };
+        };
+        responses: {
+            /** @description Accepted. If the e-mail has an account, a link is on its way. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description Too many requests from this IP address or for this e-mail; see Retry-After. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
