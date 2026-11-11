@@ -27,7 +27,7 @@ final class GetMeHandlerTest extends TestCase
         $users->add($user);
         $organizations->add(OrganizationMother::ownedBy($user, 'Corner Pub'));
         $other = OrganizationMother::ownedBy(UserMother::any('boss@example.com'), 'Big Bar');
-        $other->addMember($user, MembershipRole::Employee);
+        OrganizationMother::addMember($other, $user, MembershipRole::Employee);
         $organizations->add($other);
 
         $view = (new GetMeHandler($users, new InMemoryMembershipRepository($organizations)))(

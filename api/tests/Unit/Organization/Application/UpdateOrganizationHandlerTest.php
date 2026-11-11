@@ -48,7 +48,7 @@ final class UpdateOrganizationHandlerTest extends TestCase
         $organizations = new InMemoryOrganizationRepository();
         $organization = OrganizationMother::ownedBy(UserMother::any());
         $employee = UserMother::any('eve@example.com');
-        $organization->addMember($employee, MembershipRole::Employee);
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
         $organizations->add($organization);
 
         $this->expectException(OrganizationManagementForbiddenException::class);

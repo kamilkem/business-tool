@@ -57,7 +57,11 @@ export interface paths {
          */
         get: operations["api_members_get_collection"];
         put?: never;
-        post?: never;
+        /**
+         * Adds a person to the selected organization.
+         * @description An unknown e-mail gets a new account without a password (an invitation e-mail follows); a known one keeps its own name and password. Owners give any role, managers add employees only (403 otherwise); an existing member is a 409.
+         */
+        post: operations["api_members_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -284,7 +288,7 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list them.
+         *     and managers may list and add them; managers add employees only.
          */
         Member: {
             userId: string;
@@ -303,7 +307,24 @@ export interface components {
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
-         *     and managers may list them.
+         *     and managers may list and add them; managers add employees only.
+         */
+        "Member.AddMemberInput": {
+            /** Format: email */
+            email: string;
+            /** @description Used only when the e-mail has no account yet; an existing user keeps their own name. */
+            firstName: string;
+            /** @description Used only when the e-mail has no account yet; an existing user keeps their own name. */
+            lastName: string;
+            /**
+             * @description Owners give any role; managers add employees only.
+             * @enum {string}
+             */
+            role: "owner" | "manager" | "employee";
+        };
+        /**
+         * @description People with access to the organization selected by the X-Organization-Id header. Only owners
+         *     and managers may list and add them; managers add employees only.
          */
         "Member.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             userId: string;
@@ -455,6 +476,55 @@ export interface operations {
                         member: components["schemas"]["Member.jsonld"][];
                     };
                     "application/json": components["schemas"]["Member"][];
+                };
+            };
+        };
+    };
+    api_members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Member resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Member.AddMemberInput"];
+                "application/json": components["schemas"]["Member.AddMemberInput"];
+            };
+        };
+        responses: {
+            /** @description Member resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Member.jsonld"];
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
                 };
             };
         };

@@ -15,4 +15,14 @@ enum MembershipRole: string
     {
         return self::Employee !== $this;
     }
+
+    /** Owners give any role; managers add employees only; employees give none. */
+    public function canAssign(self $role): bool
+    {
+        return match ($this) {
+            self::Owner => true,
+            self::Manager => self::Employee === $role,
+            self::Employee => false,
+        };
+    }
 }

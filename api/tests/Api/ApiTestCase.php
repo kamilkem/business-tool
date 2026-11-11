@@ -10,6 +10,7 @@ use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Factory\UserFactory;
+use App\Tests\Fixtures\OrganizationMother;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -48,7 +49,7 @@ abstract class ApiTestCase extends BaseApiTestCase
         }
 
         $user = UserFactory::createOne();
-        $organization->addMember($user, $role);
+        OrganizationMother::addMember($organization, $user, $role);
         static::getContainer()->get(EntityManagerInterface::class)->flush();
 
         return [$user, $organization];

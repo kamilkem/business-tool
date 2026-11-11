@@ -31,8 +31,8 @@ final class AppFixtures extends Fixture
     {
         $owner = $this->user($manager, 'owner@example.com', 'Olivia', 'Owner');
         $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner);
-        $bar->addMember($this->user($manager, 'manager@example.com', 'Max', 'Manager'), MembershipRole::Manager);
-        $bar->addMember($this->user($manager, 'employee@example.com', 'Eve', 'Employee'), MembershipRole::Employee);
+        $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager'), MembershipRole::Manager);
+        $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee'), MembershipRole::Employee);
         $manager->persist($bar);
 
         $manager->flush();

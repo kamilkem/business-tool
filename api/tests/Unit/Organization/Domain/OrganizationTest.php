@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Organization\Domain;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
+use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Tests\Fixtures\OrganizationMother;
@@ -38,12 +39,14 @@ final class OrganizationTest extends TestCase
 
     public function test_it_adds_members_with_a_role(): void
     {
-        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
         $employee = UserMother::any('eve@example.com');
 
-        $organization->addMember($employee, MembershipRole::Employee);
+        $membership = $organization->addMember($owner->getId(), $employee, MembershipRole::Employee);
 
-        self::assertSame(MembershipRole::Employee, $organization->membershipOf($employee->getId())?->getRole());
+        self::assertSame($membership, $organization->membershipOf($employee->getId()));
+        self::assertSame(MembershipRole::Employee, $membership->getRole());
     }
 
     public function test_it_refuses_to_add_the_same_user_twice(): void
@@ -53,7 +56,84 @@ final class OrganizationTest extends TestCase
 
         $this->expectException(AlreadyAMemberException::class);
 
-        $organization->addMember($owner, MembershipRole::Employee);
+        $organization->addMember($owner->getId(), $owner, MembershipRole::Employee);
+    }
+
+    /** @return iterable<string, array{MembershipRole, MembershipRole, bool}> */
+    public static function memberAdditions(): iterable
+    {
+        yield 'owner adds an owner' => [MembershipRole::Owner, MembershipRole::Owner, true];
+        yield 'owner adds a manager' => [MembershipRole::Owner, MembershipRole::Manager, true];
+        yield 'owner adds an employee' => [MembershipRole::Owner, MembershipRole::Employee, true];
+        yield 'manager adds an owner' => [MembershipRole::Manager, MembershipRole::Owner, false];
+        yield 'manager adds a manager' => [MembershipRole::Manager, MembershipRole::Manager, false];
+        yield 'manager adds an employee' => [MembershipRole::Manager, MembershipRole::Employee, true];
+    }
+
+    #[DataProvider('memberAdditions')]
+    public function test_it_lets_owners_add_any_role_and_managers_only_employees(
+        MembershipRole $actorRole,
+        MembershipRole $role,
+        bool $allowed,
+    ): void {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $actor = $owner;
+        if (MembershipRole::Owner !== $actorRole) {
+            $actor = UserMother::any('max@example.com');
+            OrganizationMother::addMember($organization, $actor, $actorRole);
+        }
+        $newcomer = UserMother::any('new@example.com');
+
+        if (!$allowed) {
+            $this->expectException(RoleAssignmentForbiddenException::class);
+        }
+
+        $organization->addMember($actor->getId(), $newcomer, $role);
+
+        self::assertSame($role, $organization->membershipOf($newcomer->getId())?->getRole());
+    }
+
+    public function test_it_refuses_member_additions_from_an_employee(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $employee = UserMother::any('eve@example.com');
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->addMember($employee->getId(), UserMother::any('new@example.com'), MembershipRole::Employee);
+    }
+
+    public function test_it_refuses_member_additions_from_a_non_member(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->addMember(Uuid::v7(), UserMother::any('new@example.com'), MembershipRole::Employee);
+    }
+
+    public function test_it_checks_the_permission_before_the_existing_membership(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $manager = UserMother::any('max@example.com');
+        OrganizationMother::addMember($organization, $manager, MembershipRole::Manager);
+
+        $this->expectException(RoleAssignmentForbiddenException::class);
+
+        $organization->addMember($manager->getId(), $owner, MembershipRole::Manager);
+    }
+
+    public function test_it_checks_a_member_addition_without_adding_anyone(): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+
+        $organization->assertCanAddMember($owner->getId(), MembershipRole::Manager);
+
+        self::assertCount(1, $organization->getMemberships());
     }
 
     #[DataProvider('managingRoles')]
@@ -64,7 +144,7 @@ final class OrganizationTest extends TestCase
         $actor = $owner;
         if (MembershipRole::Manager === $role) {
             $actor = UserMother::any('max@example.com');
-            $organization->addMember($actor, $role);
+            OrganizationMother::addMember($organization, $actor, $role);
         }
 
         $organization->changeSettings($actor->getId(), 'Renamed', ' 1234567890 ', 'de', 'eur', 'Europe/Berlin');
@@ -87,7 +167,7 @@ final class OrganizationTest extends TestCase
     {
         $organization = OrganizationMother::ownedBy(UserMother::any());
         $employee = UserMother::any('eve@example.com');
-        $organization->addMember($employee, MembershipRole::Employee);
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 
@@ -109,8 +189,8 @@ final class OrganizationTest extends TestCase
         $owner = UserMother::any();
         $organization = OrganizationMother::ownedBy($owner);
         $manager = UserMother::any('max@example.com');
-        $organization->addMember($manager, MembershipRole::Manager);
-        $organization->addMember(UserMother::any('eve@example.com'), MembershipRole::Employee);
+        OrganizationMother::addMember($organization, $manager, MembershipRole::Manager);
+        OrganizationMother::addMember($organization, UserMother::any('eve@example.com'), MembershipRole::Employee);
         $actor = MembershipRole::Owner === $role ? $owner : $manager;
 
         $members = $organization->membersVisibleTo($actor->getId());
@@ -122,7 +202,7 @@ final class OrganizationTest extends TestCase
     {
         $organization = OrganizationMother::ownedBy(UserMother::any());
         $employee = UserMother::any('eve@example.com');
-        $organization->addMember($employee, MembershipRole::Employee);
+        OrganizationMother::addMember($organization, $employee, MembershipRole::Employee);
 
         $this->expectException(OrganizationManagementForbiddenException::class);
 

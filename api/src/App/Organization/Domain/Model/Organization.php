@@ -6,6 +6,7 @@ namespace App\Organization\Domain\Model;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
+use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
 use App\User\Domain\Model\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -57,19 +58,38 @@ class Organization
         $this->createdAt = new \DateTimeImmutable();
         $this->memberships = new ArrayCollection();
         $this->apply($name, $taxId, $countryCode, $currency, $timezone);
-        $this->addMember($owner, MembershipRole::Owner);
+        $this->grantMembership($owner, MembershipRole::Owner);
     }
 
-    public function addMember(User $user, MembershipRole $role): Membership
+    /**
+     * Adds a user to the organization with a role, on behalf of a member.
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws RoleAssignmentForbiddenException         when the actor may not give this role
+     * @throws AlreadyAMemberException                  when the user is already a member
+     */
+    public function addMember(Uuid $actorId, User $user, MembershipRole $role): Membership
     {
-        if (null !== $this->membershipOf($user->getId())) {
-            throw AlreadyAMemberException::of($user->getId()->toRfc4122(), $this->id->toRfc4122());
+        $this->assertCanAddMember($actorId, $role);
+
+        return $this->grantMembership($user, $role);
+    }
+
+    /**
+     * The permission part of addMember(), for callers that must check it before preparing the user
+     * (an invited user is created only when the actor may add them).
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws RoleAssignmentForbiddenException         when the actor may not give this role
+     */
+    public function assertCanAddMember(Uuid $actorId, MembershipRole $role): void
+    {
+        $this->assertCanManage($actorId);
+
+        $actorRole = $this->membershipOf($actorId)?->getRole();
+        if (null === $actorRole || !$actorRole->canAssign($role)) {
+            throw RoleAssignmentForbiddenException::forRole($actorId->toRfc4122(), $role->value);
         }
-
-        $membership = new Membership($this, $user, $role);
-        $this->memberships->add($membership);
-
-        return $membership;
     }
 
     public function membershipOf(Uuid $userId): ?Membership
@@ -113,6 +133,18 @@ class Organization
         $this->assertCanManage($actorId);
 
         return array_values($this->memberships->toArray());
+    }
+
+    private function grantMembership(User $user, MembershipRole $role): Membership
+    {
+        if (null !== $this->membershipOf($user->getId())) {
+            throw AlreadyAMemberException::of($user->getId()->toRfc4122(), $this->id->toRfc4122());
+        }
+
+        $membership = new Membership($this, $user, $role);
+        $this->memberships->add($membership);
+
+        return $membership;
     }
 
     private function assertCanManage(Uuid $actorId): void
