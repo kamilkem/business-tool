@@ -236,6 +236,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shifts/clock-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clocks the signed-in user in to the selected organization.
+         * @description Opens a shift that starts at the server's current time; the request has no body. Any member may clock in, whatever their role. A person who is already clocked in gets a 409.
+         */
+        post: operations["api_shiftsclock-in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shifts/clock-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clocks the signed-in user out of the selected organization.
+         * @description Ends the person's open shift at the server's current time; the request has no body. A person who is not clocked in gets a 409; clocking out in the same second as clocking in is a 422.
+         */
+        post: operations["api_shiftsclock-out_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shifts/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in user's open shift in the selected organization.
+         * @description The shift the person clocked in to and has not clocked out of yet. A person who is not clocked in gets a 404.
+         */
+        get: operations["api_shiftscurrent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -562,6 +622,48 @@ export interface components {
             token: string;
             /** @description The new password: at least 8 characters, at most 4096 bytes; no composition rules. */
             password: string;
+        };
+        /**
+         * @description The signed-in user's working time in the organization selected by the X-Organization-Id header.
+         *     Every member clocks in and out for themselves only, on their own phone (ADR 0016); the server's
+         *     clock sets the times, so the requests carry no body. There is no location check.
+         */
+        Shift: {
+            id: string;
+            /** @description The person who worked the shift. */
+            userId: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked in (server time).
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked out (server time); null while they are clocked in.
+             */
+            endedAt: string | null;
+            note: string | null;
+        };
+        /**
+         * @description The signed-in user's working time in the organization selected by the X-Organization-Id header.
+         *     Every member clocks in and out for themselves only, on their own phone (ADR 0016); the server's
+         *     clock sets the times, so the requests carry no body. There is no location check.
+         */
+        "Shift.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The person who worked the shift. */
+            userId: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked in (server time).
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description When the person clocked out (server time); null while they are clocked in.
+             */
+            endedAt: string | null;
+            note: string | null;
         };
     };
     responses: never;
@@ -1244,6 +1346,134 @@ export interface operations {
             };
             /** @description Too many attempts from this IP address; see Retry-After. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_shiftsclock-in_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new open shift. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Shift.jsonld"];
+                    "application/json": components["schemas"]["Shift"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The person is already clocked in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_shiftsclock-out_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ended shift. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Shift.jsonld"];
+                    "application/json": components["schemas"]["Shift"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The person is not clocked in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The shift would not end after it started. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_shiftscurrent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shift resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Shift.jsonld"];
+                    "application/json": components["schemas"]["Shift"];
+                };
+            };
+            /** @description The person is not clocked in. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
