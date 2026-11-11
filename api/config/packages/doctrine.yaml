@@ -22,6 +22,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/Organization/Domain/Model'
                 prefix: 'App\Organization\Domain\Model'
                 alias: AppOrganization
+            AppTimeTracking:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/TimeTracking/Domain/Model'
+                prefix: 'App\TimeTracking\Domain\Model'
+                alias: AppTimeTracking
         filters:
             tenant:
                 class: App\Organization\Infrastructure\Doctrine\Tenant\TenantFilter

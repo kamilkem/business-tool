@@ -28,5 +28,10 @@ services:
         exclude:
             - '../src/App/Organization/Domain/Model/'
 
+    App\TimeTracking\:
+        resource: '../src/App/TimeTracking/'
+        exclude:
+            - '../src/App/TimeTracking/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'
