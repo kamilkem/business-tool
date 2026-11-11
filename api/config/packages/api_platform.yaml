@@ -41,6 +41,8 @@ api_platform:
         # Ours:
         App\Organization\Domain\Exception\OrganizationNotFoundException: 404
         App\Organization\Domain\Exception\OrganizationManagementForbiddenException: 403
+        App\Organization\Domain\Exception\RoleAssignmentForbiddenException: 403
         App\Organization\Domain\Exception\AlreadyAMemberException: 409
         App\Organization\Domain\Exception\NoOrganizationSelectedException: 400
         App\User\Domain\Exception\UserNotFoundException: 404
+        App\User\Domain\Exception\EmailAlreadyRegisteredException: 409

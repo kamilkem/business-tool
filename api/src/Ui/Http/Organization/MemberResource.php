@@ -6,13 +6,16 @@ namespace Ui\Http\Organization;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation;
 use App\Organization\Application\Query\ListMembers\MemberView;
 use App\Organization\Domain\Model\MembershipRole;
+use Ui\Http\Organization\Processor\AddMemberProcessor;
 use Ui\Http\Organization\Provider\MemberCollectionProvider;
 
 /**
  * People with access to the organization selected by the X-Organization-Id header. Only owners
- * and managers may list them.
+ * and managers may list and add them; managers add employees only.
  */
 #[ApiResource(
     shortName: 'Member',
@@ -21,6 +24,16 @@ use Ui\Http\Organization\Provider\MemberCollectionProvider;
             uriTemplate: '/members',
             paginationEnabled: false,
             provider: MemberCollectionProvider::class,
+        ),
+        new Post(
+            uriTemplate: '/members',
+            openapi: new Operation(
+                summary: 'Adds a person to the selected organization.',
+                description: 'An unknown e-mail gets a new account without a password (an invitation e-mail follows); a known one keeps its own name and password. Owners give any role, managers add employees only (403 otherwise); an existing member is a 409.',
+            ),
+            input: AddMemberInput::class,
+            read: false,
+            processor: AddMemberProcessor::class,
         ),
     ],
 )]

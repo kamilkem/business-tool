@@ -19,6 +19,17 @@ final class InMemoryUserRepository implements UserRepositoryInterface
         return $this->byId[$id->toRfc4122()] ?? null;
     }
 
+    public function findByEmail(string $email): ?User
+    {
+        foreach ($this->byId as $user) {
+            if ($user->getEmail() === User::normalizeEmail($email)) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
     public function add(User $user): void
     {
         $this->byId[$user->getId()->toRfc4122()] = $user;

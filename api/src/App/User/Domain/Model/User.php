@@ -37,8 +37,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         #[ORM\Column(length: 100)]
         private string $lastName = '',
     ) {
-        $this->email = mb_strtolower(trim($email));
+        $this->email = self::normalizeEmail($email);
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    /** E-mails are stored trimmed and lower-cased; look them up the same way. */
+    public static function normalizeEmail(string $email): string
+    {
+        return mb_strtolower(trim($email));
     }
 
     public function getId(): Uuid

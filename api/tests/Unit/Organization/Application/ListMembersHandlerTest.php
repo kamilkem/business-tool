@@ -34,8 +34,8 @@ final class ListMembersHandlerTest extends TestCase
         $this->manager = self::user('max@example.com', 'Max', 'Adamski');
         $this->employee = self::user('eve@example.com', 'Eve', 'Nowak', hasPassword: false);
         $this->organization = OrganizationMother::ownedBy($this->owner);
-        $this->organization->addMember($this->manager, MembershipRole::Manager);
-        $this->organization->addMember($this->employee, MembershipRole::Employee);
+        OrganizationMother::addMember($this->organization, $this->manager, MembershipRole::Manager);
+        OrganizationMother::addMember($this->organization, $this->employee, MembershipRole::Employee);
         $this->organizations->add($this->organization);
     }
 

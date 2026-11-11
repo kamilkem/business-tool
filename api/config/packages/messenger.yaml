@@ -11,9 +11,13 @@ framework:
             messenger.bus.query:
                 default_middleware: false
                 middleware: [handle_message]
+            # An event may have no handler yet (MemberAdded until #9), so publishing one is not an error.
             messenger.bus.event:
                 default_middleware: false
-                middleware: [handle_message]
+                middleware:
+                    # index_1 is HandleMessageMiddleware's $allowNoHandlers (what default_middleware's
+                    # allow_no_handlers sets, which needs default_middleware enabled).
+                    - handle_message: { index_1: true }
             # Symfony Mailer dispatches SendEmailMessage here (config/packages/mailer.yaml). It keeps
             # the default middleware, which sends routed messages to their transport (adr/0012).
             messenger.bus.mailer: ~
