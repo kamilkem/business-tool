@@ -121,8 +121,10 @@ $(printf '%s\n' "$NEW_SKIPS" | sed 's/^/         /')
 fi
 
 # --- 4. Net drop in test methods -----------------------------------------------------------
+# --threads=1: threaded `git grep` on a tree (seen with git 2.47 on macOS) sometimes drops a
+# matching line, so the same revision counted 261-263 and the guard failed at random.
 test_count() {
-    git grep -h -I -E 'function test_?[A-Za-z0-9_]*\(|#\[Test\]' "$1" -- api/tests 2>/dev/null \
+    git grep --threads=1 -h -I -E 'function test_?[A-Za-z0-9_]*\(|#\[Test\]' "$1" -- api/tests 2>/dev/null \
         | wc -l | tr -d ' '
 }
 
