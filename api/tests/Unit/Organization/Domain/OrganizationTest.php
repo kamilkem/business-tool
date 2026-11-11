@@ -102,4 +102,39 @@ final class OrganizationTest extends TestCase
 
         $organization->changeSettings(Uuid::v7(), 'Renamed', null, 'PL', 'PLN', 'Europe/Warsaw');
     }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_shows_every_member_to_owners_and_managers(MembershipRole $role): void
+    {
+        $owner = UserMother::any();
+        $organization = OrganizationMother::ownedBy($owner);
+        $manager = UserMother::any('max@example.com');
+        $organization->addMember($manager, MembershipRole::Manager);
+        $organization->addMember(UserMother::any('eve@example.com'), MembershipRole::Employee);
+        $actor = MembershipRole::Owner === $role ? $owner : $manager;
+
+        $members = $organization->membersVisibleTo($actor->getId());
+
+        self::assertCount(3, $members);
+    }
+
+    public function test_it_refuses_the_member_list_to_an_employee(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+        $employee = UserMother::any('eve@example.com');
+        $organization->addMember($employee, MembershipRole::Employee);
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->membersVisibleTo($employee->getId());
+    }
+
+    public function test_it_refuses_the_member_list_to_a_non_member(): void
+    {
+        $organization = OrganizationMother::ownedBy(UserMother::any());
+
+        $this->expectException(OrganizationManagementForbiddenException::class);
+
+        $organization->membersVisibleTo(Uuid::v7());
+    }
 }

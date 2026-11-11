@@ -28,6 +28,14 @@ final class UserFactory extends PersistentObjectFactory
         ];
     }
 
+    /** A user who was invited but has not set a password yet (ADR 0013). */
+    public function invited(): static
+    {
+        return $this->afterInstantiate(static function (User $user): void {
+            $user->changePassword('');
+        });
+    }
+
     protected function initialize(): static
     {
         return $this->afterInstantiate(static function (User $user): void {

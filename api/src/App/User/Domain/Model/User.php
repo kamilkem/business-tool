@@ -72,6 +72,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
+    /** False for an invited user who has not set a password yet (ADR 0013); they cannot sign in. */
+    public function hasPassword(): bool
+    {
+        return '' !== $this->password;
+    }
+
     /** Takes an already hashed password. */
     public function changePassword(string $hashedPassword): void
     {
