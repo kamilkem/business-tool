@@ -44,6 +44,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves the collection of Member resources.
+         * @description Retrieves the collection of Member resources.
+         */
+        get: operations["api_members_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/organizations": {
         parameters: {
             query?: never;
@@ -262,6 +282,44 @@ export interface components {
             id: string;
             name: string;
         };
+        /**
+         * @description People with access to the organization selected by the X-Organization-Id header. Only owners
+         *     and managers may list them.
+         */
+        Member: {
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            /** @enum {string} */
+            role: "owner" | "manager" | "employee";
+            /**
+             * Format: date-time
+             * @description When the person was added to the organization.
+             */
+            joinedAt: string;
+            /** @description The person was invited but has not set a password yet, so they cannot sign in. */
+            invitationPending: boolean;
+        };
+        /**
+         * @description People with access to the organization selected by the X-Organization-Id header. Only owners
+         *     and managers may list them.
+         */
+        "Member.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            /** @enum {string} */
+            role: "owner" | "manager" | "employee";
+            /**
+             * Format: date-time
+             * @description When the person was added to the organization.
+             */
+            joinedAt: string;
+            /** @description The person was invited but has not set a password yet, so they cannot sign in. */
+            invitationPending: boolean;
+        };
         /** @description Organizations the signed-in user belongs to. */
         Organization: {
             id: string;
@@ -374,6 +432,29 @@ export interface operations {
                     "application/ld+json": components["schemas"]["Error.jsonld"];
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_members_get_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["Member.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["Member"][];
                 };
             };
         };

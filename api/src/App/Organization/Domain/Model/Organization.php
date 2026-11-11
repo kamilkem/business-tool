@@ -96,11 +96,30 @@ class Organization
         string $currency,
         string $timezone,
     ): void {
+        $this->assertCanManage($actorId);
+
+        $this->apply($name, $taxId, $countryCode, $currency, $timezone);
+    }
+
+    /**
+     * Every member of the organization, as seen by a member managing the team.
+     *
+     * @return list<Membership>
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     */
+    public function membersVisibleTo(Uuid $actorId): array
+    {
+        $this->assertCanManage($actorId);
+
+        return array_values($this->memberships->toArray());
+    }
+
+    private function assertCanManage(Uuid $actorId): void
+    {
         if (!$this->membershipOf($actorId)?->getRole()->canManageOrganization()) {
             throw OrganizationManagementForbiddenException::forUser($actorId->toRfc4122());
         }
-
-        $this->apply($name, $taxId, $countryCode, $currency, $timezone);
     }
 
     private function apply(string $name, ?string $taxId, string $countryCode, string $currency, string $timezone): void
