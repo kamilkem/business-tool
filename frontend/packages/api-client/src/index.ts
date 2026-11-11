@@ -5,6 +5,7 @@ import type { Session } from "./session"
 
 export * from "./link-token"
 export * from "./session"
+export * from "./sign-in-redirect"
 export type { components, paths }
 
 export const ORGANIZATION_HEADER = "X-Organization-Id"
