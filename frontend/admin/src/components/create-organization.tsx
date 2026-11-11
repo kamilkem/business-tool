@@ -8,7 +8,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@bu
 import { Input } from "@business-tool/ui/components/input"
 
 import { api } from "@/lib/api"
-import { meQuery } from "@/lib/queries"
+import { refetchMe } from "@/lib/queries"
 
 /** Shown to signed-in users who don't belong to any organization yet. */
 export function CreateOrganization() {
@@ -29,7 +29,7 @@ export function CreateOrganization() {
         }),
       )
       session.selectOrganization(organization.id)
-      await queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
+      await refetchMe(queryClient)
       await router.invalidate()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create the organization")

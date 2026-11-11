@@ -53,7 +53,7 @@ import {
   roleLabel,
   statusOf,
 } from "@/lib/members"
-import { meQuery, membersQuery } from "@/lib/queries"
+import { membersQuery, refetchMe } from "@/lib/queries"
 
 export const Route = createFileRoute("/_app/team")({
   validateSearch: (search: Record<string, unknown>): { deactivated?: boolean } => ({
@@ -104,8 +104,7 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
     // Own access first: after stepping down to employee (or deactivating oneself) the page
     // stops showing the list, so it doesn't refetch one the API would now refuse.
     if (member.userId === me.id) {
-      // "me" has no observer (the layout reads it in beforeLoad), so refetch it explicitly.
-      await queryClient.invalidateQueries({ queryKey: meQuery.queryKey, refetchType: "all" })
+      await refetchMe(queryClient)
       await router.invalidate()
     }
     await queryClient.invalidateQueries({ queryKey: ["members", organizationId] })

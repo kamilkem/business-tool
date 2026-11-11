@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { type components, unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -10,7 +10,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@bu
 import { Input } from "@business-tool/ui/components/input"
 
 import { api } from "@/lib/api"
-import { meQuery, organizationQuery } from "@/lib/queries"
+import { organizationQuery, refetchMe } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
 
@@ -27,6 +27,7 @@ function SettingsPage() {
   const id = membership?.organization.id ?? ""
   const { data: organization } = useSuspenseQuery(organizationQuery(id))
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const canManage = membership?.role !== "employee"
 
@@ -42,7 +43,9 @@ function SettingsPage() {
     onSuccess: async (data) => {
       setError(null)
       queryClient.setQueryData(organizationQuery(id).queryKey, data)
-      await queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
+      // The organization's name also lives in /me (sidebar and header).
+      await refetchMe(queryClient)
+      await router.invalidate()
       toast.success("Settings saved")
     },
     onError: (e) => setError(e.message),
