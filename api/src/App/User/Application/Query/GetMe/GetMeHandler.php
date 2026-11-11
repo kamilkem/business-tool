@@ -24,7 +24,7 @@ final readonly class GetMeHandler implements QueryHandlerInterface
         $user = $this->users->findById($userId) ?? throw UserNotFoundException::forId($query->userId);
 
         $memberships = [];
-        foreach ($this->memberships->findByUser($userId) as $membership) {
+        foreach ($this->memberships->findActiveByUser($userId) as $membership) {
             $memberships[] = new MeMembershipView(
                 $membership->getId()->toRfc4122(),
                 $membership->getRole()->value,

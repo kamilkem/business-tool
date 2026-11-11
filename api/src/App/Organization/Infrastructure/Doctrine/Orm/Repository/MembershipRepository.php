@@ -31,13 +31,14 @@ final class MembershipRepository extends ServiceEntityRepository implements Memb
             ->getOneOrNullResult();
     }
 
-    public function findByUser(Uuid $userId): array
+    public function findActiveByUser(Uuid $userId): array
     {
         /** @var list<Membership> */
         return $this->createQueryBuilder('m')
             ->addSelect('o')
             ->join('m.organization', 'o')
             ->andWhere('m.user = :user')
+            ->andWhere('m.deactivatedAt IS NULL')
             ->setParameter('user', $userId, UuidType::NAME)
             ->orderBy('o.name')
             ->getQuery()

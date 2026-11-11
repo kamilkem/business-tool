@@ -6,6 +6,7 @@ namespace App\Organization\Domain\Model;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
 use App\Organization\Domain\Exception\LastOwnerException;
+use App\Organization\Domain\Exception\MemberDeactivatedException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
@@ -69,6 +70,7 @@ class Organization
      * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
      * @throws RoleAssignmentForbiddenException         when the actor may not give this role
      * @throws AlreadyAMemberException                  when the user is already a member
+     * @throws MemberDeactivatedException               when the user is a deactivated member (reactivate them instead)
      */
     public function addMember(Uuid $actorId, User $user, MembershipRole $role): Membership
     {
@@ -91,22 +93,61 @@ class Organization
     }
 
     /**
-     * The membership of a member the actor may act on, e.g. to resend their invitation: owners act
-     * on anyone, managers on employees only (the roles they may give, MembershipRole::canAssign()).
+     * The active membership of a member the actor may act on, e.g. to resend their invitation or
+     * change their role: owners act on anyone, managers on employees only (the roles they may give,
+     * MembershipRole::canAssign()). A deactivated member must be reactivated first.
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws MemberNotFoundException                  when the user is not a member
+     * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
+     * @throws MemberDeactivatedException               when the member is deactivated
+     */
+    public function manageableMembership(Uuid $actorId, Uuid $userId): Membership
+    {
+        $membership = $this->managedMembership($actorId, $userId);
+        if (!$membership->isActive()) {
+            throw MemberDeactivatedException::of($userId->toRfc4122(), $this->id->toRfc4122());
+        }
+
+        return $membership;
+    }
+
+    /**
+     * Removes a member's access on behalf of a member, keeping the membership for the history that
+     * refers to it. Owners deactivate anyone, themselves included; managers deactivate employees only.
+     * The organization always keeps at least one active owner. Deactivating a deactivated member
+     * changes nothing.
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws MemberNotFoundException                  when the user is not a member
+     * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
+     * @throws LastOwnerException                       when the member is the last active owner
+     */
+    public function deactivateMember(Uuid $actorId, Uuid $userId, \DateTimeImmutable $now): void
+    {
+        $membership = $this->managedMembership($actorId, $userId);
+        if (!$membership->isActive()) {
+            return;
+        }
+
+        if (MembershipRole::Owner === $membership->getRole() && 1 === $this->activeOwnerCount()) {
+            throw LastOwnerException::of($this->id->toRfc4122());
+        }
+
+        $membership->deactivate($now);
+    }
+
+    /**
+     * Gives a deactivated member their access back, with the role they had, on behalf of a member:
+     * owners reactivate anyone, managers employees only. Reactivating an active member changes nothing.
      *
      * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
      * @throws MemberNotFoundException                  when the user is not a member
      * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
      */
-    public function manageableMembership(Uuid $actorId, Uuid $userId): Membership
+    public function reactivateMember(Uuid $actorId, Uuid $userId): void
     {
-        $this->assertCanManage($actorId);
-
-        $membership = $this->membershipOf($userId)
-            ?? throw MemberNotFoundException::of($userId->toRfc4122(), $this->id->toRfc4122());
-        $this->assertCanGiveRole($actorId, $membership->getRole());
-
-        return $membership;
+        $this->managedMembership($actorId, $userId)->reactivate();
     }
 
     /**
@@ -117,14 +158,15 @@ class Organization
      * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
      * @throws MemberNotFoundException                  when the user is not a member
      * @throws RoleAssignmentForbiddenException         when the actor may not act on this member or give this role
-     * @throws LastOwnerException                       when the change would leave the organization without an owner
+     * @throws MemberDeactivatedException               when the member is deactivated
+     * @throws LastOwnerException                       when the change would leave the organization without an active owner
      */
     public function changeMemberRole(Uuid $actorId, Uuid $userId, MembershipRole $role): void
     {
         $membership = $this->manageableMembership($actorId, $userId);
         $this->assertCanGiveRole($actorId, $role);
 
-        if (MembershipRole::Owner === $membership->getRole() && MembershipRole::Owner !== $role && 1 === $this->ownerCount()) {
+        if (MembershipRole::Owner === $membership->getRole() && MembershipRole::Owner !== $role && 1 === $this->activeOwnerCount()) {
             throw LastOwnerException::of($this->id->toRfc4122());
         }
 
@@ -133,7 +175,7 @@ class Organization
 
     /**
      * One member as seen by a member: everyone sees their own membership (e.g. an owner who has just
-     * stepped down to employee); owners and managers see every member.
+     * stepped down to employee); owners and managers see every member, deactivated ones included.
      *
      * @throws OrganizationManagementForbiddenException when someone other than an owner or manager asks about another member
      */
@@ -146,6 +188,7 @@ class Organization
         return $this->membershipOf($userId);
     }
 
+    /** The user's membership, active or deactivated. */
     public function membershipOf(Uuid $userId): ?Membership
     {
         foreach ($this->memberships as $membership) {
@@ -175,24 +218,37 @@ class Organization
         $this->apply($name, $taxId, $countryCode, $currency, $timezone);
     }
 
+    /** The user is a member whose access was not removed (deactivateMember()). */
+    public function isActiveMember(Uuid $userId): bool
+    {
+        return null !== $this->activeMembershipOf($userId);
+    }
+
     /**
-     * Every member of the organization, as seen by a member managing the team.
+     * The members of the organization, as seen by a member managing the team: the active ones, or
+     * also the deactivated ones on request.
      *
      * @return list<Membership>
      *
      * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
      */
-    public function membersVisibleTo(Uuid $actorId): array
+    public function membersVisibleTo(Uuid $actorId, bool $includeDeactivated = false): array
     {
         $this->assertCanManage($actorId);
 
-        return array_values($this->memberships->toArray());
+        return array_values(array_filter(
+            $this->memberships->toArray(),
+            static fn (Membership $membership): bool => $includeDeactivated || $membership->isActive(),
+        ));
     }
 
     private function grantMembership(User $user, MembershipRole $role): Membership
     {
-        if (null !== $this->membershipOf($user->getId())) {
-            throw AlreadyAMemberException::of($user->getId()->toRfc4122(), $this->id->toRfc4122());
+        $existing = $this->membershipOf($user->getId());
+        if (null !== $existing) {
+            throw $existing->isActive()
+                ? AlreadyAMemberException::of($user->getId()->toRfc4122(), $this->id->toRfc4122())
+                : MemberDeactivatedException::of($user->getId()->toRfc4122(), $this->id->toRfc4122());
         }
 
         $membership = new Membership($this, $user, $role);
@@ -201,9 +257,35 @@ class Organization
         return $membership;
     }
 
+    /**
+     * A member the actor may act on, active or deactivated (manageableMembership()).
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws MemberNotFoundException                  when the user is not a member
+     * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
+     */
+    private function managedMembership(Uuid $actorId, Uuid $userId): Membership
+    {
+        $this->assertCanManage($actorId);
+
+        $membership = $this->membershipOf($userId)
+            ?? throw MemberNotFoundException::of($userId->toRfc4122(), $this->id->toRfc4122());
+        $this->assertCanGiveRole($actorId, $membership->getRole());
+
+        return $membership;
+    }
+
+    private function activeMembershipOf(Uuid $userId): ?Membership
+    {
+        $membership = $this->membershipOf($userId);
+
+        return true === $membership?->isActive() ? $membership : null;
+    }
+
+    /** Only active owners and managers act on the organization. */
     private function assertCanManage(Uuid $actorId): void
     {
-        if (!$this->membershipOf($actorId)?->getRole()->canManageOrganization()) {
+        if (!$this->activeMembershipOf($actorId)?->getRole()->canManageOrganization()) {
             throw OrganizationManagementForbiddenException::forUser($actorId->toRfc4122());
         }
     }
@@ -211,16 +293,16 @@ class Organization
     /** Owners give any role; managers add employees only (MembershipRole::canAssign()). */
     private function assertCanGiveRole(Uuid $actorId, MembershipRole $role): void
     {
-        $actorRole = $this->membershipOf($actorId)?->getRole();
+        $actorRole = $this->activeMembershipOf($actorId)?->getRole();
         if (null === $actorRole || !$actorRole->canAssign($role)) {
             throw RoleAssignmentForbiddenException::forRole($actorId->toRfc4122(), $role->value);
         }
     }
 
-    private function ownerCount(): int
+    private function activeOwnerCount(): int
     {
         return $this->memberships->filter(
-            static fn (Membership $membership): bool => MembershipRole::Owner === $membership->getRole(),
+            static fn (Membership $membership): bool => MembershipRole::Owner === $membership->getRole() && $membership->isActive(),
         )->count();
     }
 

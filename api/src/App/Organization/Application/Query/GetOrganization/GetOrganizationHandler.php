@@ -22,7 +22,7 @@ final readonly class GetOrganizationHandler implements QueryHandlerInterface
         }
 
         $organization = $this->organizations->findById(Uuid::fromString($query->organizationId));
-        if (null === $organization || null === $organization->membershipOf(Uuid::fromString($query->userId))) {
+        if (null === $organization || !$organization->isActiveMember(Uuid::fromString($query->userId))) {
             return null;
         }
 

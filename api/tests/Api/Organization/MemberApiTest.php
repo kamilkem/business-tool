@@ -41,6 +41,7 @@ final class MemberApiTest extends ApiTestCase
             'role' => 'employee',
             'joinedAt' => $byUserId[$invited->getId()->toRfc4122()]['joinedAt'],
             'invitationPending' => true,
+            'deactivatedAt' => null,
         ], $byUserId[$invited->getId()->toRfc4122()]);
         self::assertNotFalse(\DateTimeImmutable::createFromFormat(\DATE_ATOM, $byUserId[$invited->getId()->toRfc4122()]['joinedAt']));
         self::assertSame(['owner', false], [
@@ -136,6 +137,7 @@ final class MemberApiTest extends ApiTestCase
             'role' => 'employee',
             'joinedAt' => $data['joinedAt'],
             'invitationPending' => true,
+            'deactivatedAt' => null,
         ], $data);
         self::assertContains($user->getId()->toRfc4122(), array_column(
             static::clientFor($owner, $organization)->request('GET', '/api/members')->toArray(),
@@ -481,6 +483,7 @@ final class MemberApiTest extends ApiTestCase
             'role' => 'manager',
             'joinedAt' => $data['joinedAt'],
             'invitationPending' => false,
+            'deactivatedAt' => null,
         ], $data);
         self::assertSame(MembershipRole::Manager, self::roleIn($organization, $employee));
     }

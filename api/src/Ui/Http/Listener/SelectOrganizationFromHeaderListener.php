@@ -17,7 +17,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Selects the organization from the X-Organization-Id header, after checking that the signed-in
- * user is a member of it. Runs after the firewall (priority 8) and before API Platform reads data.
+ * user is an active member of it: a deactivated member is refused like a non-member, so a JWT issued
+ * before the deactivation stops working for that organization (ADR 0007). Runs after the firewall
+ * (priority 8) and before API Platform reads data.
  */
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 5)]
 final readonly class SelectOrganizationFromHeaderListener
@@ -54,6 +56,9 @@ final readonly class SelectOrganizationFromHeaderListener
         $membership = $this->memberships->findOne($user->getId(), Uuid::fromString($organizationId));
         if (null === $membership) {
             throw new AccessDeniedHttpException('You are not a member of this organization.');
+        }
+        if (!$membership->isActive()) {
+            throw new AccessDeniedHttpException('Your access to this organization was removed.');
         }
 
         $this->tenantContext->switchTo($membership->getOrganization());

@@ -69,6 +69,29 @@ final class ListMembersHandlerTest extends TestCase
         self::assertSame(['employee', true], [$employee->role, $employee->invitationPending]);
     }
 
+    public function test_it_lists_deactivated_members_only_on_request(): void
+    {
+        $now = new \DateTimeImmutable('2026-11-11 12:00:00');
+        OrganizationMother::deactivateMember($this->organization, $this->employee, $now);
+        $organizationId = $this->organization->getId()->toRfc4122();
+        $ownerId = $this->owner->getId()->toRfc4122();
+
+        $active = $this->list($organizationId, $ownerId) ?? [];
+        $all = (new ListMembersHandler($this->organizations))(new ListMembersQuery($organizationId, $ownerId, includeDeactivated: true)) ?? [];
+
+        self::assertSame(['max@example.com', 'olivia@example.com'], array_map(static fn (MemberView $m): string => $m->email, $active));
+        self::assertNull($active[0]->deactivatedAt);
+        self::assertSame(['Adamski', 'Nowak', 'Zielińska'], array_map(static fn (MemberView $m): string => $m->lastName, $all));
+        self::assertSame($now, $all[1]->deactivatedAt);
+    }
+
+    public function test_it_returns_nothing_to_a_deactivated_manager(): void
+    {
+        OrganizationMother::deactivateMember($this->organization, $this->manager);
+
+        self::assertNull($this->list($this->organization->getId()->toRfc4122(), $this->manager->getId()->toRfc4122()));
+    }
+
     public function test_it_refuses_the_list_to_an_employee(): void
     {
         $this->expectException(OrganizationManagementForbiddenException::class);

@@ -21,7 +21,7 @@ final readonly class UpdateOrganizationHandler implements CommandHandlerInterfac
         $actorId = Uuid::fromString($command->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($command->organizationId));
 
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             throw OrganizationNotFoundException::forId($command->organizationId);
         }
 

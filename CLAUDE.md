@@ -90,6 +90,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 
 - `Organization` (module `App\Organization`) is the tenant. `User` (module `App\User`) is global. `Membership` links them with a role: `owner`, `manager` or `employee`.
 - Clients select an organization with the `X-Organization-Id` header. `Ui\Http\Listener\SelectOrganizationFromHeaderListener` checks membership (403 if not a member) and calls `TenantContextInterface::switchTo()`.
+- Members are deactivated, never deleted (`Organization::deactivateMember()`, `Membership::$deactivatedAt`), because history (shifts, paychecks) refers to them. A deactivated membership gives no access: the listener answers 403, and actor checks use `Organization::isActiveMember()`, not `membershipOf()` (ADR 0014).
 - Every business entity implements `App\Organization\Domain\Model\TenantAwareInterface` and uses `TenantAwareTrait`:
   - `TenantFilter` (a Doctrine SQL filter, always on) restricts all queries to the current organization. With no organization selected, tenant-aware tables return no rows (secure by default).
   - `TenantAssignListener` sets the organization on persist.

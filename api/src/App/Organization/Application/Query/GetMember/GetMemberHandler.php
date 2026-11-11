@@ -26,7 +26,7 @@ final readonly class GetMemberHandler implements QueryHandlerInterface
 
         $actorId = Uuid::fromString($query->actorId);
         $organization = $this->organizations->findById(Uuid::fromString($query->organizationId));
-        if (null === $organization || null === $organization->membershipOf($actorId)) {
+        if (null === $organization || !$organization->isActiveMember($actorId)) {
             return null;
         }
 
