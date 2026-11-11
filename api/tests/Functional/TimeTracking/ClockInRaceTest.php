@@ -6,6 +6,7 @@ namespace App\Tests\Functional\TimeTracking;
 
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Shared\Domain\Time\UtcRange;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Unit\TimeTracking\Application\MembershipQueryBus;
 use App\TimeTracking\Application\Command\ClockIn\ClockInCommand;
@@ -70,6 +71,11 @@ final class ClockInRaceTest extends KernelTestCase
             public function findOpenByUser(Uuid $userId): ?Shift
             {
                 return null;
+            }
+
+            public function findStartedIn(UtcRange $range, ?Uuid $userId = null): array
+            {
+                return $this->inner->findStartedIn($range, $userId);
             }
 
             public function add(Shift $shift): void

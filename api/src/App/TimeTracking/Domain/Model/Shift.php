@@ -28,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity]
 #[ORM\Table(name: 'shift')]
 // The predicate is written as PostgreSQL returns it (pg_get_expr), so schema:validate sees no diff.
+// Lists by business date (ShiftRepositoryInterface::findStartedIn()) within one organization.
+#[ORM\Index(name: 'shift_organization_started_at', columns: ['organization_id', 'started_at'])]
 #[ORM\UniqueConstraint(name: self::ONE_OPEN_SHIFT_PER_USER, columns: ['organization_id', 'user_id'], options: ['where' => '(ended_at IS NULL)'])]
 class Shift implements TenantAwareInterface
 {
