@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Domain\Model;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
+use App\Organization\Domain\Exception\LastOwnerException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
@@ -86,11 +87,7 @@ class Organization
     public function assertCanAddMember(Uuid $actorId, MembershipRole $role): void
     {
         $this->assertCanManage($actorId);
-
-        $actorRole = $this->membershipOf($actorId)?->getRole();
-        if (null === $actorRole || !$actorRole->canAssign($role)) {
-            throw RoleAssignmentForbiddenException::forRole($actorId->toRfc4122(), $role->value);
-        }
+        $this->assertCanGiveRole($actorId, $role);
     }
 
     /**
@@ -107,9 +104,46 @@ class Organization
 
         $membership = $this->membershipOf($userId)
             ?? throw MemberNotFoundException::of($userId->toRfc4122(), $this->id->toRfc4122());
-        $this->assertCanAddMember($actorId, $membership->getRole());
+        $this->assertCanGiveRole($actorId, $membership->getRole());
 
         return $membership;
+    }
+
+    /**
+     * Changes a member's role on behalf of a member. Owners change anyone to any role, themselves
+     * included; managers act on employees only and give no role but employee (MembershipRole::canAssign()),
+     * so in practice only owners promote or demote. The organization always keeps at least one owner.
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws MemberNotFoundException                  when the user is not a member
+     * @throws RoleAssignmentForbiddenException         when the actor may not act on this member or give this role
+     * @throws LastOwnerException                       when the change would leave the organization without an owner
+     */
+    public function changeMemberRole(Uuid $actorId, Uuid $userId, MembershipRole $role): void
+    {
+        $membership = $this->manageableMembership($actorId, $userId);
+        $this->assertCanGiveRole($actorId, $role);
+
+        if (MembershipRole::Owner === $membership->getRole() && MembershipRole::Owner !== $role && 1 === $this->ownerCount()) {
+            throw LastOwnerException::of($this->id->toRfc4122());
+        }
+
+        $membership->changeRole($role);
+    }
+
+    /**
+     * One member as seen by a member: everyone sees their own membership (e.g. an owner who has just
+     * stepped down to employee); owners and managers see every member.
+     *
+     * @throws OrganizationManagementForbiddenException when someone other than an owner or manager asks about another member
+     */
+    public function memberVisibleTo(Uuid $actorId, Uuid $userId): ?Membership
+    {
+        if (!$actorId->equals($userId)) {
+            $this->assertCanManage($actorId);
+        }
+
+        return $this->membershipOf($userId);
     }
 
     public function membershipOf(Uuid $userId): ?Membership
@@ -172,6 +206,22 @@ class Organization
         if (!$this->membershipOf($actorId)?->getRole()->canManageOrganization()) {
             throw OrganizationManagementForbiddenException::forUser($actorId->toRfc4122());
         }
+    }
+
+    /** Owners give any role; managers add employees only (MembershipRole::canAssign()). */
+    private function assertCanGiveRole(Uuid $actorId, MembershipRole $role): void
+    {
+        $actorRole = $this->membershipOf($actorId)?->getRole();
+        if (null === $actorRole || !$actorRole->canAssign($role)) {
+            throw RoleAssignmentForbiddenException::forRole($actorId->toRfc4122(), $role->value);
+        }
+    }
+
+    private function ownerCount(): int
+    {
+        return $this->memberships->filter(
+            static fn (Membership $membership): bool => MembershipRole::Owner === $membership->getRole(),
+        )->count();
     }
 
     private function apply(string $name, ?string $taxId, string $countryCode, string $currency, string $timezone): void

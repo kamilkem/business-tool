@@ -6,6 +6,7 @@ namespace Ui\Http\Organization;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
@@ -14,11 +15,14 @@ use App\Organization\Domain\Model\MembershipRole;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Organization\Processor\AddMemberProcessor;
 use Ui\Http\Organization\Processor\ResendInvitationProcessor;
+use Ui\Http\Organization\Processor\UpdateMemberProcessor;
 use Ui\Http\Organization\Provider\MemberCollectionProvider;
+use Ui\Http\Organization\Provider\UpdateMemberInputProvider;
 
 /**
  * People with access to the organization selected by the X-Organization-Id header. Only owners
- * and managers may list and add them and resend invitations; managers act on employees only.
+ * and managers may list and add them, change their roles and resend invitations; managers act on
+ * employees only.
  */
 #[ApiResource(
     shortName: 'Member',
@@ -37,6 +41,23 @@ use Ui\Http\Organization\Provider\MemberCollectionProvider;
             input: AddMemberInput::class,
             read: false,
             processor: AddMemberProcessor::class,
+        ),
+        new Patch(
+            uriTemplate: '/members/{userId}',
+            uriVariables: ['userId'],
+            requirements: ['userId' => Requirement::UUID],
+            openapi: new Operation(
+                summary: "Changes a member's role in the selected organization.",
+                description: 'Owners give anyone any role, themselves included; managers act on employees only and cannot promote them (403 otherwise). The organization keeps at least one owner: demoting the last owner is a 409. A person who is not a member is a 404.',
+                responses: [
+                    '403' => new Response('The actor may not act on this member or give this role.'),
+                    '404' => new Response('The person is not a member of the selected organization.'),
+                    '409' => new Response('The change would leave the organization without an owner.'),
+                ],
+            ),
+            input: UpdateMemberInput::class,
+            provider: UpdateMemberInputProvider::class,
+            processor: UpdateMemberProcessor::class,
         ),
         new Post(
             uriTemplate: '/members/{userId}/invitation',

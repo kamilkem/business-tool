@@ -45,6 +45,7 @@ api_platform:
         App\Organization\Domain\Exception\AlreadyAMemberException: 409
         App\Organization\Domain\Exception\NoOrganizationSelectedException: 400
         App\Organization\Domain\Exception\MemberNotFoundException: 404
+        App\Organization\Domain\Exception\LastOwnerException: 409
         App\User\Domain\Exception\UserNotFoundException: 404
         App\User\Domain\Exception\EmailAlreadyRegisteredException: 409
         App\User\Domain\Exception\PasswordAlreadySetException: 409
