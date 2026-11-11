@@ -14,6 +14,11 @@ final readonly class ShiftView
         public \DateTimeImmutable $startedAt,
         public ?\DateTimeImmutable $endedAt,
         public ?string $note,
+        /** How the shift came to be: ShiftSource, `clock` or `manager`. */
+        public string $source,
+        /** The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+        public ?string $correctedBy,
+        public ?\DateTimeImmutable $correctedAt,
     ) {
     }
 
@@ -25,6 +30,9 @@ final readonly class ShiftView
             $shift->getStartedAt(),
             $shift->getEndedAt(),
             $shift->getNote(),
+            $shift->getSource()->value,
+            $shift->getCorrectedBy()?->toRfc4122(),
+            $shift->getCorrectedAt(),
         );
     }
 }

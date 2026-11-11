@@ -11,6 +11,7 @@ use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\TimeTracking\Application\Query\ListShifts\ListShiftsQuery;
 use App\TimeTracking\Application\Query\ListShifts\ShiftListItemView;
+use App\TimeTracking\Domain\Model\ShiftSource;
 use Ui\Http\TimeTracking\Provider\ShiftCollectionProvider;
 
 /**
@@ -65,13 +66,19 @@ final readonly class ShiftListItemResource
         public string $lastName,
         /** The business date the shift belongs to: the date in the organization's time zone on which it started (YYYY-MM-DD). */
         public string $date,
-        /** When the person clocked in (server time). */
+        /** When the person clocked in (server time), or as an owner or manager entered or corrected it. */
         public \DateTimeImmutable $startedAt,
-        /** When the person clocked out (server time); null while they are clocked in. */
+        /** When the person clocked out (server time), or as an owner or manager entered or corrected it; null while the shift is open. */
         public ?\DateTimeImmutable $endedAt,
-        /** Whole minutes from clock-in to clock-out; null while the shift is open. */
+        /** Whole minutes from start to end; null while the shift is open. */
         public ?int $durationMinutes,
         public ?string $note,
+        /** How the shift came to be: the person clocked in, or an owner or manager entered it. */
+        public ShiftSource $source,
+        /** The owner or manager who entered the shift or last changed it; null while it is as clocked. */
+        public ?string $correctedBy,
+        /** When the shift was entered or last changed by an owner or manager; null while it is as clocked. */
+        public ?\DateTimeImmutable $correctedAt,
     ) {
     }
 
@@ -87,6 +94,9 @@ final readonly class ShiftListItemResource
             endedAt: $view->endedAt,
             durationMinutes: $view->durationMinutes,
             note: $view->note,
+            source: ShiftSource::from($view->source),
+            correctedBy: $view->correctedBy,
+            correctedAt: $view->correctedAt,
         );
     }
 }

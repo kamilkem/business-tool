@@ -39,6 +39,9 @@ final class GetCurrentShiftHandlerTest extends TestCase
             new \DateTimeImmutable('2026-11-11 16:00:00'),
             null,
             'Opening',
+            'clock',
+            null,
+            null,
         ), $this->ask($this->userId->toRfc4122()));
     }
 

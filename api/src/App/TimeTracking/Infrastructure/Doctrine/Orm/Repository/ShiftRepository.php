@@ -51,6 +51,23 @@ final class ShiftRepository extends ServiceEntityRepository implements ShiftRepo
         return $qb->getQuery()->getResult();
     }
 
+    public function findOverlapping(Uuid $userId, \DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->where('s.userId = :userId')
+            ->andWhere('s.endedAt IS NULL OR s.endedAt > :from')
+            ->setParameter('userId', $userId, UuidType::NAME)
+            ->setParameter('from', $from, Types::DATETIME_IMMUTABLE)
+            ->orderBy('s.startedAt', 'ASC');
+
+        if (null !== $to) {
+            $qb->andWhere('s.startedAt < :to')->setParameter('to', $to, Types::DATETIME_IMMUTABLE);
+        }
+
+        /** @var list<Shift> */
+        return $qb->getQuery()->getResult();
+    }
+
     public function add(Shift $shift): void
     {
         $this->getEntityManager()->persist($shift);

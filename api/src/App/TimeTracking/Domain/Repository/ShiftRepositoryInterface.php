@@ -26,6 +26,15 @@ interface ShiftRepositoryInterface
     public function findStartedIn(UtcRange $range, ?Uuid $userId = null): array;
 
     /**
+     * The person's shifts that share a moment with [from, to), or with everything from `from` on when
+     * `to` is null; open shifts count as running on. For Shift::record() and Shift::correct(), which
+     * check the overlap themselves.
+     *
+     * @return list<Shift>
+     */
+    public function findOverlapping(Uuid $userId, \DateTimeImmutable $from, ?\DateTimeImmutable $to): array;
+
+    /**
      * @throws ShiftAlreadyOpenException when another open shift of the person was stored in the
      *                                   meantime (the partial unique index caught a concurrent clock-in)
      */
