@@ -6,7 +6,7 @@ PHP := $(COMPOSE) exec php
 CONSOLE := $(PHP) bin/console
 
 ## —— Environment ————————————————————————————————————————————————
-up: ## Start the API (FrankenPHP) and PostgreSQL
+up: ## Start the API (FrankenPHP), queue worker, PostgreSQL and Mailpit
 	$(COMPOSE) up -d --wait
 
 down: ## Stop containers
@@ -15,8 +15,15 @@ down: ## Stop containers
 build: ## Rebuild the API image
 	$(COMPOSE) build --pull
 
-logs: ## Follow API logs
-	$(COMPOSE) logs -f php
+logs: ## Follow API and worker logs
+	$(COMPOSE) logs -f php worker
+
+worker-restart: ## Restart the queue worker (it does not reload code or templates by itself)
+	$(COMPOSE) restart worker
+
+mail: ## Open the Mailpit inbox with every e-mail sent in dev (http://localhost:8025)
+	@url=http://localhost:$${MAILPIT_PORT:-8025}; echo "Mailpit: $$url"; \
+	(open "$$url" || xdg-open "$$url") >/dev/null 2>&1 || true
 
 sh: ## Shell into the API container
 	$(PHP) bash
@@ -82,4 +89,4 @@ qa: adr-check guards db-validate deptrac phpstan test ## Run every check
 help:
 	@grep -hE '(^[a-zA-Z_-]+:.*?## .*$$)|(^## )' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-14s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m## /\n[33m/'
 
-.PHONY: up down build logs sh install setup console migration migrate db-reset db-validate deptrac test phpstan admin timeclock types adr-check guards qa help
+.PHONY: up down build logs worker-restart mail sh install setup console migration migrate db-reset db-validate deptrac test phpstan admin timeclock types adr-check guards qa help

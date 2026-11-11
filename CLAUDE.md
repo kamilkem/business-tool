@@ -58,6 +58,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 | PATCH (merge-patch) | a provider asks the query bus for the View and returns the mutable `Update<Name>Input::fromView()`; API Platform applies the body onto it; then the processor runs as for any write |
 | Background or scheduled job | console command in `Ui\Console\<Module>\` → query bus for ids → one command per aggregate; call `TenantContextInterface::switchTo()` before tenant data |
 | Side effect of a write | domain event on the event bus (`EventPublisherInterface`), handled by an `EventHandlerInterface` |
+| Transactional e-mail | after the write succeeded (command or event handler): `App\Shared\Application\Mail\TransactionalMailerInterface::send()` with a `TransactionalEmail` (HTML Twig template in `api/templates/email/`, primitives only in the context); it is queued and the worker renders and sends it (ADR 0012) |
 
 ### Dependency rules (enforced by Deptrac: `make deptrac`, part of `make qa`)
 
@@ -80,7 +81,8 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 - **Resources** (`Ui/Http/<Module>/<Name>Resource.php`) are `final readonly`, carry the `#[ApiResource]` declaration and a static `fromView()`. They are the response shape; there are no serialization groups (ADR 0005). Every constructor property is required in OpenAPI (`RequiredPropertyMetadataFactory`), and nulls are always serialized.
 - **Inputs** (`Ui/Http/<Module>/<UseCase>Input.php`) always carry `#[Assert\*]` constraints; validation happens only here. Prefer `final readonly` with constructor parameters: a parameter without a default is required in OpenAPI, one with a default is optional. Missing or mistyped fields come back as 422 (`collect_denormalization_errors`). Merge-patch inputs are mutable (see Patterns).
 - **Providers and processors** never touch repositories or entities directly: they go through the buses. The signed-in user comes from `Ui\Http\Shared\Security\CurrentUser` and is passed as an id.
-- **Buses** run without default middleware (no validation, no transaction middleware). Repositories flush in `add()`/`save()`.
+- **Buses** run without default middleware (no validation, no transaction middleware). Repositories flush in `add()`/`save()`. The only async path is Symfony Mailer's own `messenger.bus.mailer` → `async` transport (PostgreSQL), consumed by the `worker` service; don't route command, query or event messages to it (ADR 0012).
+- **E-mail tests** use the mailer assertions of `KernelTestCase`/`WebTestCase` (`assertQueuedEmailCount()`, `getMailerMessage()`); in tests the queue is in memory and `MAILER_DSN` is `null://null`.
 - Register each new module in `config/services.yaml` (excluding `Domain/Model/`), in `config/packages/doctrine.yaml` (`mappings` → `src/App/<Module>/Domain/Model`), and map its exceptions. API resources are discovered from `src/Ui`.
 
 ## Multi-tenancy (read before adding entities; ADR 0001)

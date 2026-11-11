@@ -4,3 +4,6 @@ twig:
 when@test:
     twig:
         strict_variables: true
+        # Test-only templates (e.g. e-mails used by mailer tests).
+        paths:
+            '%kernel.project_dir%/tests/Fixtures/templates': ~

@@ -17,6 +17,45 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      mailer:
+        condition: service_started
+
+  # Consumes the `async` Messenger queue (queued e-mails; adr/0012). The `php` service installs
+  # dependencies and runs migrations, so the worker waits until they are up to date. E-mail templates
+  # are rendered here, not in the request. It does not reload code: after changing PHP code or Twig
+  # templates it uses, run `make worker-restart`.
+  worker:
+    build:
+      context: ./api
+      target: dev
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - until bin/console doctrine:migrations:up-to-date >/dev/null 2>&1; do sleep 2; done; exec bin/console messenger:consume async --time-limit=3600 -vv
+    # The image's health check probes FrankenPHP, which the worker does not run.
+    healthcheck:
+      disable: true
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@database:5432/${POSTGRES_DB:-app}?serverVersion=17&charset=utf8
+    volumes:
+      - ./api:/app
+    depends_on:
+      database:
+        condition: service_healthy
+      mailer:
+        condition: service_started
+
+  # Local mail catcher: SMTP on mailer:1025 inside the network (MAILER_DSN in api/.env.dev), web UI
+  # on http://localhost:8025 (`make mail`).
+  mailer:
+    image: axllent/mailpit:v1.33
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
 
   database:
     image: postgres:17-alpine

@@ -1,0 +1,8 @@
+# Transactional e-mail (adr/0012). MAILER_DSN picks the provider: Mailpit in compose,
+# null:// in tests, the provider's SMTP relay in production. E-mails are queued on the
+# `async` Messenger transport through the mailer bus (config/packages/messenger.yaml) and
+# sent by the worker.
+framework:
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+        message_bus: messenger.bus.mailer
