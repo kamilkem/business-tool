@@ -24,3 +24,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0014](0014-deactivate-members-never-delete.md) | Members are deactivated, never deleted; a deactivated membership gives no access | Accepted |
 | [0015](0015-time-from-symfony-clock-passed-into-domain.md) | Time comes from Symfony Clock in the Application layer and is passed into the Domain | Accepted |
 | [0016](0016-clock-in-on-own-phone-server-time.md) | Employees clock in on their own phones with their own account; the server's clock sets the time | Accepted |
+| [0017](0017-business-dates-and-periods-as-value-objects.md) | Business dates and periods are value objects converted to UTC ranges with an explicit time zone | Accepted |

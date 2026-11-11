@@ -17,6 +17,8 @@ services:
 
     App\Shared\:
         resource: '../src/App/Shared/'
+        exclude:
+            - '../src/App/Shared/Domain/Time/'
 
     App\User\:
         resource: '../src/App/User/'
