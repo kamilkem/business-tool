@@ -1,15 +1,19 @@
 import { useState, type FormEvent } from "react"
 import { login } from "@business-tool/api-client"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { CircleCheckIcon } from "lucide-react"
 
+import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
+import { AuthScreen } from "@business-tool/ui/components/auth-screen"
 import { Button } from "@business-tool/ui/components/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string; passwordSet?: boolean } => ({
     redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+    // Set by /set-password after the API accepted the new password.
+    passwordSet: search.passwordSet === true ? true : undefined,
   }),
   beforeLoad: ({ context }) => {
     if (context.session.get().token) throw redirect({ to: "/" })
@@ -19,7 +23,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const { session, queryClient } = Route.useRouteContext()
-  const { redirect: redirectTo } = Route.useSearch()
+  const { redirect: redirectTo, passwordSet } = Route.useSearch()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -42,31 +46,34 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Timeclock</CardTitle>
-          <CardDescription>Sign in to log your shifts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input id="email" name="email" type="email" autoComplete="username" required />
-              </Field>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input id="password" name="password" type="password" autoComplete="current-password" required />
-                {error && <FieldError>{error}</FieldError>}
-              </Field>
-              <Button type="submit" disabled={pending}>
-                {pending ? "Signing in…" : "Sign in"}
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthScreen title="Timeclock" description="Sign in to log your shifts">
+      <form onSubmit={onSubmit}>
+        <FieldGroup>
+          {passwordSet && (
+            <Alert>
+              <CircleCheckIcon />
+              <AlertDescription>Your password is set. Sign in with it.</AlertDescription>
+            </Alert>
+          )}
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input id="email" name="email" type="email" autoComplete="username" required />
+          </Field>
+          <Field data-invalid={error ? true : undefined}>
+            <div className="flex items-center">
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Link to="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <Input id="password" name="password" type="password" autoComplete="current-password" required />
+            {error && <FieldError>{error}</FieldError>}
+          </Field>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+        </FieldGroup>
+      </form>
+    </AuthScreen>
   )
 }

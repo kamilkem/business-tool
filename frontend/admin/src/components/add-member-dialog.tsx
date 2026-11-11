@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { ApiError, type components, unwrap } from "@business-tool/api-client"
+import { ApiError, type components, unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { UserPlusIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -19,7 +19,7 @@ import { Input } from "@business-tool/ui/components/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 
 import { api } from "@/lib/api"
-import { type Role, assignableRoles, fullName, isActive, readableError, roleLabel, violationsOf } from "@/lib/members"
+import { type Role, assignableRoles, fullName, isActive, readableError, roleLabel } from "@/lib/members"
 import { membersQuery } from "@/lib/queries"
 
 type AddMemberInput = components["schemas"]["Member.AddMemberInput"]

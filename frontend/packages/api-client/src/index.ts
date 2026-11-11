@@ -3,6 +3,7 @@ import createClient, { type Middleware } from "openapi-fetch"
 import type { components, paths } from "./schema"
 import type { Session } from "./session"
 
+export * from "./link-token"
 export * from "./session"
 export type { components, paths }
 
@@ -16,6 +17,13 @@ export const ORGANIZATION_HEADER = "X-Organization-Id"
  */
 const USER_SCOPED_PATHS = [/^\/api\/me$/, /^\/api\/organizations(\/|$)/]
 
+/**
+ * Public endpoints (set a password from a link, request a reset) get neither
+ * header: a stale token would fail authentication there (a 401 that signs the
+ * person out), and the organization header would ask for a membership check.
+ */
+const PUBLIC_PATHS = [/^\/api\/auth\//]
+
 export interface ApiClientOptions {
   /** API origin; empty string when the dev server proxies /api. */
   baseUrl?: string
@@ -27,8 +35,10 @@ export interface ApiClientOptions {
 export class ApiError extends Error {
   readonly status: number
   readonly body: unknown
+  /** Seconds from the `Retry-After` header (429), when the API sent one. */
+  readonly retryAfter: number | null
 
-  constructor(status: number, body: unknown) {
+  constructor(status: number, body: unknown, headers?: Headers) {
     const detail =
       typeof body === "object" && body !== null && "detail" in body
         ? String((body as { detail: unknown }).detail)
@@ -36,7 +46,20 @@ export class ApiError extends Error {
     super(detail)
     this.status = status
     this.body = body
+    const retryAfter = Number.parseInt(headers?.get("Retry-After") ?? "", 10)
+    this.retryAfter = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : null
   }
+}
+
+/** 422 violations from API Platform, keyed by property path (the first message per path). */
+export function violationsOf(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError) || error.status !== 422) return {}
+  const body = error.body as components["schemas"]["ConstraintViolation"] | null
+  const result: Record<string, string> = {}
+  for (const violation of body?.violations ?? []) {
+    result[violation.propertyPath] ??= violation.message
+  }
+  return result
 }
 
 /** Typed client for the Business Tool API (types generated from OpenAPI). */
@@ -49,9 +72,10 @@ export function createApiClient({ baseUrl = "", session, onUnauthorized }: ApiCl
 
   const auth: Middleware = {
     onRequest({ request }) {
+      const path = new URL(request.url, "http://localhost").pathname
+      if (PUBLIC_PATHS.some((pattern) => pattern.test(path))) return request
       const { token, organizationId } = session.get()
       if (token) request.headers.set("Authorization", `Bearer ${token}`)
-      const path = new URL(request.url, "http://localhost").pathname
       if (organizationId && !USER_SCOPED_PATHS.some((pattern) => pattern.test(path))) {
         request.headers.set(ORGANIZATION_HEADER, organizationId)
       }
@@ -77,7 +101,7 @@ export async function unwrap<T>(
   promise: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
   const { data, error, response } = await promise
-  if (error !== undefined || !response.ok) throw new ApiError(response.status, error)
+  if (error !== undefined || !response.ok) throw new ApiError(response.status, error, response.headers)
   return data as T
 }
 
