@@ -1,0 +1,46 @@
+# Hygiene of adr/: rules from adr/0000-use-adrs.md, checked by .github/scripts/check-adr-hygiene.sh.
+name: ADR hygiene
+
+on:
+    pull_request:
+        paths:
+            - "adr/**"
+            - ".github/scripts/check-adr-hygiene.sh"
+    push:
+        branches:
+            - main
+        paths:
+            - "adr/**"
+    workflow_dispatch: ~
+
+permissions:
+    contents: read
+
+concurrency:
+    group: adr-hygiene-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    adr:
+        name: "Numbering, Status, index, template headings"
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+                with:
+                    fetch-depth: 0
+
+            -   name: Fetch the base branch
+                if: github.event_name == 'pull_request'
+                env:
+                    BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+                run: |
+                    git fetch --no-tags --quiet origin \
+                        "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+
+            -   name: Check ADR hygiene
+                # Outside pull_request there is no base to compare with: the script then skips the
+                # deleted/renumbered and new-ADR headings checks and runs the rest as usual.
+                env:
+                    BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || '' }}
+                run: .github/scripts/check-adr-hygiene.sh
