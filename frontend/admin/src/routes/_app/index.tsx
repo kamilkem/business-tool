@@ -1,16 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 
 import { Badge } from "@business-tool/ui/components/badge"
+import { Button } from "@business-tool/ui/components/button"
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 
-import { modules } from "@/lib/modules"
+import { modulesFor } from "@/lib/modules"
 
 export const Route = createFileRoute("/_app/")({
   component: Dashboard,
 })
 
 function Dashboard() {
-  const { me } = Route.useRouteContext()
+  const { me, membership } = Route.useRouteContext()
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -19,7 +20,7 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Modules will light up here as they are built.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {modules.map((module) => (
+        {modulesFor(membership?.role).map((module) => (
           <Card key={module.key}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -28,7 +29,13 @@ function Dashboard() {
               </CardTitle>
               <CardDescription>{module.description}</CardDescription>
               <CardAction>
-                <Badge variant="secondary">Coming soon</Badge>
+                {module.to ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={module.to}>Open</Link>
+                  </Button>
+                ) : (
+                  <Badge variant="secondary">Coming soon</Badge>
+                )}
               </CardAction>
             </CardHeader>
           </Card>

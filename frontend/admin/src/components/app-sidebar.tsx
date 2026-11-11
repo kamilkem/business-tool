@@ -24,7 +24,7 @@ import {
 } from "@business-tool/ui/components/sidebar"
 
 import { canManageTeam } from "@/lib/members"
-import { modules } from "@/lib/modules"
+import { modulesFor } from "@/lib/modules"
 
 export function AppSidebar() {
   const { me, membership, session, queryClient } = useRouteContext({ from: "/_app" })
@@ -101,15 +101,26 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Modules</SidebarGroupLabel>
           <SidebarMenu>
-            {modules.map((module) => (
+            {modulesFor(membership?.role).map((module) => (
               <SidebarMenuItem key={module.key}>
-                <SidebarMenuButton disabled tooltip={module.title}>
-                  <module.icon />
-                  <span>{module.title}</span>
-                </SidebarMenuButton>
-                <SidebarMenuBadge>
-                  <Badge variant="outline" className="text-[10px]">Soon</Badge>
-                </SidebarMenuBadge>
+                {module.to ? (
+                  <SidebarMenuButton asChild tooltip={module.title}>
+                    <Link to={module.to} activeProps={{ "data-active": true }}>
+                      <module.icon />
+                      <span>{module.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <>
+                    <SidebarMenuButton disabled tooltip={module.title}>
+                      <module.icon />
+                      <span>{module.title}</span>
+                    </SidebarMenuButton>
+                    <SidebarMenuBadge>
+                      <Badge variant="outline" className="text-[10px]">Soon</Badge>
+                    </SidebarMenuBadge>
+                  </>
+                )}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>

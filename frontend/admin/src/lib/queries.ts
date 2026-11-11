@@ -1,4 +1,5 @@
 import { unwrap } from "@business-tool/api-client"
+import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
@@ -30,4 +31,11 @@ export const membersQuery = (organizationId: string, includeDeactivated: boolean
     queryKey: ["members", organizationId, { includeDeactivated }],
     queryFn: () =>
       unwrap(api.GET("/api/members", { params: { query: includeDeactivated ? { includeDeactivated: true } : {} } })),
+  })
+
+/** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
+export const shiftsQuery = (organizationId: string, period: BusinessPeriod, userId?: string) =>
+  queryOptions({
+    queryKey: ["shifts", organizationId, { ...period, userId: userId ?? null }],
+    queryFn: () => unwrap(api.GET("/api/shifts", { params: { query: { ...period, ...(userId ? { userId } : {}) } } })),
   })
