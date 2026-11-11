@@ -1,5 +1,5 @@
 import { Link, useRouteContext, useRouter } from "@tanstack/react-router"
-import { BuildingIcon, ChevronsUpDownIcon, LayoutDashboardIcon, LogOutIcon, SettingsIcon } from "lucide-react"
+import { BuildingIcon, ChevronsUpDownIcon, LayoutDashboardIcon, LogOutIcon, SettingsIcon, UsersIcon } from "lucide-react"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import {
@@ -23,6 +23,7 @@ import {
   SidebarMenuItem,
 } from "@business-tool/ui/components/sidebar"
 
+import { canManageTeam } from "@/lib/members"
 import { modules } from "@/lib/modules"
 
 export function AppSidebar() {
@@ -85,6 +86,16 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {canManageTeam(membership?.role) && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Team">
+                  <Link to="/team" activeProps={{ "data-active": true }}>
+                    <UsersIcon />
+                    <span>Team</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup>
