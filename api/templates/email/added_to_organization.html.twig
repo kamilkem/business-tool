@@ -1,0 +1,7 @@
+{# Notification for a person who already has an account and was added to another organization
+   (ADR 0013). Context: firstName, organizationName, addedByName, link. Rendered by the queue
+   worker (adr/0012). #}
+<p>Hello {{ firstName }},</p>
+<p>{{ addedByName }} added you to <strong>{{ organizationName }}</strong> in Business Tool.</p>
+<p>Sign in with your existing password to start:</p>
+<p><a href="{{ link }}">Sign in</a></p>

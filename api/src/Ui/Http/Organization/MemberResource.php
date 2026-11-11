@@ -8,14 +8,17 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
+use ApiPlatform\OpenApi\Model\Response;
 use App\Organization\Application\Query\ListMembers\MemberView;
 use App\Organization\Domain\Model\MembershipRole;
+use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Organization\Processor\AddMemberProcessor;
+use Ui\Http\Organization\Processor\ResendInvitationProcessor;
 use Ui\Http\Organization\Provider\MemberCollectionProvider;
 
 /**
  * People with access to the organization selected by the X-Organization-Id header. Only owners
- * and managers may list and add them; managers add employees only.
+ * and managers may list and add them and resend invitations; managers act on employees only.
  */
 #[ApiResource(
     shortName: 'Member',
@@ -34,6 +37,26 @@ use Ui\Http\Organization\Provider\MemberCollectionProvider;
             input: AddMemberInput::class,
             read: false,
             processor: AddMemberProcessor::class,
+        ),
+        new Post(
+            uriTemplate: '/members/{userId}/invitation',
+            uriVariables: ['userId'],
+            requirements: ['userId' => Requirement::UUID],
+            status: 204,
+            openapi: new Operation(
+                summary: 'Sends a new invitation e-mail to a member who has not set a password yet.',
+                description: 'The new link replaces the previous one. Owners resend to anyone, managers to employees only (403 otherwise); a person who is not a member is a 404, one who already has a password a 409.',
+                responses: [
+                    '204' => new Response('The invitation e-mail is queued.'),
+                    '403' => new Response('The actor may not act on this member.'),
+                    '404' => new Response('The person is not a member of the selected organization.'),
+                    '409' => new Response('The member has already set a password.'),
+                ],
+            ),
+            input: false,
+            output: false,
+            read: false,
+            processor: ResendInvitationProcessor::class,
         ),
     ],
 )]

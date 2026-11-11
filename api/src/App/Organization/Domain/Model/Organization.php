@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Domain\Model;
 
 use App\Organization\Domain\Exception\AlreadyAMemberException;
+use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
 use App\User\Domain\Model\User;
@@ -90,6 +91,25 @@ class Organization
         if (null === $actorRole || !$actorRole->canAssign($role)) {
             throw RoleAssignmentForbiddenException::forRole($actorId->toRfc4122(), $role->value);
         }
+    }
+
+    /**
+     * The membership of a member the actor may act on, e.g. to resend their invitation: owners act
+     * on anyone, managers on employees only (the roles they may give, MembershipRole::canAssign()).
+     *
+     * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
+     * @throws MemberNotFoundException                  when the user is not a member
+     * @throws RoleAssignmentForbiddenException         when a manager acts on an owner or manager
+     */
+    public function manageableMembership(Uuid $actorId, Uuid $userId): Membership
+    {
+        $this->assertCanManage($actorId);
+
+        $membership = $this->membershipOf($userId)
+            ?? throw MemberNotFoundException::of($userId->toRfc4122(), $this->id->toRfc4122());
+        $this->assertCanAddMember($actorId, $membership->getRole());
+
+        return $membership;
     }
 
     public function membershipOf(Uuid $userId): ?Membership

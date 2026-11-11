@@ -11,7 +11,7 @@ framework:
             messenger.bus.query:
                 default_middleware: false
                 middleware: [handle_message]
-            # An event may have no handler yet (MemberAdded until #9), so publishing one is not an error.
+            # An event may have no handler (yet), so publishing one is not an error.
             messenger.bus.event:
                 default_middleware: false
                 middleware:

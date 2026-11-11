@@ -1,0 +1,22 @@
+# Limits for the public endpoints that change an account (ADR 0013), keyed by client IP.
+# Behind a reverse proxy, the client IP needs framework.trusted_proxies (hosting, #35).
+framework:
+    rate_limiter:
+        # POST /api/auth/set-password. Tokens are 256-bit random, so this guards against floods, not
+        # guessing; a whole team setting passwords from one bar's Wi-Fi at go-live must still fit.
+        set_password:
+            policy: sliding_window
+            limit: 30
+            interval: '15 minutes'
+
+when@test:
+    services:
+        # Lives as long as the kernel (one test), and unlike an array cache pool it is not cleared
+        # between the requests of a client with disableReboot().
+        rate_limiter.storage.test:
+            class: Symfony\Component\RateLimiter\Storage\InMemoryStorage
+
+    framework:
+        rate_limiter:
+            set_password:
+                storage_service: rate_limiter.storage.test

@@ -30,11 +30,3 @@ services:
 
     Ui\:
         resource: '../src/Ui/'
-
-when@test:
-    services:
-        # Nothing injects the mailer port yet (invitations and password reset will: #9, #13), so the
-        # container would drop it; tests/Functional/Shared/TransactionalMailerTest fetches it directly.
-        App\Shared\Application\Mail\TransactionalMailerInterface:
-            alias: App\Shared\Infrastructure\Mail\SymfonyTransactionalMailer
-            public: true
