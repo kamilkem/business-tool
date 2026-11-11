@@ -14,6 +14,25 @@ framework:
             messenger.bus.event:
                 default_middleware: false
                 middleware: [handle_message]
+            # Symfony Mailer dispatches SendEmailMessage here (config/packages/mailer.yaml). It keeps
+            # the default middleware, which sends routed messages to their transport (adr/0012).
+            messenger.bus.mailer: ~
+
+        # Messages that fail every retry on `async` end up here: `messenger:failed:show`,
+        # `messenger:failed:retry`.
+        failure_transport: failed
 
         transports:
             sync: 'sync://'
+            # PostgreSQL queue (messenger_messages table, created by a migration; adr/0012),
+            # consumed by `messenger:consume async` (the `worker` service in compose.yaml).
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 60000
+                    multiplier: 5
+            failed: '%env(MESSENGER_FAILED_TRANSPORT_DSN)%'
+
+        routing:
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: async

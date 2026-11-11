@@ -7,6 +7,7 @@ Back office for small hospitality businesses (bars, cafés, shops): expenses fro
 | API | `api/` | PHP 8.4, Symfony 8.1, API Platform 5, PostgreSQL 17, FrankenPHP | http://localhost:8000/api |
 | Admin panel | `frontend/admin/` | React 19, Vite, TanStack Router + Query, shadcn/ui, Tailwind 4 | http://localhost:5173 |
 | Timeclock (PWA) | `frontend/timeclock/` | same as admin, plus vite-plugin-pwa | http://localhost:5174 |
+| Mailpit (dev mail catcher) | `compose.yaml` | catches every e-mail the API sends in dev | http://localhost:8025 (`make mail`) |
 
 All JavaScript lives in `frontend/`, a pnpm workspace. Its shared packages are in `frontend/packages/`:
 
