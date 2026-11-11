@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\User\Application\Link;
 
 use App\Organization\Domain\Model\MembershipRole;
-use App\User\Domain\Model\ClientApp;
 use App\User\Domain\Model\PasswordTokenSecret;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
