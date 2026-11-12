@@ -40,5 +40,10 @@ services:
         exclude:
             - '../src/App/Income/Domain/Model/'
 
+    App\Expenses\:
+        resource: '../src/App/Expenses/'
+        exclude:
+            - '../src/App/Expenses/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'

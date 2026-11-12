@@ -1,6 +1,6 @@
 # 0023. Purchase invoices are imported from KSeF API 2.0 with a KSeF token: metadata by permanent-storage date, one XML at a time, raw XML kept next to the parsed fields
 
-Status: Accepted
+Status: Accepted (module placement in points 1 and 3 and the XML table of point 6 superseded by [0024](0024-expenses-independent-of-ksef.md))
 
 Date: 2026-11-12
 
