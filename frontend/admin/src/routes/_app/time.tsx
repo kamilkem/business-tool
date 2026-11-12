@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { ClockIcon, PencilIcon, PlusIcon } from "lucide-react"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -25,6 +26,7 @@ import {
   thisMonth,
 } from "@business-tool/ui/lib/date-time"
 
+import { ShiftDialog, type ShiftDialogTarget } from "@/components/shift-dialog"
 import { type Member, canManageTeam, fullName, isActive } from "@/lib/members"
 import { membersQuery, shiftsQuery } from "@/lib/queries"
 import {
@@ -79,7 +81,11 @@ function TimePage() {
   return <Shifts organizationId={membership.organization.id} />
 }
 
+/** Who entered or last corrected a shift: a name, or "you". */
+type NameOf = (userId: string) => string
+
 function Shifts({ organizationId }: { organizationId: string }) {
+  const { me } = Route.useRouteContext()
   const format = useDateTimeFormat()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
@@ -87,6 +93,7 @@ function Shifts({ organizationId }: { organizationId: string }) {
   const period = periodOf(search, format.thisMonth())
   const userId = knownUserId(search.userId, members)
   const { data: shifts } = useSuspenseQuery(shiftsQuery(organizationId, period, userId))
+  const [dialog, setDialog] = useState<ShiftDialogTarget | null>(null)
 
   const totals = totalsPerEmployee(shifts)
   // In the order of the totals: last name, then first name.
@@ -103,6 +110,12 @@ function Shifts({ organizationId }: { organizationId: string }) {
 
   function setUserId(next: string | undefined) {
     void navigate({ search: (prev) => ({ ...prev, userId: next }) })
+  }
+
+  const nameOf: NameOf = (id) => {
+    if (id === me.id) return "you"
+    const member = members.find((m) => m.userId === id)
+    return member ? fullName(member) : "a former member"
   }
 
   return (
@@ -130,11 +143,22 @@ function Shifts({ organizationId }: { organizationId: string }) {
             </SelectContent>
           </Select>
           <PeriodPicker value={period} onChange={setPeriod} maxDays={SHIFTS_MAX_DAYS} />
+          <Button onClick={() => setDialog({ kind: "add", userId })}>
+            <PlusIcon />
+            Add shift
+          </Button>
         </div>
       </div>
 
       <TotalsCard totals={totals} period={period} onSelect={userId ? undefined : setUserId} />
-      <ShiftsCard shifts={shifts} period={period} />
+      <ShiftsCard shifts={shifts} period={period} nameOf={nameOf} onEdit={(shift) => setDialog({ kind: "edit", shift })} />
+      <ShiftDialog
+        organizationId={organizationId}
+        actorId={me.id}
+        members={members}
+        target={dialog}
+        onClose={() => setDialog(null)}
+      />
     </div>
   )
 }
@@ -232,7 +256,17 @@ function useMinuteClock(): Date {
   return now
 }
 
-function ShiftsCard({ shifts, period }: { shifts: Shift[]; period: BusinessPeriod }) {
+function ShiftsCard({
+  shifts,
+  period,
+  nameOf,
+  onEdit,
+}: {
+  shifts: Shift[]
+  period: BusinessPeriod
+  nameOf: NameOf
+  onEdit: (shift: Shift) => void
+}) {
   const format = useDateTimeFormat()
   const now = useMinuteClock()
 
@@ -240,7 +274,9 @@ function ShiftsCard({ shifts, period }: { shifts: Shift[]; period: BusinessPerio
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
         <CardTitle>Shifts</CardTitle>
-        <CardDescription>Newest first. Open shifts are highlighted.</CardDescription>
+        <CardDescription>
+          Newest first. Open shifts are highlighted; end a forgotten one with End shift.
+        </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         {shifts.length === 0 ? (
@@ -256,12 +292,15 @@ function ShiftsCard({ shifts, period }: { shifts: Shift[]; period: BusinessPerio
                 <TableHead>Clock-in</TableHead>
                 <TableHead>Clock-out</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
-                <TableHead className="pr-6">Note</TableHead>
+                <TableHead>Note</TableHead>
+                <TableHead className="pr-6">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shifts.map((shift) => (
-                <ShiftRow key={shift.id} shift={shift} now={now} />
+                <ShiftRow key={shift.id} shift={shift} now={now} nameOf={nameOf} onEdit={() => onEdit(shift)} />
               ))}
             </TableBody>
           </Table>
@@ -271,7 +310,7 @@ function ShiftsCard({ shifts, period }: { shifts: Shift[]; period: BusinessPerio
   )
 }
 
-function ShiftRow({ shift, now }: { shift: Shift; now: Date }) {
+function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nameOf: NameOf; onEdit: () => void }) {
   const format = useDateTimeFormat()
   const open = isOpen(shift)
 
@@ -283,8 +322,11 @@ function ShiftRow({ shift, now }: { shift: Shift; now: Date }) {
       <TableCell className="pl-6 tabular-nums">
         {format.businessDate(shift.date, { weekday: "short", day: "numeric", month: "short" })}
       </TableCell>
-      <TableCell className="font-medium">
-        {shift.firstName} {shift.lastName}
+      <TableCell>
+        <div className="font-medium">
+          {shift.firstName} {shift.lastName}
+        </div>
+        <ChangedBy shift={shift} nameOf={nameOf} />
       </TableCell>
       <TableCell className="tabular-nums">{format.time(shift.startedAt)}</TableCell>
       <TableCell className="tabular-nums">
@@ -301,10 +343,40 @@ function ShiftRow({ shift, now }: { shift: Shift; now: Date }) {
           formatDuration(shift.durationMinutes)
         )}
       </TableCell>
-      <TableCell className="max-w-64 truncate pr-6 text-muted-foreground" title={shift.note ?? undefined}>
+      <TableCell className="max-w-56 truncate text-muted-foreground" title={shift.note ?? undefined}>
         {shift.note}
       </TableCell>
+      <TableCell className="pr-6 text-right">
+        {open ? (
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <ClockIcon />
+            End shift
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Edit the shift of ${shift.firstName} ${shift.lastName} on ${format.businessDate(shift.date)}`}
+            onClick={onEdit}
+          >
+            <PencilIcon />
+          </Button>
+        )}
+      </TableCell>
     </TableRow>
+  )
+}
+
+/** "Entered by Anna Nowak, 11 Nov 2026, 14:02" or "Corrected by you, …"; nothing for a shift as clocked. */
+function ChangedBy({ shift, nameOf }: { shift: Shift; nameOf: NameOf }) {
+  const format = useDateTimeFormat()
+  if (shift.correctedBy === null || shift.correctedAt === null) return null
+  const what = shift.source === "manager" ? "Entered" : "Corrected"
+
+  return (
+    <div className="text-xs text-muted-foreground">
+      {what} by {nameOf(shift.correctedBy)}, {format.dateTime(shift.correctedAt)}
+    </div>
   )
 }
 
