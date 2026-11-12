@@ -1,0 +1,23 @@
+framework:
+    http_client:
+        scoped_clients:
+            # KSeF API 2.0 (adr/0023, adr/0024): autowired as HttpClientInterface $ksefClient.
+            ksef.client:
+                base_uri: '%env(KSEF_API_URL)%'
+                timeout: 30
+                max_duration: 120
+
+# Tests and CI never reach the network: every request fails loudly instead (adr/0023 §8). Adapter
+# tests build their own MockHttpClient with recorded responses; handler and API tests use
+# InMemoryKsefClient.
+when@test:
+    framework:
+        http_client:
+            mock_response_factory: App\Tests\Fixtures\NoNetworkResponseFactory
+
+    services:
+        App\Tests\Fixtures\NoNetworkResponseFactory: ~
+        # Nothing uses the port until the sync (#52); kept for tests/Functional/Ksef/KsefClientWiringTest.
+        App\Ksef\Domain\KsefClientInterface:
+            alias: App\Ksef\Infrastructure\Http\HttpKsefClient
+            public: true

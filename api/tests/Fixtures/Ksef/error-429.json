@@ -1,0 +1,8 @@
+{
+  "title": "Too Many Requests",
+  "status": 429,
+  "instance": "/v2/invoices/query/metadata",
+  "detail": "Przekroczono limit 20 żądań na godzinę. Spróbuj ponownie po 30 sekundach.",
+  "timestamp": "2026-11-12T22:43:01.0154302+00:00",
+  "traceId": "00000000000000000000000000000429"
+}
