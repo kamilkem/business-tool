@@ -1,6 +1,15 @@
 import { logout } from "@business-tool/api-client"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext, useRouter } from "@tanstack/react-router"
-import { BuildingIcon, ChevronsUpDownIcon, LayoutDashboardIcon, LogOutIcon, SettingsIcon, UsersIcon } from "lucide-react"
+import {
+  BuildingIcon,
+  ChevronsUpDownIcon,
+  InboxIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  SettingsIcon,
+  UsersIcon,
+} from "lucide-react"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import {
@@ -26,6 +35,7 @@ import {
 
 import { canManageTeam } from "@/lib/members"
 import { modulesFor } from "@/lib/modules"
+import { shiftChangeRequestsQuery } from "@/lib/queries"
 
 export function AppSidebar() {
   const { me, membership, session, queryClient } = useRouteContext({ from: "/_app" })
@@ -97,6 +107,9 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
+            {membership && canManageTeam(membership.role) && (
+              <ShiftRequestsLink organizationId={membership.organization.id} />
+            )}
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup>
@@ -166,5 +179,28 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  )
+}
+
+/** Owners and managers decide shift change requests; the badge counts the pending ones. */
+function ShiftRequestsLink({ organizationId }: { organizationId: string }) {
+  // Shares the cache with the page's pending list. Polled, so a request sent meanwhile shows up.
+  const { data: pending } = useQuery({ ...shiftChangeRequestsQuery(organizationId, "pending"), refetchInterval: 60_000 })
+  const count = pending?.length ?? 0
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={count > 0 ? `Shift requests (${count} pending)` : "Shift requests"}>
+        <Link to="/shift-requests" activeProps={{ "data-active": true }}>
+          <InboxIcon />
+          <span>Shift requests</span>
+        </Link>
+      </SidebarMenuButton>
+      {count > 0 && (
+        <SidebarMenuBadge aria-label={`${count} pending`} className="bg-primary text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-active/menu-button:text-primary-foreground">
+          {count}
+        </SidebarMenuBadge>
+      )}
+    </SidebarMenuItem>
   )
 }

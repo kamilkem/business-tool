@@ -3,6 +3,7 @@ import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
+import type { RequestsFilter } from "./shift-change-requests"
 
 export const meQuery = queryOptions({
   queryKey: ["me"],
@@ -38,4 +39,17 @@ export const shiftsQuery = (organizationId: string, period: BusinessPeriod, user
   queryOptions({
     queryKey: ["shifts", organizationId, { ...period, userId: userId ?? null }],
     queryFn: () => unwrap(api.GET("/api/shifts", { params: { query: { ...period, ...(userId ? { userId } : {}) } } })),
+  })
+
+/**
+ * Shift change requests, newest first: one status, or all of them. The pending list also gives the
+ * count in the navigation, so both share this cache entry.
+ */
+export const shiftChangeRequestsQuery = (organizationId: string, filter: RequestsFilter) =>
+  queryOptions({
+    queryKey: ["shift-change-requests", organizationId, { status: filter }],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/shift-change-requests", { params: { query: filter === "all" ? {} : { status: filter } } }),
+      ),
   })

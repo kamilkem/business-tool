@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
 
@@ -47,6 +48,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppShiftRequestsRoute = AppShiftRequestsRouteImport.update({
+  id: '/shift-requests',
+  path: '/shift-requests',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTeamRoute = AppTeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/settings': typeof AppSettingsRoute
+  '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
 }
@@ -72,6 +79,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/settings': typeof AppSettingsRoute
+  '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/shift-requests': typeof AppShiftRequestsRoute
   '/_app/team': typeof AppTeamRoute
   '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/settings'
+    | '/shift-requests'
     | '/team'
     | '/time'
   fileRoutesByTo: FileRoutesByTo
@@ -103,6 +113,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/settings'
+    | '/shift-requests'
     | '/team'
     | '/time'
     | '/'
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/_app/settings'
+    | '/_app/shift-requests'
     | '/_app/team'
     | '/_app/time'
     | '/_app/'
@@ -169,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/shift-requests': {
+      id: '/_app/shift-requests'
+      path: '/shift-requests'
+      fullPath: '/shift-requests'
+      preLoaderRoute: typeof AppShiftRequestsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/team': {
       id: '/_app/team'
       path: '/team'
@@ -188,6 +207,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
+  AppShiftRequestsRoute: typeof AppShiftRequestsRoute
   AppTeamRoute: typeof AppTeamRoute
   AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -195,6 +215,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
+  AppShiftRequestsRoute: AppShiftRequestsRoute,
   AppTeamRoute: AppTeamRoute,
   AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
