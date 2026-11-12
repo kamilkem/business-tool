@@ -64,3 +64,37 @@ export const shiftChangeRequestsQuery = (organizationId: string, filter: Request
         api.GET("/api/shift-change-requests", { params: { query: filter === "all" ? {} : { status: filter } } }),
       ),
   })
+
+/**
+ * Revenue entries of the period (GET /revenue-entries), by date then register name; optionally one
+ * register's. Writes invalidate every period with `["revenue-entries", organizationId]`.
+ */
+export const revenueEntriesQuery = (organizationId: string, period: BusinessPeriod, registerId?: string) =>
+  queryOptions({
+    queryKey: ["revenue-entries", organizationId, { ...period, registerId: registerId ?? null }],
+    queryFn: () =>
+      unwrap(api.GET("/api/revenue-entries", { params: { query: { ...period, ...(registerId ? { registerId } : {}) } } })),
+  })
+
+/** Totals of the period per currency, payment method, VAT rate and register (GET /revenue-summary). */
+export const revenueSummaryQuery = (organizationId: string, period: BusinessPeriod) =>
+  queryOptions({
+    queryKey: ["revenue-summary", organizationId, period],
+    queryFn: () => unwrap(api.GET("/api/revenue-summary", { params: { query: period } })),
+  })
+
+/** The VAT rates of the organization's country (ADR 0022 §6); empty when the country has none. */
+export const vatRatesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["vat-rates", organizationId],
+    queryFn: () => unwrap(api.GET("/api/vat-rates")),
+    staleTime: Infinity,
+  })
+
+/** After a revenue entry is added, changed or deleted: every period's list and summary. */
+export function invalidateRevenue(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["revenue-entries", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["revenue-summary", organizationId] }),
+  ])
+}

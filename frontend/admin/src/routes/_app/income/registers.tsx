@@ -34,6 +34,7 @@ import {
 } from "@business-tool/ui/components/table"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 
+import { IncomeNav } from "@/components/income-nav"
 import { RegisterDialog } from "@/components/register-dialog"
 import { api } from "@/lib/api"
 import { requireCapability } from "@/lib/access"
@@ -96,11 +97,14 @@ function RegistersPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Registers</h1>
-          <p className="text-sm text-muted-foreground">
-            Tills with their own fiscal printer. Income is entered per register, one daily report each.
-          </p>
+        <div className="flex flex-col gap-3">
+          <IncomeNav />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Registers</h1>
+            <p className="text-sm text-muted-foreground">
+              Tills with their own fiscal printer. Income is entered per register, one daily report each.
+            </p>
+          </div>
         </div>
         <Button onClick={openAdd}>
           <PlusIcon />
