@@ -1,9 +1,11 @@
 import createClient, { type Middleware } from "openapi-fetch"
 
+import { createTokenRefresher } from "./refresh"
 import type { components, paths } from "./schema"
 import type { Session } from "./session"
 
 export * from "./link-token"
+export * from "./refresh"
 export * from "./session"
 export * from "./sign-in-redirect"
 export type { components, paths }
@@ -19,9 +21,10 @@ export const ORGANIZATION_HEADER = "X-Organization-Id"
 const USER_SCOPED_PATHS = [/^\/api\/me$/, /^\/api\/organizations(\/|$)/]
 
 /**
- * Public endpoints (set a password from a link, request a reset) get neither
- * header: a stale token would fail authentication there (a 401 that signs the
- * person out), and the organization header would ask for a membership check.
+ * Public endpoints (sign-in, refresh, sign-out, set a password from a link,
+ * request a reset) get neither header: a stale token would fail
+ * authentication there, and the organization header would ask for a
+ * membership check. A 401 from them is never refreshed.
  */
 const PUBLIC_PATHS = [/^\/api\/auth\//]
 
@@ -29,8 +32,13 @@ export interface ApiClientOptions {
   /** API origin; empty string when the dev server proxies /api. */
   baseUrl?: string
   session: Session
-  /** Called on 401 (expired or invalid token), after the session is cleared. */
+  /**
+   * Called when the person must sign in again (the refresh token was refused,
+   * or the retried request still got 401), after the session is cleared.
+   */
   onUnauthorized?: () => void
+  /** For tests; defaults to the global fetch. */
+  fetch?: typeof globalThis.fetch
 }
 
 export class ApiError extends Error {
@@ -63,16 +71,41 @@ export function violationsOf(error: unknown): Record<string, string> {
   return result
 }
 
-/** Typed client for the Business Tool API (types generated from OpenAPI). */
-export function createApiClient({ baseUrl = "", session, onUnauthorized }: ApiClientOptions) {
+/**
+ * Typed client for the Business Tool API (types generated from OpenAPI).
+ *
+ * A 401 on a request that carried a JWT refreshes it once (ADR 0020) and
+ * retries the request with the new token; concurrent 401s share one refresh.
+ * When the refresh is refused, the session is cleared and `onUnauthorized`
+ * runs. When it cannot reach the API, the original 401 is returned and the
+ * session is kept.
+ */
+export function createApiClient({ baseUrl = "", session, onUnauthorized, fetch = globalThis.fetch }: ApiClientOptions) {
   // Plain JSON (not JSON-LD) responses; requests send Accept: application/json.
   const client = createClient<paths, "application/json">({
     baseUrl,
     headers: { Accept: "application/json" },
+    fetch: (request) => fetch(request),
   })
+  const refresh = createTokenRefresher({ baseUrl, session, fetch })
+  // A copy of each authenticated request, for the retry: a sent body cannot be read again.
+  const retryable = new Map<string, Request>()
+
+  function signInAgain() {
+    session.signOut()
+    onUnauthorized?.()
+  }
+
+  async function retry(original: Request, token: string): Promise<Response> {
+    const request = new Request(original)
+    request.headers.set("Authorization", `Bearer ${token}`)
+    const response = await fetch(request)
+    if (response.status === 401) signInAgain()
+    return response
+  }
 
   const auth: Middleware = {
-    onRequest({ request }) {
+    onRequest({ request, id }) {
       const path = new URL(request.url, "http://localhost").pathname
       if (PUBLIC_PATHS.some((pattern) => pattern.test(path))) return request
       const { token, organizationId } = session.get()
@@ -80,14 +113,28 @@ export function createApiClient({ baseUrl = "", session, onUnauthorized }: ApiCl
       if (organizationId && !USER_SCOPED_PATHS.some((pattern) => pattern.test(path))) {
         request.headers.set(ORGANIZATION_HEADER, organizationId)
       }
+      // Cloned with every header set, so the retry selects the same organization.
+      if (token) retryable.set(id, request.clone())
       return request
     },
-    onResponse({ response }) {
-      if (response.status === 401 && session.get().token) {
-        session.signOut()
-        onUnauthorized?.()
+    async onResponse({ response, id }) {
+      const original = retryable.get(id)
+      retryable.delete(id)
+      if (response.status !== 401 || !original) return response
+
+      // Another request refreshed while this one was on its way: retry with that token.
+      const current = session.get().token
+      if (current && original.headers.get("Authorization") !== `Bearer ${current}`) {
+        return retry(original, current)
       }
+
+      const outcome = await refresh()
+      if (outcome.status === "refreshed") return retry(original, outcome.token)
+      if (outcome.status === "rejected") signInAgain()
       return response
+    },
+    onError({ id }) {
+      retryable.delete(id)
     },
   }
   client.use(auth)
@@ -106,7 +153,10 @@ export async function unwrap<T>(
   return data as T
 }
 
-/** Exchanges credentials for a JWT. The login route is not in the OpenAPI spec. */
+/**
+ * Exchanges credentials for a JWT; the response also sets the refresh token
+ * cookie (ADR 0020). The auth routes are not in the OpenAPI spec.
+ */
 export async function login(email: string, password: string, baseUrl = ""): Promise<string> {
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",

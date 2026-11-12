@@ -1,8 +1,8 @@
 /**
- * Where to go after signing in again. Tokens expire after an hour with no
- * refresh (ADR 0007), so a 401 sends the person to the sign-in page, and the
- * page they were on travels along in `?redirect=` so they land back on it
- * (the timeclock's clock screen: ADR 0016).
+ * Where to go after signing in again. When the session ends for good (the
+ * refresh token is refused: ADR 0020), a 401 sends the person to the sign-in
+ * page, and the page they were on travels along in `?redirect=` so they land
+ * back on it (the timeclock's clock screen: ADR 0016).
  */
 
 /** The sign-in page, remembering the current page (path and query) to return to. */

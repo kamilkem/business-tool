@@ -4,6 +4,8 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
+import { apiProxy } from "../packages/api-client/vite-api-proxy.ts"
+
 export default defineConfig({
   plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: {
@@ -12,6 +14,6 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: { "/api": process.env.API_URL ?? "http://localhost:8000" },
+    proxy: { "/api": apiProxy("admin") },
   },
 })

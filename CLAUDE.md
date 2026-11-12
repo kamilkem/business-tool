@@ -104,6 +104,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 
 - Timestamps are `DateTimeImmutable` stored in UTC. Business dates and periods are `BusinessDate`/`BusinessPeriod`, converted with the organization's time zone, never the server default (ADR 0017).
 - "Now" comes from `Psr\Clock\ClockInterface` (Symfony's `clock` service) in handlers, fixtures and commands, and is passed into entity constructors and methods as a parameter. Domain code never calls `new \DateTimeImmutable()` without an argument, `time()` or `Clock::get()` (ADR 0015).
+- Sessions are refresh tokens (`App\User\Domain\Model\RefreshToken`, ADR 0020). Every new way to set or change a password revokes all the user's sessions, as `SetPasswordHandler` does.
 - Money: store integer minor units (grosze) with a currency code; never floats (ADR 0010).
 - Schema changes go through migrations (`make migration`); read the generated SQL. Tests build the schema from mapping (Foundry `mode: schema`), and `make db-validate` checks that migrations match.
 - PHPStan level 8 must pass (`make phpstan`). Fix the types; don't add ignores.
@@ -126,6 +127,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 - Use the generated types by name: a Resource is `components["schemas"]["<shortName>"]` (e.g. `"Organization"`), an Input is `"<shortName>.<InputClass>"` (merge-patch: `"<shortName>.<InputClass>.jsonMergePatch"`).
 - Use `unwrap(api.GET(...))` inside TanStack Query `queryOptions`. Include anything organization-specific in query keys, or clear the cache on organization switch (see `frontend/admin/src/components/app-sidebar.tsx`).
 - PATCH uses `application/merge-patch+json`.
+- Sessions (ADR 0020): the JWT lives 15 minutes (`JWT_TOKEN_TTL`) and `createApiClient` refreshes it silently from the HttpOnly `refresh_token` cookie, so both apps call the API at a same-origin `/api` (never a cross-site API URL). Sign out with `logout(session)` from `@business-tool/api-client`, which revokes the server session, not with `session.signOut()` alone.
 - Dates and times from the API are shown in the selected organization's time zone, never the browser's (ADR 0019): `useDateTimeFormat()` (`@business-tool/ui/hooks/use-organization-time-zone`) for instants, and `@business-tool/ui/lib/date-time` for business dates (`"YYYY-MM-DD"`), periods (`{ from, to }`, inclusive), "today", "this month" and durations. Each app provides the zone with `<OrganizationTimeZoneContext>` from `/me`. Never call `toLocale*String()`, `new Date("YYYY-MM-DD")` or `Intl.DateTimeFormat` directly on API data. Month and period filters use `PeriodPicker` (`@business-tool/ui/components/period-picker`).
 - Unit tests (Vitest, ADR 0018) sit next to the code as `*.test.ts`, with `test_it_` names, and run with `TZ=America/New_York`: `pnpm test` in `frontend/` or `make test-frontend`.
 - After changing API resources: `make types`, then fix TS errors (`make qa`, or `pnpm typecheck` in `frontend/`).

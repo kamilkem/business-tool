@@ -1,6 +1,6 @@
 # 0007. Stateless JWT authentication, token kept in the browser's localStorage
 
-Status: Accepted
+Status: Accepted (point 4 superseded by [0020](0020-rotating-refresh-tokens-in-httponly-cookie.md))
 
 Date: 2026-11-10
 

@@ -7,8 +7,9 @@ export const api = createApiClient({
   session,
   onUnauthorized: () => {
     queryClient.clear()
-    // The token expired (1 hour, ADR 0007): sign in again and come back here,
-    // so clocking out is one sign-in away (ADR 0016).
+    // The session ended (signed out elsewhere, password reset, or unused for
+    // 30 days; ADR 0020): sign in again and come back here, so clocking out
+    // is one sign-in away (ADR 0016).
     window.location.assign(signInAgainUrl())
   },
 })
