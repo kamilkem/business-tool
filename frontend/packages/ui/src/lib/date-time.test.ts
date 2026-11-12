@@ -8,8 +8,12 @@ import {
   createDateTimeFormat,
   dayCount,
   formatDuration,
+  formatUtcOffset,
+  instantsAt,
   isBusinessDate,
+  isWallTime,
   isWholeMonth,
+  localDateTimeOf,
   minutesBetween,
   monthOf,
   monthPeriod,
@@ -17,7 +21,9 @@ import {
   periodError,
   shiftPeriod,
   thisMonth,
+  toZonedIsoString,
   today,
+  utcOffsetMinutes,
 } from "./date-time"
 
 const WARSAW = "Europe/Warsaw"
@@ -204,5 +210,93 @@ describe("durations", () => {
   it("test_it_counts_whole_minutes_between_instants", () => {
     expect(minutesBetween("2026-11-11T08:00:00Z", "2026-11-11T15:30:59Z")).toBe(450)
     expect(minutesBetween("2026-11-11T08:00:00Z", "2026-11-11T07:00:00Z")).toBe(0)
+  })
+})
+
+describe("wall-clock times in the organization's time zone", () => {
+  const iso = (dates: Date[]) => dates.map((d) => d.toISOString())
+
+  it("test_it_turns_a_date_and_time_in_the_organizations_zone_into_one_instant", () => {
+    // 22:00 in Warsaw in winter is 21:00 UTC, and in summer 20:00 UTC; the browser is in New York.
+    expect(iso(instantsAt({ date: "2026-11-11", time: "22:00" }, WARSAW))).toEqual(["2026-11-11T21:00:00.000Z"])
+    expect(iso(instantsAt({ date: "2026-07-14", time: "22:00" }, WARSAW))).toEqual(["2026-07-14T20:00:00.000Z"])
+    expect(iso(instantsAt({ date: "2026-11-11", time: "22:00" }, "America/New_York"))).toEqual([
+      "2026-11-12T03:00:00.000Z",
+    ])
+    expect(iso(instantsAt({ date: "2026-11-11", time: "00:00" }, "UTC"))).toEqual(["2026-11-11T00:00:00.000Z"])
+  })
+
+  it("test_it_finds_no_instant_in_the_hour_skipped_when_warsaw_moves_to_summer_time", () => {
+    // 29 March 2026: the clock jumps from 02:00 to 03:00, so 02:00-02:59 never happens.
+    expect(instantsAt({ date: "2026-03-29", time: "02:00" }, WARSAW)).toEqual([])
+    expect(instantsAt({ date: "2026-03-29", time: "02:30" }, WARSAW)).toEqual([])
+    expect(iso(instantsAt({ date: "2026-03-29", time: "01:59" }, WARSAW))).toEqual(["2026-03-29T00:59:00.000Z"])
+    expect(iso(instantsAt({ date: "2026-03-29", time: "03:00" }, WARSAW))).toEqual(["2026-03-29T01:00:00.000Z"])
+  })
+
+  it("test_it_finds_both_instants_in_the_hour_repeated_when_warsaw_moves_to_winter_time", () => {
+    // 25 October 2026: the clock goes back from 03:00 to 02:00, so 02:00-02:59 happens twice.
+    expect(iso(instantsAt({ date: "2026-10-25", time: "02:30" }, WARSAW))).toEqual([
+      "2026-10-25T00:30:00.000Z",
+      "2026-10-25T01:30:00.000Z",
+    ])
+    expect(iso(instantsAt({ date: "2026-10-25", time: "01:59" }, WARSAW))).toEqual(["2026-10-24T23:59:00.000Z"])
+    expect(iso(instantsAt({ date: "2026-10-25", time: "03:00" }, WARSAW))).toEqual(["2026-10-25T02:00:00.000Z"])
+  })
+
+  it("test_it_handles_the_clock_changes_of_new_york_which_fall_on_other_days", () => {
+    // 8 March 2026 at 02:00 EST and 1 November 2026 at 02:00 EDT; Warsaw has no change then.
+    expect(instantsAt({ date: "2026-03-08", time: "02:30" }, "America/New_York")).toEqual([])
+    expect(iso(instantsAt({ date: "2026-11-01", time: "01:30" }, "America/New_York"))).toEqual([
+      "2026-11-01T05:30:00.000Z",
+      "2026-11-01T06:30:00.000Z",
+    ])
+    expect(iso(instantsAt({ date: "2026-11-01", time: "01:30" }, WARSAW))).toEqual(["2026-11-01T00:30:00.000Z"])
+  })
+
+  it("test_it_handles_a_zone_whose_offset_is_not_whole_hours", () => {
+    expect(iso(instantsAt({ date: "2026-11-11", time: "09:00" }, "Asia/Kathmandu"))).toEqual([
+      "2026-11-11T03:15:00.000Z",
+    ])
+    expect(toZonedIsoString("2026-11-11T03:15:00Z", "Asia/Kathmandu")).toBe("2026-11-11T09:00:00+05:45")
+  })
+
+  it("test_it_refuses_a_malformed_date_or_time", () => {
+    expect(isWallTime("09:05")).toBe(true)
+    expect(isWallTime("23:59")).toBe(true)
+    expect(isWallTime("24:00")).toBe(false)
+    expect(isWallTime("9:05")).toBe(false)
+    expect(isWallTime("09:05:00")).toBe(false)
+    expect(() => instantsAt({ date: "2026-11-11", time: "25:00" }, WARSAW)).toThrow(RangeError)
+    expect(() => instantsAt({ date: "2026-02-30", time: "10:00" }, WARSAW)).toThrow(RangeError)
+  })
+
+  it("test_it_reads_the_wall_clock_of_the_organizations_zone_at_an_instant", () => {
+    expect(localDateTimeOf("2026-11-11T21:00:00Z", WARSAW)).toEqual({ date: "2026-11-11", time: "22:00" })
+    // Past midnight in Warsaw, still the 11th in the browser's New York.
+    expect(localDateTimeOf("2026-11-11T23:25:37Z", WARSAW)).toEqual({ date: "2026-11-12", time: "00:25" })
+    // Both 02:30s of the repeated hour read as 02:30.
+    expect(localDateTimeOf("2026-10-25T00:30:00Z", WARSAW)).toEqual({ date: "2026-10-25", time: "02:30" })
+    expect(localDateTimeOf("2026-10-25T01:30:00Z", WARSAW)).toEqual({ date: "2026-10-25", time: "02:30" })
+  })
+
+  it("test_it_gives_the_offset_in_force_at_an_instant", () => {
+    expect(utcOffsetMinutes("2026-10-25T00:30:00Z", WARSAW)).toBe(120)
+    expect(utcOffsetMinutes("2026-10-25T01:30:00Z", WARSAW)).toBe(60)
+    expect(utcOffsetMinutes("2026-11-11T12:00:00Z", "America/New_York")).toBe(-300)
+    expect(formatUtcOffset(120)).toBe("+02:00")
+    expect(formatUtcOffset(-300)).toBe("-05:00")
+    expect(formatUtcOffset(0)).toBe("+00:00")
+  })
+
+  it("test_it_writes_an_instant_with_the_organizations_offset_for_the_api", () => {
+    expect(toZonedIsoString("2026-11-11T21:00:00.789Z", WARSAW)).toBe("2026-11-11T22:00:00+01:00")
+    expect(toZonedIsoString("2026-10-25T00:30:00Z", WARSAW)).toBe("2026-10-25T02:30:00+02:00")
+    expect(toZonedIsoString("2026-10-25T01:30:00Z", WARSAW)).toBe("2026-10-25T02:30:00+01:00")
+    expect(toZonedIsoString("2026-11-12T03:00:00Z", "America/New_York")).toBe("2026-11-11T22:00:00-05:00")
+    // Round trip: the string names the same instant.
+    for (const date of instantsAt({ date: "2026-10-25", time: "02:30" }, WARSAW)) {
+      expect(new Date(toZonedIsoString(date, WARSAW)).getTime()).toBe(date.getTime())
+    }
   })
 })

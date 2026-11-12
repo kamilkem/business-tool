@@ -180,6 +180,102 @@ export function minutesBetween(from: Instant, to: Instant): number {
   return Math.max(0, Math.floor((toDate(to).getTime() - toDate(from).getTime()) / 60_000))
 }
 
+// --- Wall-clock times in a time zone ----------------------------------------------------------
+
+/** A time of day on a wall clock, "HH:MM" (24-hour), as `<input type="time">` gives it. */
+export type WallTime = string
+
+/** A date and time on the wall clock of the organization's time zone, e.g. in a form. */
+export interface LocalDateTime {
+  date: BusinessDate
+  time: WallTime
+}
+
+const WALL_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/
+const MINUTE_MS = 60_000
+
+/** True for a strict "HH:MM" from 00:00 to 23:59. */
+export function isWallTime(value: string): boolean {
+  return WALL_TIME.test(value)
+}
+
+/** The wall clock in the time zone at an instant, to the second, as if it were UTC (epoch ms). */
+function wallClockMs(instant: Date, timeZone: string): number {
+  const parts = formatter("en-US", {
+    timeZone,
+    calendar: "gregory",
+    numberingSystem: "latn",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  }).formatToParts(instant)
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value)
+  const wall = utcDay(part("year"), part("month") - 1, part("day"))
+  wall.setUTCHours(part("hour"), part("minute"), part("second"))
+  return wall.getTime()
+}
+
+/** The zone's offset from UTC at an instant, in whole minutes (+60 for CET, -300 for EST). */
+export function utcOffsetMinutes(instant: Instant, timeZone: string): number {
+  const date = toDate(instant)
+  const exact = new Date(Math.floor(date.getTime() / 1000) * 1000)
+  return Math.round((wallClockMs(exact, timeZone) - exact.getTime()) / MINUTE_MS)
+}
+
+/** "+01:00", "-05:00", "+05:45", or "+00:00" for UTC. */
+export function formatUtcOffset(minutes: number): string {
+  const sign = minutes < 0 ? "-" : "+"
+  const abs = Math.abs(minutes)
+  return `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
+/**
+ * Every instant at which the time zone's wall clock shows this date and time, earliest first:
+ * - one on most days;
+ * - none in the gap when clocks move forward (02:30 on 29 Mar 2026 in Warsaw does not exist);
+ * - two in the repeated hour when clocks move back (02:30 on 25 Oct 2026 in Warsaw happens at
+ *   00:30 UTC in summer time, then again at 01:30 UTC in winter time).
+ * Throws on a malformed date or time. Assumes at most one offset change within a day of it,
+ * which holds for every zone in use.
+ */
+export function instantsAt(local: LocalDateTime, timeZone: string): Date[] {
+  if (!isWallTime(local.time)) throw new RangeError(`Not a time of day (HH:MM): "${local.time}"`)
+  const [hours, minutes] = local.time.split(":").map(Number) as [number, number]
+  const wall = calendarDay(local.date).getTime() + (hours * 60 + minutes) * MINUTE_MS
+
+  // The offsets in force a day before and a day after: the wall time belongs to either.
+  const offsets = new Set([wall - DAY_MS, wall + DAY_MS].map((ms) => utcOffsetMinutes(new Date(ms), timeZone)))
+  return [...offsets]
+    .map((offset) => new Date(wall - offset * MINUTE_MS))
+    .filter((candidate) => wallClockMs(candidate, timeZone) === wall)
+    .sort((a, b) => a.getTime() - b.getTime())
+}
+
+/** The date and time (to the minute) the time zone's wall clock shows at an instant. */
+export function localDateTimeOf(instant: Instant, timeZone: string): LocalDateTime {
+  const wall = new Date(wallClockMs(toDate(instant), timeZone))
+  return { date: fromCalendarDay(wall), time: `${pad(wall.getUTCHours())}:${pad(wall.getUTCMinutes())}` }
+}
+
+/**
+ * The instant as ISO 8601 with seconds and the time zone's offset at that moment, as the API takes
+ * it: "2026-10-25T02:30:00+02:00". Fractions of a second are dropped.
+ */
+export function toZonedIsoString(instant: Instant, timeZone: string): string {
+  const date = toDate(instant)
+  const exact = new Date(Math.floor(date.getTime() / 1000) * 1000)
+  const wall = new Date(wallClockMs(exact, timeZone))
+  const offset = Math.round((wall.getTime() - exact.getTime()) / MINUTE_MS)
+  return (
+    `${fromCalendarDay(wall)}T${pad(wall.getUTCHours())}:${pad(wall.getUTCMinutes())}:${pad(wall.getUTCSeconds())}` +
+    formatUtcOffset(offset)
+  )
+}
+
 // --- Formatting -------------------------------------------------------------------------------
 
 export interface DateTimeFormat {
