@@ -8,13 +8,14 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
+use Ui\Http\User\Processor\ChangePasswordProcessor;
 use Ui\Http\User\Processor\RequestPasswordResetProcessor;
 use Ui\Http\User\Processor\SetPasswordProcessor;
 
 /**
- * Public endpoints that set a password with an e-mailed one-time link, or ask for such a link to
- * reset a forgotten one (ADR 0013). They answer with no body, so this resource has no fields; nobody
- * is signed in by them.
+ * Endpoints that set a password: public ones with an e-mailed one-time link, or that ask for such a
+ * link to reset a forgotten one (ADR 0013; nobody is signed in by them), and the signed-in user's own
+ * change (#12). They answer with no body, so this resource has no fields.
  */
 #[ApiResource(
     shortName: 'Password',
@@ -53,6 +54,21 @@ use Ui\Http\User\Processor\SetPasswordProcessor;
             output: false,
             read: false,
             processor: RequestPasswordResetProcessor::class,
+        ),
+        new Post(
+            uriTemplate: '/me/password',
+            status: 204,
+            openapi: new Operation(
+                summary: 'Changes the signed-in user\'s password.',
+                description: 'Needs the current password (a wrong one is a 422 violation on currentPassword) and a new one under the same rules as set-password. Ends every session of the user, in both apps and on every device (their refresh tokens stop working; JWTs already issued expire on their own), then starts a new session for this client: the response sets a fresh refresh token cookie, so the person stays signed in here. Unused set-password links stop working, and a "your password was changed" e-mail is sent. User-level: needs no X-Organization-Id.',
+                responses: [
+                    '204' => new Response('The password is changed; the refresh token cookie holds this client\'s new session.'),
+                ],
+            ),
+            input: ChangePasswordInput::class,
+            output: false,
+            read: false,
+            processor: ChangePasswordProcessor::class,
         ),
     ],
 )]

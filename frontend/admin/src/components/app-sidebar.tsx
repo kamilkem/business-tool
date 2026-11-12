@@ -5,6 +5,7 @@ import {
   BuildingIcon,
   ChevronsUpDownIcon,
   InboxIcon,
+  KeyRoundIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
@@ -169,6 +170,12 @@ export function AppSidebar() {
                   <div className="text-xs text-muted-foreground">{me.email}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/account">
+                    <KeyRoundIcon />
+                    Account
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={signOut}>
                   <LogOutIcon />
                   Sign out

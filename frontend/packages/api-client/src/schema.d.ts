@@ -236,6 +236,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changes the signed-in user's password.
+         * @description Needs the current password (a wrong one is a 422 violation on currentPassword) and a new one under the same rules as set-password. Ends every session of the user, in both apps and on every device (their refresh tokens stop working; JWTs already issued expire on their own), then starts a new session for this client: the response sets a fresh refresh token cookie, so the person stays signed in here. Unused set-password links stop working, and a "your password was changed" e-mail is sent. User-level: needs no X-Organization-Id.
+         */
+        post: operations["api_mepassword_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shifts": {
         parameters: {
             query?: never;
@@ -728,9 +748,20 @@ export interface components {
             createdAt: string;
         };
         /**
-         * @description Public endpoints that set a password with an e-mailed one-time link, or ask for such a link to
-         *     reset a forgotten one (ADR 0013). They answer with no body, so this resource has no fields; nobody
-         *     is signed in by them.
+         * @description Endpoints that set a password: public ones with an e-mailed one-time link, or that ask for such a
+         *     link to reset a forgotten one (ADR 0013; nobody is signed in by them), and the signed-in user's own
+         *     change (#12). They answer with no body, so this resource has no fields.
+         */
+        "Password.ChangePasswordInput": {
+            /** @description The signed-in user's password now; a wrong one is a violation on this field. */
+            currentPassword: string;
+            /** @description The new password: at least 8 characters, at most 4096 bytes; no composition rules (ADR 0013). */
+            newPassword: string;
+        };
+        /**
+         * @description Endpoints that set a password: public ones with an e-mailed one-time link, or that ask for such a
+         *     link to reset a forgotten one (ADR 0013; nobody is signed in by them), and the signed-in user's own
+         *     change (#12). They answer with no body, so this resource has no fields.
          */
         "Password.RequestPasswordResetInput": {
             /**
@@ -745,9 +776,9 @@ export interface components {
             app: "admin" | "timeclock";
         };
         /**
-         * @description Public endpoints that set a password with an e-mailed one-time link, or ask for such a link to
-         *     reset a forgotten one (ADR 0013). They answer with no body, so this resource has no fields; nobody
-         *     is signed in by them.
+         * @description Endpoints that set a password: public ones with an e-mailed one-time link, or that ask for such a
+         *     link to reset a forgotten one (ADR 0013; nobody is signed in by them), and the signed-in user's own
+         *     change (#12). They answer with no body, so this resource has no fields.
          */
         "Password.SetPasswordInput": {
             /** @description The secret from the e-mailed link (the `token` in its URL fragment). */
@@ -1780,6 +1811,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_mepassword_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Password resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Password.ChangePasswordInput"];
+                "application/json": components["schemas"]["Password.ChangePasswordInput"];
+            };
+        };
+        responses: {
+            /** @description The password is changed; the refresh token cookie holds this client's new session. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
             };
         };
     };
