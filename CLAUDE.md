@@ -37,14 +37,17 @@ src/App/<Module>/
         Command/<UseCase>/  <UseCase>Command + <UseCase>Handler
         Query/<UseCase>/    <UseCase>Query + <UseCase>Handler + <Name>View
         EventHandler/       <Action>On<Event> handlers of domain events, own or other modules'
+        Job/<UseCase>/      <UseCase>Job + <UseCase>JobHandler: work queued for the jobs worker (ADR 0025)
     Infrastructure/
         Doctrine/Orm/Repository/   repository adapters
         ...                        Doctrine filters/listeners, external clients (KSeF), ...
-src/App/Shared/             bus interfaces (Application), event interfaces (Domain), business date/period value objects (Domain/Time), Messenger buses (Infrastructure)
+src/App/Shared/             bus interfaces incl. `JobBusInterface` (Application), event interfaces (Domain), business date/period value objects (Domain/Time), Messenger buses (Infrastructure)
 src/Ui/
     Http/<Module>/          <Name>Resource, <UseCase>Input, Provider/, Processor/
     Http/Listener/          request listeners (SelectOrganizationFromHeaderListener)
     Http/Shared/            Ui helpers (CurrentUser, OpenAPI metadata)
+    Console/<Module>/       console commands for manual runs; they queue jobs (ADR 0025)
+    Scheduler/              the `default` Symfony Scheduler schedule: cron entries that queue jobs (ADR 0025)
     Fixture/                dev data fixtures
 ```
 
@@ -57,7 +60,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 | API write | `#[ApiResource]` operation + `Processor` → command bus → handler → aggregate method → repository `add()`/`save()`; then the processor asks the query bus for the View and returns `Resource::fromView()` |
 | API read (item or collection) | `#[ApiResource]` operation + `Provider` → query bus → handler → View(s) → `Resource::fromView()` |
 | PATCH (merge-patch) | a provider asks the query bus for the View and returns the mutable `Update<Name>Input::fromView()`; API Platform applies the body onto it; then the processor runs as for any write |
-| Background or scheduled job | console command in `Ui\Console\<Module>\` → query bus for ids → one command per aggregate; call `TenantContextInterface::switchTo()` before tenant data |
+| Background or scheduled job | a job (`final readonly`, primitives) in `App\<Module>\Application\Job\<UseCase>\`, queued with `JobBusInterface::dispatch($job, $deduplicationKey)` to the `jobs` transport and run by the `jobs-worker`; its handler orchestrates (query bus, ports, one command per aggregate on the sync command bus). Per organization: implement `OrganizationJobInterface`; the job bus calls `switchTo()` before the handler and `reset()` after. Scheduled: a `RecurringMessage::cron()` entry with an explicit time zone in `Ui\Scheduler\` queues a fan-out job → query bus for ids → one organization job each. HTTP ("run now") and `Ui\Console\<Module>\` commands queue the same job and return (`202`). Jobs are idempotent, safe to interrupt (one flush per unit, progress recorded after it) and have a time budget; expected outcomes (429, rejected credentials) are recorded, not thrown (ADR 0025) |
 | Side effect of a write | domain event on the event bus (`EventPublisherInterface`), handled by an `EventHandlerInterface` |
 | Current time | the handler injects `Psr\Clock\ClockInterface`, calls `now()` once and passes the moment into the aggregate (`new Organization(..., $createdAt)`, `addMember(..., $now)`); the Domain never reads the clock (ADR 0015) |
 | Business date or period ("today", "this month", `?from=&to=`) | `App\Shared\Domain\Time`: `BusinessDate::containing($clock->now(), $timeZone)` for today, `BusinessDate::fromString()` / `BusinessPeriod::fromStrings()` for API `Y-m-d` values, `BusinessPeriod::month()`; `toUtcRange($timeZone)` with the organization's time zone gives `[from, to)` to query UTC timestamps (`>= from AND < to`). Never compute day boundaries by hand (ADR 0017) |
@@ -85,8 +88,9 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 - **Resources** (`Ui/Http/<Module>/<Name>Resource.php`) are `final readonly`, carry the `#[ApiResource]` declaration and a static `fromView()`. They are the response shape; there are no serialization groups (ADR 0005). Every constructor property is required in OpenAPI (`RequiredPropertyMetadataFactory`), and nulls are always serialized.
 - **Inputs** (`Ui/Http/<Module>/<UseCase>Input.php`) always carry `#[Assert\*]` constraints; validation happens only here. Prefer `final readonly` with constructor parameters: a parameter without a default is required in OpenAPI, one with a default is optional. Missing or mistyped fields come back as 422 (`collect_denormalization_errors`). Merge-patch inputs are mutable (see Patterns).
 - **Providers and processors** never touch repositories or entities directly: they go through the buses. The signed-in user comes from `Ui\Http\Shared\Security\CurrentUser` and is passed as an id.
-- **Buses** run without default middleware (no validation, no transaction middleware). Repositories flush in `add()`/`save()`. The only async path is Symfony Mailer's own `messenger.bus.mailer` → `async` transport (PostgreSQL), consumed by the `worker` service; don't route command, query or event messages to it (ADR 0012).
+- **Buses** run without default middleware (no validation, no transaction middleware). Repositories flush in `add()`/`save()`. Command, query and event messages are never routed to a transport. The async paths are Symfony Mailer's own `messenger.bus.mailer` → `async` transport (PostgreSQL), consumed by the `worker` service together with the scheduler (ADR 0012), and jobs: `messenger.bus.job` (default middleware, deduplication, tenant switching) → `jobs` transport, consumed one at a time by the `jobs-worker` service (ADR 0025).
 - **Time in tests**: unit tests pass a `MockClock` (or a fixed `DateTimeImmutable`); API and functional tests call `self::mockTime()` (`ClockSensitiveTrait`, in `ApiTestCase`), which the `clock` service, the Foundry factories and the mothers follow (ADR 0015).
+- **Job tests**: the `jobs` and scheduler queues are not consumed in tests (`in-memory://`); API tests assert the queued job and its deduplication key, and each schedule has a unit test of its next run times (ADR 0025).
 - **E-mail tests** use the mailer assertions of `KernelTestCase`/`WebTestCase` (`assertQueuedEmailCount()`, `getMailerMessage()`); in tests the queue is in memory and `MAILER_DSN` is `null://null`.
 - Register each new module in `config/services.yaml` (excluding `Domain/Model/`), in `config/packages/doctrine.yaml` (`mappings` → `src/App/<Module>/Domain/Model`), and map its exceptions. API resources are discovered from `src/Ui`.
 
@@ -98,7 +102,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 - Every business entity implements `App\Organization\Domain\Model\TenantAwareInterface` and uses `TenantAwareTrait`:
   - `TenantFilter` (a Doctrine SQL filter, always on) restricts all queries to the current organization. With no organization selected, tenant-aware tables return no rows (secure by default).
   - `TenantAssignListener` sets the organization on persist.
-  - Console commands and message handlers must call `TenantContextInterface::switchTo($organization)` before touching tenant data.
+  - Work outside a request touches tenant data only after `TenantContextInterface::switchTo($organization)`: jobs get it from the job bus by implementing `OrganizationJobInterface` (ADR 0025); anything else calls it itself.
 - `tests/Functional/Organization/TenantIsolationTest.php` covers the filter and listener through a test-only entity (`tests/Fixtures/Entity/TenantNote`). Every new tenant-aware endpoint also needs an API test showing another organization's data is invisible.
 
 ## Backend conventions
@@ -115,7 +119,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 | Code | Test type | Location |
 |---|---|---|
 | Entity methods, value objects, enums | PHPUnit unit, no container, no DB | `tests/Unit/<Module>/Domain/` |
-| Command and query handlers | PHPUnit unit with in-memory repositories implementing the ports | `tests/Unit/<Module>/Application/` |
+| Command, query and job handlers | PHPUnit unit with in-memory repositories implementing the ports (job handlers: a recording command bus) | `tests/Unit/<Module>/Application/` |
 | Repository adapters, Doctrine filters, custom queries | functional, with DB | `tests/Functional/<Module>/` |
 | API endpoints | `tests/Api/ApiTestCase` (`clientFor($user, $organization)`, `memberWithRole()`): happy path, 422, 404, authorization matrix by role | `tests/Api/<Module>/` |
 
