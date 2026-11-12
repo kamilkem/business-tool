@@ -11,12 +11,13 @@ import {
   localDateTimeOf,
   toZonedIsoString,
   utcOffsetMinutes,
-} from "@business-tool/ui/lib/date-time"
+} from "./date-time"
 
-import type { Shift } from "@business-tool/ui/lib/shifts"
+import type { Shift } from "./shifts"
 
 export type AddShiftInput = components["schemas"]["Shift.AddShiftInput"]
 export type CorrectShiftInput = components["schemas"]["Shift.CorrectShiftInput.jsonMergePatch"]
+export type SubmitShiftChangeRequestInput = components["schemas"]["ShiftChangeRequest.SubmitShiftChangeRequestInput"]
 
 /**
  * Which of two instants a wall time means in the hour that happens twice when clocks go back
@@ -40,7 +41,7 @@ export interface ShiftFormValues {
 }
 
 /** Errors by the API's property paths, so the server's 422 violations land on the same fields. */
-export type ShiftFormErrors = Partial<Record<"userId" | "startedAt" | "endedAt" | "note", string>>
+export type ShiftFormErrors = Partial<Record<"userId" | "shiftId" | "startedAt" | "endedAt" | "note", string>>
 
 export const NOTE_MAX_LENGTH = 1000
 
@@ -76,6 +77,22 @@ export function suggestedEndDate(start: ShiftMoment, endTime: string): string {
   if (!isBusinessDate(start.date)) return start.date
   if (!isWallTime(start.time) || !isWallTime(endTime)) return start.date
   return endTime <= start.time ? addDays(start.date, 1) : start.date
+}
+
+/**
+ * The form after an edit. Until the person sets the clock-out's date themselves (`endDateSet`), it
+ * follows the times: the clock-in's date, or the next day for a night shift. An open shift with no
+ * clock-out time (`wasOpen`) stays open, so its clock-out has no date either.
+ */
+export function editShiftForm(
+  prev: ShiftFormValues,
+  next: Partial<ShiftFormValues>,
+  { endDateSet, wasOpen }: { endDateSet: boolean; wasOpen: boolean },
+): ShiftFormValues {
+  const merged = { ...prev, ...next }
+  if (endDateSet) return merged
+  if (wasOpen && merged.end.time === "") return { ...merged, end: { ...merged.end, date: "" } }
+  return { ...merged, end: { ...merged.end, date: suggestedEndDate(merged.start, merged.end.time) } }
 }
 
 /** The two offsets of a repeated wall time, earliest first, e.g. ["+02:00", "+01:00"]; null when it happens once. */
@@ -177,6 +194,72 @@ export function correctShiftBody(
   if (endedAt && !sameMoment(initial.end, values.end)) body.endedAt = toZonedIsoString(endedAt, timeZone)
   if (values.note.trim() !== initial.note.trim()) body.note = values.note.trim()
   return { ok: true, body }
+}
+
+/** The note a change request needs: whoever decides it should know why. */
+function requestNoteError(values: ShiftFormValues): string | undefined {
+  return values.note.trim() === "" ? "Say why, for whoever decides the request." : undefined
+}
+
+/**
+ * POST /shift-change-requests body for a shift the person worked but did not clock: both ends and
+ * a note required, times with the organization's offset.
+ */
+export function missingShiftRequestBody(
+  values: ShiftFormValues,
+  timeZone: string,
+  format: DateTimeFormat,
+): ShiftFormResult<SubmitShiftChangeRequestInput> {
+  const { errors, startedAt, endedAt } = times(values, timeZone, format, true)
+  const noteError = requestNoteError(values)
+  if (noteError) errors.note ??= noteError
+  if (hasErrors(errors) || !startedAt || !endedAt) return { ok: false, errors }
+
+  return {
+    ok: true,
+    body: {
+      startedAt: toZonedIsoString(startedAt, timeZone),
+      endedAt: toZonedIsoString(endedAt, timeZone),
+      note: values.note.trim(),
+    },
+  }
+}
+
+/**
+ * POST /shift-change-requests body asking for new times for one of the person's own shifts. The
+ * request carries both ends: a time left as it was is sent as the shift's own instant, so the
+ * seconds of a clocked time are kept and the API sees no change there. An open shift may stay open
+ * (no clock-out entered: `endedAt: null`); an ended one needs a clock-out. Asking for the times the
+ * shift already has is refused here, as the API would (422).
+ */
+export function newTimesRequestBody(
+  shift: Shift,
+  values: ShiftFormValues,
+  timeZone: string,
+  format: DateTimeFormat,
+): ShiftFormResult<SubmitShiftChangeRequestInput> {
+  const initial = shiftFormFrom(shift, timeZone)
+  const wasOpen = shift.endedAt === null
+  const { errors, startedAt, endedAt } = times(values, timeZone, format, !wasOpen)
+  const noteError = requestNoteError(values)
+  if (noteError) errors.note ??= noteError
+  if (hasErrors(errors) || !startedAt) return { ok: false, errors }
+
+  const startSame = sameMoment(initial.start, values.start)
+  const endSame = endedAt ? sameMoment(initial.end, values.end) : wasOpen
+  if (startSame && endSame) {
+    return { ok: false, errors: { shiftId: "Change the clock-in or the clock-out: these are the shift's times now." } }
+  }
+
+  return {
+    ok: true,
+    body: {
+      shiftId: shift.id,
+      startedAt: startSame ? shift.startedAt : toZonedIsoString(startedAt, timeZone),
+      endedAt: !endedAt ? null : endSame ? shift.endedAt : toZonedIsoString(endedAt, timeZone),
+      note: values.note.trim(),
+    },
+  }
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"

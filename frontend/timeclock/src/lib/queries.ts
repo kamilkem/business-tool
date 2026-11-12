@@ -44,3 +44,19 @@ export function myShiftsQuery(organizationId: string, userId: string, period: Bu
     queryFn: () => unwrap(api.GET("/api/shifts", { params: { query: { ...period, userId } } })),
   })
 }
+
+/** The key of the signed-in person's shift change requests in the organization, to refresh after a submit. */
+export const myShiftChangeRequestsKey = (organizationId: string) => ["shift-change-requests", organizationId] as const
+
+/**
+ * The signed-in person's shift change requests, newest first, every status. The API answers an
+ * employee with their own only; an owner or manager would get everyone's, so they are filtered
+ * to `userId` here (the timeclock shows a person only their own).
+ */
+export function myShiftChangeRequestsQuery(organizationId: string, userId: string) {
+  return queryOptions({
+    queryKey: [...myShiftChangeRequestsKey(organizationId), { userId }],
+    queryFn: async () =>
+      (await unwrap(api.GET("/api/shift-change-requests"))).filter((request) => request.userId === userId),
+  })
+}

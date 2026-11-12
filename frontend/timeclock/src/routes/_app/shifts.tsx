@@ -1,6 +1,17 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, CircleAlertIcon, LoaderCircleIcon, UserPenIcon } from "lucide-react"
+import {
+  ArrowLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  InboxIcon,
+  LoaderCircleIcon,
+  PencilIcon,
+  PlusIcon,
+  UserPenIcon,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -25,6 +36,7 @@ import {
   shiftHours,
   validateMyShiftsSearch,
 } from "@/lib/my-shifts"
+import { type ShiftChangeRequestTarget, ShiftChangeRequestSheet } from "@/components/shift-change-request-sheet"
 import { myShiftsQuery } from "@/lib/queries"
 import { useNow } from "@/lib/shifts"
 
@@ -41,6 +53,7 @@ function MyShiftsScreen() {
   const { month } = Route.useSearch()
   const navigate = Route.useNavigate()
   const format = useDateTimeFormat()
+  const [requestTarget, setRequestTarget] = useState<ShiftChangeRequestTarget | null>(null)
 
   // The layout shows "no organization" instead of this screen.
   if (!membership) return null
@@ -84,7 +97,37 @@ function MyShiftsScreen() {
         </Button>
       </div>
 
-      <MonthShifts organizationId={membership.organization.id} userId={me.id} period={period} />
+      <MonthShifts
+        organizationId={membership.organization.id}
+        userId={me.id}
+        period={period}
+        onRequestNewTimes={(shift) => setRequestTarget({ kind: "new_times", shift })}
+      />
+
+      {/* People never change their shift times themselves: they ask an owner or manager (ADR 0016 §5). */}
+      <div className="flex flex-col gap-2">
+        <Button variant="outline" className="h-11" onClick={() => setRequestTarget({ kind: "missing" })}>
+          <PlusIcon />
+          Add a missing shift
+        </Button>
+        <Button asChild variant="ghost" className="h-11">
+          <Link to="/requests">
+            <InboxIcon />
+            My requests
+          </Link>
+        </Button>
+      </div>
+
+      <ShiftChangeRequestSheet
+        organizationId={membership.organization.id}
+        userId={me.id}
+        target={requestTarget}
+        onClose={() => setRequestTarget(null)}
+        onSent={() => {
+          setRequestTarget(null)
+          void navigate({ to: "/requests" })
+        }}
+      />
 
       {format.timeZone !== browserTimeZone() && (
         <p className="text-center text-xs text-muted-foreground">Times in {format.timeZone.replaceAll("_", " ")}</p>
@@ -93,7 +136,17 @@ function MyShiftsScreen() {
   )
 }
 
-function MonthShifts({ organizationId, userId, period }: { organizationId: string; userId: string; period: BusinessPeriod }) {
+function MonthShifts({
+  organizationId,
+  userId,
+  period,
+  onRequestNewTimes,
+}: {
+  organizationId: string
+  userId: string
+  period: BusinessPeriod
+  onRequestNewTimes: (shift: Shift) => void
+}) {
   const shifts = useQuery(myShiftsQuery(organizationId, userId, period))
   const format = useDateTimeFormat()
 
@@ -142,7 +195,7 @@ function MonthShifts({ organizationId, userId, period }: { organizationId: strin
       ) : (
         <ul className="flex flex-col gap-2">
           {shifts.data.map((shift) => (
-            <ShiftItem key={shift.id} shift={shift} userId={userId} />
+            <ShiftItem key={shift.id} shift={shift} userId={userId} onRequestNewTimes={() => onRequestNewTimes(shift)} />
           ))}
         </ul>
       )}
@@ -150,34 +203,46 @@ function MonthShifts({ organizationId, userId, period }: { organizationId: strin
   )
 }
 
-function ShiftItem({ shift, userId }: { shift: Shift; userId: string }) {
+function ShiftItem({ shift, userId, onRequestNewTimes }: { shift: Shift; userId: string; onRequestNewTimes: () => void }) {
   const format = useDateTimeFormat()
   const change = shiftChange(format, shift, userId)
+  const day = format.businessDate(shift.date, SHIFT_DAY)
 
   return (
-    <li className="rounded-xl border bg-card px-4 py-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-medium">{format.businessDate(shift.date, SHIFT_DAY)}</span>
-        {isOpen(shift) ? (
-          <span className="flex items-center gap-1.5 text-sm font-medium">
-            <span className="size-2 rounded-full bg-green-600" aria-hidden />
-            On shift
-          </span>
-        ) : (
-          <span className="font-medium tabular-nums">{formatDuration(shift.durationMinutes ?? 0)}</span>
-        )}
-      </div>
-      <div className="text-sm tabular-nums text-muted-foreground">
-        {shiftHours(format, shift)}
-        {isOpen(shift) && <SoFar startedAt={shift.startedAt} />}
-      </div>
-      {change && (
-        <div className="mt-1 flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
-          <UserPenIcon className="size-4 shrink-0" aria-hidden />
-          {change}
+    <li className="flex items-start gap-1 rounded-xl border bg-card py-3 pr-1 pl-4">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-medium">{day}</span>
+          {isOpen(shift) ? (
+            <span className="flex items-center gap-1.5 text-sm font-medium">
+              <span className="size-2 rounded-full bg-green-600" aria-hidden />
+              On shift
+            </span>
+          ) : (
+            <span className="font-medium tabular-nums">{formatDuration(shift.durationMinutes ?? 0)}</span>
+          )}
         </div>
-      )}
-      {shift.note && <p className="mt-1 text-sm break-words text-muted-foreground">{shift.note}</p>}
+        <div className="text-sm tabular-nums text-muted-foreground">
+          {shiftHours(format, shift)}
+          {isOpen(shift) && <SoFar startedAt={shift.startedAt} />}
+        </div>
+        {change && (
+          <div className="mt-1 flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+            <UserPenIcon className="size-4 shrink-0" aria-hidden />
+            {change}
+          </div>
+        )}
+        {shift.note && <p className="mt-1 text-sm break-words text-muted-foreground">{shift.note}</p>}
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="-my-2 size-11 shrink-0 text-muted-foreground"
+        onClick={onRequestNewTimes}
+        aria-label={`Ask for new times for ${day}`}
+      >
+        <PencilIcon />
+      </Button>
     </li>
   )
 }
