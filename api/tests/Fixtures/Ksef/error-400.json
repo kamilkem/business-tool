@@ -1,0 +1,15 @@
+{
+  "title": "Bad Request",
+  "status": 400,
+  "instance": "/v2/invoices/query/metadata",
+  "detail": "Żądanie jest nieprawidłowe.",
+  "errors": [
+    {
+      "code": 21405,
+      "description": "Błąd walidacji danych wejściowych.",
+      "details": ["Zakres dat przekracza 100 dni."]
+    }
+  ],
+  "timestamp": "2026-11-12T22:43:01.0154302+00:00",
+  "traceId": "00000000000000000000000000000400"
+}

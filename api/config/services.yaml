@@ -45,5 +45,11 @@ services:
         exclude:
             - '../src/App/Expenses/Domain/Model/'
 
+    # KSeF integration (ADR 0024 §3): uses Expenses only through the buses.
+    App\Ksef\:
+        resource: '../src/App/Ksef/'
+        exclude:
+            - '../src/App/Ksef/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'

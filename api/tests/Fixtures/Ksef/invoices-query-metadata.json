@@ -1,0 +1,75 @@
+{
+  "hasMore": true,
+  "isTruncated": false,
+  "permanentStorageHwmDate": "2026-11-12T22:30:00.1234567+00:00",
+  "invoices": [
+    {
+      "ksefNumber": "3947150208-20261103-0100A0B1C2D3-4F",
+      "invoiceNumber": "FV/2026/11/0042",
+      "issueDate": "2026-11-03",
+      "invoicingDate": "2026-11-03T09:15:02.4411234+00:00",
+      "acquisitionDate": "2026-11-03T09:15:05.1021234+00:00",
+      "permanentStorageDate": "2026-11-03T09:15:07.3881234+00:00",
+      "seller": {
+        "nip": "3947150208",
+        "name": "Hurtownia Napojów Testowa Sp. z o.o."
+      },
+      "buyer": {
+        "identifier": {
+          "type": "Nip",
+          "value": "7251964308"
+        },
+        "name": "Bar Testowy"
+      },
+      "netAmount": 1000.00,
+      "grossAmount": 1230.00,
+      "vatAmount": 230.00,
+      "currency": "PLN",
+      "invoicingMode": "Online",
+      "invoiceType": "Vat",
+      "formCode": {
+        "systemCode": "FA (3)",
+        "schemaVersion": "1-0E",
+        "value": "FA"
+      },
+      "isSelfInvoicing": false,
+      "hasAttachment": false,
+      "invoiceHash": "mkht+3m5trnfxlTYhq3QFn74LkEO69MFNlsMAkCDSPA=",
+      "thirdSubjects": []
+    },
+    {
+      "ksefNumber": "5218630497-20261104-0100E5F6A7B8-1C",
+      "invoiceNumber": "12/11/2026",
+      "issueDate": "2026-11-04",
+      "invoicingDate": "2026-11-04T13:02:11.0001234+00:00",
+      "acquisitionDate": "2026-11-04T13:02:12.5001234+00:00",
+      "permanentStorageDate": "2026-11-04T13:02:14.9001234+00:00",
+      "seller": {
+        "nip": "5218630497",
+        "name": "Piekarnia Testowa"
+      },
+      "buyer": {
+        "identifier": {
+          "type": "Nip",
+          "value": "7251964308"
+        },
+        "name": "Bar Testowy"
+      },
+      "netAmount": 200.00,
+      "grossAmount": 216.00,
+      "vatAmount": 16.00,
+      "currency": "PLN",
+      "invoicingMode": "Offline",
+      "invoiceType": "Vat",
+      "formCode": {
+        "systemCode": "FA (2)",
+        "schemaVersion": "1-0E",
+        "value": "FA"
+      },
+      "isSelfInvoicing": false,
+      "hasAttachment": false,
+      "invoiceHash": "Yp2s0QH3tq8Qm6r1o6m1q8bqv0Jk2m7lQXzq9u3m4cE=",
+      "thirdSubjects": []
+    }
+  ]
+}

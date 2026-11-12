@@ -80,5 +80,10 @@ api_platform:
         App\Income\Domain\Exception\RevenuePeriodTooLongException: 422
         App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
         App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
+        # KSeF errors are recorded by the sync, not thrown at HTTP clients; mapped in case one escapes.
+        App\Ksef\Domain\Exception\KsefCredentialsRejectedException: 422
+        App\Ksef\Domain\Exception\KsefRateLimitedException: 429
+        App\Ksef\Domain\Exception\KsefUnavailableException: 503
+        App\Ksef\Domain\Exception\KsefRequestFailedException: 502
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422

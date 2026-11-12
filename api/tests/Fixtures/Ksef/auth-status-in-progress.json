@@ -1,0 +1,13 @@
+{
+  "startDate": "2026-11-12T22:42:48.1234567+00:00",
+  "authenticationMethod": "Token",
+  "authenticationMethodInfo": {
+    "category": "Token",
+    "code": "token.ksef",
+    "displayName": "Token KSeF"
+  },
+  "status": {
+    "code": 100,
+    "description": "Uwierzytelnianie w toku"
+  }
+}

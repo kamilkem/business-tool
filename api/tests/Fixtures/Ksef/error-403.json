@@ -1,0 +1,13 @@
+{
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Brak wymaganych uprawnień do wykonania operacji w bieżącym kontekście.",
+  "instance": "/v2/invoices/ksef/3947150208-20261103-0100A0B1C2D3-4F",
+  "reasonCode": "missing-permissions",
+  "security": {
+    "requiredAnyOfPermissions": ["InvoiceRead"],
+    "presentPermissions": ["CredentialsRead"]
+  },
+  "traceId": "00000000000000000000000000000403",
+  "timestamp": "2026-11-12T22:43:01.0154302+00:00"
+}
