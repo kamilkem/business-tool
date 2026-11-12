@@ -25,21 +25,19 @@ import {
   minutesBetween,
   thisMonth,
 } from "@business-tool/ui/lib/date-time"
-
-import { ShiftDialog, type ShiftDialogTarget } from "@/components/shift-dialog"
-import { type Member, canManageTeam, fullName, isActive } from "@/lib/members"
-import { membersQuery, shiftsQuery } from "@/lib/queries"
 import {
   type EmployeeTotal,
   SHIFTS_MAX_DAYS,
   type Shift,
-  type ShiftsSearch,
   grandTotal,
   isOpen,
-  periodOf,
   totalsPerEmployee,
-  validateShiftsSearch,
-} from "@/lib/shifts"
+} from "@business-tool/ui/lib/shifts"
+
+import { ShiftDialog, type ShiftDialogTarget } from "@/components/shift-dialog"
+import { type Member, canManageTeam, fullName, isActive } from "@/lib/members"
+import { membersQuery, shiftsQuery } from "@/lib/queries"
+import { type ShiftsSearch, periodOf, validateShiftsSearch } from "@/lib/shifts"
 
 const EVERYONE = "everyone"
 

@@ -5,15 +5,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 
 import { api } from "./api"
-import { currentShiftQuery, meQuery } from "./queries"
+import { currentShiftQuery, meQuery, myShiftsKey } from "./queries"
 
 export type ClockAction = "in" | "out"
 
 /**
  * Clocks the signed-in person in or out. The request carries no time and no
  * location: the server's clock sets it (ADR 0016). On success the current
- * shift is updated in place; on failure it is refetched, so the screen shows
- * the real state (another tab or phone may have clocked in or out).
+ * shift is updated in place and "My shifts" goes stale; on failure the current
+ * shift is refetched, so the screen shows the real state (another tab or phone
+ * may have clocked in or out).
  *
  * `submit()` ignores taps while a request is in flight. Disabling the button is
  * not enough: a fast double tap fires both clicks before React re-renders.
@@ -27,7 +28,11 @@ export function useClockMutation(organizationId: string) {
   const mutation = useMutation({
     mutationFn: (action: ClockAction) =>
       action === "in" ? unwrap(api.POST("/api/shifts/clock-in")) : unwrap(api.POST("/api/shifts/clock-out")),
-    onSuccess: (shift, action) => queryClient.setQueryData(queryKey, action === "in" ? shift : null),
+    onSuccess: (shift, action) => {
+      queryClient.setQueryData(queryKey, action === "in" ? shift : null)
+      // Not awaited: the button need not wait for "My shifts", which refetches when it is next shown.
+      void queryClient.invalidateQueries({ queryKey: myShiftsKey(organizationId) })
+    },
     onError: async (error) => {
       // 401: the API client is already sending the person to sign in again.
       if (error instanceof ApiError && error.status === 401) return

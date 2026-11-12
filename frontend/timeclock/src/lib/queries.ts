@@ -1,5 +1,6 @@
 import { ApiError, unwrap, type components } from "@business-tool/api-client"
 import { queryOptions } from "@tanstack/react-query"
+import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 
 import { api } from "./api"
 
@@ -26,5 +27,20 @@ export function currentShiftQuery(organizationId: string) {
         throw error
       }
     },
+  })
+}
+
+/** The key of every list of the signed-in person's shifts in the organization, to refresh after clocking. */
+export const myShiftsKey = (organizationId: string) => ["shifts", "list", organizationId] as const
+
+/**
+ * The signed-in person's shifts that started in the period (business dates in the organization's
+ * time zone), newest first. `userId` is passed even though employees only ever get their own, so an
+ * owner or manager clocking in on the timeclock also sees only theirs.
+ */
+export function myShiftsQuery(organizationId: string, userId: string, period: BusinessPeriod) {
+  return queryOptions({
+    queryKey: [...myShiftsKey(organizationId), { userId, ...period }],
+    queryFn: () => unwrap(api.GET("/api/shifts", { params: { query: { ...period, userId } } })),
   })
 }

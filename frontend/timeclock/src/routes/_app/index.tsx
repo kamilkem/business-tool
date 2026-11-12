@@ -1,86 +1,26 @@
-import { logout, signInAgainUrl } from "@business-tool/api-client"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
-import { CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LogOutIcon, WifiOffIcon } from "lucide-react"
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, WifiOffIcon } from "lucide-react"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
 import { Skeleton } from "@business-tool/ui/components/skeleton"
-import { OrganizationTimeZoneContext, useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { browserTimeZone, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 
-import { currentShiftQuery, meQuery, type Shift } from "@/lib/queries"
+import { currentShiftQuery, type Shift } from "@/lib/queries"
 import { elapsedMs, formatClockTime, formatElapsed, formatWorked } from "@/lib/format"
 import { clockErrorMessage, useClockMutation, useNow, useOnline } from "@/lib/shifts"
 
-export const Route = createFileRoute("/")({
-  beforeLoad: async ({ context, location }) => {
-    const { session, queryClient } = context
-    if (!session.get().token) {
-      throw redirect({ to: "/login", search: { redirect: location.href } })
-    }
-
-    let me
-    try {
-      me = await queryClient.ensureQueryData(meQuery)
-    } catch (error) {
-      // The token expired: the API client signed out and cleared the cache,
-      // which cancels this query, so the error may be a 401 or a cancellation.
-      // Sign in again, then come back here (ADR 0016).
-      if (!session.get().token) {
-        throw redirect({ href: signInAgainUrl({ pathname: location.pathname, search: location.searchStr }) })
-      }
-      throw error
-    }
-    const memberships = me.memberships
-    const selected = session.get().organizationId
-    const membership = memberships.find((m) => m.organization.id === selected) ?? memberships[0] ?? null
-    if (membership && membership.organization.id !== selected) {
-      session.selectOrganization(membership.organization.id)
-    }
-
-    return { me, membership }
-  },
+export const Route = createFileRoute("/_app/")({
   component: ClockScreen,
 })
 
 function ClockScreen() {
-  const { me, membership, session, queryClient } = Route.useRouteContext()
-  const router = useRouter()
-
-  async function signOut() {
-    await logout(session)
-    queryClient.clear()
-    await router.navigate({ to: "/login" })
-  }
-
-  return (
-    <div className="flex min-h-svh flex-col bg-muted pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-      <header className="flex items-center justify-between gap-2 py-2 pl-4 pr-2">
-        <div className="min-w-0 text-sm">
-          <div className="truncate font-medium">{membership?.organization.name ?? "No organization"}</div>
-          <div className="truncate text-muted-foreground">
-            {me.firstName} {me.lastName}
-          </div>
-        </div>
-        <Button variant="ghost" size="icon" className="size-11" onClick={signOut} aria-label="Sign out">
-          <LogOutIcon />
-        </Button>
-      </header>
-
-      {membership ? (
-        <OrganizationTimeZoneContext value={membership.organization.timezone}>
-          <ClockPanel organizationId={membership.organization.id} />
-        </OrganizationTimeZoneContext>
-      ) : (
-        <main className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-          <p className="max-w-xs text-muted-foreground">
-            You aren't a member of any organization, so there is nothing to clock in to. Ask your manager to add you.
-          </p>
-        </main>
-      )}
-    </div>
-  )
+  const { membership } = Route.useRouteContext()
+  // The layout shows "no organization" instead of this screen.
+  if (!membership) return null
+  return <ClockPanel organizationId={membership.organization.id} />
 }
 
 function ClockPanel({ organizationId }: { organizationId: string }) {
@@ -168,6 +108,12 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
                 : "Clock in"}
           </Button>
         )}
+        <Button asChild variant="ghost" className="h-11">
+          <Link to="/shifts">
+            <CalendarDaysIcon />
+            My shifts
+          </Link>
+        </Button>
       </footer>
     </>
   )
