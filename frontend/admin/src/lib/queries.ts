@@ -34,6 +34,17 @@ export const membersQuery = (organizationId: string, includeDeactivated: boolean
       unwrap(api.GET("/api/members", { params: { query: includeDeactivated ? { includeDeactivated: true } : {} } })),
   })
 
+/**
+ * Registers of the organization: active ones by name, then (with includeDeactivated) the
+ * deactivated ones. The Income page's entry form needs the active ones only.
+ */
+export const registersQuery = (organizationId: string, includeDeactivated: boolean) =>
+  queryOptions({
+    queryKey: ["registers", organizationId, { includeDeactivated }],
+    queryFn: () =>
+      unwrap(api.GET("/api/registers", { params: { query: includeDeactivated ? { includeDeactivated: true } : {} } })),
+  })
+
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
 export const shiftsQuery = (organizationId: string, period: BusinessPeriod, userId?: string) =>
   queryOptions({
