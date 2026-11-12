@@ -13,6 +13,8 @@ final readonly class MeMembershipView
         public string $organizationName,
         /** IANA time zone of the organization's business dates (ADR 0002). */
         public string $organizationTimezone,
+        /** ISO 4217 code of the organization's money amounts (ADR 0010). */
+        public string $organizationCurrency,
     ) {
     }
 }

@@ -1,6 +1,7 @@
 import { createContext, use, useMemo } from "react"
 
 import { createDateTimeFormat, type DateTimeFormat } from "../lib/date-time"
+import { LocaleContext } from "./use-locale"
 
 /**
  * The selected organization's IANA time zone (`/me` → `memberships[].organization.timezone`).
@@ -21,8 +22,10 @@ export function useOrganizationTimeZone(): string {
   return timeZone
 }
 
-/** Date and time formatting in the selected organization's time zone and the browser's locale. */
+/** Date and time formatting in the selected organization's time zone and the current locale (`useLocale()`). */
 export function useDateTimeFormat(): DateTimeFormat {
   const timeZone = useOrganizationTimeZone()
-  return useMemo(() => createDateTimeFormat(timeZone), [timeZone])
+  // No <LocaleContext> yet means the browser's locale, which `Intl` picks for `undefined` (#21).
+  const locale = use(LocaleContext) ?? undefined
+  return useMemo(() => createDateTimeFormat(timeZone, locale), [timeZone, locale])
 }

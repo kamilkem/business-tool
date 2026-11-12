@@ -11,6 +11,8 @@ final readonly class MeOrganization
         public string $name,
         /** IANA time zone in which the organization's dates and times are shown, e.g. "Europe/Warsaw". */
         public string $timezone,
+        /** ISO 4217 code in which the organization's money amounts are kept, e.g. "PLN" (ADR 0010). */
+        public string $currency,
     ) {
     }
 }

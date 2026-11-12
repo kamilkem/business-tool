@@ -26,6 +26,7 @@ final class MeApiTest extends ApiTestCase
                     'id' => $organization->getId()->toRfc4122(),
                     'name' => $organization->getName(),
                     'timezone' => $organization->getTimezone(),
+                    'currency' => $organization->getCurrency(),
                 ],
             ]],
         ]);
@@ -41,6 +42,19 @@ final class MeApiTest extends ApiTestCase
         self::assertResponseIsSuccessful();
         self::assertJsonContains([
             'memberships' => [['organization' => ['id' => $organization->getId()->toRfc4122(), 'timezone' => 'America/New_York']]],
+        ]);
+    }
+
+    public function test_it_returns_each_organizations_currency(): void
+    {
+        $organization = OrganizationFactory::createOne(['currency' => 'EUR']);
+        $owner = ($organization->getMemberships()->first() ?: throw new \LogicException('Owner expected.'))->getUser();
+
+        static::clientFor($owner)->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains([
+            'memberships' => [['organization' => ['id' => $organization->getId()->toRfc4122(), 'currency' => 'EUR']]],
         ]);
     }
 }

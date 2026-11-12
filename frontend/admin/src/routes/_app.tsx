@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@business-tool/ui/components/sidebar"
 import { Separator } from "@business-tool/ui/components/separator"
+import { OrganizationCurrencyContext } from "@business-tool/ui/hooks/use-organization-currency"
 import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -47,22 +48,25 @@ function AppLayout() {
   }
 
   return (
-    // Dates and times on every page are shown in the organization's time zone (ADR 0002 §4).
+    // Dates and times on every page are shown in the organization's time zone (ADR 0002 §4), and
+    // money in its currency (ADR 0010).
     <OrganizationTimeZoneContext value={membership.organization.timezone}>
-      <SidebarProvider>
-        <AppSidebar />
-        {/* min-w-0 lets wide content (tables) scroll inside the page instead of widening it. */}
-        <SidebarInset className="min-w-0">
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            <span className="text-sm font-medium">{membership.organization.name}</span>
-          </header>
-          <main className="flex-1 p-4 md:p-6">
-            <Outlet />
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <OrganizationCurrencyContext value={membership.organization.currency}>
+        <SidebarProvider>
+          <AppSidebar />
+          {/* min-w-0 lets wide content (tables) scroll inside the page instead of widening it. */}
+          <SidebarInset className="min-w-0">
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+              <span className="text-sm font-medium">{membership.organization.name}</span>
+            </header>
+            <main className="flex-1 p-4 md:p-6">
+              <Outlet />
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </OrganizationCurrencyContext>
     </OrganizationTimeZoneContext>
   )
 }

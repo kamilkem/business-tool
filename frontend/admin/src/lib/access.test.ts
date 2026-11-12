@@ -11,7 +11,7 @@ function membership(role: Role, name = "Demo Bar"): Membership {
   return {
     id: `membership-${name}`,
     role,
-    organization: { id: `organization-${name}`, name, timezone: "Europe/Warsaw" },
+    organization: { id: `organization-${name}`, name, timezone: "Europe/Warsaw", currency: "PLN" },
   }
 }
 

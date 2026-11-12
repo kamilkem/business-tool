@@ -611,12 +611,16 @@ export interface components {
             name: string;
             /** @description IANA time zone in which the organization's dates and times are shown, e.g. "Europe/Warsaw". */
             timezone: string;
+            /** @description ISO 4217 code in which the organization's money amounts are kept, e.g. "PLN" (ADR 0010). */
+            currency: string;
         };
         "MeOrganization.jsonld": {
             id: string;
             name: string;
             /** @description IANA time zone in which the organization's dates and times are shown, e.g. "Europe/Warsaw". */
             timezone: string;
+            /** @description ISO 4217 code in which the organization's money amounts are kept, e.g. "PLN" (ADR 0010). */
+            currency: string;
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
