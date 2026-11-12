@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Income\Application\Command\RenameRegister;
+
+use App\Income\Application\IncomeActor;
+use App\Income\Domain\Exception\IncomeManagementForbiddenException;
+use App\Income\Domain\Exception\InvalidRegisterNameException;
+use App\Income\Domain\Exception\RegisterNameTakenException;
+use App\Income\Domain\Exception\RegisterNotFoundException;
+use App\Income\Domain\Repository\RegisterRepositoryInterface;
+use App\Organization\Domain\Exception\OrganizationNotFoundException;
+use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Application\Query\QueryBusInterface;
+use Symfony\Component\Uid\Uuid;
+
+final readonly class RenameRegisterHandler implements CommandHandlerInterface
+{
+    public function __construct(
+        private RegisterRepositoryInterface $registers,
+        private QueryBusInterface $queryBus,
+    ) {
+    }
+
+    /**
+     * @throws OrganizationNotFoundException      when the actor is not an active member of the organization
+     * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
+     * @throws RegisterNotFoundException          when the register is not one of the organization's
+     * @throws InvalidRegisterNameException       when the name is blank or too long
+     * @throws RegisterNameTakenException         when another register of the organization has the name
+     */
+    public function __invoke(RenameRegisterCommand $command): void
+    {
+        $actor = IncomeActor::resolve($this->queryBus, $command->organizationId, $command->actorId);
+
+        $register = Uuid::isValid($command->registerId) ? $this->registers->findById(Uuid::fromString($command->registerId)) : null;
+        $register ??= throw RegisterNotFoundException::withId($command->registerId);
+
+        $register->rename($command->name, $this->registers->findByName(trim($command->name)), $actor->id, $actor->role);
+
+        $this->registers->save($register);
+    }
+}
