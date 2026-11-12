@@ -256,6 +256,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/registers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the registers of the selected organization.
+         * @description Active registers only, unless includeDeactivated is true; active ones first, then by name. Owners and managers only (403 otherwise).
+         */
+        get: operations["api_registers_get_collection"];
+        put?: never;
+        /**
+         * Adds a register to the selected organization.
+         * @description Owners and managers only (403 otherwise). The name is trimmed, 1 to 64 characters (422), and unique in the organization among active and deactivated registers, compared as written (409).
+         */
+        post: operations["api_registers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/registers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One register of the selected organization, active or deactivated.
+         * @description Owners and managers only (403 otherwise). A register that is not the selected organization's is a 404.
+         */
+        get: operations["api_registers_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Renames a register.
+         * @description Owners and managers only (403 otherwise); a register that is not the selected organization's is a 404. A deactivated register can be renamed too. The rules of POST apply to the name (409, 422); renaming to the current name changes nothing. Its entries show the new name.
+         */
+        patch: operations["api_registers_id_patch"];
+        trace?: never;
+    };
+    "/api/registers/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivates a register.
+         * @description Owners and managers only (403 otherwise); a register that is not the selected organization's is a 404. The register takes no new entries from now on (POST /revenue-entries answers 422); its existing entries stay visible and editable. The request has no body. Deactivating a deactivated register changes nothing.
+         */
+        post: operations["api_registers_iddeactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/revenue-entries": {
         parameters: {
             query?: never;
@@ -862,6 +930,64 @@ export interface components {
             /** @enum {string} */
             method: "cash" | "card" | "transfer" | "voucher";
             amount: number;
+        };
+        /**
+         * @description A register (a till with its own fiscal printer) of the organization selected by the
+         *     X-Organization-Id header; revenue entries are recorded per register and business date (ADR 0022
+         *     §2). Owners and managers only: anyone else gets a 403. Registers are deactivated, never deleted:
+         *     a deactivated register takes no new entries, and its entries stay visible and editable.
+         */
+        Register: {
+            id: string;
+            name: string;
+            /** @description False once deactivated: the register takes no new entries. */
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the register was deactivated; null while it is active.
+             */
+            deactivatedAt: string | null;
+        };
+        /**
+         * @description A register (a till with its own fiscal printer) of the organization selected by the
+         *     X-Organization-Id header; revenue entries are recorded per register and business date (ADR 0022
+         *     §2). Owners and managers only: anyone else gets a 403. Registers are deactivated, never deleted:
+         *     a deactivated register takes no new entries, and its entries stay visible and editable.
+         */
+        "Register.AddRegisterInput": {
+            /** @description Trimmed; unique in the organization, compared as written ("Bar" and "bar" are two names). */
+            name: string;
+        };
+        /**
+         * @description A register (a till with its own fiscal printer) of the organization selected by the
+         *     X-Organization-Id header; revenue entries are recorded per register and business date (ADR 0022
+         *     §2). Owners and managers only: anyone else gets a 403. Registers are deactivated, never deleted:
+         *     a deactivated register takes no new entries, and its entries stay visible and editable.
+         */
+        "Register.UpdateRegisterInput.jsonMergePatch": {
+            /** @description Trimmed; unique in the organization, compared as written. */
+            name?: string | null;
+        };
+        /**
+         * @description A register (a till with its own fiscal printer) of the organization selected by the
+         *     X-Organization-Id header; revenue entries are recorded per register and business date (ADR 0022
+         *     §2). Owners and managers only: anyone else gets a 403. Registers are deactivated, never deleted:
+         *     a deactivated register takes no new entries, and its entries stay visible and editable.
+         */
+        "Register.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            name: string;
+            /** @description False once deactivated: the register takes no new entries. */
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the register was deactivated; null while it is active.
+             */
+            deactivatedAt: string | null;
         };
         /**
          * @description What one register took on one business date, from its daily report, in the organization selected
@@ -2072,6 +2198,272 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_registers_get_collection: {
+        parameters: {
+            query?: {
+                /** @description Also list deactivated registers (for filters and for the entries they still have). */
+                includeDeactivated?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Register collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["Register.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["Register"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_registers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Register resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Register.AddRegisterInput"];
+                "application/json": components["schemas"]["Register.AddRegisterInput"];
+            };
+        };
+        responses: {
+            /** @description The new register, active. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Register.jsonld"];
+                    "application/json": components["schemas"]["Register"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A register of the organization already has the name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is missing, blank or too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_registers_id_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Register identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Register resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Register.jsonld"];
+                    "application/json": components["schemas"]["Register"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The register is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_registers_id_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Register identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated Register resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["Register.UpdateRegisterInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description Register resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Register.jsonld"];
+                    "application/json": components["schemas"]["Register"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The register is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another register of the organization has the name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is blank or too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_registers_iddeactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Register identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The deactivated register. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Register.jsonld"];
+                    "application/json": components["schemas"]["Register"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The register is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description An error occurred */
             422: {

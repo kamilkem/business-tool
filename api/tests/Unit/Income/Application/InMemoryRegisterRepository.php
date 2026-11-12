@@ -32,7 +32,10 @@ final class InMemoryRegisterRepository implements RegisterRepositoryInterface
 
     public function findAll(bool $includeDeactivated = false): array
     {
-        return array_values(array_filter($this->byId, static fn (Register $register): bool => $includeDeactivated || $register->isActive()));
+        $registers = array_values(array_filter($this->byId, static fn (Register $register): bool => $includeDeactivated || $register->isActive()));
+        usort($registers, static fn (Register $a, Register $b): int => [!$a->isActive(), $a->getName()] <=> [!$b->isActive(), $b->getName()]);
+
+        return $registers;
     }
 
     public function add(Register $register): void
