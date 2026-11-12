@@ -15,8 +15,10 @@
     "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
-    "oxlint": "^1.90.0",
+    "@types/node": "^24.19.2",
     "openapi-typescript": "^7.13.0",
-    "typescript": "~6.0.2"
+    "oxlint": "^1.90.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.6"
   }
 }

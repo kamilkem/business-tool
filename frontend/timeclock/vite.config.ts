@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
 
+import { apiProxy } from "../packages/api-client/vite-api-proxy.ts"
+
 export default defineConfig({
   plugins: [
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
@@ -39,6 +41,6 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
-    proxy: { "/api": process.env.API_URL ?? "http://localhost:8000" },
+    proxy: { "/api": apiProxy("timeclock") },
   },
 })

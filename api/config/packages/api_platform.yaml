@@ -51,6 +51,7 @@ api_platform:
         App\User\Domain\Exception\EmailAlreadyRegisteredException: 409
         App\User\Domain\Exception\PasswordAlreadySetException: 409
         App\User\Domain\Exception\InvalidPasswordTokenException: 404
+        App\User\Domain\Exception\InvalidRefreshTokenException: 401
         App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException: 409
         App\TimeTracking\Domain\Exception\ShiftAlreadyClosedException: 409
         App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException: 422

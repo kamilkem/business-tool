@@ -1,4 +1,4 @@
-import { signInAgainUrl } from "@business-tool/api-client"
+import { logout, signInAgainUrl } from "@business-tool/api-client"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import { CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LogOutIcon, WifiOffIcon } from "lucide-react"
@@ -49,7 +49,7 @@ function ClockScreen() {
   const router = useRouter()
 
   async function signOut() {
-    session.signOut()
+    await logout(session)
     queryClient.clear()
     await router.navigate({ to: "/login" })
   }

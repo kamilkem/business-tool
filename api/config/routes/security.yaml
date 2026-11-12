@@ -1,3 +1,14 @@
+# The firewall answers these requests (config/packages/security.yaml); the routes only let them reach it.
 api_login:
     path: /api/auth/login
+    methods: [POST]
+
+# Refresh token cookie → new JWT and rotated cookie (Ui\Http\User\Security\RefreshTokenAuthenticator, ADR 0020).
+api_refresh:
+    path: /api/auth/refresh
+    methods: [POST]
+
+# Revokes the cookie's session (Ui\Http\User\Security\RevokeSessionOnLogout, ADR 0020).
+api_logout:
+    path: /api/auth/logout
     methods: [POST]

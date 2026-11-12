@@ -1,3 +1,4 @@
+import { logout } from "@business-tool/api-client"
 import { Link, useRouteContext, useRouter } from "@tanstack/react-router"
 import { BuildingIcon, ChevronsUpDownIcon, LayoutDashboardIcon, LogOutIcon, SettingsIcon, UsersIcon } from "lucide-react"
 
@@ -39,7 +40,7 @@ export function AppSidebar() {
   }
 
   async function signOut() {
-    session.signOut()
+    await logout(session)
     queryClient.clear()
     await router.navigate({ to: "/login" })
   }

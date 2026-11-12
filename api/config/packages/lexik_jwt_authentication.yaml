@@ -2,3 +2,5 @@ lexik_jwt_authentication:
     secret_key: '%env(resolve:JWT_SECRET_KEY)%'
     public_key: '%env(resolve:JWT_PUBLIC_KEY)%'
     pass_phrase: '%env(JWT_PASSPHRASE)%'
+    # 15 minutes (ADR 0020): the refresh token keeps the session; dev can shorten it to test refresh.
+    token_ttl: '%env(int:JWT_TOKEN_TTL)%'
