@@ -331,7 +331,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lists the revenue entries of the selected organization from one business date to another.
+         * @description Owners and managers only (403 otherwise). By business date, then by register name; entries of deactivated registers are included. registerId narrows the list to one register of the selected organization (404 otherwise). Invalid dates, to before from and periods longer than 92 days are a 422. GET /revenue-summary gives the totals.
+         */
+        get: operations["api_revenue-entries_get_collection"];
         put?: never;
         /**
          * Records a register's daily report for a business date.
@@ -370,6 +374,26 @@ export interface paths {
          * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing.
          */
         patch: operations["api_revenue-entries_id_patch"];
+        trace?: never;
+    };
+    "/api/revenue-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The revenue totals of the selected organization from one business date to another.
+         * @description Owners and managers only (403 otherwise). Totals are given per currency, because an entry keeps the currency it was recorded in: `currencies[0]` is always the organization's current currency, also when the period has no entries (all totals 0), and other currencies follow by code. Within a currency: per payment method used, per VAT rate used (gross, VAT, net) and per register with entries; amounts are integer minor units. The VAT totals need not match the payments total. Invalid dates, to before from and periods longer than 366 days are a 422.
+         */
+        get: operations["api_revenue-summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/shifts": {
@@ -1116,6 +1140,96 @@ export interface components {
             vat: number;
             /** @description gross − vat. */
             net: number;
+        };
+        /**
+         * @description The revenue of the organization selected by the X-Organization-Id header for a period of business
+         *     dates (ADR 0022): totals per currency, per payment method, per VAT rate and per register, and the
+         *     days with entries. Owners and managers only.
+         */
+        RevenueSummary: {
+            /** @description First business date of the period, `YYYY-MM-DD`. */
+            from: string;
+            /** @description Last business date of the period, inclusive, `YYYY-MM-DD`. */
+            to: string;
+            /** @description The number of days in the period. */
+            dayCount: number;
+            /** @description The number of days in the period with at least one entry, of any register; dayCount − daysWithEntries days have none. */
+            daysWithEntries: number;
+            /** @description The number of entries in the period, of all registers and currencies. */
+            entryCount: number;
+            /** @description Totals per currency: the organization's current currency first, always present. */
+            currencies: components["schemas"]["RevenueSummaryCurrency"][];
+        };
+        /**
+         * @description The revenue of the organization selected by the X-Organization-Id header for a period of business
+         *     dates (ADR 0022): totals per currency, per payment method, per VAT rate and per register, and the
+         *     days with entries. Owners and managers only.
+         */
+        "RevenueSummary.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description First business date of the period, `YYYY-MM-DD`. */
+            from: string;
+            /** @description Last business date of the period, inclusive, `YYYY-MM-DD`. */
+            to: string;
+            /** @description The number of days in the period. */
+            dayCount: number;
+            /** @description The number of days in the period with at least one entry, of any register; dayCount − daysWithEntries days have none. */
+            daysWithEntries: number;
+            /** @description The number of entries in the period, of all registers and currencies. */
+            entryCount: number;
+            /** @description Totals per currency: the organization's current currency first, always present. */
+            currencies: components["schemas"]["RevenueSummaryCurrency.jsonld"][];
+        };
+        RevenueSummaryCurrency: {
+            /** @description ISO 4217 code of the amounts. */
+            currency: string;
+            /** @description The sum of all payment lines. */
+            total: number;
+            /** @description The number of entries in this currency. */
+            entryCount: number;
+            /** @description The sum per payment method used, in the order cash, card, transfer, voucher. */
+            payments: components["schemas"]["RevenueEntryPayment"][];
+            /** @description The sum per VAT rate used, highest rate first, exempt last; empty when no entry has a breakdown. */
+            vatLines: components["schemas"]["RevenueEntryVatLine"][];
+            /** @description The sum of the VAT lines' gross amounts. */
+            vatGrossTotal: number;
+            /** @description The sum of the VAT lines' VAT. */
+            vatTotal: number;
+            /** @description The total per register with entries, by name; deactivated registers included. */
+            registers: components["schemas"]["RevenueSummaryRegister"][];
+        };
+        "RevenueSummaryCurrency.jsonld": {
+            /** @description ISO 4217 code of the amounts. */
+            currency: string;
+            /** @description The sum of all payment lines. */
+            total: number;
+            /** @description The number of entries in this currency. */
+            entryCount: number;
+            /** @description The sum per payment method used, in the order cash, card, transfer, voucher. */
+            payments: components["schemas"]["RevenueEntryPayment.jsonld"][];
+            /** @description The sum per VAT rate used, highest rate first, exempt last; empty when no entry has a breakdown. */
+            vatLines: components["schemas"]["RevenueEntryVatLine.jsonld"][];
+            /** @description The sum of the VAT lines' gross amounts. */
+            vatGrossTotal: number;
+            /** @description The sum of the VAT lines' VAT. */
+            vatTotal: number;
+            /** @description The total per register with entries, by name; deactivated registers included. */
+            registers: components["schemas"]["RevenueSummaryRegister.jsonld"][];
+        };
+        RevenueSummaryRegister: {
+            registerId: string;
+            registerName: string;
+            /** @description The sum of the register's entries' payment lines, in minor units. */
+            total: number;
+            /** @description The register's entries in the period: one per day at most. */
+            entryCount: number;
+        };
+        "RevenueSummaryRegister.jsonld": {
+            registerId: string;
+            registerName: string;
+            /** @description The sum of the register's entries' payment lines, in minor units. */
+            total: number;
+            /** @description The register's entries in the period: one per day at most. */
+            entryCount: number;
         };
         /**
          * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
@@ -2478,6 +2592,57 @@ export interface operations {
             };
         };
     };
+    "api_revenue-entries_get_collection": {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD); at most 92 days from the first. */
+                to: string;
+                /** @description Only this register's entries. */
+                registerId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RevenueEntry collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["RevenueEntry.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["RevenueEntry"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The registerId is not a register of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, the period is too long, or registerId is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "api_revenue-entries_post": {
         parameters: {
             query?: never;
@@ -2683,6 +2848,57 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_revenue-summary_get": {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD); at most 366 days from the first. */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RevenueSummary resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueSummary.jsonld"];
+                    "application/json": components["schemas"]["RevenueSummary"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A date is missing or invalid, to is before from, or the period is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

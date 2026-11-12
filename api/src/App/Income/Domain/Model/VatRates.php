@@ -36,4 +36,13 @@ final class VatRates
 
         return null;
     }
+
+    /**
+     * Orders rate codes as a breakdown shows them: highest numeric rate first, then exempt and other
+     * non-numeric codes by name. A comparator for usort().
+     */
+    public static function compare(string $a, string $b): int
+    {
+        return [is_numeric($b), is_numeric($b) ? (float) $b : 0.0, $a] <=> [is_numeric($a), is_numeric($a) ? (float) $a : 0.0, $b];
+    }
 }

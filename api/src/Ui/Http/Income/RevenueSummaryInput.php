@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Ui\Http\Income;
+
+use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryQuery;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
+
+/**
+ * The query string of GET /revenue-summary. RevenueSummaryProvider builds it from the query parameters
+ * and validates it, so a bad date or period is a 422 with violations like any other Input.
+ */
+final readonly class RevenueSummaryInput
+{
+    public function __construct(
+        /** First business date, inclusive (YYYY-MM-DD). */
+        #[Assert\NotBlank]
+        #[Assert\Date]
+        public ?string $from,
+        /** Last business date, inclusive (YYYY-MM-DD). */
+        #[Assert\NotBlank]
+        #[Assert\Date]
+        public ?string $to,
+    ) {
+    }
+
+    #[Assert\Callback]
+    public function validatePeriod(ExecutionContextInterface $context): void
+    {
+        RevenuePeriodRules::validate($context, $this->from, $this->to, GetRevenueSummaryQuery::MAX_DAYS);
+    }
+}

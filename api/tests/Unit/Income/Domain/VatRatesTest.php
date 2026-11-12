@@ -46,4 +46,13 @@ final class VatRatesTest extends TestCase
         self::assertNull(VatRates::find('PL', 'ZW'));
         self::assertNull(VatRates::find('PL', '08'));
     }
+
+    public function test_it_orders_rate_codes_highest_rate_first_and_non_numeric_codes_last_by_name(): void
+    {
+        $codes = ['zw', '5', 'np', '23', '0', '8', '7.5'];
+
+        usort($codes, VatRates::compare(...));
+
+        self::assertSame(['23', '8', '7.5', '5', '0', 'np', 'zw'], $codes);
+    }
 }
