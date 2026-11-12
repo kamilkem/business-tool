@@ -10,26 +10,24 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@bu
 import { Input } from "@business-tool/ui/components/input"
 
 import { api } from "@/lib/api"
+import { requireCapability } from "@/lib/access"
 import { organizationQuery, refetchMe } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
 
 export const Route = createFileRoute("/_app/settings")({
-  loader: ({ context }) => {
-    const id = context.membership?.organization.id
-    if (id) return context.queryClient.ensureQueryData(organizationQuery(id))
-  },
+  beforeLoad: requireCapability("settings"),
+  loader: ({ context }) => context.queryClient.ensureQueryData(organizationQuery(context.membership.organization.id)),
   component: SettingsPage,
 })
 
 function SettingsPage() {
   const { membership } = Route.useRouteContext()
-  const id = membership?.organization.id ?? ""
+  const id = membership.organization.id
   const { data: organization } = useSuspenseQuery(organizationQuery(id))
   const queryClient = useQueryClient()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
-  const canManage = membership?.role !== "employee"
 
   const save = useMutation({
     mutationFn: (body: OrganizationPatch) =>
@@ -72,7 +70,7 @@ function SettingsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit}>
-            <fieldset disabled={!canManage || save.isPending}>
+            <fieldset disabled={save.isPending}>
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="name">Business name</FieldLabel>
@@ -99,7 +97,6 @@ function SettingsPage() {
                 </div>
                 <Field data-invalid={error ? true : undefined}>
                   {error && <FieldError>{error}</FieldError>}
-                  {!canManage && <FieldDescription>Only owners and managers can change these settings.</FieldDescription>}
                 </Field>
                 <Button type="submit" className="self-start">
                   {save.isPending ? "Saving…" : "Save changes"}

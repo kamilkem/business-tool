@@ -1,7 +1,8 @@
 import type { LinkProps } from "@tanstack/react-router"
 import { ClockIcon, ReceiptIcon, TrendingUpIcon, WalletIcon, type LucideIcon } from "lucide-react"
 
-import { type Role, canManageTeam } from "./members"
+import { type Capability, can } from "./access"
+import type { Role } from "./members"
 
 export interface ModuleInfo {
   key: string
@@ -10,8 +11,8 @@ export interface ModuleInfo {
   icon: LucideIcon
   /** The module's page, once it is built; until then it is shown as "coming soon". */
   to?: LinkProps["to"]
-  /** Who may open the page; the API refuses everyone else. */
-  allowed?: (role: Role | undefined) => boolean
+  /** What the page needs (its route guards with the same capability); the API refuses everyone else. */
+  capability?: Capability
 }
 
 /** Business modules shown in navigation and on the dashboard. */
@@ -40,12 +41,11 @@ export const modules: ModuleInfo[] = [
     description: "Shifts clocked in the timeclock app.",
     icon: ClockIcon,
     to: "/time",
-    // Employees see only their own shifts (in the timeclock app); the table of everyone's is for managers.
-    allowed: canManageTeam,
+    capability: "time",
   },
 ]
 
 /** Modules the role sees: built ones it may open, and the ones still to come. */
 export function modulesFor(role: Role | undefined): ModuleInfo[] {
-  return modules.filter((module) => !module.to || !module.allowed || module.allowed(role))
+  return modules.filter((module) => !module.to || !module.capability || can(role, module.capability))
 }

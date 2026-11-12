@@ -4,11 +4,19 @@ import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 
+import { UseTimeclock } from "@/components/use-timeclock"
+import { can } from "@/lib/access"
 import { modulesFor } from "@/lib/modules"
 
 export const Route = createFileRoute("/_app/")({
-  component: Dashboard,
+  component: StartPage,
 })
+
+/** The dashboard, or for a role that may not use the admin, the way to the timeclock. */
+function StartPage() {
+  const { membership } = Route.useRouteContext()
+  return can(membership?.role, "admin") ? <Dashboard /> : <UseTimeclock />
+}
 
 function Dashboard() {
   const { me, membership } = Route.useRouteContext()

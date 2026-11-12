@@ -17,7 +17,7 @@ import {
 } from "@business-tool/ui/components/alert-dialog"
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
+import { Card, CardContent } from "@business-tool/ui/components/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +46,6 @@ import {
   type Role,
   assignableRoles,
   canActOn,
-  canManageTeam,
   fullName,
   isActive,
   isLastActiveOwner,
@@ -54,37 +53,22 @@ import {
   roleLabel,
   statusOf,
 } from "@/lib/members"
+import { requireCapability } from "@/lib/access"
 import { membersQuery, refetchMe } from "@/lib/queries"
 
 export const Route = createFileRoute("/_app/team")({
   validateSearch: (search: Record<string, unknown>): { deactivated?: boolean } => ({
     deactivated: search.deactivated === true || search.deactivated === "true" ? true : undefined,
   }),
+  beforeLoad: requireCapability("team"),
   loaderDeps: ({ search }) => ({ deactivated: search.deactivated ?? false }),
-  loader: ({ context, deps }) => {
-    const id = context.membership?.organization.id
-    if (id && canManageTeam(context.membership?.role)) {
-      return context.queryClient.ensureQueryData(membersQuery(id, deps.deactivated))
-    }
-  },
+  loader: ({ context, deps }) =>
+    context.queryClient.ensureQueryData(membersQuery(context.membership.organization.id, deps.deactivated)),
   component: TeamPage,
 })
 
 function TeamPage() {
   const { membership } = Route.useRouteContext()
-
-  if (!membership || !canManageTeam(membership.role)) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Team</CardTitle>
-            <CardDescription>Only owners and managers can see and manage the team.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
-  }
 
   return <TeamTable organizationId={membership.organization.id} actorRole={membership.role} />
 }

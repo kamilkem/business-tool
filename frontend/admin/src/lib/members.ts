@@ -18,11 +18,6 @@ export function roleLabel(role: Role): string {
  * API would allow. The API stays the source of truth: its 403 and 409 still reach the user.
  */
 
-/** Owners and managers may see and manage the team; employees get a 403 from GET /members. */
-export function canManageTeam(actor: Role | undefined): boolean {
-  return actor === "owner" || actor === "manager"
-}
-
 /** Roles the actor may give (MembershipRole::canAssign): owners any, managers employee only. */
 export function assignableRoles(actor: Role | undefined): Role[] {
   if (actor === "owner") return ["owner", "manager", "employee"]
