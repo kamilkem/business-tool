@@ -1,7 +1,7 @@
 import { ApiError, type components } from "@business-tool/api-client"
 import type { BusinessDate, DateTimeFormat, Instant } from "@business-tool/ui/lib/date-time"
 
-import { readableShiftError } from "./shift-form"
+import { readableShiftError } from "@business-tool/ui/lib/shift-form"
 
 export type ShiftChangeRequest = components["schemas"]["ShiftChangeRequest"]
 export type ShiftChangeRequestStatus = ShiftChangeRequest["status"]
