@@ -30,3 +30,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0020](0020-rotating-refresh-tokens-in-httponly-cookie.md) | Sessions outlast a shift: rotating refresh tokens in an HttpOnly cookie, revoked on sign-out and password change | Accepted |
 | [0021](0021-admin-for-owners-and-managers.md) | The admin is for owners and managers of the selected organization; employees use the time clock | Accepted |
 | [0022](0022-income-daily-report-per-register.md) | Income is one entry per register and business date: gross amounts per payment method, and a VAT breakdown chosen by the organization's country | Accepted |
+| [0023](0023-ksef-purchase-invoice-import.md) | Purchase invoices are imported from KSeF API 2.0 with a KSeF token: metadata by permanent-storage date, one XML at a time, raw XML kept next to the parsed fields | Accepted |
