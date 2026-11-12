@@ -15,10 +15,37 @@ https://api.ksef.mf.gov.pl/docs/v2/openapi.json (PROD), checked on 2026-11-12.
 | `auth-status-*.json` | `GET /auth/{referenceNumber}` | OpenAPI `AuthenticationOperationStatusResponse`, codes and texts from its status table |
 | `auth-token-redeem.json`, `auth-token-refresh.json` | `POST /auth/token/redeem`, `POST /auth/token/refresh` | OpenAPI, placeholder tokens |
 | `invoices-query-metadata*.json` | `POST /invoices/query/metadata` | OpenAPI example, random NIPs |
-| `invoice-fa3.xml` | `GET /invoices/ksef/{ksefNumber}` | a minimal FA(3) document, random NIPs (#51 brings full samples) |
+| `invoice-fa3.xml` | `GET /invoices/ksef/{ksefNumber}` | a minimal FA(3) document, random NIPs; valid against the FA(3) XSD |
 | `error-*.json` | any | OpenAPI problem details (`X-Error-Format: problem-details`) |
 
 Files built from the OpenAPI should be replaced by recordings when someone has a TEST token.
+
+## FA(3) samples (`Fa3/`)
+
+Invoices for `tests/Unit/Ksef/Infrastructure/Fa3/Fa3InvoiceParserTest.php` (ADR 0023 §7–8). They follow
+the shape of the Ministry's sample `KSeF.Client.Tests.Core/Templates/invoice-template-fa-3.xml` in
+https://github.com/CIRFMF/ksef-client-csharp (commit d628369, 2026-11-09), with made-up parties, random
+NIPs with a valid check digit, and amounts chosen for the case:
+
+| File | Case |
+|---|---|
+| `vat-several-rates.xml` | `VAT` in PLN: 23 %, 8 %, 5 %, 0 % (`P_13_6_1`) and exempt (`P_13_7`) |
+| `foreign-currency.xml` | `VAT` in EUR with the VAT in PLN (`P_14_xW`) |
+| `correction.xml` | `KOR` with negative amounts and the corrected invoice's KSeF number |
+| `advance.xml` | `ZAL` with an order (`Zamowienie`) |
+| `unsupported-vat-groups.xml` | groups with no PL rate code: taxi flat rate (`P_13_4`) and reverse charge (`P_13_10`) |
+
+Every FA(3) file here validates against `schemat_FA(3)_v1-0E.xsd` (https://github.com/CIRFMF/ksef-docs,
+`faktury/schemy/FA/`, commit ce3670e, 2026-10-14). The schema imports its base types from crd.gov.pl;
+point the import at the copies in `faktury/schemy/FA/bazowe/` to validate offline:
+
+```bash
+git clone --depth 1 https://github.com/CIRFMF/ksef-docs.git /tmp/ksef-docs && cd /tmp/ksef-docs/faktury/schemy/FA
+sed 's#schemaLocation="http://crd.gov.pl/[^"]*/StrukturyDanych_v10-0E.xsd"#schemaLocation="bazowe/StrukturyDanych_v10-0E.xsd"#' 'schemat_FA(3)_v1-0E.xsd' > fa3-local.xsd
+xmllint --noout --nonet --schema fa3-local.xsd <repo>/api/tests/Fixtures/Ksef/invoice-fa3.xml <repo>/api/tests/Fixtures/Ksef/Fa3/*.xml
+```
+
+Error cases are built in the test by changing one of these files.
 
 ## Rules
 
