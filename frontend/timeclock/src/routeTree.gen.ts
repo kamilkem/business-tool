@@ -14,6 +14,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppRequestsRouteImport } from './routes/_app/requests'
 import { Route as AppShiftsRouteImport } from './routes/_app/shifts'
 
 const AppRoute = AppRouteImport.update({
@@ -40,6 +41,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRequestsRoute = AppRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppShiftsRoute = AppShiftsRouteImport.update({
   id: '/shifts',
   path: '/shifts',
@@ -51,12 +57,14 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
   '/': typeof AppIndexRoute
 }
@@ -66,20 +74,34 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/_app/requests': typeof AppRequestsRoute
   '/_app/shifts': typeof AppShiftsRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/forgot-password' | '/login' | '/set-password' | '/shifts'
+  fullPaths:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/set-password'
+    | '/requests'
+    | '/shifts'
   fileRoutesByTo: FileRoutesByTo
-  to: '/forgot-password' | '/login' | '/set-password' | '/shifts' | '/'
+  to:
+    | '/forgot-password'
+    | '/login'
+    | '/set-password'
+    | '/requests'
+    | '/shifts'
+    | '/'
   id:
     | '__root__'
     | '/_app'
     | '/forgot-password'
     | '/login'
     | '/set-password'
+    | '/_app/requests'
     | '/_app/shifts'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -128,6 +150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/requests': {
+      id: '/_app/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof AppRequestsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/shifts': {
       id: '/_app/shifts'
       path: '/shifts'
@@ -139,11 +168,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppRequestsRoute: typeof AppRequestsRoute
   AppShiftsRoute: typeof AppShiftsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppRequestsRoute: AppRequestsRoute,
   AppShiftsRoute: AppShiftsRoute,
   AppIndexRoute: AppIndexRoute,
 }

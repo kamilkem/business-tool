@@ -1,16 +1,19 @@
-import { createDateTimeFormat } from "@business-tool/ui/lib/date-time"
+import { createDateTimeFormat } from "./date-time"
 import { describe, expect, it } from "vitest"
 
 import {
   addShiftBody,
   correctShiftBody,
+  editShiftForm,
   emptyShiftForm,
+  missingShiftRequestBody,
+  newTimesRequestBody,
   readableShiftError,
   repeatedOffsets,
   shiftFormFrom,
   suggestedEndDate,
 } from "./shift-form"
-import type { Shift } from "@business-tool/ui/lib/shifts"
+import type { Shift } from "./shifts"
 
 const WARSAW = "Europe/Warsaw"
 const format = createDateTimeFormat(WARSAW, "en-GB")
@@ -202,5 +205,107 @@ describe("errors from the API", () => {
         [OWNER]: "You",
       }),
     ).toBe("You may not add or change shifts: only owners and managers do.")
+  })
+})
+
+describe("requesting a missing shift", () => {
+  it("test_it_sends_both_ends_in_the_organizations_zone_and_the_note", () => {
+    const values = { userId: "", start: at("2026-11-10", "22:00"), end: at("2026-11-11", "03:30"), note: " Forgot to clock " }
+    expect(missingShiftRequestBody(values, WARSAW, format)).toEqual({
+      ok: true,
+      body: {
+        startedAt: "2026-11-10T22:00:00+01:00",
+        endedAt: "2026-11-11T03:30:00+01:00",
+        note: "Forgot to clock",
+      },
+    })
+  })
+
+  it("test_it_requires_a_note_and_a_clock_out", () => {
+    const values = { userId: "", start: at("2026-11-10", "22:00"), end: at("", ""), note: "  " }
+    expect(missingShiftRequestBody(values, WARSAW, format)).toEqual({
+      ok: false,
+      errors: { endedAt: "Enter the clock-out date.", note: "Say why, for whoever decides the request." },
+    })
+  })
+
+  it("test_it_refuses_a_clock_out_before_the_clock_in", () => {
+    const values = { userId: "", start: at("2026-11-10", "22:00"), end: at("2026-11-10", "21:00"), note: "Why" }
+    expect(missingShiftRequestBody(values, WARSAW, format)).toEqual({
+      ok: false,
+      errors: { endedAt: "The clock-out must be after the clock-in." },
+    })
+  })
+})
+
+describe("requesting new times for a shift", () => {
+  it("test_it_sends_a_changed_time_and_keeps_the_untouched_one_to_the_second", () => {
+    const initial = shiftFormFrom(shift(), WARSAW)
+    const values = { ...initial, end: at("2026-11-11", "04:00"), note: "Closed late" }
+    expect(newTimesRequestBody(shift(), values, WARSAW, format)).toEqual({
+      ok: true,
+      body: {
+        shiftId: SHIFT_ID,
+        startedAt: "2026-11-10T21:00:37+00:00",
+        endedAt: "2026-11-11T04:00:00+01:00",
+        note: "Closed late",
+      },
+    })
+  })
+
+  it("test_it_keeps_an_open_shift_open_when_no_clock_out_is_entered", () => {
+    const open = shift({ endedAt: null, durationMinutes: null })
+    const initial = shiftFormFrom(open, WARSAW)
+    const values = { ...initial, start: at("2026-11-10", "21:30"), note: "Came in earlier" }
+    expect(newTimesRequestBody(open, values, WARSAW, format)).toEqual({
+      ok: true,
+      body: { shiftId: SHIFT_ID, startedAt: "2026-11-10T21:30:00+01:00", endedAt: null, note: "Came in earlier" },
+    })
+  })
+
+  it("test_it_asks_for_the_clock_out_of_an_open_shift_that_was_forgotten", () => {
+    const open = shift({ endedAt: null, durationMinutes: null })
+    const values = { ...shiftFormFrom(open, WARSAW), end: at("2026-11-11", "03:00"), note: "Forgot to clock out" }
+    expect(newTimesRequestBody(open, values, WARSAW, format)).toMatchObject({
+      ok: true,
+      body: { startedAt: "2026-11-10T21:00:37+00:00", endedAt: "2026-11-11T03:00:00+01:00" },
+    })
+  })
+
+  it("test_it_refuses_the_times_the_shift_already_has", () => {
+    const values = { ...shiftFormFrom(shift(), WARSAW), note: "Nothing" }
+    expect(newTimesRequestBody(shift(), values, WARSAW, format)).toEqual({
+      ok: false,
+      errors: { shiftId: "Change the clock-in or the clock-out: these are the shift's times now." },
+    })
+  })
+
+  it("test_it_requires_a_note_and_the_clock_out_of_an_ended_shift", () => {
+    const values = { ...shiftFormFrom(shift(), WARSAW), end: at("", ""), note: "" }
+    expect(newTimesRequestBody(shift(), values, WARSAW, format)).toEqual({
+      ok: false,
+      errors: { endedAt: "Enter the clock-out date.", note: "Say why, for whoever decides the request." },
+    })
+  })
+})
+
+describe("editing the form", () => {
+  const night = { userId: ANNA, start: at("2026-11-10", "22:00"), end: at("2026-11-10", ""), note: "" }
+
+  it("test_it_moves_the_clock_out_to_the_next_day_for_a_night_shift", () => {
+    expect(editShiftForm(night, { end: at("2026-11-10", "03:30") }, { endDateSet: false, wasOpen: false }).end).toEqual(
+      at("2026-11-11", "03:30"),
+    )
+  })
+
+  it("test_it_keeps_a_clock_out_date_the_person_set", () => {
+    expect(editShiftForm(night, { end: at("2026-11-12", "03:30") }, { endDateSet: true, wasOpen: false }).end).toEqual(
+      at("2026-11-12", "03:30"),
+    )
+  })
+
+  it("test_it_leaves_an_open_shift_without_a_clock_out_date", () => {
+    const open = { ...night, end: at("2026-11-11", "03:30") }
+    expect(editShiftForm(open, { end: at("2026-11-11", "") }, { endDateSet: false, wasOpen: true }).end).toEqual(at("", ""))
   })
 })
