@@ -17,6 +17,7 @@ import { Input } from "@business-tool/ui/components/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { Textarea } from "@business-tool/ui/components/textarea"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import type { Shift } from "@business-tool/ui/lib/shifts"
 
 import { api } from "@/lib/api"
 import { type Member, fullName, isActive } from "@/lib/members"
@@ -36,7 +37,6 @@ import {
   shiftFormFrom,
   suggestedEndDate,
 } from "@/lib/shift-form"
-import type { Shift } from "@/lib/shifts"
 
 /** The API property path whose errors show under each part of the form. */
 const ERROR_PATH: Record<keyof ShiftFormValues, keyof ShiftFormErrors> = {

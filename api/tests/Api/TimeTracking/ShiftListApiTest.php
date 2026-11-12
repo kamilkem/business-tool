@@ -246,6 +246,38 @@ final class ShiftListApiTest extends ApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /** The timeclock's "my shifts": an employee of two bars sees their own shifts in the selected one only. */
+    public function test_it_shows_an_employee_only_their_own_shifts_in_the_selected_organization(): void
+    {
+        [, $here] = self::memberWithRole(MembershipRole::Owner);
+        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
+        $employee = self::addMember($here, MembershipRole::Employee);
+        OrganizationMother::addMember($elsewhere, $employee, MembershipRole::Employee);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+        $colleague = self::addMember($here, MembershipRole::Employee);
+        $mineHere = self::workShift($employee, $here, '2026-11-10 15:00:00', '2026-11-10 23:00:00');
+        $openHere = self::workShift($employee, $here, '2026-11-11 15:00:00', null);
+        $mineElsewhere = self::workShift($employee, $elsewhere, '2026-11-11 08:00:00', '2026-11-11 12:00:00');
+        self::workShift($colleague, $here, '2026-11-11 16:00:00', '2026-11-11 23:00:00');
+
+        foreach ([null, $employee->getId()->toRfc4122()] as $userId) {
+            self::assertSame(
+                [$openHere, $mineHere],
+                array_column(self::list($employee, $here, '2026-11-01', '2026-11-30', $userId)->toArray(), 'id'),
+            );
+            self::assertSame(
+                [$mineElsewhere],
+                array_column(self::list($employee, $elsewhere, '2026-11-01', '2026-11-30', $userId)->toArray(), 'id'),
+            );
+        }
+
+        // 403 for anyone else, member or not, so an employee can't tell who works where.
+        foreach ([$here, $elsewhere] as $organization) {
+            self::list($employee, $organization, '2026-11-01', '2026-11-30', $colleague->getId()->toRfc4122());
+            self::assertResponseStatusCodeSame(403);
+        }
+    }
+
     public function test_it_refuses_a_person_who_is_not_an_active_member(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);

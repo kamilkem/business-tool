@@ -10,7 +10,7 @@ import {
   shiftFormFrom,
   suggestedEndDate,
 } from "./shift-form"
-import type { Shift } from "./shifts"
+import type { Shift } from "@business-tool/ui/lib/shifts"
 
 const WARSAW = "Europe/Warsaw"
 const format = createDateTimeFormat(WARSAW, "en-GB")

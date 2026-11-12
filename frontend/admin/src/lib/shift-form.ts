@@ -13,7 +13,7 @@ import {
   utcOffsetMinutes,
 } from "@business-tool/ui/lib/date-time"
 
-import type { Shift } from "./shifts"
+import type { Shift } from "@business-tool/ui/lib/shifts"
 
 export type AddShiftInput = components["schemas"]["Shift.AddShiftInput"]
 export type CorrectShiftInput = components["schemas"]["Shift.CorrectShiftInput.jsonMergePatch"]
