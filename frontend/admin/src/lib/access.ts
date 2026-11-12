@@ -21,6 +21,8 @@ export type Capability =
   | "time"
   | "shiftRequests"
   | "settings"
+  /** Income: revenue entries and the registers they are entered for (ADR 0022 §7). */
+  | "income"
 
 const OWNERS_AND_MANAGERS: readonly Role[] = ["owner", "manager"]
 
@@ -30,6 +32,7 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   time: OWNERS_AND_MANAGERS,
   shiftRequests: OWNERS_AND_MANAGERS,
   settings: OWNERS_AND_MANAGERS,
+  income: OWNERS_AND_MANAGERS,
 }
 
 /** Whether the role may use the capability. No role (no organization selected) may use none. */

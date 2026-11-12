@@ -19,6 +19,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
+import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -69,6 +70,11 @@ const AppTimeRoute = AppTimeRouteImport.update({
   path: '/time',
   getParentRoute: () => AppRoute,
 } as any)
+const AppIncomeRegistersRoute = AppIncomeRegistersRouteImport.update({
+  id: '/income/registers',
+  path: '/income/registers',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
+  '/income/registers': typeof AppIncomeRegistersRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
+  '/income/registers': typeof AppIncomeRegistersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_app/team': typeof AppTeamRoute
   '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/income/registers': typeof AppIncomeRegistersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/shift-requests'
     | '/team'
     | '/time'
+    | '/income/registers'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/time'
     | '/'
+    | '/income/registers'
   id:
     | '__root__'
     | '/_app'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/_app/team'
     | '/_app/time'
     | '/_app/'
+    | '/_app/income/registers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -221,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTimeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/income/registers': {
+      id: '/_app/income/registers'
+      path: '/income/registers'
+      fullPath: '/income/registers'
+      preLoaderRoute: typeof AppIncomeRegistersRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -231,6 +250,7 @@ interface AppRouteChildren {
   AppTeamRoute: typeof AppTeamRoute
   AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -240,6 +260,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeamRoute: AppTeamRoute,
   AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
+  AppIncomeRegistersRoute: AppIncomeRegistersRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

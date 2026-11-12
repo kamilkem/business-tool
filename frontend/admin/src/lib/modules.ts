@@ -28,6 +28,9 @@ export const modules: ModuleInfo[] = [
     title: "Income",
     description: "Daily revenue entered by hand, per payment method.",
     icon: TrendingUpIcon,
+    // Registers come first (ADR 0022); the Income page (#44) takes over this link.
+    to: "/income/registers",
+    capability: "income",
   },
   {
     key: "payroll",
