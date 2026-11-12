@@ -4,6 +4,94 @@
  */
 
 export interface paths {
+    "/api/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the expense categories of the selected organization.
+         * @description Active categories only, unless includeArchived is true; active ones first, then by name. Owners and managers only (403 otherwise).
+         */
+        get: operations["api_expense-categories_get_collection"];
+        put?: never;
+        /**
+         * Adds an expense category to the selected organization.
+         * @description Owners and managers only (403 otherwise). The name is trimmed, 1 to 64 characters (422), and unique in the organization among active and archived categories, compared as written (409).
+         */
+        post: operations["api_expense-categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One expense category of the selected organization, active or archived.
+         * @description Owners and managers only (403 otherwise). A category that is not the selected organization's is a 404.
+         */
+        get: operations["api_expense-categories_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Renames an expense category.
+         * @description Owners and managers only (403 otherwise); a category that is not the selected organization's is a 404. An archived category can be renamed too. The rules of POST apply to the name (409, 422); renaming to the current name changes nothing.
+         */
+        patch: operations["api_expense-categories_id_patch"];
+        trace?: never;
+    };
+    "/api/expense-categories/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archives an expense category.
+         * @description Owners and managers only (403 otherwise); a category that is not the selected organization's is a 404. The category is no longer offered for new expenses; the expenses that have it keep it. The request has no body. Archiving an archived category changes nothing.
+         */
+        post: operations["api_expense-categories_idarchive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/expense-categories/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restores an archived expense category.
+         * @description Owners and managers only (403 otherwise); a category that is not the selected organization's is a 404. The category is offered for new expenses again. The request has no body. Restoring an active category changes nothing.
+         */
+        post: operations["api_expense-categories_idrestore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -687,6 +775,64 @@ export interface components {
             /** @description A URI reference that identifies the problem type */
             readonly type?: string;
             readonly description?: string | null;
+        };
+        /**
+         * @description An expense category of the organization selected by the X-Organization-Id header: what an expense
+         *     was for (rent, food, ...). A new organization starts with a default set for its country. Owners
+         *     and managers only: anyone else gets a 403. Categories are archived, never deleted, and an archived
+         *     one can be restored.
+         */
+        ExpenseCategory: {
+            id: string;
+            name: string;
+            /** @description True once archived: the category is not offered for new expenses. */
+            archived: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the category was archived; null while it is active.
+             */
+            archivedAt: string | null;
+        };
+        /**
+         * @description An expense category of the organization selected by the X-Organization-Id header: what an expense
+         *     was for (rent, food, ...). A new organization starts with a default set for its country. Owners
+         *     and managers only: anyone else gets a 403. Categories are archived, never deleted, and an archived
+         *     one can be restored.
+         */
+        "ExpenseCategory.AddExpenseCategoryInput": {
+            /** @description Trimmed; unique in the organization, compared as written ("Food" and "food" are two names). */
+            name: string;
+        };
+        /**
+         * @description An expense category of the organization selected by the X-Organization-Id header: what an expense
+         *     was for (rent, food, ...). A new organization starts with a default set for its country. Owners
+         *     and managers only: anyone else gets a 403. Categories are archived, never deleted, and an archived
+         *     one can be restored.
+         */
+        "ExpenseCategory.UpdateExpenseCategoryInput.jsonMergePatch": {
+            /** @description Trimmed; unique in the organization, compared as written. */
+            name?: string | null;
+        };
+        /**
+         * @description An expense category of the organization selected by the X-Organization-Id header: what an expense
+         *     was for (rent, food, ...). A new organization starts with a default set for its country. Owners
+         *     and managers only: anyone else gets a 403. Categories are archived, never deleted, and an archived
+         *     one can be restored.
+         */
+        "ExpenseCategory.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            name: string;
+            /** @description True once archived: the category is not offered for new expenses. */
+            archived: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the category was archived; null while it is active.
+             */
+            archivedAt: string | null;
         };
         HydraCollectionBaseSchema: components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
             /**
@@ -1601,6 +1747,332 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "api_expense-categories_get_collection": {
+        parameters: {
+            query?: {
+                /** @description Also list archived categories (to restore them, and for the expenses that still have them). */
+                includeArchived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ExpenseCategory collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["ExpenseCategory.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["ExpenseCategory"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_expense-categories_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new ExpenseCategory resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["ExpenseCategory.AddExpenseCategoryInput"];
+                "application/json": components["schemas"]["ExpenseCategory.AddExpenseCategoryInput"];
+            };
+        };
+        responses: {
+            /** @description The new category, active. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategory.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A category of the organization already has the name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is missing, blank or too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_expense-categories_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ExpenseCategory identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ExpenseCategory resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategory.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The category is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_expense-categories_id_patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ExpenseCategory identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated ExpenseCategory resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["ExpenseCategory.UpdateExpenseCategoryInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description ExpenseCategory resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategory.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The category is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another category of the organization has the name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is blank or too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_expense-categories_idarchive_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ExpenseCategory identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived category. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategory.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The category is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_expense-categories_idrestore_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ExpenseCategory identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The active category. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategory.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The category is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     login_check_post: {
         parameters: {
             query?: never;
