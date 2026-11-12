@@ -62,5 +62,10 @@ api_platform:
         App\TimeTracking\Domain\Exception\ShiftInTheFutureException: 422
         App\TimeTracking\Domain\Exception\ShiftOverlapException: 409
         App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException: 422
+        App\TimeTracking\Domain\Exception\ShiftChangeRequestNotFoundException: 404
+        App\TimeTracking\Domain\Exception\ShiftChangeRequestDecisionForbiddenException: 403
+        App\TimeTracking\Domain\Exception\ShiftChangeRequestAlreadyDecidedException: 409
+        App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException: 422
+        App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422

@@ -225,6 +225,26 @@ final class ShiftRepositoryTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable(self::END), $found->getEndedAt());
     }
 
+    public function test_it_finds_the_shifts_with_given_ids_in_the_current_organization_only(): void
+    {
+        [$a, $b] = OrganizationFactory::createMany(2);
+        $this->switchTo($a);
+        $elsewhere = $this->add(Uuid::v7(), self::START, self::END);
+        $this->entityManager->clear();
+        $this->switchTo($b);
+        $first = $this->add(Uuid::v7(), self::START, self::END);
+        $second = $this->add(Uuid::v7(), self::START, null);
+        $this->entityManager->clear();
+
+        $found = self::ids($this->shifts->findByIds(array_map(Uuid::fromString(...), [$first, $second, $elsewhere, Uuid::v7()->toRfc4122()])));
+
+        sort($found);
+        $expected = [$first, $second];
+        sort($expected);
+        self::assertSame($expected, $found);
+        self::assertSame([], $this->shifts->findByIds([]));
+    }
+
     /** @return string the shift's id */
     private function add(Uuid $userId, string $startedAt, ?string $endedAt): string
     {

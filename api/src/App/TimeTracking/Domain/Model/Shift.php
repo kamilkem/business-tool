@@ -314,8 +314,11 @@ class Shift implements TenantAwareInterface
         $this->correctedAt = $now;
     }
 
-    /** The moment in UTC, to the second: shift times are stored that way (ADR 0010). */
-    private static function instant(\DateTimeImmutable $time): \DateTimeImmutable
+    /**
+     * The moment in UTC, to the second: shift times are stored that way (ADR 0010), and so are the
+     * times a ShiftChangeRequest asks for.
+     */
+    public static function instant(\DateTimeImmutable $time): \DateTimeImmutable
     {
         $utc = $time->setTimezone(new \DateTimeZone('UTC'));
 

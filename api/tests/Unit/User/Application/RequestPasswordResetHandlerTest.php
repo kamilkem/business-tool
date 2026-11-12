@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\User\Application;
 
+use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Mail\TransactionalEmail;
 use App\Tests\Unit\Shared\Application\RecordingMailer;
 use App\User\Application\Command\RequestPasswordReset\RequestPasswordResetCommand;
 use App\User\Application\Command\RequestPasswordReset\RequestPasswordResetHandler;
-use App\User\Application\Link\AppLinks;
 use App\User\Domain\Model\PasswordToken;
 use App\User\Domain\Model\PasswordTokenPurpose;
 use App\User\Domain\Model\PasswordTokenSecret;

@@ -68,6 +68,11 @@ final class ClockInRaceTest extends KernelTestCase
                 return $this->inner->findById($id);
             }
 
+            public function findByIds(array $ids): array
+            {
+                return $this->inner->findByIds($ids);
+            }
+
             public function findOpenByUser(Uuid $userId): ?Shift
             {
                 return null;
