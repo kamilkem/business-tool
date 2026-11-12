@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ui\Fixture;
 
+use App\Expenses\Domain\Model\DefaultExpenseCategories;
+use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\Register;
@@ -29,7 +31,8 @@ use Symfony\Component\Uid\Uuid;
  *   mixed@example.com     owner of "Demo Café" and employee of "Demo Bar" (the admin follows the selected organization's role)
  *
  * "Demo Bar" has the registers "Bar" and "Kitchen" with an entry for each of the last 31 days
- * (the kitchen is closed on Mondays), and a deactivated register "Terrace".
+ * (the kitchen is closed on Mondays), and a deactivated register "Terrace". Both organizations
+ * have the default expense categories of their country, as a new organization gets them.
  */
 final class AppFixtures extends Fixture
 {
@@ -53,11 +56,25 @@ final class AppFixtures extends Fixture
 
         $mixed = $this->user($manager, 'mixed@example.com', 'Mia', 'Mixed', $now);
         $bar->addMember($owner->getId(), $mixed, MembershipRole::Employee, $now);
-        $manager->persist(new Organization(Uuid::v7(), 'Demo Café', $mixed, $now));
+        $cafe = new Organization(Uuid::v7(), 'Demo Café', $mixed, $now);
+        $manager->persist($cafe);
 
         $manager->flush();
 
         $this->income($manager, $bar, $owner->getId(), $now);
+        $manager->flush();
+
+        $this->expenseCategories($manager, $bar, $owner->getId(), $now);
+        $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
+    }
+
+    /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */
+    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        foreach (DefaultExpenseCategories::forCountry($organization->getCountryCode()) as $name) {
+            $manager->persist(ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now));
+        }
         $manager->flush();
     }
 

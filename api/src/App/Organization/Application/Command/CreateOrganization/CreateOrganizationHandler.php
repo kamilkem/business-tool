@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace App\Organization\Application\Command\CreateOrganization;
 
+use App\Organization\Domain\Event\OrganizationCreated;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use App\User\Domain\Exception\UserNotFoundException;
 use App\User\Domain\Repository\UserRepositoryInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
-/** Creates an organization with the given user as its owner. */
+/** Creates an organization with the given user as its owner, then publishes OrganizationCreated. */
 final readonly class CreateOrganizationHandler implements CommandHandlerInterface
 {
     public function __construct(
         private OrganizationRepositoryInterface $organizations,
         private UserRepositoryInterface $users,
+        private EventPublisherInterface $events,
         private ClockInterface $clock,
     ) {
     }
@@ -39,5 +42,7 @@ final readonly class CreateOrganizationHandler implements CommandHandlerInterfac
         );
 
         $this->organizations->add($organization);
+
+        $this->events->publish(new OrganizationCreated($command->organizationId, $command->ownerId));
     }
 }
