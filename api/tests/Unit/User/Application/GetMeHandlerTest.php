@@ -36,8 +36,8 @@ final class GetMeHandlerTest extends TestCase
 
         self::assertSame('jane@example.com', $view->email);
         self::assertSame(
-            [['Big Bar', 'employee', 'Europe/Warsaw'], ['Corner Pub', 'owner', 'Europe/Warsaw']],
-            array_map(static fn ($m): array => [$m->organizationName, $m->role, $m->organizationTimezone], $view->memberships),
+            [['Big Bar', 'employee', 'Europe/Warsaw', 'PLN'], ['Corner Pub', 'owner', 'Europe/Warsaw', 'PLN']],
+            array_map(static fn ($m): array => [$m->organizationName, $m->role, $m->organizationTimezone, $m->organizationCurrency], $view->memberships),
         );
     }
 

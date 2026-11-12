@@ -45,6 +45,7 @@ final readonly class MeResource
                         $membership->organizationId,
                         $membership->organizationName,
                         $membership->organizationTimezone,
+                        $membership->organizationCurrency,
                     ),
                 ),
                 $view->memberships,
