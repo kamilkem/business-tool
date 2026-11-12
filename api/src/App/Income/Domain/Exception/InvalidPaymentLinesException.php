@@ -12,6 +12,11 @@ final class InvalidPaymentLinesException extends IncomeException
         return new self('An entry needs at least one payment line (an amount of zero is allowed).');
     }
 
+    public static function unknownMethod(string $method): self
+    {
+        return new self(\sprintf('"%s" is not a payment method.', $method));
+    }
+
     public static function duplicateMethod(string $method): self
     {
         return new self(\sprintf('The payment method "%s" appears more than once.', $method));

@@ -75,5 +75,7 @@ api_platform:
         App\Income\Domain\Exception\RevenueEntryInTheFutureException: 422
         App\Income\Domain\Exception\InvalidPaymentLinesException: 422
         App\Income\Domain\Exception\InvalidVatLinesException: 422
+        App\Income\Domain\Exception\RegisterNotFoundException: 404
+        App\Income\Domain\Exception\RevenueEntryNotFoundException: 404
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422

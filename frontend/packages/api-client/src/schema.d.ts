@@ -256,6 +256,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/revenue-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a register's daily report for a business date.
+         * @description Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization's (404) and active (422); the business date may not be after today in the organization's time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization's.
+         */
+        post: operations["api_revenue-entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/revenue-entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One revenue entry of the selected organization.
+         * @description Owners and managers only (403 otherwise). An entry that is not the selected organization's is a 404.
+         */
+        get: operations["api_revenue-entries_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a revenue entry.
+         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. The entry and its lines are removed and no trace is kept (ADR 0022 §8).
+         */
+        delete: operations["api_revenue-entries_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Corrects an entry's payment lines, VAT lines and note.
+         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing.
+         */
+        patch: operations["api_revenue-entries_id_patch"];
+        trace?: never;
+    };
     "/api/shifts": {
         parameters: {
             query?: never;
@@ -438,6 +486,26 @@ export interface paths {
          * @description Owners and managers only (403 otherwise), their own requests included; the reason is optional. The shifts stay as they are. A request already decided is a 409. The requester is e-mailed.
          */
         post: operations["api_shift-change-requests_idreject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vat-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The VAT rates of the selected organization's country.
+         * @description Owners and managers only (403 otherwise). In the order a daily report prints them; an empty list for a country without rates, where entries take no VAT lines.
+         */
+        get: operations["api_vat-rates_get_collection"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -790,6 +858,139 @@ export interface components {
             /** @description The new password: at least 8 characters, at most 4096 bytes; no composition rules. */
             password: string;
         };
+        PaymentLineInput: {
+            /** @enum {string} */
+            method: "cash" | "card" | "transfer" | "voucher";
+            amount: number;
+        };
+        /**
+         * @description What one register took on one business date, from its daily report, in the organization selected
+         *     by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403.
+         *     Amounts are integer minor units of `currency`, the organization's when the entry was recorded
+         *     (ADR 0010). The totals are computed; the VAT totals need not match the payments total.
+         */
+        RevenueEntry: {
+            id: string;
+            registerId: string;
+            registerName: string;
+            /** @description The business date the daily report covers, `YYYY-MM-DD`. */
+            businessDate: string;
+            /** @description ISO 4217 code of the amounts: the organization's currency when the entry was recorded. */
+            currency: string;
+            /** @description One line per payment method used, in the order cash, card, transfer, voucher. */
+            payments: components["schemas"]["RevenueEntryPayment"][];
+            /** @description The VAT breakdown as printed, highest rate first, exempt last; empty when not entered. */
+            vatLines: components["schemas"]["RevenueEntryVatLine"][];
+            /** @description The sum of the payment lines, in minor units. */
+            paymentsTotal: number;
+            /** @description The sum of the VAT lines' gross amounts, in minor units; 0 without a breakdown. */
+            vatGrossTotal: number;
+            /** @description The sum of the VAT lines' VAT, in minor units; 0 without a breakdown. */
+            vatTotal: number;
+            note: string | null;
+            /** @description The owner or manager who recorded the entry. */
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The owner or manager who changed the entry last; null until the first change. */
+            updatedBy: string | null;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        /**
+         * @description What one register took on one business date, from its daily report, in the organization selected
+         *     by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403.
+         *     Amounts are integer minor units of `currency`, the organization's when the entry was recorded
+         *     (ADR 0010). The totals are computed; the VAT totals need not match the payments total.
+         */
+        "RevenueEntry.RecordRevenueEntryInput": {
+            /** Format: uuid */
+            registerId: string;
+            /**
+             * Format: date
+             * @description The business date the daily report covers (YYYY-MM-DD), not after today in the organization's time zone.
+             */
+            businessDate: string;
+            /** @description At least one line, each payment method once; zero amounts are allowed. */
+            payments: components["schemas"]["PaymentLineInput"][];
+            /** @description The VAT breakdown as printed, each rate once; optional. */
+            vatLines?: components["schemas"]["VatLineInput"][];
+            note?: string | null;
+        };
+        /**
+         * @description What one register took on one business date, from its daily report, in the organization selected
+         *     by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403.
+         *     Amounts are integer minor units of `currency`, the organization's when the entry was recorded
+         *     (ADR 0010). The totals are computed; the VAT totals need not match the payments total.
+         */
+        "RevenueEntry.UpdateRevenueEntryInput.jsonMergePatch": {
+            /** @description at least one line, each payment method once */
+            payments?: components["schemas"]["PaymentLineInput"][];
+            /** @description the VAT breakdown as printed, each rate once; empty or null removes it */
+            vatLines?: components["schemas"]["VatLineInput"][];
+            /** @description An empty note removes it. */
+            note?: string | null;
+        };
+        /**
+         * @description What one register took on one business date, from its daily report, in the organization selected
+         *     by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403.
+         *     Amounts are integer minor units of `currency`, the organization's when the entry was recorded
+         *     (ADR 0010). The totals are computed; the VAT totals need not match the payments total.
+         */
+        "RevenueEntry.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            registerId: string;
+            registerName: string;
+            /** @description The business date the daily report covers, `YYYY-MM-DD`. */
+            businessDate: string;
+            /** @description ISO 4217 code of the amounts: the organization's currency when the entry was recorded. */
+            currency: string;
+            /** @description One line per payment method used, in the order cash, card, transfer, voucher. */
+            payments: components["schemas"]["RevenueEntryPayment.jsonld"][];
+            /** @description The VAT breakdown as printed, highest rate first, exempt last; empty when not entered. */
+            vatLines: components["schemas"]["RevenueEntryVatLine.jsonld"][];
+            /** @description The sum of the payment lines, in minor units. */
+            paymentsTotal: number;
+            /** @description The sum of the VAT lines' gross amounts, in minor units; 0 without a breakdown. */
+            vatGrossTotal: number;
+            /** @description The sum of the VAT lines' VAT, in minor units; 0 without a breakdown. */
+            vatTotal: number;
+            note: string | null;
+            /** @description The owner or manager who recorded the entry. */
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The owner or manager who changed the entry last; null until the first change. */
+            updatedBy: string | null;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        RevenueEntryPayment: {
+            /** @enum {string} */
+            method: "cash" | "card" | "transfer" | "voucher";
+            amount: number;
+        };
+        "RevenueEntryPayment.jsonld": {
+            /** @enum {string} */
+            method: "cash" | "card" | "transfer" | "voucher";
+            amount: number;
+        };
+        RevenueEntryVatLine: {
+            /** @description A rate code of GET /vat-rates: "23", "zw". */
+            rate: string;
+            gross: number;
+            vat: number;
+            /** @description gross − vat. */
+            net: number;
+        };
+        "RevenueEntryVatLine.jsonld": {
+            /** @description A rate code of GET /vat-rates: "23", "zw". */
+            rate: string;
+            gross: number;
+            vat: number;
+            /** @description gross − vat. */
+            net: number;
+        };
         /**
          * @description A person's working time in the organization selected by the X-Organization-Id header. Every member
          *     clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
@@ -1129,6 +1330,27 @@ export interface components {
              * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
              */
             correctedAt: string | null;
+        };
+        VatLineInput: {
+            /** @description A rate code of GET /vat-rates: "23", "zw". */
+            rate: string;
+            gross: number;
+            /** @description The VAT in the gross amount, at most the gross amount. */
+            vat: number;
+        };
+        /** @description A VAT rate a revenue entry's breakdown may use in the selected organization, by its country (ADR 0022 §6). */
+        VatRate: {
+            /** @description The rate as a fiscal printer labels it: "23", "zw". */
+            code: string;
+            /** @description Sales at this rate carry no VAT (0% and exempt): their vat must be 0. */
+            zeroVat: boolean;
+        };
+        /** @description A VAT rate a revenue entry's breakdown may use in the selected organization, by its country (ADR 0022 §6). */
+        "VatRate.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description The rate as a fiscal printer labels it: "23", "zw". */
+            code: string;
+            /** @description Sales at this rate carry no VAT (0% and exempt): their vat must be 0. */
+            zeroVat: boolean;
         };
     };
     responses: never;
@@ -1864,6 +2086,214 @@ export interface operations {
             };
         };
     };
+    "api_revenue-entries_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new RevenueEntry resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["RevenueEntry.RecordRevenueEntryInput"];
+                "application/json": components["schemas"]["RevenueEntry.RecordRevenueEntryInput"];
+            };
+        };
+        responses: {
+            /** @description The recorded entry. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueEntry.jsonld"];
+                    "application/json": components["schemas"]["RevenueEntry"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The register is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The register already has an entry for the business date. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, the register is deactivated, the date is in the future, or a line breaks a rule. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_revenue-entries_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RevenueEntry identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RevenueEntry resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueEntry.jsonld"];
+                    "application/json": components["schemas"]["RevenueEntry"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The entry is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_revenue-entries_id_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RevenueEntry identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entry was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The entry is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_revenue-entries_id_patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RevenueEntry identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated RevenueEntry resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["RevenueEntry.UpdateRevenueEntryInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description RevenueEntry resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueEntry.jsonld"];
+                    "application/json": components["schemas"]["RevenueEntry"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The entry is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is invalid or a line breaks a rule. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     api_shifts_get_collection: {
         parameters: {
             query: {
@@ -2442,6 +2872,36 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_vat-rates_get_collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description VatRate collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["VatRate.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["VatRate"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
