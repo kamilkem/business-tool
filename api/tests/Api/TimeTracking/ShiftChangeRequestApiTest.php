@@ -12,6 +12,7 @@ use App\Tests\Fixtures\OrganizationMother;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -49,7 +50,7 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
         self::assertQueuedEmailCount(2);
         self::assertSame(
             [$owner->getEmail(), $manager->getEmail()],
-            array_map(static fn ($email): string => $email->getTo()[0]->getAddress(), self::getMailerMessages()),
+            array_map(self::recipient(...), array_keys(self::getMailerMessages())),
         );
         self::assertEmailHtmlBodyContains(self::getMailerMessage(0) ?? self::fail(), 'Thu 12 Nov 2026, 17:00 to Fri 13 Nov 2026, 00:30');
         $request = $response->toArray();
@@ -193,7 +194,7 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertQueuedEmailCount(1);
-        self::assertSame($employee->getEmail(), (self::getMailerMessage(0) ?? self::fail())->getTo()[0]->getAddress());
+        self::assertSame($employee->getEmail(), self::recipient(0));
         $request = $response->toArray();
         self::assertSame(
             ['approved', $actor->getId()->toRfc4122(), '2026-11-13T12:00:00+00:00', null, '2026-11-12T16:00:00+00:00', '2026-11-12T23:30:00+00:00'],
@@ -437,7 +438,7 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
         self::approve($owner, $organization, $requestId);
         self::assertResponseStatusCodeSame(200);
         self::assertQueuedEmailCount(1);
-        self::assertSame($leaver->getEmail(), (self::getMailerMessage(0) ?? self::fail())->getTo()[0]->getAddress());
+        self::assertSame($leaver->getEmail(), self::recipient(0));
         self::assertCount(1, self::shifts($owner, $organization, '2026-11-12'));
     }
 
@@ -494,6 +495,15 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             $client->request('POST', '/api/shift-change-requests/'.$requestId.'/reject', ['json' => []]);
             self::assertResponseStatusCodeSame($status);
         }
+    }
+
+    /** The address the queued e-mail at this index goes to. */
+    private static function recipient(int $index): string
+    {
+        $email = self::getMailerMessage($index);
+        self::assertInstanceOf(Email::class, $email);
+
+        return $email->getTo()[0]->getAddress();
     }
 
     /** @param array<string, mixed> $body */
