@@ -1,6 +1,6 @@
 # 0026. Per-organization secrets are encrypted in the database with libsodium under an application keyring, in their own module, and never leave it through the API
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-11-12
 
