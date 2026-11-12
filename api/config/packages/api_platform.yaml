@@ -78,5 +78,7 @@ api_platform:
         App\Income\Domain\Exception\RegisterNotFoundException: 404
         App\Income\Domain\Exception\RevenueEntryNotFoundException: 404
         App\Income\Domain\Exception\RevenuePeriodTooLongException: 422
+        App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
+        App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422
