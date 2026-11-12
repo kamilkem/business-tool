@@ -18,7 +18,7 @@ export const ORGANIZATION_HEADER = "X-Organization-Id"
  * organization is stale (deleted, or the user was removed from it): /me
  * still loads, and the app selects a valid organization from it.
  */
-const USER_SCOPED_PATHS = [/^\/api\/me$/, /^\/api\/organizations(\/|$)/]
+const USER_SCOPED_PATHS = [/^\/api\/me(\/|$)/, /^\/api\/organizations(\/|$)/]
 
 /**
  * Public endpoints (sign-in, refresh, sign-out, set a password from a link,

@@ -14,6 +14,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
@@ -43,6 +44,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/account': typeof AppAccountRoute
   '/settings': typeof AppSettingsRoute
   '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/account': typeof AppAccountRoute
   '/settings': typeof AppSettingsRoute
   '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/_app/account': typeof AppAccountRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/shift-requests': typeof AppShiftRequestsRoute
   '/_app/team': typeof AppTeamRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/set-password'
+    | '/account'
     | '/settings'
     | '/shift-requests'
     | '/team'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/set-password'
+    | '/account'
     | '/settings'
     | '/shift-requests'
     | '/team'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/set-password'
+    | '/_app/account'
     | '/_app/settings'
     | '/_app/shift-requests'
     | '/_app/team'
@@ -174,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -206,6 +225,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppShiftRequestsRoute: typeof AppShiftRequestsRoute
   AppTeamRoute: typeof AppTeamRoute
@@ -214,6 +234,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppShiftRequestsRoute: AppShiftRequestsRoute,
   AppTeamRoute: AppTeamRoute,
