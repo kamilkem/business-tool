@@ -29,6 +29,11 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
         return $this->byId[$id->toRfc4122()] ?? null;
     }
 
+    public function findByIds(array $ids): array
+    {
+        return array_values(array_filter(array_map($this->findById(...), $ids)));
+    }
+
     public function findOpenByUser(Uuid $userId): ?Shift
     {
         return $this->staleReads ? null : $this->openOf($userId);

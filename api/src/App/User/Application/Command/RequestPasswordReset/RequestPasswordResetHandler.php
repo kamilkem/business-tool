@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\User\Application\Command\RequestPasswordReset;
 
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Application\Link\AppLinks;
+use App\Shared\Application\Link\ClientApp;
 use App\Shared\Application\Mail\TransactionalEmail;
 use App\Shared\Application\Mail\TransactionalMailerInterface;
-use App\User\Application\Link\AppLinks;
-use App\User\Application\Link\ClientApp;
 use App\User\Domain\Model\PasswordToken;
 use App\User\Domain\Model\PasswordTokenPurpose;
 use App\User\Domain\Model\PasswordTokenSecret;

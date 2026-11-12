@@ -1,0 +1,17 @@
+{# To each active owner and manager but the requester when a shift change request is submitted
+   (#84). Context: firstName, requesterName, organizationName, kind ("missing_shift" | "new_times"),
+   startedAt, endedAt (null: the shift stays open), shiftStartedAt, shiftEndedAt (the shift's times
+   now, for new times), note, timeZone, link. Times are already formatted in the organization's time
+   zone. Rendered by the queue worker (adr/0012). #}
+<p>Hello {{ firstName }},</p>
+{% if kind == 'missing_shift' %}
+<p>{{ requesterName }} asks you to enter a shift they worked but did not clock in <strong>{{ organizationName }}</strong>:</p>
+<p>{{ startedAt }} to {{ endedAt }}</p>
+{% else %}
+<p>{{ requesterName }} asks you to change the times of one of their shifts in <strong>{{ organizationName }}</strong>:</p>
+<p>Now: {{ shiftStartedAt ?? 'unknown' }} to {{ shiftEndedAt ?? 'still open' }}<br>
+Asked for: {{ startedAt }} to {{ endedAt ?? 'still open' }}</p>
+{% endif %}
+<p>Times are in {{ timeZone }}. Their note: <em>{{ note }}</em></p>
+<p>Approve or reject the request in the admin panel:</p>
+<p><a href="{{ link }}">Open the admin panel</a></p>

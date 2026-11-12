@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\User\Application\Link;
+namespace App\Shared\Application\Link;
 
 /**
  * Our frontend apps, where e-mailed links open (ADR 0013). The API keeps this list itself, so a

@@ -16,4 +16,14 @@ final class ShiftEndNotAfterStartException extends TimeTrackingException
             $startedAt->format(\DATE_ATOM),
         ));
     }
+
+    /** For times asked for in a shift change request, before there is a shift with them. */
+    public static function requested(\DateTimeImmutable $startedAt, \DateTimeImmutable $endedAt): self
+    {
+        return new self(\sprintf(
+            'A shift cannot end at %s: it would start at %s.',
+            $endedAt->format(\DATE_ATOM),
+            $startedAt->format(\DATE_ATOM),
+        ));
+    }
 }

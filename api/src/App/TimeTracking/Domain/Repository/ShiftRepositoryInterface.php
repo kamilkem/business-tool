@@ -14,6 +14,15 @@ interface ShiftRepositoryInterface
 {
     public function findById(Uuid $id): ?Shift;
 
+    /**
+     * The shifts with these ids that exist, in no particular order.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return list<Shift>
+     */
+    public function findByIds(array $ids): array;
+
     /** The person's open shift (clocked in, not yet out), if any. */
     public function findOpenByUser(Uuid $userId): ?Shift;
 

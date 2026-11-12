@@ -28,6 +28,20 @@ final class ShiftRepository extends ServiceEntityRepository implements ShiftRepo
         return $this->find($id);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<Shift> */
+        return $this->createQueryBuilder('s')
+            ->where('s.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findOpenByUser(Uuid $userId): ?Shift
     {
         return $this->findOneBy(['userId' => $userId, 'endedAt' => null]);

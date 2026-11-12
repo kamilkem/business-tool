@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\User\Application\Link;
+namespace App\Shared\Application\Link;
 
 use App\Organization\Domain\Model\MembershipRole;
 use App\User\Domain\Model\PasswordTokenSecret;
@@ -42,6 +42,12 @@ final readonly class AppLinks
     public function signIn(ClientApp $app): string
     {
         return $this->baseUrl($app).'/login';
+    }
+
+    /** The app's start page; a person who is not signed in is sent to sign in first. */
+    public function home(ClientApp $app): string
+    {
+        return $this->baseUrl($app).'/';
     }
 
     private function baseUrl(ClientApp $app): string

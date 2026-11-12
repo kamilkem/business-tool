@@ -243,6 +243,20 @@ class Organization
         ));
     }
 
+    /**
+     * The active owners and managers: who runs the organization and is told about what needs their
+     * decision (e.g. a shift change request).
+     *
+     * @return list<Membership>
+     */
+    public function activeManagingMembers(): array
+    {
+        return array_values(array_filter(
+            $this->memberships->toArray(),
+            static fn (Membership $membership): bool => $membership->isActive() && $membership->getRole()->canManageOrganization(),
+        ));
+    }
+
     private function grantMembership(User $user, MembershipRole $role, \DateTimeImmutable $now): Membership
     {
         $existing = $this->membershipOf($user->getId());

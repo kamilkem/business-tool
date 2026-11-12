@@ -340,6 +340,90 @@ export interface paths {
         patch: operations["api_shifts_id_patch"];
         trace?: never;
     };
+    "/api/shift-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists shift change requests in the selected organization.
+         * @description Newest first. Owners and managers see everyone's requests, deactivated members' too; employees see their own only. An unknown status is a 422.
+         */
+        get: operations["api_shift-change-requests_get_collection"];
+        put?: never;
+        /**
+         * Asks an owner or manager to change the signed-in user's shifts.
+         * @description Any member, for themselves only. Without shiftId it asks for a missing shift, whole (endedAt required); with shiftId it asks for new times for one of their own shifts (someone else's or an unknown shift is a 404), where a null endedAt keeps an open shift open and an ended shift keeps an end (422). The note is required. The shift must end after it starts and nothing may be in the future (422); times that are the shift's own are a 422. Overlaps with other shifts are checked only when the request is approved. Owners and managers (but the requester) are e-mailed.
+         */
+        post: operations["api_shift-change-requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shift-change-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One shift change request.
+         * @description Owners and managers see any request; employees their own only. Any other request is a 404.
+         */
+        get: operations["api_shift-change-requests_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shift-change-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approves a pending shift change request and applies it to the shift.
+         * @description Owners and managers only (403 otherwise), their own requests included. The request has no body. The missing shift is entered, or the shift gets the new times (it keeps its own note), with the approver as the corrector (correctedBy), under the shift rules as they hold now: an overlap with another shift of the person is a 409; a time in the future, an end not after the start or a reopened shift is a 422. Then the request stays pending. A request already decided is a 409. The requester is e-mailed.
+         */
+        post: operations["api_shift-change-requests_idapprove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shift-change-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rejects a pending shift change request.
+         * @description Owners and managers only (403 otherwise), their own requests included; the reason is optional. The shifts stay as they are. A request already decided is a 409. The requester is e-mailed.
+         */
+        post: operations["api_shift-change-requests_idreject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -786,6 +870,152 @@ export interface components {
              * @description When the shift was entered or last changed by an owner or manager; null while it is as clocked.
              */
             correctedAt: string | null;
+        };
+        /**
+         * @description A member's request to an owner or manager to change their shifts, in the organization selected by
+         *     the X-Organization-Id header: to enter a shift they worked but did not clock, or to give one of
+         *     their own shifts new times (ADR 0016 §5: people never change shift times themselves). Any member
+         *     submits requests for themselves; owners and managers approve or reject them, their own included.
+         *     Approving applies the change to the shift with the approver as the corrector, under the shift
+         *     rules as they hold at that moment.
+         */
+        ShiftChangeRequest: {
+            id: string;
+            /** @description The member who asked; the shift is theirs. */
+            userId: string;
+            firstName: string;
+            lastName: string;
+            /**
+             * @description A missing shift to enter, or new times for an existing shift.
+             * @enum {string}
+             */
+            kind: "missing_shift" | "new_times";
+            /** @description The shift to give new times to; for a missing shift, the shift entered on approval (null until then). */
+            shiftId: string | null;
+            /**
+             * Format: date-time
+             * @description The start asked for.
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description The end asked for; null keeps an open shift open.
+             */
+            endedAt: string | null;
+            /** @description Why the change is needed. */
+            note: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description The owner or manager who approved or rejected it; null while pending. */
+            decidedBy: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** @description Why it was rejected, if the owner or manager said. */
+            rejectionReason: string | null;
+            /**
+             * Format: date-time
+             * @description The shift's start now, to compare with the times asked for; null when there is no shift (yet).
+             */
+            shiftStartedAt: string | null;
+            /**
+             * Format: date-time
+             * @description The shift's end now; null when the shift is open or there is no shift (yet).
+             */
+            shiftEndedAt: string | null;
+        };
+        /**
+         * @description A member's request to an owner or manager to change their shifts, in the organization selected by
+         *     the X-Organization-Id header: to enter a shift they worked but did not clock, or to give one of
+         *     their own shifts new times (ADR 0016 §5: people never change shift times themselves). Any member
+         *     submits requests for themselves; owners and managers approve or reject them, their own included.
+         *     Approving applies the change to the shift with the approver as the corrector, under the shift
+         *     rules as they hold at that moment.
+         */
+        "ShiftChangeRequest.RejectShiftChangeRequestInput": {
+            reason?: string | null;
+        };
+        /**
+         * @description A member's request to an owner or manager to change their shifts, in the organization selected by
+         *     the X-Organization-Id header: to enter a shift they worked but did not clock, or to give one of
+         *     their own shifts new times (ADR 0016 §5: people never change shift times themselves). Any member
+         *     submits requests for themselves; owners and managers approve or reject them, their own included.
+         *     Approving applies the change to the shift with the approver as the corrector, under the shift
+         *     rules as they hold at that moment.
+         */
+        "ShiftChangeRequest.SubmitShiftChangeRequestInput": {
+            /**
+             * Format: date-time
+             * @description When the shift started, or should start, with a time zone offset.
+             */
+            startedAt: string;
+            /** @description Why the change is needed, for whoever decides it. */
+            note: string;
+            /**
+             * Format: uuid
+             * @description The shift to give new times to: one of the signed-in member's own. Leave it out for a missing shift.
+             */
+            shiftId?: string | null;
+            /**
+             * Format: date-time
+             * @description When the shift ended, with a time zone offset. Required for a missing shift; null keeps an open shift open.
+             */
+            endedAt?: string | null;
+        };
+        /**
+         * @description A member's request to an owner or manager to change their shifts, in the organization selected by
+         *     the X-Organization-Id header: to enter a shift they worked but did not clock, or to give one of
+         *     their own shifts new times (ADR 0016 §5: people never change shift times themselves). Any member
+         *     submits requests for themselves; owners and managers approve or reject them, their own included.
+         *     Approving applies the change to the shift with the approver as the corrector, under the shift
+         *     rules as they hold at that moment.
+         */
+        "ShiftChangeRequest.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The member who asked; the shift is theirs. */
+            userId: string;
+            firstName: string;
+            lastName: string;
+            /**
+             * @description A missing shift to enter, or new times for an existing shift.
+             * @enum {string}
+             */
+            kind: "missing_shift" | "new_times";
+            /** @description The shift to give new times to; for a missing shift, the shift entered on approval (null until then). */
+            shiftId: string | null;
+            /**
+             * Format: date-time
+             * @description The start asked for.
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description The end asked for; null keeps an open shift open.
+             */
+            endedAt: string | null;
+            /** @description Why the change is needed. */
+            note: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description The owner or manager who approved or rejected it; null while pending. */
+            decidedBy: string | null;
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** @description Why it was rejected, if the owner or manager said. */
+            rejectionReason: string | null;
+            /**
+             * Format: date-time
+             * @description The shift's start now, to compare with the times asked for; null when there is no shift (yet).
+             */
+            shiftStartedAt: string | null;
+            /**
+             * Format: date-time
+             * @description The shift's end now; null when the shift is open or there is no shift (yet).
+             */
+            shiftEndedAt: string | null;
         };
         /**
          * @description A shift in the list of shifts of the organization selected by the X-Organization-Id header, with
@@ -1862,6 +2092,266 @@ export interface operations {
                 content?: never;
             };
             /** @description A field is invalid, the shift would not end after it starts, would be in the future, or would lose its end. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_shift-change-requests_get_collection": {
+        parameters: {
+            query?: {
+                /** @description Only requests in this status. */
+                status?: "pending" | "approved" | "rejected";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ShiftChangeRequest collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["ShiftChangeRequest.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["ShiftChangeRequest"][];
+                };
+            };
+            /** @description The status is not one of pending, approved, rejected. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_shift-change-requests_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new ShiftChangeRequest resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["ShiftChangeRequest.SubmitShiftChangeRequestInput"];
+                "application/json": components["schemas"]["ShiftChangeRequest.SubmitShiftChangeRequestInput"];
+            };
+        };
+        responses: {
+            /** @description The pending request. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ShiftChangeRequest.jsonld"];
+                    "application/json": components["schemas"]["ShiftChangeRequest"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The shift is not one of the signed-in user's in the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, the shift would not end after it starts, would be in the future, would lose its end, or would not change. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_shift-change-requests_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ShiftChangeRequest identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ShiftChangeRequest resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ShiftChangeRequest.jsonld"];
+                    "application/json": components["schemas"]["ShiftChangeRequest"];
+                };
+            };
+            /** @description The request is not one the signed-in user may see in the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_shift-change-requests_idapprove_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ShiftChangeRequest identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The approved request; shiftId is the shift that was entered or changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ShiftChangeRequest.jsonld"];
+                    "application/json": components["schemas"]["ShiftChangeRequest"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request, or the shift it is about, is not in the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request was already decided, or the shift would overlap another shift of the person. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The shift would not end after it starts, would be in the future, or would lose its end. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_shift-change-requests_idreject_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ShiftChangeRequest identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new ShiftChangeRequest resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["ShiftChangeRequest.RejectShiftChangeRequestInput"];
+                "application/json": components["schemas"]["ShiftChangeRequest.RejectShiftChangeRequestInput"];
+            };
+        };
+        responses: {
+            /** @description The rejected request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ShiftChangeRequest.jsonld"];
+                    "application/json": components["schemas"]["ShiftChangeRequest"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is not in the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request was already decided. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The reason is too long. */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ui\Http\User;
 
-use App\User\Application\Link\ClientApp;
+use App\Shared\Application\Link\ClientApp;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class RequestPasswordResetInput
