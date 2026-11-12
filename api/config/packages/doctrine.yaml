@@ -2,6 +2,9 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
         profiling_collect_backtrace: '%kernel.debug%'
+        types:
+            # Value objects stored in one column (ADR 0017: BusinessDate as DATE).
+            business_date: App\Shared\Infrastructure\Doctrine\Type\BusinessDateType
     orm:
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore
@@ -28,6 +31,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/TimeTracking/Domain/Model'
                 prefix: 'App\TimeTracking\Domain\Model'
                 alias: AppTimeTracking
+            AppIncome:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/Income/Domain/Model'
+                prefix: 'App\Income\Domain\Model'
+                alias: AppIncome
         filters:
             tenant:
                 class: App\Organization\Infrastructure\Doctrine\Tenant\TenantFilter

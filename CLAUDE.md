@@ -102,7 +102,7 @@ Reference modules to copy: `App\Organization` + `Ui\Http\Organization` (commands
 
 ## Backend conventions
 
-- Timestamps are `DateTimeImmutable` stored in UTC. Business dates and periods are `BusinessDate`/`BusinessPeriod`, converted with the organization's time zone, never the server default (ADR 0017).
+- Timestamps are `DateTimeImmutable` stored in UTC. Business dates and periods are `BusinessDate`/`BusinessPeriod`, converted with the organization's time zone, never the server default (ADR 0017); a stored business date is a `DATE` column mapped with `#[ORM\Column(type: 'business_date')]` (ADR 0017, 0022).
 - "Now" comes from `Psr\Clock\ClockInterface` (Symfony's `clock` service) in handlers, fixtures and commands, and is passed into entity constructors and methods as a parameter. Domain code never calls `new \DateTimeImmutable()` without an argument, `time()` or `Clock::get()` (ADR 0015).
 - Sessions are refresh tokens (`App\User\Domain\Model\RefreshToken`, ADR 0020). Every new way to set or change a password revokes all the user's sessions, as `SetPasswordHandler` does.
 - Money: store integer minor units (grosze) with a currency code; never floats (ADR 0010).

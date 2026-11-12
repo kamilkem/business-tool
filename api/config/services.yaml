@@ -35,5 +35,10 @@ services:
         exclude:
             - '../src/App/TimeTracking/Domain/Model/'
 
+    App\Income\:
+        resource: '../src/App/Income/'
+        exclude:
+            - '../src/App/Income/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'

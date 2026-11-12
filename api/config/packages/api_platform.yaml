@@ -67,5 +67,13 @@ api_platform:
         App\TimeTracking\Domain\Exception\ShiftChangeRequestAlreadyDecidedException: 409
         App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException: 422
         App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException: 422
+        App\Income\Domain\Exception\IncomeManagementForbiddenException: 403
+        App\Income\Domain\Exception\InvalidRegisterNameException: 422
+        App\Income\Domain\Exception\RegisterNameTakenException: 409
+        App\Income\Domain\Exception\RegisterDeactivatedException: 422
+        App\Income\Domain\Exception\RevenueEntryAlreadyExistsException: 409
+        App\Income\Domain\Exception\RevenueEntryInTheFutureException: 422
+        App\Income\Domain\Exception\InvalidPaymentLinesException: 422
+        App\Income\Domain\Exception\InvalidVatLinesException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422
