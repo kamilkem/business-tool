@@ -91,8 +91,8 @@ describe("modulesFor", () => {
     expect(modulesFor("employee").some((m) => m.key === "payroll")).toBe(true)
   })
 
-  it("test_it_links_income_to_its_registers_for_owners_and_managers_only", () => {
-    expect(modulesFor("owner").find((m) => m.key === "income")?.to).toBe("/income/registers")
+  it("test_it_links_income_to_its_page_for_owners_and_managers_only", () => {
+    expect(modulesFor("owner").find((m) => m.key === "income")?.to).toBe("/income")
     expect(modulesFor("employee").some((m) => m.key === "income")).toBe(false)
   })
 })
