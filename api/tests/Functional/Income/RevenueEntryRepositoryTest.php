@@ -155,6 +155,23 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         self::assertCount(1, $this->entries->findInPeriod(BusinessPeriod::fromStrings('2026-10-31', '2026-10-31')));
     }
 
+    public function test_it_reads_each_line_of_a_periods_entries_once_although_both_kinds_are_fetch_joined(): void
+    {
+        $this->switchToNewOrganization();
+        $bar = $this->addRegister('Bar');
+        $kitchen = $this->addRegister('Kitchen');
+        $this->entries->add($this->record($bar, '2026-11-01', [$this->cash(100), $this->card(200), new PaymentAmount(PaymentMethod::Voucher, 50)], [new VatAmount('23', 246, 46), new VatAmount('8', 54, 4)]));
+        $this->entries->add($this->record($kitchen, '2026-11-01', [$this->card(70)]));
+        $this->entityManager->clear();
+
+        $entries = $this->entries->findInPeriod(BusinessPeriod::month(2026, 11));
+
+        self::assertSame(
+            [['Bar', 350, 3, 2], ['Kitchen', 70, 1, 0]],
+            array_map(static fn (RevenueEntry $e): array => [$e->getRegister()->getName(), $e->getTotal(), \count($e->getPaymentLines()), \count($e->getVatLines())], $entries),
+        );
+    }
+
     public function test_it_does_not_show_another_organizations_entries_or_lines(): void
     {
         $this->switchToNewOrganization();

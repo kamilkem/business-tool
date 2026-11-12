@@ -7,18 +7,22 @@ namespace Ui\Http\Income;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueEntryView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
+use App\Income\Application\Query\ListRevenueEntries\ListRevenueEntriesQuery;
 use App\Income\Domain\Model\PaymentMethod;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Income\Processor\DeleteRevenueEntryProcessor;
 use Ui\Http\Income\Processor\RecordRevenueEntryProcessor;
 use Ui\Http\Income\Processor\UpdateRevenueEntryProcessor;
+use Ui\Http\Income\Provider\RevenueEntryCollectionProvider;
 use Ui\Http\Income\Provider\RevenueEntryProvider;
 use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
 
@@ -44,6 +48,38 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
                 ],
             ),
             provider: RevenueEntryProvider::class,
+        ),
+        new GetCollection(
+            uriTemplate: '/revenue-entries',
+            paginationEnabled: false,
+            openapi: new Operation(
+                summary: 'Lists the revenue entries of the selected organization from one business date to another.',
+                description: 'Owners and managers only (403 otherwise). By business date, then by register name; entries of deactivated registers are included. registerId narrows the list to one register of the selected organization (404 otherwise). Invalid dates, to before from and periods longer than '.ListRevenueEntriesQuery::MAX_DAYS.' days are a 422. GET /revenue-summary gives the totals.',
+                responses: [
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The registerId is not a register of the selected organization.'),
+                    '422' => new Response('A date is missing or invalid, to is before from, the period is too long, or registerId is not a UUID.'),
+                ],
+            ),
+            // ListRevenueEntriesInput validates the parameters, cross-field rules included; the schemas below only document them.
+            queryParameterValidationEnabled: false,
+            provider: RevenueEntryCollectionProvider::class,
+            parameters: [
+                'from' => new QueryParameter(
+                    schema: ['type' => 'string', 'format' => 'date'],
+                    description: 'First business date, inclusive (YYYY-MM-DD).',
+                    required: true,
+                ),
+                'to' => new QueryParameter(
+                    schema: ['type' => 'string', 'format' => 'date'],
+                    description: 'Last business date, inclusive (YYYY-MM-DD); at most '.ListRevenueEntriesQuery::MAX_DAYS.' days from the first.',
+                    required: true,
+                ),
+                'registerId' => new QueryParameter(
+                    schema: ['type' => 'string', 'format' => 'uuid'],
+                    description: 'Only this register\'s entries.',
+                ),
+            ],
         ),
         new Post(
             uriTemplate: '/revenue-entries',

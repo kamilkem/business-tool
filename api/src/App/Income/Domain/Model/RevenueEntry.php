@@ -213,8 +213,7 @@ class RevenueEntry implements TenantAwareInterface
     public function getVatLines(): array
     {
         $lines = array_map(static fn (RevenueVatLine $line): VatAmount => $line->toVatAmount(), $this->vatLines->getValues());
-        usort($lines, static fn (VatAmount $a, VatAmount $b): int => [is_numeric($b->rate), is_numeric($b->rate) ? (float) $b->rate : 0.0, $a->rate]
-            <=> [is_numeric($a->rate), is_numeric($a->rate) ? (float) $a->rate : 0.0, $b->rate]);
+        usort($lines, static fn (VatAmount $a, VatAmount $b): int => VatRates::compare($a->rate, $b->rate));
 
         return $lines;
     }
