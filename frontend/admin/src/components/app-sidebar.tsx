@@ -1,8 +1,8 @@
-import { logout } from "@business-tool/api-client"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext, useRouter } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import {
   BuildingIcon,
+  CheckIcon,
   ChevronsUpDownIcon,
   InboxIcon,
   KeyRoundIcon,
@@ -34,27 +34,17 @@ import {
   SidebarMenuItem,
 } from "@business-tool/ui/components/sidebar"
 
-import { canManageTeam } from "@/lib/members"
+import { can } from "@/lib/access"
+import { roleLabel } from "@/lib/members"
 import { modulesFor } from "@/lib/modules"
 import { shiftChangeRequestsQuery } from "@/lib/queries"
+import { useAccountActions } from "@/lib/use-account-actions"
 
 export function AppSidebar() {
-  const { me, membership, session, queryClient } = useRouteContext({ from: "/_app" })
-  const router = useRouter()
+  const { me, membership } = useRouteContext({ from: "/_app" })
+  const { switchOrganization, signOut } = useAccountActions()
   const memberships = me.memberships
-
-  async function switchOrganization(id: string) {
-    session.selectOrganization(id)
-    // Drop cached tenant data before reloading routes for the new organization.
-    queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" })
-    await router.invalidate()
-  }
-
-  async function signOut() {
-    await logout(session)
-    queryClient.clear()
-    await router.navigate({ to: "/login" })
-  }
+  const role = membership?.role
 
   return (
     <Sidebar collapsible="icon">
@@ -69,7 +59,7 @@ export function AppSidebar() {
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{membership?.organization.name}</span>
-                    <span className="truncate text-xs capitalize text-muted-foreground">{membership?.role}</span>
+                    <span className="truncate text-xs text-muted-foreground">{role && roleLabel(role)}</span>
                   </div>
                   <ChevronsUpDownIcon className="ml-auto" />
                 </SidebarMenuButton>
@@ -78,7 +68,9 @@ export function AppSidebar() {
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Organizations</DropdownMenuLabel>
                 {memberships.map((m) => (
                   <DropdownMenuItem key={m.id} onSelect={() => switchOrganization(m.organization.id)}>
-                    {m.organization.name}
+                    <span className="flex-1 truncate">{m.organization.name}</span>
+                    <span className="text-xs text-muted-foreground">{roleLabel(m.role)}</span>
+                    {m.id === membership?.id && <CheckIcon />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -98,7 +90,7 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {canManageTeam(membership?.role) && (
+            {can(role, "team") && (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Team">
                   <Link to="/team" activeProps={{ "data-active": true }}>
@@ -108,7 +100,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
-            {membership && canManageTeam(membership.role) && (
+            {membership && can(role, "shiftRequests") && (
               <ShiftRequestsLink organizationId={membership.organization.id} />
             )}
           </SidebarMenu>
@@ -116,7 +108,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Modules</SidebarGroupLabel>
           <SidebarMenu>
-            {modulesFor(membership?.role).map((module) => (
+            {modulesFor(role).map((module) => (
               <SidebarMenuItem key={module.key}>
                 {module.to ? (
                   <SidebarMenuButton asChild tooltip={module.title}>
@@ -144,14 +136,16 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
-              <Link to="/settings" activeProps={{ "data-active": true }}>
-                <SettingsIcon />
-                <span>Organization settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {can(role, "settings") && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Settings">
+                <Link to="/settings" activeProps={{ "data-active": true }}>
+                  <SettingsIcon />
+                  <span>Organization settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { type DecisionTarget, ShiftChangeRequestDialog } from "@/components/shift-change-request-dialog"
-import { canManageTeam, fullName, isActive } from "@/lib/members"
+import { requireCapability } from "@/lib/access"
+import { fullName, isActive } from "@/lib/members"
 import { membersQuery, shiftChangeRequestsQuery } from "@/lib/queries"
 import {
   type RequestsFilter,
@@ -26,11 +27,10 @@ import {
 
 export const Route = createFileRoute("/_app/shift-requests")({
   validateSearch: (search: Record<string, unknown>): RequestsSearch => validateRequestsSearch(search),
+  beforeLoad: requireCapability("shiftRequests"),
   loaderDeps: ({ search }) => ({ status: search.status }),
   loader: async ({ context, deps }) => {
-    const membership = context.membership
-    if (!membership || !canManageTeam(membership.role)) return
-    const organizationId = membership.organization.id
+    const organizationId = context.membership.organization.id
     await Promise.all([
       context.queryClient.ensureQueryData(membersQuery(organizationId, true)),
       context.queryClient.ensureQueryData(shiftChangeRequestsQuery(organizationId, filterOf(deps))),
@@ -41,19 +41,6 @@ export const Route = createFileRoute("/_app/shift-requests")({
 
 function ShiftRequestsPage() {
   const { membership } = Route.useRouteContext()
-
-  if (!membership || !canManageTeam(membership.role)) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Shift change requests</CardTitle>
-            <CardDescription>Only owners and managers review shift change requests.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
-  }
 
   return <ShiftRequests organizationId={membership.organization.id} />
 }

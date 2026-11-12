@@ -35,7 +35,8 @@ import {
 } from "@business-tool/ui/lib/shifts"
 
 import { ShiftDialog, type ShiftDialogTarget } from "@/components/shift-dialog"
-import { type Member, canManageTeam, fullName, isActive } from "@/lib/members"
+import { requireCapability } from "@/lib/access"
+import { type Member, fullName, isActive } from "@/lib/members"
 import { membersQuery, shiftsQuery } from "@/lib/queries"
 import { type ShiftsSearch, periodOf, validateShiftsSearch } from "@/lib/shifts"
 
@@ -43,10 +44,10 @@ const EVERYONE = "everyone"
 
 export const Route = createFileRoute("/_app/time")({
   validateSearch: (search: Record<string, unknown>): ShiftsSearch => validateShiftsSearch(search),
+  beforeLoad: requireCapability("time"),
   loaderDeps: ({ search }) => ({ from: search.from, to: search.to, userId: search.userId }),
   loader: async ({ context, deps }) => {
     const membership = context.membership
-    if (!membership || !canManageTeam(membership.role)) return
     const organizationId = membership.organization.id
     const members = await context.queryClient.ensureQueryData(membersQuery(organizationId, true))
     const period = periodOf(deps, thisMonth(membership.organization.timezone))
@@ -62,19 +63,6 @@ function knownUserId(userId: string | undefined, members: Member[]): string | un
 
 function TimePage() {
   const { membership } = Route.useRouteContext()
-
-  if (!membership || !canManageTeam(membership.role)) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Time tracking</CardTitle>
-            <CardDescription>Only owners and managers can see everyone's shifts.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
-  }
 
   return <Shifts organizationId={membership.organization.id} />
 }

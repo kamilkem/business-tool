@@ -28,3 +28,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0018](0018-frontend-unit-tests-with-vitest.md) | Frontend unit tests run with Vitest, in a browser time zone that is not the organization's | Accepted |
 | [0019](0019-frontend-dates-in-the-organizations-time-zone.md) | The frontend shows dates and times in the organization's time zone, with `Intl` and no date library | Accepted |
 | [0020](0020-rotating-refresh-tokens-in-httponly-cookie.md) | Sessions outlast a shift: rotating refresh tokens in an HttpOnly cookie, revoked on sign-out and password change | Accepted |
+| [0021](0021-admin-for-owners-and-managers.md) | The admin is for owners and managers of the selected organization; employees use the time clock | Accepted |

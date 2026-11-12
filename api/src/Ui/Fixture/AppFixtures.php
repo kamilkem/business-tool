@@ -19,6 +19,7 @@ use Symfony\Component\Uid\Uuid;
  *   owner@example.com     owner of "Demo Bar"
  *   manager@example.com   manager of "Demo Bar"
  *   employee@example.com  employee of "Demo Bar"
+ *   mixed@example.com     owner of "Demo Café" and employee of "Demo Bar" (the admin follows the selected organization's role)
  */
 final class AppFixtures extends Fixture
 {
@@ -38,6 +39,10 @@ final class AppFixtures extends Fixture
         $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager', $now), MembershipRole::Manager, $now);
         $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee', $now), MembershipRole::Employee, $now);
         $manager->persist($bar);
+
+        $mixed = $this->user($manager, 'mixed@example.com', 'Mia', 'Mixed', $now);
+        $bar->addMember($owner->getId(), $mixed, MembershipRole::Employee, $now);
+        $manager->persist(new Organization(Uuid::v7(), 'Demo Café', $mixed, $now));
 
         $manager->flush();
     }

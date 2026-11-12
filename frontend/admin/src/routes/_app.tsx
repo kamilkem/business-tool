@@ -5,10 +5,16 @@ import { Separator } from "@business-tool/ui/components/separator"
 import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { AppSidebar } from "@/components/app-sidebar"
-import { CreateOrganization } from "@/components/create-organization"
+import { LimitedLayout } from "@/components/limited-layout"
+import { can } from "@/lib/access"
 import { meQuery } from "@/lib/queries"
 
-/** Authenticated layout: requires a token and selects an organization. */
+/**
+ * Authenticated layout: requires a token and selects an organization. Owners and managers of the
+ * selected organization get the sidebar; anyone else gets the limited frame (ADR 0021), where the
+ * start page points to the timeclock and only the account page is open. Each business page guards
+ * itself with requireCapability().
+ */
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context, location }) => {
     const { session, queryClient } = context
@@ -32,8 +38,12 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { membership } = Route.useRouteContext()
 
-  if (!membership) {
-    return <CreateOrganization />
+  if (!membership || !can(membership.role, "admin")) {
+    return (
+      <LimitedLayout>
+        <Outlet />
+      </LimitedLayout>
+    )
   }
 
   return (
