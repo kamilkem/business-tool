@@ -45,6 +45,17 @@ export const registersQuery = (organizationId: string, includeDeactivated: boole
       unwrap(api.GET("/api/registers", { params: { query: includeDeactivated ? { includeDeactivated: true } : {} } })),
   })
 
+/**
+ * Expense categories of the organization: active ones by name, then (with includeArchived) the
+ * archived ones. Forms that pick a category for an expense need the active ones only.
+ */
+export const expenseCategoriesQuery = (organizationId: string, includeArchived: boolean) =>
+  queryOptions({
+    queryKey: ["expense-categories", organizationId, { includeArchived }],
+    queryFn: () =>
+      unwrap(api.GET("/api/expense-categories", { params: { query: includeArchived ? { includeArchived: true } : {} } })),
+  })
+
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
 export const shiftsQuery = (organizationId: string, period: BusinessPeriod, userId?: string) =>
   queryOptions({

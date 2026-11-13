@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income"]
+const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {
@@ -94,5 +94,10 @@ describe("modulesFor", () => {
   it("test_it_links_income_to_its_page_for_owners_and_managers_only", () => {
     expect(modulesFor("owner").find((m) => m.key === "income")?.to).toBe("/income")
     expect(modulesFor("employee").some((m) => m.key === "income")).toBe(false)
+  })
+
+  it("test_it_links_expenses_to_its_categories_for_owners_and_managers_only", () => {
+    expect(modulesFor("manager").find((m) => m.key === "expenses")?.to).toBe("/expenses/categories")
+    expect(modulesFor("employee").some((m) => m.key === "expenses")).toBe(false)
   })
 })
