@@ -55,6 +55,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/Secret/Domain/Model'
                 prefix: 'App\Secret\Domain\Model'
                 alias: AppSecret
+            AppPayroll:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/Payroll/Domain/Model'
+                prefix: 'App\Payroll\Domain\Model'
+                alias: AppPayroll
         filters:
             tenant:
                 class: App\Organization\Infrastructure\Doctrine\Tenant\TenantFilter

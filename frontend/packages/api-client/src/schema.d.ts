@@ -4,6 +4,58 @@
  */
 
 export interface paths {
+    "/api/day-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the day rates of the selected organization.
+         * @description By member, newest first. Owners and managers see everyone's, deactivated members' too, and may narrow them to one member with userId; employees see their own only, and asking for someone else's is a 403. A userId that is not a member is a 404, and one that is not a UUID a 422.
+         */
+        get: operations["api_day-rates_get_collection"];
+        put?: never;
+        /**
+         * Gives a member a rate for one business date.
+         * @description Owners and managers only (403 otherwise), for any member, active or deactivated, themselves included; a userId that is not a member is a 404. The currency is the organization's. One day rate per member and date (409); a date in a locked period is a 409.
+         */
+        post: operations["api_day-rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/day-rates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One day rate of the selected organization.
+         * @description Owners and managers see anyone's; employees their own only (403 otherwise). A day rate that is not the selected organization's is a 404.
+         */
+        get: operations["api_day-rates_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a day rate.
+         * @description Owners and managers only (403 otherwise); a day rate that is not the selected organization's is a 404. The date falls back to the member's hourly rate. A date in a locked period is a 409.
+         */
+        delete: operations["api_day-rates_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Corrects a day rate's date or amount.
+         * @description Owners and managers only (403 otherwise); a day rate that is not the selected organization's is a 404. The currency becomes the organization's. Another day rate of the member on the new date is a 409, and so is an old or new date in a locked period. Changing nothing is a 200.
+         */
+        patch: operations["api_day-rates_id_patch"];
+        trace?: never;
+    };
     "/api/expenses": {
         parameters: {
             query?: never;
@@ -162,6 +214,58 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/hourly-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the hourly rates of the selected organization.
+         * @description By member, newest first. Owners and managers see everyone's, deactivated members' too, and may narrow them to one member with userId; employees see their own only, and asking for someone else's is a 403. A userId that is not a member is a 404, and one that is not a UUID a 422.
+         */
+        get: operations["api_hourly-rates_get_collection"];
+        put?: never;
+        /**
+         * Gives a member an hourly rate from a business date.
+         * @description Owners and managers only (403 otherwise), for any member, active or deactivated, themselves included; a userId that is not a member is a 404. The currency is the organization's. One rate per member and date (409). The rate is in effect until the member's next rate; if any of those dates is in a locked period, it is a 409.
+         */
+        post: operations["api_hourly-rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hourly-rates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One hourly rate of the selected organization.
+         * @description Owners and managers see anyone's; employees their own only (403 otherwise). A rate that is not the selected organization's is a 404.
+         */
+        get: operations["api_hourly-rates_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes an hourly rate.
+         * @description Owners and managers only (403 otherwise); a rate that is not the selected organization's is a 404. Its dates fall back to the member's previous rate, or to none. If one of them is in a locked period, it is a 409.
+         */
+        delete: operations["api_hourly-rates_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Corrects an hourly rate's date or amount.
+         * @description Owners and managers only (403 otherwise); a rate that is not the selected organization's is a 404. The currency becomes the organization's. Another rate of the member from the new date is a 409. If a date the rate is in effect on before or after the change is in a locked period, it is a 409. Changing nothing is a 200.
+         */
+        patch: operations["api_hourly-rates_id_patch"];
         trace?: never;
     };
     "/api/ksef-connection": {
@@ -899,6 +1003,89 @@ export interface components {
             readonly title?: string | null;
             readonly instance?: string | null;
         };
+        /**
+         * @description A member's rate for one business date in the organization selected by the X-Organization-Id
+         *     header (New Year's Eve), replacing their hourly rate for the shifts that started on that date
+         *     (ADR 0027 §3). Who may see and change day rates is as for hourly rates; a day rate on a date of a
+         *     locked period (an approved payroll month) cannot be added, changed or deleted (409).
+         */
+        DayRate: {
+            id: string;
+            /** @description The member the rate is for. */
+            userId: string;
+            /** @description The business date whose shifts the rate pays (YYYY-MM-DD). */
+            date: string;
+            /** @description Gross minor units per hour. */
+            amount: number;
+            /** @description ISO 4217: the organization's when the day rate was set or last changed. */
+            currency: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the day rate was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
+        /**
+         * @description A member's rate for one business date in the organization selected by the X-Organization-Id
+         *     header (New Year's Eve), replacing their hourly rate for the shifts that started on that date
+         *     (ADR 0027 §3). Who may see and change day rates is as for hourly rates; a day rate on a date of a
+         *     locked period (an approved payroll month) cannot be added, changed or deleted (409).
+         */
+        "DayRate.SetDayRateInput": {
+            /**
+             * Format: uuid
+             * @description The member, active or deactivated.
+             */
+            userId: string;
+            /**
+             * Format: date
+             * @description The business date whose shifts the rate pays (YYYY-MM-DD).
+             */
+            date: string;
+            /** @description Gross minor units per hour in the organization's currency (e.g. 4500 for 45.00). */
+            amount: number;
+        };
+        /**
+         * @description A member's rate for one business date in the organization selected by the X-Organization-Id
+         *     header (New Year's Eve), replacing their hourly rate for the shifts that started on that date
+         *     (ADR 0027 §3). Who may see and change day rates is as for hourly rates; a day rate on a date of a
+         *     locked period (an approved payroll month) cannot be added, changed or deleted (409).
+         */
+        "DayRate.UpdateDayRateInput.jsonMergePatch": {
+            /**
+             * Format: date
+             * @description The business date whose shifts the rate pays (YYYY-MM-DD).
+             */
+            date?: string;
+            /** @description Gross minor units per hour in the organization's currency. */
+            amount?: number | null;
+        };
+        /**
+         * @description A member's rate for one business date in the organization selected by the X-Organization-Id
+         *     header (New Year's Eve), replacing their hourly rate for the shifts that started on that date
+         *     (ADR 0027 §3). Who may see and change day rates is as for hourly rates; a day rate on a date of a
+         *     locked period (an approved payroll month) cannot be added, changed or deleted (409).
+         */
+        "DayRate.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The member the rate is for. */
+            userId: string;
+            /** @description The business date whose shifts the rate pays (YYYY-MM-DD). */
+            date: string;
+            /** @description Gross minor units per hour. */
+            amount: number;
+            /** @description ISO 4217: the organization's when the day rate was set or last changed. */
+            currency: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the day rate was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
         /** @description A representation of common errors. */
         Error: {
             /** @description A short, human-readable summary of the problem. */
@@ -1336,6 +1523,93 @@ export interface components {
             vat: number;
             /** @description The VAT in the organization's currency, required when the expense is in another currency; null otherwise. */
             vatInTaxCurrency?: number | null;
+        };
+        /**
+         * @description A member's usual hourly rate in the organization selected by the X-Organization-Id header, in
+         *     effect from a business date until the day before their next rate (ADR 0027 §3). Owners and managers
+         *     manage everyone's, their own included; employees read their own only (403 otherwise). A change that
+         *     affects a date of a locked period (an approved payroll month) is a 409.
+         */
+        HourlyRate: {
+            id: string;
+            /** @description The member the rate is for. */
+            userId: string;
+            /** @description The first business date the rate is in effect (YYYY-MM-DD). */
+            effectiveFrom: string;
+            /** @description The last business date the rate is in effect, inclusive: the day before the member's next rate; null while none follows (YYYY-MM-DD). */
+            effectiveTo: string | null;
+            /** @description Gross minor units per hour. */
+            amount: number;
+            /** @description ISO 4217: the organization's when the rate was set or last changed. */
+            currency: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the rate was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
+        /**
+         * @description A member's usual hourly rate in the organization selected by the X-Organization-Id header, in
+         *     effect from a business date until the day before their next rate (ADR 0027 §3). Owners and managers
+         *     manage everyone's, their own included; employees read their own only (403 otherwise). A change that
+         *     affects a date of a locked period (an approved payroll month) is a 409.
+         */
+        "HourlyRate.SetHourlyRateInput": {
+            /**
+             * Format: uuid
+             * @description The member, active or deactivated.
+             */
+            userId: string;
+            /**
+             * Format: date
+             * @description The first business date the rate is in effect (YYYY-MM-DD).
+             */
+            effectiveFrom: string;
+            /** @description Gross minor units per hour in the organization's currency (e.g. 3050 for 30.50). */
+            amount: number;
+        };
+        /**
+         * @description A member's usual hourly rate in the organization selected by the X-Organization-Id header, in
+         *     effect from a business date until the day before their next rate (ADR 0027 §3). Owners and managers
+         *     manage everyone's, their own included; employees read their own only (403 otherwise). A change that
+         *     affects a date of a locked period (an approved payroll month) is a 409.
+         */
+        "HourlyRate.UpdateHourlyRateInput.jsonMergePatch": {
+            /**
+             * Format: date
+             * @description The first business date the rate is in effect (YYYY-MM-DD).
+             */
+            effectiveFrom?: string;
+            /** @description Gross minor units per hour in the organization's currency. */
+            amount?: number | null;
+        };
+        /**
+         * @description A member's usual hourly rate in the organization selected by the X-Organization-Id header, in
+         *     effect from a business date until the day before their next rate (ADR 0027 §3). Owners and managers
+         *     manage everyone's, their own included; employees read their own only (403 otherwise). A change that
+         *     affects a date of a locked period (an approved payroll month) is a 409.
+         */
+        "HourlyRate.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The member the rate is for. */
+            userId: string;
+            /** @description The first business date the rate is in effect (YYYY-MM-DD). */
+            effectiveFrom: string;
+            /** @description The last business date the rate is in effect, inclusive: the day before the member's next rate; null while none follows (YYYY-MM-DD). */
+            effectiveTo: string | null;
+            /** @description Gross minor units per hour. */
+            amount: number;
+            /** @description ISO 4217: the organization's when the rate was set or last changed. */
+            currency: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the rate was last changed; null until then.
+             */
+            updatedAt: string | null;
         };
         HydraCollectionBaseSchema: components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
             /**
@@ -2387,6 +2661,275 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "api_day-rates_get_collection": {
+        parameters: {
+            query?: {
+                /** @description Only this member's day rates. Employees may pass only their own id. */
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DayRate collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["DayRate.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["DayRate"][];
+                };
+            };
+            /** @description An employee asked for someone else's day rates. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_day-rates_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new DayRate resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["DayRate.SetDayRateInput"];
+                "application/json": components["schemas"]["DayRate.SetDayRateInput"];
+            };
+        };
+        responses: {
+            /** @description The new day rate. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayRate.jsonld"];
+                    "application/json": components["schemas"]["DayRate"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member has a day rate on that date, or the date is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_day-rates_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DayRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DayRate resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayRate.jsonld"];
+                    "application/json": components["schemas"]["DayRate"];
+                };
+            };
+            /** @description An employee asked for someone else's day rate. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The day rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_day-rates_id_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DayRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The day rate was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The day rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The date is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_day-rates_id_patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DayRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated DayRate resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["DayRate.UpdateDayRateInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description DayRate resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayRate.jsonld"];
+                    "application/json": components["schemas"]["DayRate"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The day rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another day rate of the member is on the new date, or the old or new date is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     api_expenses_get: {
         parameters: {
             query: {
@@ -3007,6 +3550,275 @@ export interface operations {
                 content?: never;
             };
             /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_hourly-rates_get_collection": {
+        parameters: {
+            query?: {
+                /** @description Only this member's rates. Employees may pass only their own id. */
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description HourlyRate collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["HourlyRate.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["HourlyRate"][];
+                };
+            };
+            /** @description An employee asked for someone else's rates. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_hourly-rates_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new HourlyRate resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["HourlyRate.SetHourlyRateInput"];
+                "application/json": components["schemas"]["HourlyRate.SetHourlyRateInput"];
+            };
+        };
+        responses: {
+            /** @description The new rate. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HourlyRate.jsonld"];
+                    "application/json": components["schemas"]["HourlyRate"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The userId is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member has a rate from that date, or a date the rate would be in effect on is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_hourly-rates_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description HourlyRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description HourlyRate resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HourlyRate.jsonld"];
+                    "application/json": components["schemas"]["HourlyRate"];
+                };
+            };
+            /** @description An employee asked for someone else's rate. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_hourly-rates_id_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description HourlyRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rate was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date the rate is in effect on is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_hourly-rates_id_patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description HourlyRate identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated HourlyRate resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["HourlyRate.UpdateHourlyRateInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description HourlyRate resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HourlyRate.jsonld"];
+                    "application/json": components["schemas"]["HourlyRate"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rate is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another rate of the member is from the new date, or an affected date is locked. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is invalid. */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -59,6 +59,12 @@ services:
         exclude:
             - '../src/App/Secret/Domain/Model/'
 
+    # Payroll v1: hourly rates, day rates and payroll runs (ADR 0027).
+    App\Payroll\:
+        resource: '../src/App/Payroll/'
+        exclude:
+            - '../src/App/Payroll/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'
 
