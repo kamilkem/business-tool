@@ -22,6 +22,9 @@ export const modules: ModuleInfo[] = [
     title: "Expenses",
     description: "Purchase invoices pulled from KSeF and sorted into categories.",
     icon: ReceiptIcon,
+    // The categories page until the Expenses list (#56) is built; that page then links to it.
+    to: "/expenses/categories",
+    capability: "expenses",
   },
   {
     key: "income",
