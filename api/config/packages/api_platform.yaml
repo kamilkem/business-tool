@@ -84,6 +84,11 @@ api_platform:
         App\Expenses\Domain\Exception\InvalidExpenseCategoryNameException: 422
         App\Expenses\Domain\Exception\ExpenseCategoryNameTakenException: 409
         App\Expenses\Domain\Exception\ExpenseCategoryNotFoundException: 404
+        App\Expenses\Domain\Exception\ExpenseCategoryArchivedException: 422
+        App\Expenses\Domain\Exception\ExpensePeriodTooLongException: 422
+        App\Expenses\Domain\Exception\InvalidExpenseFilterException: 422
+        App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException: 404
+        App\Expenses\Domain\Exception\PurchaseInvoiceDocumentNotFoundException: 404
         # KSeF errors are recorded by the sync, not thrown at HTTP clients; mapped in case one escapes.
         App\Ksef\Domain\Exception\KsefCredentialsRejectedException: 422
         App\Ksef\Domain\Exception\KsefRateLimitedException: 429

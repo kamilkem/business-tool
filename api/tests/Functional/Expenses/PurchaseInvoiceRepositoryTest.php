@@ -12,14 +12,20 @@ use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatLine;
+use App\Expenses\Domain\Model\ExpenseCategory;
+use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
+use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Expenses\Infrastructure\Doctrine\Orm\Repository\PurchaseInvoiceDocumentRepository;
 use App\Expenses\Infrastructure\Doctrine\Orm\Repository\PurchaseInvoiceRepository;
+use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Domain\Time\BusinessDate;
+use App\Shared\Domain\Time\BusinessPeriod;
 use App\Tests\Factory\OrganizationFactory;
+use App\Tests\Fixtures\PurchaseInvoiceMother;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -177,6 +183,108 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertNull($this->documents->findByInvoiceId($foreign->getId()));
         self::assertSame(0, (int) $this->entityManager->createQuery(\sprintf('SELECT COUNT(IDENTITY(l.purchaseInvoice)) FROM %s l', PurchaseInvoiceVatLine::class))->getSingleScalarResult());
         self::assertSame(0, (int) $this->entityManager->createQuery(\sprintf('SELECT COUNT(IDENTITY(d.purchaseInvoice)) FROM %s d', PurchaseInvoiceDocument::class))->getSingleScalarResult());
+    }
+
+    public function test_it_finds_the_periods_invoices_newest_first_with_their_lines(): void
+    {
+        $this->switchToNewOrganization();
+        $first = $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-11-01', sellerName: 'Zakład'));
+        $lastB = $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-11-30', sellerName: 'Browar', invoiceNumber: 'B/2'));
+        $lastA = $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-11-30', sellerName: 'Browar', invoiceNumber: 'B/1'));
+        $middle = $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-11-15', sellerName: 'Apteka'));
+        $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-10-31'));
+        $this->add(PurchaseInvoiceMother::imported(issueDate: '2026-12-01'));
+        $this->entityManager->clear();
+
+        $found = $this->invoices->findByFilter(new PurchaseInvoiceFilter(BusinessPeriod::fromStrings('2026-11-01', '2026-11-30')));
+
+        self::assertSame(self::idsOf([$lastA, $lastB, $middle, $first]), self::idsOf($found));
+        self::assertEquals([new PurchaseInvoiceVatAmount('23', 20_000, 4_600)], $found[0]->getVatLines());
+    }
+
+    public function test_it_finds_invoices_by_category_or_without_one(): void
+    {
+        $organization = $this->switchToNewOrganization();
+        $owner = $organization->getMemberships()->first() ?: self::fail('Owner expected.');
+        $food = ExpenseCategory::create(Uuid::v7(), 'Food', null, $owner->getUser()->getId(), MembershipRole::Owner, new \DateTimeImmutable());
+        self::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->add($food);
+        $categorized = PurchaseInvoiceMother::imported();
+        $categorized->categorize($food, $owner->getUser()->getId(), MembershipRole::Owner);
+        $this->add($categorized);
+        $uncategorized = $this->add(PurchaseInvoiceMother::imported());
+        $this->entityManager->clear();
+        $period = BusinessPeriod::fromStrings('2026-11-01', '2026-11-30');
+
+        self::assertSame(self::idsOf([$categorized]), self::idsOf($this->invoices->findByFilter(new PurchaseInvoiceFilter($period, $food->getId()))));
+        self::assertSame(self::idsOf([$uncategorized]), self::idsOf($this->invoices->findByFilter(new PurchaseInvoiceFilter($period, uncategorized: true))));
+        self::assertSame([], $this->invoices->findByFilter(new PurchaseInvoiceFilter($period, Uuid::v7())));
+    }
+
+    public function test_it_finds_sellers_by_a_part_of_the_name_or_tax_id(): void
+    {
+        $this->switchToNewOrganization();
+        $beer = $this->add(PurchaseInvoiceMother::imported(sellerName: 'Browar Kormoran', sellerTaxId: '7393010870'));
+        $percent = $this->add(PurchaseInvoiceMother::imported(sellerName: 'Rabat 100% s.c.', sellerTaxId: 'PL1132853869'));
+        $this->add(PurchaseInvoiceMother::imported(sellerName: 'ZAKŁAD MIĘSNY', sellerTaxId: '5265877635'));
+        $this->entityManager->clear();
+
+        foreach ([
+            'kormoran' => [$beer],
+            '739-301 08' => [$beer],
+            'pl113' => [$percent],
+            '%' => [$percent],
+            '100%' => [$percent],
+            '_' => [],
+            'browar zakład' => [],
+        ] as $seller => $expected) {
+            $found = $this->invoices->findByFilter(new PurchaseInvoiceFilter(BusinessPeriod::fromStrings('2026-11-01', '2026-11-30'), seller: (string) $seller));
+            self::assertSame(self::idsOf($expected), self::idsOf($found), (string) $seller);
+        }
+    }
+
+    public function test_it_finds_the_formats_of_the_documents_without_their_content(): void
+    {
+        $this->switchToNewOrganization();
+        $with = PurchaseInvoiceMother::imported();
+        $this->invoices->add($with, PurchaseInvoiceDocument::of($with, self::XML, 'FA (3)', new \DateTimeImmutable('2026-11-12 21:00:05')));
+        $without = $this->add(PurchaseInvoiceMother::imported());
+        $this->entityManager->clear();
+
+        self::assertSame(
+            [$with->getId()->toRfc4122() => 'FA (3)'],
+            $this->documents->findFormatsByInvoiceIds([$with->getId(), $without->getId(), Uuid::v7()]),
+        );
+        self::assertSame([], $this->documents->findFormatsByInvoiceIds([]));
+    }
+
+    public function test_it_finds_no_invoices_or_formats_of_another_organization(): void
+    {
+        $this->switchToNewOrganization();
+        $foreign = PurchaseInvoiceMother::imported();
+        $this->invoices->add($foreign, PurchaseInvoiceDocument::of($foreign, self::XML, 'FA (3)', new \DateTimeImmutable('2026-11-12 21:00:05')));
+        $this->entityManager->clear();
+
+        $this->switchToNewOrganization();
+
+        self::assertSame([], $this->invoices->findByFilter(new PurchaseInvoiceFilter(BusinessPeriod::fromStrings('2026-11-01', '2026-11-30'))));
+        self::assertSame([], $this->documents->findFormatsByInvoiceIds([$foreign->getId()]));
+    }
+
+    private function add(PurchaseInvoice $invoice): PurchaseInvoice
+    {
+        $this->invoices->add($invoice);
+
+        return $invoice;
+    }
+
+    /**
+     * @param list<PurchaseInvoice> $invoices
+     *
+     * @return list<string>
+     */
+    private static function idsOf(array $invoices): array
+    {
+        return array_map(static fn (PurchaseInvoice $invoice): string => $invoice->getId()->toRfc4122(), $invoices);
     }
 
     private function switchToNewOrganization(): Organization

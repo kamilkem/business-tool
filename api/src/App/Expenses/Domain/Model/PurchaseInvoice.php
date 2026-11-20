@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Expenses\Domain\Model;
 
+use App\Expenses\Domain\Exception\ExpenseCategoryArchivedException;
+use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Income\Domain\Model\VatRates;
+use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
 use App\Shared\Domain\Time\BusinessDate;
@@ -100,7 +103,7 @@ class PurchaseInvoice implements TenantAwareInterface
     #[ORM\OneToMany(targetEntity: PurchaseInvoiceVatLine::class, mappedBy: 'purchaseInvoice', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $vatLines;
 
-    /** The expense category (#48); null until categorised. */
+    /** The expense category (#48); null until categorized (categorize()). */
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     private ?Uuid $categoryId = null;
 
@@ -244,6 +247,35 @@ class PurchaseInvoice implements TenantAwareInterface
         usort($lines, static fn (PurchaseInvoiceVatAmount $a, PurchaseInvoiceVatAmount $b): int => VatRates::compare($a->rate, $b->rate));
 
         return $lines;
+    }
+
+    /**
+     * Sets the expense category, or clears it with null. Whatever the source, an invoice's category
+     * can always be changed. An archived category cannot be newly assigned, but an invoice that has
+     * it keeps it, so assigning its current category again changes nothing.
+     *
+     * @param ?ExpenseCategory $category a category of the invoice's organization
+     *                                   (ExpenseCategoryRepositoryInterface::findById()), or null
+     *
+     * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
+     * @throws ExpenseCategoryArchivedException     when the category is archived and not the current one
+     */
+    public function categorize(?ExpenseCategory $category, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        ExpensesAccess::assertCanManage($actorId, $actorRole);
+        if (null === $category) {
+            $this->categoryId = null;
+
+            return;
+        }
+        if (null !== $this->categoryId && $this->categoryId->equals($category->getId())) {
+            return;
+        }
+        if ($category->isArchived()) {
+            throw ExpenseCategoryArchivedException::of($category->getName());
+        }
+
+        $this->categoryId = $category->getId();
     }
 
     public function getCategoryId(): ?Uuid
