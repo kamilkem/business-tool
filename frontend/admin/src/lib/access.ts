@@ -25,6 +25,10 @@ export type Capability =
   | "income"
   /** Expenses: purchase invoices and the categories they are sorted into. */
   | "expenses"
+  /** KSeF: see the connection and test the token (ADR 0023 §5). Shown for organizations in Poland only. */
+  | "ksef"
+  /** KSeF: save or remove the token, owners only (ADR 0023 §2, ADR 0026 §5). */
+  | "ksefToken"
 
 const OWNERS_AND_MANAGERS: readonly Role[] = ["owner", "manager"]
 
@@ -36,6 +40,8 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   settings: OWNERS_AND_MANAGERS,
   income: OWNERS_AND_MANAGERS,
   expenses: OWNERS_AND_MANAGERS,
+  ksef: OWNERS_AND_MANAGERS,
+  ksefToken: ["owner"],
 }
 
 /** Whether the role may use the capability. No role (no organization selected) may use none. */

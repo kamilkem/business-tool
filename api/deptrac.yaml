@@ -12,7 +12,16 @@ deptrac:
                 -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Domain\\#' }
         -   name: Application
             collectors:
-                -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Application\\#' }
+                -   type: bool
+                    must:
+                        -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Application\\#' }
+                    must_not:
+                        -   { type: classNameRegex, value: '#^App\\Secret\\Application\\Query\\RevealOrganizationSecret\\#' }
+        # A secret's plaintext (RevealOrganizationSecretQuery, RevealedSecretView) is for consumers'
+        # Application code only: Ui may not depend on it, so no response can carry a value (ADR 0026 §5).
+        -   name: SecretReveal
+            collectors:
+                -   { type: classNameRegex, value: '#^App\\Secret\\Application\\Query\\RevealOrganizationSecret\\#' }
         -   name: Infrastructure
             collectors:
                 -   { type: classNameRegex, value: '#^App\\[A-Za-z]+\\Infrastructure\\#' }
@@ -46,11 +55,17 @@ deptrac:
         Application:
             - Domain
             - Application
+            - SecretReveal
+            - Symfony
+        SecretReveal:
+            - Domain
+            - Application
             - Symfony
         # Infrastructure may depend on anything except Ui.
         Infrastructure:
             - Domain
             - Application
+            - SecretReveal
             - Infrastructure
             - Symfony
             - Doctrine

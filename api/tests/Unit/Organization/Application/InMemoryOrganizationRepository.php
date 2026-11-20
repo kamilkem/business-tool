@@ -32,6 +32,14 @@ final class InMemoryOrganizationRepository implements OrganizationRepositoryInte
         return $organizations;
     }
 
+    public function findAll(): array
+    {
+        $organizations = array_values($this->byId);
+        usort($organizations, static fn (Organization $a, Organization $b): int => $a->getId()->toRfc4122() <=> $b->getId()->toRfc4122());
+
+        return $organizations;
+    }
+
     public function add(Organization $organization): void
     {
         $this->byId[$organization->getId()->toRfc4122()] = $organization;

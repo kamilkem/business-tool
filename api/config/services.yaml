@@ -51,5 +51,21 @@ services:
         exclude:
             - '../src/App/Ksef/Domain/Model/'
 
+    # Per-organization secrets encrypted under the application keyring (ADR 0026).
+    App\Secret\:
+        resource: '../src/App/Secret/'
+        exclude:
+            - '../src/App/Secret/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'
+
+when@test:
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+        # For tests/Functional/Ksef/KsefClientWiringTest (the port is the in-memory KSeF in tests,
+        # config/packages/http_client.yaml). Here because this file re-registers App\Ksef\ privately.
+        App\Ksef\Infrastructure\Http\HttpKsefClient:
+            public: true
