@@ -1,8 +1,19 @@
 import { useState } from "react"
 import { unwrap } from "@business-tool/api-client"
-import { DownloadIcon } from "lucide-react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { DownloadIcon, LockIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@business-tool/ui/components/alert-dialog"
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@business-tool/ui/components/sheet"
@@ -15,36 +26,35 @@ import { cn } from "@business-tool/ui/lib/utils"
 import { ExpenseCategorySelect } from "@/components/expense-category-select"
 import { api } from "@/lib/api"
 import type { ExpenseCategory } from "@/lib/expense-categories"
+import { isEditable } from "@/lib/expense-form"
 import { type Expense, documentFileName, isCorrection, kindLabel, sourceLabel, vatRateLabel } from "@/lib/expenses"
 
-/**
- * One expense in a drawer: what the invoice says, its VAT lines, where it came from, its category,
- * and the original document (the local copy, never fetched from KSeF again).
- */
-export function ExpenseSheet({
-  expense,
-  activeCategories,
-  categorizing,
-  onCategorize,
-  onClose,
-}: {
-  expense: Expense | null
+interface ExpenseActions {
+  organizationId: string
   activeCategories: readonly ExpenseCategory[]
   categorizing: boolean
   onCategorize: (expense: Expense, categoryId: string | null) => void
+  /** Opens the form for an expense entered by hand. */
+  onEdit: (expense: Expense) => void
+}
+
+/**
+ * One expense in a drawer: what the invoice says, its VAT lines, where it came from, its category,
+ * and the original document (the local copy, never fetched from KSeF again). An expense entered by
+ * hand can be edited or deleted here; an imported one only categorized (#58).
+ */
+export function ExpenseSheet({
+  expense,
+  onClose,
+  ...actions
+}: ExpenseActions & {
+  expense: Expense | null
   onClose: () => void
 }) {
   return (
     <Sheet open={expense !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
-        {expense && (
-          <ExpenseDetails
-            expense={expense}
-            activeCategories={activeCategories}
-            categorizing={categorizing}
-            onCategorize={onCategorize}
-          />
-        )}
+        {expense && <ExpenseDetails expense={expense} onDeleted={onClose} {...actions} />}
       </SheetContent>
     </Sheet>
   )
@@ -52,15 +62,13 @@ export function ExpenseSheet({
 
 function ExpenseDetails({
   expense,
+  organizationId,
   activeCategories,
   categorizing,
   onCategorize,
-}: {
-  expense: Expense
-  activeCategories: readonly ExpenseCategory[]
-  categorizing: boolean
-  onCategorize: (expense: Expense, categoryId: string | null) => void
-}) {
+  onEdit,
+  onDeleted,
+}: ExpenseActions & { expense: Expense; onDeleted: () => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
   const money = (minor: MinorUnits) => formatMoney(minor, expense.currency, locale)
@@ -82,6 +90,14 @@ function ExpenseDetails({
         <p className={cn("text-2xl font-semibold tabular-nums", expense.grossTotal < 0 && "text-destructive")}>
           {money(expense.grossTotal)}
         </p>
+        {isEditable(expense) ? (
+          <ManualExpenseActions expense={expense} organizationId={organizationId} onEdit={onEdit} onDeleted={onDeleted} />
+        ) : (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <LockIcon className="size-3.5" />
+            Imported from {sourceLabel(expense.source)}: only the category can be changed.
+          </p>
+        )}
       </SheetHeader>
 
       <div className="flex flex-col gap-6 p-4">
@@ -183,6 +199,71 @@ function ExpenseDetails({
         </section>
       </div>
     </>
+  )
+}
+
+/** Edit and Delete of an expense entered by hand (DELETE /expenses/{id} removes it for good). */
+function ManualExpenseActions({
+  expense,
+  organizationId,
+  onEdit,
+  onDeleted,
+}: {
+  expense: Expense
+  organizationId: string
+  onEdit: (expense: Expense) => void
+  onDeleted: () => void
+}) {
+  const queryClient = useQueryClient()
+  const locale = useLocale()
+  const [confirm, setConfirm] = useState(false)
+
+  const remove = useMutation({
+    mutationFn: () => unwrap(api.DELETE("/api/expenses/{id}", { params: { path: { id: expense.id } } })),
+    onSuccess: async () => {
+      setConfirm(false)
+      onDeleted()
+      toast.success("Expense deleted", { description: expense.sellerName })
+      await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
+    },
+    onError: (error) => toast.error("Could not delete the expense", { description: error.message }),
+  })
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button variant="outline" size="sm" onClick={() => onEdit(expense)}>
+        <PencilIcon />
+        Edit
+      </Button>
+      <Button variant="ghost" size="sm" className="text-destructive" disabled={remove.isPending} onClick={() => setConfirm(true)}>
+        <Trash2Icon />
+        Delete
+      </Button>
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete the expense from {expense.sellerName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {formatMoney(expense.grossTotal, expense.currency, locale)} leaves the period's totals. A deleted expense
+              can't be restored; you can enter it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                remove.mutate()
+              }}
+            >
+              {remove.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   )
 }
 
