@@ -10,8 +10,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Who may see and change pay rates and payroll runs (ADR 0027 §10): owners and managers manage
- * everyone's rates, their own included, and prepare runs; only owners approve and reopen runs;
- * employees read their own rates and paychecks only. The caller passes the role of an active member (ADR 0014).
+ * everyone's rates, their own included, and prepare runs; only owners approve and reopen runs and
+ * mark paychecks paid; employees read their own rates and paychecks only. The caller passes the role
+ * of an active member (ADR 0014).
  * Fixed in code for now; a per-organization setting is a later feature (#139).
  */
 final class PayrollAccess
@@ -45,6 +46,14 @@ final class PayrollAccess
     {
         if (MembershipRole::Owner !== $actorRole) {
             throw PayrollAccessForbiddenException::toApprove($actorId->toRfc4122());
+        }
+    }
+
+    /** Marking paychecks paid and undoing the mark: owners only (ADR 0027 §9–10). */
+    public static function assertCanPay(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        if (MembershipRole::Owner !== $actorRole) {
+            throw PayrollAccessForbiddenException::toPay($actorId->toRfc4122());
         }
     }
 }

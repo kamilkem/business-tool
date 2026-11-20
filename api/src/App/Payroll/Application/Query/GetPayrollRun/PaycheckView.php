@@ -24,6 +24,12 @@ final readonly class PaycheckView
         public int $linesWithoutRate,
         public array $lines,
         public array $adjustments,
+        /** YYYY-MM-DD; null while not marked paid. */
+        public ?string $paidOn,
+        /** 'cash' or 'transfer'; null while not marked paid. */
+        public ?string $paymentMethod,
+        public ?string $paidMarkedBy,
+        public ?\DateTimeImmutable $paidMarkedAt,
     ) {
     }
 
@@ -39,6 +45,10 @@ final readonly class PaycheckView
             $paycheck->linesWithoutRate(),
             array_map(static fn (ShiftLine $line): PaycheckLineView => PaycheckLineView::of($line), $paycheck->shiftLines()),
             array_map(static fn (PaycheckAdjustment $adjustment): PaycheckAdjustmentView => PaycheckAdjustmentView::of($adjustment), $paycheck->adjustments()),
+            $paycheck->getPaidOn()?->toString(),
+            $paycheck->getPaymentMethod()?->value,
+            $paycheck->getPaidMarkedBy()?->toRfc4122(),
+            $paycheck->getPaidMarkedAt(),
         );
     }
 }

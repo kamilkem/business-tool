@@ -44,6 +44,10 @@ final readonly class PayrollRunSummaryResource
         public int $linesWithoutRate,
         /** In minor units. */
         public int $total,
+        /** How many of the paychecks counted are marked paid. */
+        public int $paidPaychecks,
+        /** Approved, and every paycheck counted is marked paid (derived). */
+        public bool $paid,
         public \DateTimeImmutable $generatedAt,
         public ?\DateTimeImmutable $approvedAt,
     ) {
@@ -62,6 +66,8 @@ final readonly class PayrollRunSummaryResource
             $view->paidSeconds,
             $view->linesWithoutRate,
             $view->total,
+            $view->paidPaychecks,
+            $view->paid,
             $view->generatedAt,
             $view->approvedAt,
         );

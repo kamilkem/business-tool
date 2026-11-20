@@ -6,6 +6,8 @@ namespace App\Payroll\Domain\Model;
 
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
+use App\Payroll\Domain\Exception\PaycheckPaymentException;
+use App\Shared\Domain\Time\BusinessDate;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -16,6 +18,8 @@ use Symfony\Component\Uid\Uuid;
  * One person's pay in a payroll run (ADR 0027 §6): a line per ended shift of the month and any
  * number of adjustments. Pay for hours is the exact sum of paid seconds × rate, divided by 3600 once
  * and rounded half up; the total adds the adjustments. Created and changed through the PayrollRun.
+ * Once the run is approved, an owner marks it paid with a business date and a method, or undoes the
+ * mark (ADR 0027 §9).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'paycheck')]
@@ -36,6 +40,21 @@ class Paycheck implements TenantAwareInterface
     #[ORM\OneToMany(targetEntity: PaycheckAdjustment::class, mappedBy: 'paycheck', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $adjustments;
+
+    /** The business date it was paid on; null while it is not marked paid. */
+    #[ORM\Column(type: 'business_date', nullable: true)]
+    private ?BusinessDate $paidOn = null;
+
+    #[ORM\Column(length: 16, nullable: true, enumType: PaymentMethod::class)]
+    private ?PaymentMethod $paymentMethod = null;
+
+    /** The owner who marked it paid. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    private ?Uuid $paidMarkedBy = null;
+
+    /** When the mark was made (not when it was paid: that is $paidOn). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $paidMarkedAt = null;
 
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'paychecks')]
@@ -96,6 +115,59 @@ class Paycheck implements TenantAwareInterface
         }
 
         return null;
+    }
+
+    /**
+     * The run checks who acts, its status and the date.
+     *
+     * @throws PaycheckPaymentException when it is marked paid already
+     */
+    public function markPaid(BusinessDate $paidOn, PaymentMethod $method, Uuid $actorId, \DateTimeImmutable $now): void
+    {
+        if ($this->isPaid()) {
+            throw PaycheckPaymentException::alreadyPaid($this->id->toRfc4122());
+        }
+        $this->paidOn = $paidOn;
+        $this->paymentMethod = $method;
+        $this->paidMarkedBy = $actorId;
+        $this->paidMarkedAt = $now;
+    }
+
+    /** @throws PaycheckPaymentException when it is not marked paid */
+    public function undoPaid(): void
+    {
+        if (!$this->isPaid()) {
+            throw PaycheckPaymentException::notPaid($this->id->toRfc4122());
+        }
+        $this->paidOn = null;
+        $this->paymentMethod = null;
+        $this->paidMarkedBy = null;
+        $this->paidMarkedAt = null;
+    }
+
+    public function isPaid(): bool
+    {
+        return null !== $this->paidOn;
+    }
+
+    public function getPaidOn(): ?BusinessDate
+    {
+        return $this->paidOn;
+    }
+
+    public function getPaymentMethod(): ?PaymentMethod
+    {
+        return $this->paymentMethod;
+    }
+
+    public function getPaidMarkedBy(): ?Uuid
+    {
+        return $this->paidMarkedBy;
+    }
+
+    public function getPaidMarkedAt(): ?\DateTimeImmutable
+    {
+        return $this->paidMarkedAt;
     }
 
     /** No shift lines and no adjustments: nothing to pay, so the run drops it. */
