@@ -19,6 +19,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
+import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
 import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
@@ -72,6 +73,11 @@ const AppTimeRoute = AppTimeRouteImport.update({
   path: '/time',
   getParentRoute: () => AppRoute,
 } as any)
+const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
+  id: '/expenses/',
+  path: '/expenses/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExpensesCategoriesRoute = AppExpensesCategoriesRouteImport.update({
   id: '/expenses/categories',
   path: '/expenses/categories',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/time': typeof AppTimeRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/registers': typeof AppIncomeRegistersRoute
+  '/expenses/': typeof AppExpensesIndexRoute
   '/income/': typeof AppIncomeIndexRoute
 }
 export interface FileRoutesByTo {
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/registers': typeof AppIncomeRegistersRoute
+  '/expenses': typeof AppExpensesIndexRoute
   '/income': typeof AppIncomeIndexRoute
 }
 export interface FileRoutesById {
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
+  '/_app/expenses/': typeof AppExpensesIndexRoute
   '/_app/income/': typeof AppIncomeIndexRoute
 }
 export interface FileRouteTypes {
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/time'
     | '/expenses/categories'
     | '/income/registers'
+    | '/expenses/'
     | '/income/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/'
     | '/expenses/categories'
     | '/income/registers'
+    | '/expenses'
     | '/income'
   id:
     | '__root__'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/expenses/categories'
     | '/_app/income/registers'
+    | '/_app/expenses/'
     | '/_app/income/'
   fileRoutesById: FileRoutesById
 }
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTimeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/expenses/': {
+      id: '/_app/expenses/'
+      path: '/expenses'
+      fullPath: '/expenses/'
+      preLoaderRoute: typeof AppExpensesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/expenses/categories': {
       id: '/_app/expenses/categories'
       path: '/expenses/categories'
@@ -290,6 +309,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
+  AppExpensesIndexRoute: typeof AppExpensesIndexRoute
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
 }
 
@@ -302,6 +322,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,
+  AppExpensesIndexRoute: AppExpensesIndexRoute,
   AppIncomeIndexRoute: AppIncomeIndexRoute,
 }
 

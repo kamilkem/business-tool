@@ -6,14 +6,24 @@ namespace Ui\Fixture;
 
 use App\Expenses\Domain\Model\DefaultExpenseCategories;
 use App\Expenses\Domain\Model\ExpenseCategory;
+use App\Expenses\Domain\Model\PurchaseInvoice;
+use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
+use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceKind;
+use App\Expenses\Domain\Model\PurchaseInvoiceSource;
+use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\Register;
 use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\VatAmount;
+use App\Ksef\Domain\Model\KsefConnection;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Secret\Domain\Model\OrganizationSecret;
+use App\Secret\Domain\Model\SecretKind;
+use App\Secret\Domain\SecretCipherInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\User\Domain\Model\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
@@ -33,15 +43,24 @@ use Symfony\Component\Uid\Uuid;
  * "Demo Bar" has the registers "Bar" and "Kitchen" with an entry for each of the last 31 days
  * (the kitchen is closed on Mondays), and a deactivated register "Terrace". Both organizations
  * have the default expense categories of their country, as a new organization gets them.
+ *
+ * "Demo Bar" (NIP 526-025-09-95) has a KSeF connection with a dev-only token whose last import
+ * succeeded, and purchase invoices of this month and the last two: imported from KSeF (with their
+ * XML, a correction with negative amounts and one in EUR) and entered by hand, some without a
+ * category. In dev, KSEF_API_URL in a git-ignored `.env.dev.local` should point at ksef.invalid,
+ * so "Import now" never reaches KSeF.
  */
 final class AppFixtures extends Fixture
 {
     public const string DEMO_PASSWORD = 'password';
 
+    private const string DEMO_BAR_NIP = '5260250995';
+
     public function __construct(
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ClockInterface $clock,
         private readonly TenantContextInterface $tenantContext,
+        private readonly SecretCipherInterface $cipher,
     ) {
     }
 
@@ -49,7 +68,7 @@ final class AppFixtures extends Fixture
     {
         $now = $this->clock->now();
         $owner = $this->user($manager, 'owner@example.com', 'Olivia', 'Owner', $now);
-        $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner, $now);
+        $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner, $now, self::DEMO_BAR_NIP);
         $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager', $now), MembershipRole::Manager, $now);
         $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee', $now), MembershipRole::Employee, $now);
         $manager->persist($bar);
@@ -64,18 +83,167 @@ final class AppFixtures extends Fixture
         $this->income($manager, $bar, $owner->getId(), $now);
         $manager->flush();
 
-        $this->expenseCategories($manager, $bar, $owner->getId(), $now);
+        $barCategories = $this->expenseCategories($manager, $bar, $owner->getId(), $now);
         $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
+
+        $this->ksefConnection($manager, $bar, $owner->getId(), $now);
+        $this->purchaseInvoices($manager, $bar, $barCategories, $owner->getId(), $now);
     }
 
     /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */
-    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    /** @return array<string, ExpenseCategory> by name */
+    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): array
     {
         $this->tenantContext->switchTo($organization);
+        $categories = [];
         foreach (DefaultExpenseCategories::forCountry($organization->getCountryCode()) as $name) {
-            $manager->persist(ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now));
+            $categories[$name] = ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now);
+            $manager->persist($categories[$name]);
         }
         $manager->flush();
+
+        return $categories;
+    }
+
+    /**
+     * A KSeF connection as an owner saves it (#49): the token is an App\Secret secret encrypted
+     * with the dev keyring, as SetOrganizationSecretHandler stores it. The last nightly import ran at 04:00 today and
+     * imported the invoices below.
+     */
+    private function ksefConnection(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        $secretId = Uuid::v7();
+        $kind = SecretKind::KsefToken;
+        $token = $this->cipher->encrypt('dev-only-ksef-token', OrganizationSecret::associatedData($organization->getId(), $secretId, $kind));
+        $manager->persist(OrganizationSecret::create($secretId, $kind, $token, $ownerId, MembershipRole::Owner, $now));
+
+        $timeZone = new \DateTimeZone($organization->getTimezone());
+        $today = BusinessDate::containing($now, $timeZone);
+        $connection = KsefConnection::connect(Uuid::v7(), $secretId, $organization->getCountryCode(), $organization->getTaxId(), $ownerId, MembershipRole::Owner, $today->previous()->previous()->startsAt($timeZone));
+        $lastRun = $today->startsAt($timeZone)->modify('+4 hours');
+        if ($lastRun > $now) {
+            $lastRun = $lastRun->modify('-1 day');
+        }
+        $connection->recordCheck($lastRun->modify('-2 days'));
+        $connection->advanceSyncCursor($lastRun);
+        $connection->recordSyncRun($lastRun, 5, 0);
+        $manager->persist($connection);
+        $manager->flush();
+    }
+
+    /**
+     * Purchase invoices of this month and the two before (#52, #54). Amounts are in grosze; the
+     * KSeF ones carry a small FA(3)-shaped XML as their document.
+     *
+     * @param array<string, ExpenseCategory> $categories by name
+     */
+    private function purchaseInvoices(ObjectManager $manager, Organization $organization, array $categories, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        $today = BusinessDate::containing($now, new \DateTimeZone($organization->getTimezone()));
+        $daysAgo = static function (int $days) use ($today): BusinessDate {
+            $date = $today;
+            for ($i = 0; $i < $days; ++$i) {
+                $date = $date->previous();
+            }
+
+            return $date;
+        };
+        $country = $organization->getCountryCode();
+        $currency = $organization->getCurrency();
+        $wholesaler = ['5213000042', 'Hurtownia Napojów Demo Sp. z o.o.'];
+        $butcher = ['6762468312', 'Zakład Mięsny Demo'];
+        $landlord = ['5272738219', 'Demo Nieruchomości S.A.'];
+
+        $imported = [
+            // [days ago, number, seller, kind, currency, lines [rate, net, vat, vatInTaxCurrency], category, corrected]
+            [2, 'FV/HN/0412', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 184_500, 42_435, null], ['8', 22_000, 1_760, null]], null, null],
+            [5, 'FV/HN/0398', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 312_040, 71_769, null]], 'Napoje', null],
+            [6, 'KOR/HN/0021', $wholesaler, PurchaseInvoiceKind::Correction, 'PLN', [['23', -12_000, -2_760, null]], 'Napoje', 'DEMO-KSEF-FV-HN-0398'],
+            [9, '118/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 96_380, 4_819, null]], null, null],
+            [12, 'FA/2026/77', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
+            [10, 'INV-DE-5521', ['DE811234567', 'Weinhandel Demo GmbH'], PurchaseInvoiceKind::Regular, 'EUR', [['23', 48_000, 11_040, 47_472]], 'Napoje', null],
+            [36, 'FV/HN/0351', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 278_900, 64_147, null], ['8', 18_500, 1_480, null]], 'Napoje', null],
+            [44, 'FA/2026/71', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
+            [61, '097/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 88_210, 4_411, null]], 'Żywność', null],
+        ];
+        foreach ($imported as [$days, $number, [$taxId, $name], $kind, $invoiceCurrency, $lines, $category, $corrected]) {
+            $details = self::invoiceDetails($number, $taxId, $name, $daysAgo($days), $kind, $invoiceCurrency, $lines, $corrected);
+            $externalId = 'DEMO-KSEF-'.strtoupper((string) preg_replace('/\W+/', '-', $number));
+            $invoice = PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, $country, $currency, $now);
+            if (null !== $category) {
+                $invoice->categorize($categories[$category], $ownerId, MembershipRole::Owner);
+            }
+            $manager->persist($invoice);
+            $manager->persist(PurchaseInvoiceDocument::of($invoice, self::fa3Xml($details, self::DEMO_BAR_NIP), 'FA (3)', $now));
+        }
+
+        $manual = [
+            // [days ago, number, seller, lines, category]
+            [3, null, [null, 'Sklep Demo (paragon)'], [['23', 4_065, 935, null], ['5', 2_381, 119, null]], null],
+            [15, 'R/2026/311', ['9512345674', 'Serwis Ekspresów Demo'], [['23', 35_000, 8_050, null]], 'Usługi'],
+            [40, null, [null, 'Drukarnia Demo (paragon)'], [['23', 12_195, 2_805, null]], 'Marketing'],
+        ];
+        foreach ($manual as [$days, $number, [$taxId, $name], $lines, $category]) {
+            $invoice = PurchaseInvoice::enter(Uuid::v7(), self::invoiceDetails($number, $taxId, $name, $daysAgo($days), PurchaseInvoiceKind::Regular, $currency, $lines, null), $country, $currency, $ownerId, MembershipRole::Owner, $now);
+            if (null !== $category) {
+                $invoice->categorize($categories[$category], $ownerId, MembershipRole::Owner);
+            }
+            $manager->persist($invoice);
+        }
+        $manager->flush();
+    }
+
+    /** @param list<array{string, int, int, ?int}> $lines [rate, net, vat, vat in the tax currency] */
+    private static function invoiceDetails(?string $number, ?string $taxId, string $name, BusinessDate $issueDate, PurchaseInvoiceKind $kind, string $currency, array $lines, ?string $corrected): PurchaseInvoiceDetails
+    {
+        $vatLines = array_map(static fn (array $line): PurchaseInvoiceVatAmount => new PurchaseInvoiceVatAmount(...$line), $lines);
+        $net = array_sum(array_column($lines, 1));
+        $vat = array_sum(array_column($lines, 2));
+
+        return new PurchaseInvoiceDetails($number, $taxId, $name, $issueDate, $kind, $currency, $net, $vat, $net + $vat, $vatLines, $corrected);
+    }
+
+    /** A short FA(3)-shaped document: enough to download and read, not a complete invoice. */
+    private static function fa3Xml(PurchaseInvoiceDetails $details, string $buyerNip): string
+    {
+        $amount = static fn (int $minor): string => number_format($minor / 100, 2, '.', '');
+        $rows = '';
+        foreach ($details->vatLines as $index => $line) {
+            $rows .= \sprintf("    <P_13_%1\$d>%2\$s</P_13_%1\$d>\n    <P_14_%1\$d>%3\$s</P_14_%1\$d>\n", $index + 1, $amount($line->net), $amount($line->vat));
+        }
+
+        return \sprintf(
+            <<<'XML'
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+                  <Naglowek>
+                    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+                    <WariantFormularza>3</WariantFormularza>
+                  </Naglowek>
+                  <Podmiot1><DaneIdentyfikacyjne><NIP>%s</NIP><Nazwa>%s</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+                  <Podmiot2><DaneIdentyfikacyjne><NIP>%s</NIP><Nazwa>Demo Bar</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+                  <Fa>
+                    <KodWaluty>%s</KodWaluty>
+                    <P_1>%s</P_1>
+                    <P_2>%s</P_2>
+                %s    <P_15>%s</P_15>
+                    <RodzajFaktury>%s</RodzajFaktury>
+                  </Fa>
+                </Faktura>
+
+                XML,
+            htmlspecialchars((string) $details->sellerTaxId, \ENT_XML1),
+            htmlspecialchars($details->sellerName, \ENT_XML1),
+            $buyerNip,
+            $details->currency,
+            $details->issueDate->toString(),
+            htmlspecialchars((string) $details->invoiceNumber, \ENT_XML1),
+            $rows,
+            $amount($details->grossTotal),
+            PurchaseInvoiceKind::Correction === $details->kind ? 'KOR' : 'VAT',
+        );
     }
 
     /**

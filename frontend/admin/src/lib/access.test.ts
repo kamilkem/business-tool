@@ -103,7 +103,7 @@ describe("modulesFor", () => {
   })
 
   it("test_it_links_expenses_to_its_categories_for_owners_and_managers_only", () => {
-    expect(modulesFor("manager").find((m) => m.key === "expenses")?.to).toBe("/expenses/categories")
+    expect(modulesFor("manager").find((m) => m.key === "expenses")?.to).toBe("/expenses")
     expect(modulesFor("employee").some((m) => m.key === "expenses")).toBe(false)
   })
 })

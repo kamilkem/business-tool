@@ -3,6 +3,7 @@ import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
+import type { ExpensesFilter } from "./expenses"
 import type { RequestsFilter } from "./shift-change-requests"
 
 export const meQuery = queryOptions({
@@ -126,3 +127,13 @@ export function invalidateRevenue(queryClient: QueryClient, organizationId: stri
     queryClient.invalidateQueries({ queryKey: ["revenue-summary", organizationId] }),
   ])
 }
+
+/**
+ * Expenses of the period by issue date, newest first, with totals per currency (GET /expenses).
+ * Category changes update every list under `["expenses", organizationId]`.
+ */
+export const expensesQuery = (organizationId: string, filter: ExpensesFilter) =>
+  queryOptions({
+    queryKey: ["expenses", organizationId, filter],
+    queryFn: () => unwrap(api.GET("/api/expenses", { params: { query: filter } })),
+  })
