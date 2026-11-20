@@ -43,6 +43,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/Expenses/Domain/Model'
                 prefix: 'App\Expenses\Domain\Model'
                 alias: AppExpenses
+            AppKsef:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/Ksef/Domain/Model'
+                prefix: 'App\Ksef\Domain\Model'
+                alias: AppKsef
+            AppSecret:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/Secret/Domain/Model'
+                prefix: 'App\Secret\Domain\Model'
+                alias: AppSecret
         filters:
             tenant:
                 class: App\Organization\Infrastructure\Doctrine\Tenant\TenantFilter

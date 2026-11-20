@@ -156,6 +156,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ksef-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The KSeF connection of the selected organization, without its token.
+         * @description Owners and managers only (403 otherwise). 404 while no KSeF token was ever saved.
+         */
+        get: operations["api_ksef-connection_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ksef-connection/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Checks the saved KSeF token against KSeF.
+         * @description Owners and managers only (403 otherwise). Authenticates with the token, asks KSeF for one day of purchase invoice metadata and ends the session; nothing is imported. The outcome is in the response, not in the status code: lastCheckedAt, lastCheckError and verifiedAt; a token KSeF refuses, or one that can no longer be decrypted, makes the status credentials_rejected. The request has no body. 404 when no token was ever saved, 409 when it was removed, 422 when KSeF is not available to the organization.
+         */
+        post: operations["api_ksef-connectiontest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ksef-connection/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Saves or replaces the KSeF token of the selected organization and checks it against KSeF.
+         * @description Owners only (403 otherwise). The organization's country must be PL and its tax ID a valid NIP (422). The token is stored encrypted, creates the connection on first use and makes it active; then it is checked against KSeF as by POST /ksef-connection/test, and the response shows the outcome (status, verifiedAt, lastCheckError). A token KSeF refuses is still saved, with the status credentials_rejected. The token never appears in a response.
+         */
+        post: operations["api_ksef-connectiontoken_post"];
+        /**
+         * Removes the KSeF token of the selected organization.
+         * @description Owners only (403 otherwise). The stored token is deleted and the connection becomes disabled: nothing is imported until a new token is saved. The import's progress is kept. 404 when no token is saved.
+         */
+        delete: operations["api_ksef-connectiontoken_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -1217,6 +1281,115 @@ export interface components {
             });
             "@id": string;
             "@type": string;
+        };
+        /**
+         * @description The KSeF connection of the organization selected by the X-Organization-Id header (ADR 0023 §3):
+         *     whether a KSeF token is saved and works, and the state of the purchase invoice import. The token is
+         *     write-only: no response ever contains it (ADR 0026 §5). Organizations in Poland with a valid NIP only.
+         */
+        KsefConnection: {
+            id: string;
+            /** @description `active`: the import runs; `credentials_rejected`: KSeF refused the token or it no longer decrypts, save a new one; `disabled`: no token. */
+            status: string;
+            /** @description Whether a KSeF token is saved. The token itself is never returned. */
+            tokenSet: boolean;
+            /**
+             * Format: date-time
+             * @description When the current token was saved; null when none is.
+             */
+            tokenSetAt: string | null;
+            /** @description The organization's NIP KSeF is used with; null when its tax ID is not a valid NIP. */
+            nip: string | null;
+            /**
+             * Format: date-time
+             * @description When KSeF last accepted the current token (a check or an import); null until then.
+             */
+            verifiedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the current token was last checked.
+             */
+            lastCheckedAt: string | null;
+            /** @description Why the last check failed (`credentials_rejected`, `token_unreadable`, `rate_limited`, `unavailable`, `request_failed`); null when it succeeded or none ran. */
+            lastCheckError: string | null;
+            lastCheckErrorMessage: string | null;
+            /**
+             * Format: date-time
+             * @description Invoices stored in KSeF before this instant are imported; null before the first import.
+             */
+            syncedUntil: string | null;
+            /** Format: date-time */
+            lastSyncAt: string | null;
+            /** Format: date-time */
+            lastSyncSucceededAt: string | null;
+            /** @description Why the last import failed (same codes as lastCheckError); null when it succeeded or none ran. */
+            lastSyncError: string | null;
+            lastSyncErrorMessage: string | null;
+            /** @description Purchase invoices imported by the last import. */
+            lastSyncImportedCount: number;
+            /** @description Invoices the last import skipped (a form other than FA(3)). */
+            lastSyncSkippedCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /**
+         * @description The KSeF connection of the organization selected by the X-Organization-Id header (ADR 0023 §3):
+         *     whether a KSeF token is saved and works, and the state of the purchase invoice import. The token is
+         *     write-only: no response ever contains it (ADR 0026 §5). Organizations in Poland with a valid NIP only.
+         */
+        "KsefConnection.SaveKsefTokenInput": {
+            /** @description The KSeF token generated in KSeF for the organization's NIP, with the InvoiceRead permission. Stored as given. */
+            token: string;
+        };
+        /**
+         * @description The KSeF connection of the organization selected by the X-Organization-Id header (ADR 0023 §3):
+         *     whether a KSeF token is saved and works, and the state of the purchase invoice import. The token is
+         *     write-only: no response ever contains it (ADR 0026 §5). Organizations in Poland with a valid NIP only.
+         */
+        "KsefConnection.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description `active`: the import runs; `credentials_rejected`: KSeF refused the token or it no longer decrypts, save a new one; `disabled`: no token. */
+            status: string;
+            /** @description Whether a KSeF token is saved. The token itself is never returned. */
+            tokenSet: boolean;
+            /**
+             * Format: date-time
+             * @description When the current token was saved; null when none is.
+             */
+            tokenSetAt: string | null;
+            /** @description The organization's NIP KSeF is used with; null when its tax ID is not a valid NIP. */
+            nip: string | null;
+            /**
+             * Format: date-time
+             * @description When KSeF last accepted the current token (a check or an import); null until then.
+             */
+            verifiedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the current token was last checked.
+             */
+            lastCheckedAt: string | null;
+            /** @description Why the last check failed (`credentials_rejected`, `token_unreadable`, `rate_limited`, `unavailable`, `request_failed`); null when it succeeded or none ran. */
+            lastCheckError: string | null;
+            lastCheckErrorMessage: string | null;
+            /**
+             * Format: date-time
+             * @description Invoices stored in KSeF before this instant are imported; null before the first import.
+             */
+            syncedUntil: string | null;
+            /** Format: date-time */
+            lastSyncAt: string | null;
+            /** Format: date-time */
+            lastSyncSucceededAt: string | null;
+            /** @description Why the last import failed (same codes as lastCheckError); null when it succeeded or none ran. */
+            lastSyncError: string | null;
+            lastSyncErrorMessage: string | null;
+            /** @description Purchase invoices imported by the last import. */
+            lastSyncImportedCount: number;
+            /** @description Invoices the last import skipped (a form other than FA(3)). */
+            lastSyncSkippedCount: number;
+            /** Format: date-time */
+            createdAt: string;
         };
         /** @description The signed-in user and the organizations they can access. */
         Me: {
@@ -2594,6 +2767,193 @@ export interface operations {
             };
             /** @description A date is missing or invalid, to is before from, the period is too long, or a filter is invalid. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_ksef-connection_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KsefConnection resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["KsefConnection.jsonld"];
+                    "application/json": components["schemas"]["KsefConnection"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The organization has no KSeF connection yet. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_ksef-connectiontest_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection with the outcome of the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["KsefConnection.jsonld"];
+                    "application/json": components["schemas"]["KsefConnection"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The organization has no KSeF connection yet. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The KSeF token was removed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KSeF is not available to the organization (country other than PL, or no valid NIP). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_ksef-connectiontoken_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new KsefConnection resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["KsefConnection.SaveKsefTokenInput"];
+                "application/json": components["schemas"]["KsefConnection.SaveKsefTokenInput"];
+            };
+        };
+        responses: {
+            /** @description The connection after saving and checking the token. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["KsefConnection.jsonld"];
+                    "application/json": components["schemas"]["KsefConnection"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The token is missing or blank, or KSeF is not available to the organization (country other than PL, or no valid NIP). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_ksef-connectiontoken_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The token was removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The organization has no KSeF token saved. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

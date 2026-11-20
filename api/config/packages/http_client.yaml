@@ -17,7 +17,10 @@ when@test:
 
     services:
         App\Tests\Fixtures\NoNetworkResponseFactory: ~
-        # Nothing uses the port until the sync (#52); kept for tests/Functional/Ksef/KsefClientWiringTest.
+        # API tests talk to the in-memory KSeF (adr/0023 §8) and set it up through the container
+        # (with the client's kernel reboot disabled, as it keeps its state in the service).
+        App\Tests\Fixtures\Ksef\InMemoryKsefClient:
+            public: true
         App\Ksef\Domain\KsefClientInterface:
-            alias: App\Ksef\Infrastructure\Http\HttpKsefClient
+            alias: App\Tests\Fixtures\Ksef\InMemoryKsefClient
             public: true

@@ -36,6 +36,12 @@ final class OrganizationRepository extends ServiceEntityRepository implements Or
             ->getResult();
     }
 
+    public function findAll(): array
+    {
+        /** @var list<Organization> */
+        return $this->createQueryBuilder('o')->orderBy('o.id')->getQuery()->getResult();
+    }
+
     public function add(Organization $organization): void
     {
         $this->getEntityManager()->persist($organization);

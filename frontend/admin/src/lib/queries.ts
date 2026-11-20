@@ -1,4 +1,4 @@
-import { unwrap } from "@business-tool/api-client"
+import { ApiError, unwrap } from "@business-tool/api-client"
 import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
@@ -24,6 +24,23 @@ export const organizationQuery = (id: string) =>
   queryOptions({
     queryKey: ["organizations", id],
     queryFn: () => unwrap(api.GET("/api/organizations/{id}", { params: { path: { id } } })),
+  })
+
+/**
+ * The organization's KSeF connection, never its token; null while no token was ever saved (404).
+ * The id keys the cache: the API answers for the organization in the X-Organization-Id header.
+ */
+export const ksefConnectionQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["ksef-connection", organizationId],
+    queryFn: async () => {
+      try {
+        return await unwrap(api.GET("/api/ksef-connection"))
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null
+        throw error
+      }
+    },
   })
 
 /** Members of the organization; the id keys the cache so organizations never share it. */

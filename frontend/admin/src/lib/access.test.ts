@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses"]
+const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses", "ksef"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {
@@ -34,9 +34,15 @@ describe("can", () => {
   })
 
   it("test_it_lets_employees_use_no_admin_screen", () => {
-    for (const capability of CAPABILITIES) {
+    for (const capability of [...CAPABILITIES, "ksefToken" as const]) {
       expect(can("employee", capability)).toBe(false)
     }
+  })
+
+  it("test_it_lets_only_owners_save_or_remove_the_ksef_token", () => {
+    expect(can("owner", "ksefToken")).toBe(true)
+    expect(can("manager", "ksefToken")).toBe(false)
+    expect(can(null, "ksefToken")).toBe(false)
   })
 
   it("test_it_lets_no_role_use_anything_when_no_organization_is_selected", () => {

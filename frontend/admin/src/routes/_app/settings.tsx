@@ -9,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@busi
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
 
+import { KsefConnectionCard } from "@/components/ksef-connection-card"
 import { api } from "@/lib/api"
-import { requireCapability } from "@/lib/access"
+import { can, requireCapability } from "@/lib/access"
+import { ksefAvailableIn } from "@/lib/ksef"
 import { organizationQuery, refetchMe } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
@@ -62,7 +64,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Organization settings</CardTitle>
@@ -106,6 +108,9 @@ function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      {ksefAvailableIn(organization.countryCode) && can(membership.role, "ksef") && (
+        <KsefConnectionCard membership={membership} />
+      )}
     </div>
   )
 }
