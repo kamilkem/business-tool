@@ -25,14 +25,14 @@ import {
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 
 import { ExpenseCategoryDialog } from "@/components/expense-category-dialog"
+import { ExpensesNav } from "@/components/expenses-nav"
 import { api } from "@/lib/api"
 import { requireCapability } from "@/lib/access"
 import { type ExpenseCategory, splitCategories, withCategory } from "@/lib/expense-categories"
 import { expenseCategoriesQuery } from "@/lib/queries"
 
 /*
- * Expense categories of the Expenses module. The path /expenses/categories is stable: the
- * Expenses list (#56) links here.
+ * Expense categories of the Expenses module, next to the invoices (/expenses) in ExpensesNav.
  */
 export const Route = createFileRoute("/_app/expenses/categories")({
   beforeLoad: requireCapability("expenses"),
@@ -93,11 +93,14 @@ function ExpenseCategoriesPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Expense categories</h1>
-          <p className="text-sm text-muted-foreground">
-            What expenses are for, such as rent or drinks. Purchase invoices are sorted into them.
-          </p>
+        <div className="flex flex-col gap-3">
+          <ExpensesNav />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Expense categories</h1>
+            <p className="text-sm text-muted-foreground">
+              What expenses are for, such as rent or drinks. Purchase invoices are sorted into them.
+            </p>
+          </div>
         </div>
         <Button onClick={openAdd}>
           <PlusIcon />

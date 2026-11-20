@@ -89,7 +89,8 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
   const busy = save.isPending || test.isPending || remove.isPending
 
   return (
-    <Card>
+    // The Expenses page links here (#ksef) when the token was rejected.
+    <Card id="ksef" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>KSeF</CardTitle>
         <CardDescription>
