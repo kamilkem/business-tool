@@ -108,5 +108,10 @@ api_platform:
         App\Secret\Domain\Exception\OrganizationSecretNotFoundException: 404
         # Consumers record an unreadable secret as rejected credentials (adr/0026 §7); mapped in case one escapes.
         App\Secret\Domain\Exception\SecretUnreadableException: 409
+        App\Payroll\Domain\Exception\PayrollAccessForbiddenException: 403
+        App\Payroll\Domain\Exception\InvalidPayRateException: 422
+        App\Payroll\Domain\Exception\PayRateDateTakenException: 409
+        App\Payroll\Domain\Exception\PayRateNotFoundException: 404
+        App\Payroll\Domain\Exception\PayRatePeriodLockedException: 409
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422
