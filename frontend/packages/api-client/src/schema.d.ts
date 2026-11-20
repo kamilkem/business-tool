@@ -496,6 +496,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/my-pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in member's own hours and gross pay in a month.
+         * @description Always the signed-in member's own, whatever their role. When an approved payroll run covers the month, its paycheck (status `approved`: paid, possibly rounded, time, adjustments and total; all 0 without a paycheck). Otherwise an estimate (status `estimate`): the member's ended shifts of the month (a shift belongs to the business date it started on) at the rate of each shift's date in the organization's currency, exact time, no adjustments; open shifts are counted when they end, and shifts without a rate are counted in `shiftsWithoutRate` and not paid. A month after the current one, or one that is not YYYY-MM, is a 422.
+         */
+        get: operations["api_my-pay_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/organizations": {
         parameters: {
             query?: never;
@@ -2077,6 +2097,88 @@ export interface components {
              * @description When the person's access was removed; null for an active member.
              */
             deactivatedAt: string | null;
+        };
+        /**
+         * @description The signed-in member's own hours and gross pay in a month of the organization selected by the
+         *     X-Organization-Id header (ADR 0027 §10, #66), for the timeclock.
+         */
+        MyPay: {
+            /** @description The calendar month (YYYY-MM). */
+            month: string;
+            /** @description Its first business date, YYYY-MM-DD. */
+            firstDate: string;
+            /** @description Its last business date, YYYY-MM-DD. */
+            lastDate: string;
+            /**
+             * @description `approved`: the paycheck of an approved payroll run; `estimate`: computed from the shifts and rates so far.
+             * @enum {string}
+             */
+            status: "estimate" | "approved";
+            /** @description ISO 4217: the approved run's, or the organization's for an estimate. */
+            currency: string;
+            /** @description Ended shifts counted. */
+            shifts: number;
+            /** @description Their real length. */
+            seconds: number;
+            /** @description The paid length: as rounded by the approved run; the real length for an estimate. */
+            paidSeconds: number;
+            /** @description Ended shifts with no rate for their date: not in the pay until a rate is set. */
+            shiftsWithoutRate: number;
+            /** @description Shifts still open, counted when they end (always 0 when approved). */
+            openShifts: number;
+            /** @description Gross pay for the hours in minor units. */
+            payForHours: number;
+            /** @description Bonuses and deductions of an approved paycheck; none in an estimate. */
+            adjustments: components["schemas"]["PayrollRunAdjustment"][];
+            adjustmentsTotal: number;
+            /** @description Gross total in minor units: pay for hours plus adjustments. */
+            total: number;
+            /**
+             * Format: date-time
+             * @description When the run was approved; null for an estimate.
+             */
+            approvedAt: string | null;
+        };
+        /**
+         * @description The signed-in member's own hours and gross pay in a month of the organization selected by the
+         *     X-Organization-Id header (ADR 0027 §10, #66), for the timeclock.
+         */
+        "MyPay.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description The calendar month (YYYY-MM). */
+            month: string;
+            /** @description Its first business date, YYYY-MM-DD. */
+            firstDate: string;
+            /** @description Its last business date, YYYY-MM-DD. */
+            lastDate: string;
+            /**
+             * @description `approved`: the paycheck of an approved payroll run; `estimate`: computed from the shifts and rates so far.
+             * @enum {string}
+             */
+            status: "estimate" | "approved";
+            /** @description ISO 4217: the approved run's, or the organization's for an estimate. */
+            currency: string;
+            /** @description Ended shifts counted. */
+            shifts: number;
+            /** @description Their real length. */
+            seconds: number;
+            /** @description The paid length: as rounded by the approved run; the real length for an estimate. */
+            paidSeconds: number;
+            /** @description Ended shifts with no rate for their date: not in the pay until a rate is set. */
+            shiftsWithoutRate: number;
+            /** @description Shifts still open, counted when they end (always 0 when approved). */
+            openShifts: number;
+            /** @description Gross pay for the hours in minor units. */
+            payForHours: number;
+            /** @description Bonuses and deductions of an approved paycheck; none in an estimate. */
+            adjustments: components["schemas"]["PayrollRunAdjustment.jsonld"][];
+            adjustmentsTotal: number;
+            /** @description Gross total in minor units: pay for hours plus adjustments. */
+            total: number;
+            /**
+             * Format: date-time
+             * @description When the run was approved; null for an estimate.
+             */
+            approvedAt: string | null;
         };
         /** @description Organizations the signed-in user belongs to. */
         Organization: {
@@ -4940,6 +5042,48 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_my-pay_get": {
+        parameters: {
+            query?: {
+                /** @description The calendar month (YYYY-MM); the current one in the organization's time zone by default. */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MyPay resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["MyPay.jsonld"];
+                    "application/json": components["schemas"]["MyPay"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The month is not YYYY-MM, or has not started yet. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
