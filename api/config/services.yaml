@@ -14,6 +14,8 @@ services:
             tags: [{ name: messenger.message_handler, bus: messenger.bus.query }]
         App\Shared\Domain\Event\EventHandlerInterface:
             tags: [{ name: messenger.message_handler, bus: messenger.bus.event }]
+        App\Shared\Application\Job\JobHandlerInterface:
+            tags: [{ name: messenger.message_handler, bus: messenger.bus.job }]
 
     App\Shared\:
         resource: '../src/App/Shared/'

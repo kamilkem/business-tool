@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Ksef\Domain\Model;
 
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
+use App\Ksef\Domain\Exception\KsefImportTooSoonException;
 use App\Ksef\Domain\Exception\KsefNotAvailableException;
+use App\Ksef\Domain\Exception\KsefTokenNotSetException;
+use App\Ksef\Domain\Exception\KsefTokenRejectedException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
+use App\Shared\Domain\Time\BusinessDate;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -27,6 +31,9 @@ class KsefConnection implements TenantAwareInterface
     use TenantAwareTrait;
 
     public const int ERROR_MESSAGE_MAX_LENGTH = 1000;
+
+    /** "Import now" is accepted at most once in this many minutes (ADR 0023 §5). */
+    public const int IMPORT_REQUEST_INTERVAL_MINUTES = 15;
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -77,6 +84,14 @@ class KsefConnection implements TenantAwareInterface
 
     #[ORM\Column]
     private int $lastSyncSkippedCount = 0;
+
+    /** After a 429: KSeF's Retry-After; no run talks to KSeF before it (ADR 0023 §5). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $syncRetryNotBefore = null;
+
+    /** When an owner or manager last asked for "Import now". */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastImportRequestedAt = null;
 
     private function __construct(Uuid $id, Uuid $secretId, \DateTimeImmutable $createdAt)
     {
@@ -152,25 +167,107 @@ class KsefConnection implements TenantAwareInterface
     }
 
     /**
-     * The outcome of one sync run (#52): the cursor it reached, what it imported and skipped, and the
-     * error that ended it, if any. A rejected or unreadable token stops further runs until the owner
-     * saves a new one (ADR 0023 §5).
+     * Whether a run may talk to KSeF now: a token is saved and was not rejected, and KSeF's
+     * Retry-After after a 429 has passed.
      */
-    public function recordSyncRun(\DateTimeImmutable $ranAt, ?\DateTimeImmutable $cursor, int $imported, int $skipped, ?KsefErrorCode $error = null, ?string $errorMessage = null): void
+    public function canSync(\DateTimeImmutable $now): bool
     {
+        return KsefConnectionStatus::Active === $this->status
+            && null !== $this->secretId
+            && (null === $this->syncRetryNotBefore || $this->syncRetryNotBefore <= $now);
+    }
+
+    /**
+     * Where the next run starts (ADR 0023 §4): the cursor, or before the first run the first day of
+     * the month before the one the connection was created in, in the organization's time zone.
+     */
+    public function syncFrom(\DateTimeZone $timeZone): \DateTimeImmutable
+    {
+        if (null !== $this->syncCursor) {
+            return $this->syncCursor;
+        }
+
+        $created = BusinessDate::containing($this->createdAt, $timeZone);
+        $previousMonth = BusinessDate::of($created->year, $created->month, 1)->previous();
+
+        return BusinessDate::of($previousMonth->year, $previousMonth->month, 1)->startsAt($timeZone)->setTimezone(new \DateTimeZone('UTC'));
+    }
+
+    /**
+     * Every invoice stored in KSeF before this instant is imported (or skipped): after each invoice
+     * and after each complete window (ADR 0023 §4, ADR 0025 §3). The cursor never moves back. It is
+     * kept to the whole second, rounded down: the column has no fractions and the database would
+     * round up, past invoices not imported yet.
+     */
+    public function advanceSyncCursor(\DateTimeImmutable $cursor): void
+    {
+        $cursor = $cursor->setTimezone(new \DateTimeZone('UTC'));
+        $cursor = $cursor->setTime((int) $cursor->format('H'), (int) $cursor->format('i'), (int) $cursor->format('s'));
+        if (null === $this->syncCursor || $cursor > $this->syncCursor) {
+            $this->syncCursor = $cursor;
+        }
+    }
+
+    /**
+     * The outcome of one sync run: what it imported and skipped, and the error that ended it, if any
+     * (the cursor moved during the run, advanceSyncCursor()). A rejected or unreadable token stops
+     * further runs until the owner saves a new one; after a 429 no run starts before
+     * `$retryNotBefore` (ADR 0023 §5). A run that only skipped unreadable invoices completed.
+     */
+    public function recordSyncRun(
+        \DateTimeImmutable $ranAt,
+        int $imported,
+        int $skipped,
+        ?KsefErrorCode $error = null,
+        ?string $errorMessage = null,
+        ?\DateTimeImmutable $retryNotBefore = null,
+    ): void {
         $this->lastSyncAt = $ranAt;
-        $this->syncCursor = $cursor;
         $this->lastSyncImportedCount = $imported;
         $this->lastSyncSkippedCount = $skipped;
         $this->lastSyncError = $error;
         $this->lastSyncErrorMessage = null === $error ? null : self::truncate($errorMessage);
+        $this->syncRetryNotBefore = KsefErrorCode::RateLimited === $error ? $retryNotBefore : null;
 
-        if (null === $error) {
+        if (null === $error || !$error->endsRun()) {
             $this->lastSyncSucceededAt = $ranAt;
             $this->verifiedAt = $ranAt;
         } elseif ($error->rejectsCredentials()) {
             $this->status = KsefConnectionStatus::CredentialsRejected;
         }
+    }
+
+    /**
+     * An owner or manager asked for "Import now" (ADR 0023 §5): at most once every 15 minutes, and
+     * not while KSeF's Retry-After is running.
+     *
+     * @throws KsefConnectionForbiddenException when the actor is an employee
+     * @throws KsefNotAvailableException        when the organization is not in Poland or has no valid NIP
+     * @throws KsefTokenNotSetException         when the token was removed
+     * @throws KsefTokenRejectedException       when KSeF rejected the token: the owner saves a new one
+     * @throws KsefImportTooSoonException       within 15 minutes of the last request, or before Retry-After
+     */
+    public function requestImport(string $countryCode, ?string $taxId, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): void
+    {
+        KsefAccess::assertCanUse($actorId, $actorRole);
+        KsefAccess::nipFor($countryCode, $taxId);
+        if (null === $this->secretId || KsefConnectionStatus::Disabled === $this->status) {
+            throw KsefTokenNotSetException::create();
+        }
+        if (KsefConnectionStatus::CredentialsRejected === $this->status) {
+            throw KsefTokenRejectedException::create();
+        }
+        if (null !== $this->syncRetryNotBefore && $this->syncRetryNotBefore > $now) {
+            throw KsefImportTooSoonException::until($this->syncRetryNotBefore, $now);
+        }
+        if (null !== $this->lastImportRequestedAt) {
+            $next = $this->lastImportRequestedAt->modify(\sprintf('+%d minutes', self::IMPORT_REQUEST_INTERVAL_MINUTES));
+            if ($next > $now) {
+                throw KsefImportTooSoonException::until($next, $now);
+            }
+        }
+
+        $this->lastImportRequestedAt = $now;
     }
 
     public function getId(): Uuid
@@ -246,6 +343,16 @@ class KsefConnection implements TenantAwareInterface
     public function getLastSyncSkippedCount(): int
     {
         return $this->lastSyncSkippedCount;
+    }
+
+    public function getSyncRetryNotBefore(): ?\DateTimeImmutable
+    {
+        return $this->syncRetryNotBefore;
+    }
+
+    public function getLastImportRequestedAt(): ?\DateTimeImmutable
+    {
+        return $this->lastImportRequestedAt;
     }
 
     private function forgetChecks(): void

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Ksef\Domain;
 
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
+use App\Ksef\Domain\Exception\KsefImportTooSoonException;
 use App\Ksef\Domain\Exception\KsefNotAvailableException;
+use App\Ksef\Domain\Exception\KsefTokenNotSetException;
+use App\Ksef\Domain\Exception\KsefTokenRejectedException;
 use App\Ksef\Domain\Model\KsefAccess;
 use App\Ksef\Domain\Model\KsefConnection;
 use App\Ksef\Domain\Model\KsefConnectionStatus;
@@ -158,7 +161,8 @@ final class KsefConnectionTest extends TestCase
     public function test_it_is_disabled_without_a_token_and_keeps_the_sync_state(): void
     {
         $connection = self::connection();
-        $connection->recordSyncRun(self::now(), self::now('2026-11-13 08:00:00'), 3, 1);
+        $connection->advanceSyncCursor(self::now('2026-11-13 08:00:00'));
+        $connection->recordSyncRun(self::now(), 3, 1);
 
         $connection->tokenRemoved(Uuid::v7(), MembershipRole::Owner);
 
@@ -173,8 +177,8 @@ final class KsefConnectionTest extends TestCase
     {
         $connection = self::connection();
 
-        $connection->recordSyncRun(self::now('2026-11-13 02:00:00'), self::now('2026-11-13 01:00:00'), 5, 2);
-        $connection->recordSyncRun(self::now('2026-11-13 03:00:00'), self::now('2026-11-13 01:00:00'), 0, 0, KsefErrorCode::RateLimited, 'retry after 60 s');
+        $connection->recordSyncRun(self::now('2026-11-13 02:00:00'), 5, 2);
+        $connection->recordSyncRun(self::now('2026-11-13 03:00:00'), 0, 0, KsefErrorCode::RateLimited, 'retry after 60 s', self::now('2026-11-13 03:01:00'));
 
         self::assertSame(KsefConnectionStatus::Active, $connection->getStatus());
         self::assertEquals(self::now('2026-11-13 03:00:00'), $connection->getLastSyncAt());
@@ -183,10 +187,137 @@ final class KsefConnectionTest extends TestCase
         self::assertSame(KsefErrorCode::RateLimited, $connection->getLastSyncError());
         self::assertSame('retry after 60 s', $connection->getLastSyncErrorMessage());
         self::assertSame(0, $connection->getLastSyncSkippedCount());
+        self::assertEquals(self::now('2026-11-13 03:01:00'), $connection->getSyncRetryNotBefore());
 
-        $connection->recordSyncRun(self::now('2026-11-13 04:00:00'), self::now('2026-11-13 01:00:00'), 0, 0, KsefErrorCode::CredentialsRejected, 'revoked');
+        $connection->recordSyncRun(self::now('2026-11-13 04:00:00'), 0, 0, KsefErrorCode::CredentialsRejected, 'revoked');
 
         self::assertSame(KsefConnectionStatus::CredentialsRejected, $connection->getStatus());
+        self::assertNull($connection->getSyncRetryNotBefore());
+    }
+
+    public function test_it_counts_a_run_that_skipped_unreadable_invoices_as_completed(): void
+    {
+        $connection = self::connection();
+
+        $connection->recordSyncRun(self::now('2026-11-13 02:00:00'), 4, 1, KsefErrorCode::InvoiceUnreadable, 'Skipped 1 invoice(s)');
+
+        self::assertSame(KsefConnectionStatus::Active, $connection->getStatus());
+        self::assertEquals(self::now('2026-11-13 02:00:00'), $connection->getLastSyncSucceededAt());
+        self::assertSame(KsefErrorCode::InvoiceUnreadable, $connection->getLastSyncError());
+        self::assertSame('Skipped 1 invoice(s)', $connection->getLastSyncErrorMessage());
+    }
+
+    public function test_it_moves_the_cursor_only_forward_in_utc(): void
+    {
+        $connection = self::connection();
+
+        $connection->advanceSyncCursor(new \DateTimeImmutable('2026-11-13 08:00:00.999+01:00'));
+        $connection->advanceSyncCursor(self::now('2026-11-13 06:00:00'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-13 07:00:00 UTC'), $connection->getSyncCursor(), 'Rounded down to the second.');
+        self::assertSame('UTC', $connection->getSyncCursor()?->getTimezone()->getName());
+    }
+
+    public function test_it_starts_the_first_sync_on_the_first_day_of_the_previous_month_in_the_organizations_time_zone(): void
+    {
+        // Created on 1 November 00:30 in Warsaw, which is still 31 October in UTC.
+        $connection = KsefConnection::connect(Uuid::v7(), Uuid::v7(), 'PL', self::NIP, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-31 23:30:00 UTC'));
+
+        self::assertEquals(new \DateTimeImmutable('2026-09-30 22:00:00 UTC'), $connection->syncFrom(new \DateTimeZone('Europe/Warsaw')));
+        self::assertEquals(new \DateTimeImmutable('2026-09-01 00:00:00 UTC'), $connection->syncFrom(new \DateTimeZone('UTC')));
+
+        $connection->advanceSyncCursor(self::now('2026-11-13 06:00:00'));
+
+        self::assertEquals(self::now('2026-11-13 06:00:00'), $connection->syncFrom(new \DateTimeZone('Europe/Warsaw')));
+    }
+
+    public function test_it_syncs_only_while_active_with_a_token_and_after_retry_after(): void
+    {
+        $connection = self::connection();
+        self::assertTrue($connection->canSync(self::now()));
+
+        $connection->recordSyncRun(self::now(), 0, 0, KsefErrorCode::RateLimited, '429', self::now('2026-11-13 11:00:00'));
+        self::assertFalse($connection->canSync(self::now('2026-11-13 10:59:59')));
+        self::assertTrue($connection->canSync(self::now('2026-11-13 11:00:00')));
+
+        $connection->recordSyncRun(self::now(), 0, 0, KsefErrorCode::CredentialsRejected, 'revoked');
+        self::assertFalse($connection->canSync(self::now('2026-11-14 10:00:00')));
+
+        $connection->tokenSaved(Uuid::v7(), 'PL', self::NIP, Uuid::v7(), MembershipRole::Owner);
+        self::assertTrue($connection->canSync(self::now()));
+
+        $connection->tokenRemoved(Uuid::v7(), MembershipRole::Owner);
+        self::assertFalse($connection->canSync(self::now()));
+    }
+
+    /** @return iterable<string, array{MembershipRole}> */
+    public static function managingRoles(): iterable
+    {
+        yield 'owner' => [MembershipRole::Owner];
+        yield 'manager' => [MembershipRole::Manager];
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_accepts_import_now_once_every_15_minutes(MembershipRole $role): void
+    {
+        $connection = self::connection();
+
+        $connection->requestImport('PL', self::NIP, Uuid::v7(), $role, self::now());
+        self::assertEquals(self::now(), $connection->getLastImportRequestedAt());
+
+        try {
+            $connection->requestImport('PL', self::NIP, Uuid::v7(), $role, self::now('2026-11-13 10:14:59'));
+            self::fail('A second request within 15 minutes was accepted.');
+        } catch (KsefImportTooSoonException $e) {
+            self::assertEquals(self::now('2026-11-13 10:15:00'), $e->retryAt);
+        }
+
+        $connection->requestImport('PL', self::NIP, Uuid::v7(), $role, self::now('2026-11-13 10:15:00'));
+        self::assertEquals(self::now('2026-11-13 10:15:00'), $connection->getLastImportRequestedAt());
+    }
+
+    public function test_it_refuses_import_now_while_ksefs_retry_after_runs(): void
+    {
+        $connection = self::connection();
+        $connection->recordSyncRun(self::now(), 0, 0, KsefErrorCode::RateLimited, '429', self::now('2026-11-13 12:00:00'));
+
+        $this->expectException(KsefImportTooSoonException::class);
+
+        $connection->requestImport('PL', self::NIP, Uuid::v7(), MembershipRole::Owner, self::now('2026-11-13 11:00:00'));
+    }
+
+    public function test_it_refuses_import_now_to_employees(): void
+    {
+        $this->expectException(KsefConnectionForbiddenException::class);
+
+        self::connection()->requestImport('PL', self::NIP, Uuid::v7(), MembershipRole::Employee, self::now());
+    }
+
+    public function test_it_refuses_import_now_outside_poland(): void
+    {
+        $this->expectException(KsefNotAvailableException::class);
+
+        self::connection()->requestImport('DE', 'DE123456789', Uuid::v7(), MembershipRole::Owner, self::now());
+    }
+
+    public function test_it_refuses_import_now_without_a_token(): void
+    {
+        $connection = self::connection();
+        $connection->tokenRemoved(Uuid::v7(), MembershipRole::Owner);
+
+        $this->expectException(KsefTokenNotSetException::class);
+
+        $connection->requestImport('PL', self::NIP, Uuid::v7(), MembershipRole::Owner, self::now());
+    }
+
+    public function test_it_refuses_import_now_with_a_rejected_token(): void
+    {
+        $connection = self::connection();
+        $connection->recordCheck(self::now(), KsefErrorCode::CredentialsRejected, 'revoked');
+
+        $this->expectException(KsefTokenRejectedException::class);
+
+        $connection->requestImport('PL', self::NIP, Uuid::v7(), MembershipRole::Owner, self::now());
     }
 
     public function test_it_lets_owners_and_managers_use_the_connection_but_not_employees(): void

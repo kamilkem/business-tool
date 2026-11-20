@@ -1,6 +1,6 @@
 # 0012. Transactional e-mail: Symfony Mailer over SMTP, queued in PostgreSQL and sent by a worker
 
-Status: Accepted
+Status: Accepted (the worker also consumes the schedule, and a second worker the `jobs` queue: [0025](0025-background-jobs-scheduler-and-job-bus.md))
 
 Date: 2026-11-11
 

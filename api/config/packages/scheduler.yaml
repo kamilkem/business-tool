@@ -1,0 +1,14 @@
+# The `default` schedule (Ui\Scheduler\DefaultSchedule, adr/0025 §1) keeps its last run in PostgreSQL
+# (table `cache_items`, created by a migration), so a tick missed during a deploy fires once afterwards.
+framework:
+    cache:
+        pools:
+            cache.scheduler:
+                adapter: cache.adapter.doctrine_dbal
+
+when@test:
+    framework:
+        cache:
+            pools:
+                cache.scheduler:
+                    adapter: cache.adapter.array

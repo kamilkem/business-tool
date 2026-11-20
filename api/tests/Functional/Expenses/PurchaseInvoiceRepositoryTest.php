@@ -320,6 +320,23 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertSame([], $this->documents->findFormatsByInvoiceIds([$foreign->getId()]));
     }
 
+    public function test_it_tells_which_external_ids_of_a_source_the_organization_stores(): void
+    {
+        $this->switchToNewOrganization();
+        $this->add($this->import('K-OTHER-ORGANIZATION'));
+        $this->entityManager->clear();
+        $this->switchToNewOrganization();
+        $this->add($this->import('K-1'));
+        $this->add($this->import('K-2'));
+
+        $stored = $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Ksef, ['K-2', 'K-3', 'K-1', 'K-OTHER-ORGANIZATION', 'K-1']);
+        sort($stored);
+
+        self::assertSame(['K-1', 'K-2'], $stored);
+        self::assertSame([], $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Manual, ['K-1']));
+        self::assertSame([], $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Ksef, []));
+    }
+
     private function add(PurchaseInvoice $invoice): PurchaseInvoice
     {
         $this->invoices->add($invoice);

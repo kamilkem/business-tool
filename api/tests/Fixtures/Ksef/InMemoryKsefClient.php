@@ -37,6 +37,15 @@ final class InMemoryKsefClient implements KsefClientInterface
     /** @var list<string> */
     public array $downloaded = [];
 
+    /** When set, a query returns at most this many records and says the result is truncated. */
+    public ?int $truncateAfter = null;
+
+    /** @var array<string, true> KSeF numbers whose download does not match their hash */
+    private array $corrupted = [];
+
+    /** @var array<string, KsefException> KSeF number => failure of its download */
+    private array $downloadFailures = [];
+
     /** @var list<string> reference numbers */
     public array $endedSessions = [];
 
@@ -61,6 +70,18 @@ final class InMemoryKsefClient implements KsefClientInterface
         $this->invoices[$buyerNip][] = ['metadata' => $metadata, 'xml' => $xml];
 
         return $metadata;
+    }
+
+    /** The download of this invoice returns other content than the metadata's hash says. */
+    public function corruptDownloadOf(string $ksefNumber): void
+    {
+        $this->corrupted[$ksefNumber] = true;
+    }
+
+    /** The next download of this invoice throws this. */
+    public function failDownloadOf(string $ksefNumber, KsefException $failure): void
+    {
+        $this->downloadFailures[$ksefNumber] = $failure;
     }
 
     /** The next call, whichever it is, throws this. */
@@ -100,6 +121,10 @@ final class InMemoryKsefClient implements KsefClientInterface
         ));
         usort($matching, static fn (KsefInvoiceMetadata $a, KsefInvoiceMetadata $b): int => $a->permanentStorageDate <=> $b->permanentStorageDate);
 
+        if (null !== $this->truncateAfter && \count($matching) > $this->truncateAfter) {
+            return new KsefInvoiceMetadataPage(\array_slice($matching, 0, $this->truncateAfter), false, true, $to);
+        }
+
         $offset = $query->pageOffset * KsefPurchaseInvoiceQuery::PAGE_SIZE;
 
         return new KsefInvoiceMetadataPage(
@@ -114,12 +139,18 @@ final class InMemoryKsefClient implements KsefClientInterface
     {
         $this->throwQueuedFailure();
         $this->assertOpen($session);
+        $failure = $this->downloadFailures[$ksefNumber] ?? null;
+        if (null !== $failure) {
+            unset($this->downloadFailures[$ksefNumber]);
+
+            throw $failure;
+        }
 
         foreach ($this->invoices[$session->contextNip] ?? [] as $invoice) {
             if ($invoice['metadata']->ksefNumber === $ksefNumber) {
                 $this->downloaded[] = $ksefNumber;
 
-                return $invoice['xml'];
+                return isset($this->corrupted[$ksefNumber]) ? $invoice['xml'].' ' : $invoice['xml'];
             }
         }
 

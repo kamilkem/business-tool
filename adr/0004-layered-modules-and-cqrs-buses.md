@@ -1,6 +1,6 @@
 # 0004. Backend layout: modules per business context, Domain / Application / Infrastructure + Ui, command and query buses
 
-Status: Accepted (async transport for e-mail added by [0012](0012-transactional-email-smtp-async-queue.md))
+Status: Accepted (async transport for e-mail added by [0012](0012-transactional-email-smtp-async-queue.md), jobs bus and `jobs` transport added by [0025](0025-background-jobs-scheduler-and-job-bus.md))
 
 Date: 2026-11-10
 

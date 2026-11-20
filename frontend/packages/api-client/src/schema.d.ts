@@ -184,6 +184,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ksef-connection/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queues an import of purchase invoices from KSeF ("Import now").
+         * @description Owners and managers only (403 otherwise). Queues the organization's import on the jobs worker and returns at once; the outcome shows later in the sync status (lastSyncAt, lastSyncError, the counts). If an import is already queued or running, no second one is queued. At most once every 15 minutes, and not before syncRetryNotBefore after KSeF's rate limit (429). The request has no body. 404 when no token was ever saved, 409 when the token was removed or KSeF rejected it, 422 when KSeF is not available to the organization.
+         */
+        post: operations["api_ksef-connectionimport_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ksef-connection/test": {
         parameters: {
             query?: never;
@@ -1407,13 +1427,27 @@ export interface components {
             lastSyncAt: string | null;
             /** Format: date-time */
             lastSyncSucceededAt: string | null;
-            /** @description Why the last import failed (same codes as lastCheckError); null when it succeeded or none ran. */
+            /**
+             * @description Why the last import failed (same codes as lastCheckError), or `invoice_unreadable` when it
+             *     completed but skipped invoices it could not read (named in lastSyncErrorMessage); null when it
+             *     succeeded or none ran.
+             */
             lastSyncError: string | null;
             lastSyncErrorMessage: string | null;
             /** @description Purchase invoices imported by the last import. */
             lastSyncImportedCount: number;
-            /** @description Invoices the last import skipped (a form other than FA(3)). */
+            /** @description Invoices the last import skipped: a form other than FA(3), or unreadable. */
             lastSyncSkippedCount: number;
+            /**
+             * Format: date-time
+             * @description After KSeF's rate limit (429): no import runs before this instant; null otherwise.
+             */
+            syncRetryNotBefore: string | null;
+            /**
+             * Format: date-time
+             * @description When "Import now" was last requested; another request is accepted 15 minutes later.
+             */
+            lastImportRequestedAt: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -1466,13 +1500,27 @@ export interface components {
             lastSyncAt: string | null;
             /** Format: date-time */
             lastSyncSucceededAt: string | null;
-            /** @description Why the last import failed (same codes as lastCheckError); null when it succeeded or none ran. */
+            /**
+             * @description Why the last import failed (same codes as lastCheckError), or `invoice_unreadable` when it
+             *     completed but skipped invoices it could not read (named in lastSyncErrorMessage); null when it
+             *     succeeded or none ran.
+             */
             lastSyncError: string | null;
             lastSyncErrorMessage: string | null;
             /** @description Purchase invoices imported by the last import. */
             lastSyncImportedCount: number;
-            /** @description Invoices the last import skipped (a form other than FA(3)). */
+            /** @description Invoices the last import skipped: a form other than FA(3), or unreadable. */
             lastSyncSkippedCount: number;
+            /**
+             * Format: date-time
+             * @description After KSeF's rate limit (429): no import runs before this instant; null otherwise.
+             */
+            syncRetryNotBefore: string | null;
+            /**
+             * Format: date-time
+             * @description When "Import now" was last requested; another request is accepted 15 minutes later.
+             */
+            lastImportRequestedAt: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -2999,6 +3047,77 @@ export interface operations {
             };
             /** @description The organization has no KSeF connection yet. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_ksef-connectionimport_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The import is queued; the connection with lastImportRequestedAt. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["KsefConnection.jsonld"];
+                    "application/json": components["schemas"]["KsefConnection"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The organization has no KSeF connection yet. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The KSeF token was removed, or KSeF rejected it: the owner saves a new one. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KSeF is not available to the organization (country other than PL, or no valid NIP). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description An import was requested less than 15 minutes ago, or KSeF's rate limit is still running. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

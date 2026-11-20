@@ -6,10 +6,13 @@ namespace App\Tests\Unit\Ksef\Application;
 
 use App\Ksef\Application\Command\RemoveKsefToken\RemoveKsefTokenCommand;
 use App\Ksef\Application\Command\RemoveKsefToken\RemoveKsefTokenHandler;
+use App\Ksef\Application\Command\RequestKsefImport\RequestKsefImportCommand;
+use App\Ksef\Application\Command\RequestKsefImport\RequestKsefImportHandler;
 use App\Ksef\Application\Command\SaveKsefToken\SaveKsefTokenCommand;
 use App\Ksef\Application\Command\SaveKsefToken\SaveKsefTokenHandler;
 use App\Ksef\Application\Command\TestKsefConnection\TestKsefConnectionCommand;
 use App\Ksef\Application\Command\TestKsefConnection\TestKsefConnectionHandler;
+use App\Ksef\Application\Job\ImportKsefInvoices\ImportKsefInvoicesJob;
 use App\Ksef\Application\KsefActor;
 use App\Ksef\Application\Query\GetKsefConnection\GetKsefConnectionHandler;
 use App\Ksef\Application\Query\GetKsefConnection\GetKsefConnectionQuery;
@@ -20,10 +23,12 @@ use App\Ksef\Application\Query\GetKsefTokenTarget\KsefTokenTargetView;
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
 use App\Ksef\Domain\Exception\KsefConnectionNotFoundException;
 use App\Ksef\Domain\Exception\KsefException;
+use App\Ksef\Domain\Exception\KsefImportTooSoonException;
 use App\Ksef\Domain\Exception\KsefNotAvailableException;
 use App\Ksef\Domain\Exception\KsefRateLimitedException;
 use App\Ksef\Domain\Exception\KsefRequestFailedException;
 use App\Ksef\Domain\Exception\KsefTokenNotSetException;
+use App\Ksef\Domain\Exception\KsefTokenRejectedException;
 use App\Ksef\Domain\Exception\KsefUnavailableException;
 use App\Ksef\Domain\Model\KsefConnectionStatus;
 use App\Organization\Application\Query\GetMember\GetMemberHandler;
@@ -51,6 +56,7 @@ use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\Tests\Unit\Secret\Application\InMemoryOrganizationSecretRepository;
 use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
+use App\Tests\Unit\Shared\Application\RecordingJobBus;
 use App\Tests\Unit\Shared\Application\RecordingLogger;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\User\Domain\Model\User;
@@ -70,6 +76,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(RemoveKsefTokenHandler::class)]
 #[CoversClass(TestKsefConnectionHandler::class)]
 #[CoversClass(GetKsefConnectionHandler::class)]
+#[CoversClass(RequestKsefImportHandler::class)]
 #[CoversClass(GetKsefTokenTargetHandler::class)]
 #[CoversClass(KsefConnectionView::class)]
 #[CoversClass(KsefActor::class)]
@@ -85,6 +92,7 @@ final class KsefConnectionHandlersTest extends TestCase
     private InMemoryKsefClient $ksef;
     private SodiumSecretCipher $cipher;
     private StubQueryBus $queryBus;
+    private RecordingJobBus $jobBus;
     private Organization $organization;
     private User $owner;
     private User $manager;
@@ -96,6 +104,7 @@ final class KsefConnectionHandlersTest extends TestCase
         $this->connections = new InMemoryKsefConnectionRepository();
         $this->secrets = new InMemoryOrganizationSecretRepository();
         $this->ksef = new InMemoryKsefClient();
+        $this->jobBus = new RecordingJobBus();
         $this->ksef->acceptToken(self::NIP, self::TOKEN);
         $this->cipher = new SodiumSecretCipher('k1:'.base64_encode(str_repeat('a', SecretKeyring::keyLength())));
         $organizations = new InMemoryOrganizationRepository();
@@ -372,6 +381,78 @@ final class KsefConnectionHandlersTest extends TestCase
         $this->expectException(OrganizationNotFoundException::class);
 
         $this->test($stranger);
+    }
+
+    #[DataProvider('managers')]
+    public function test_it_queues_the_import_when_an_owner_or_manager_asks_for_it(string $actor): void
+    {
+        $this->saveToken();
+
+        $this->requestImport($this->user($actor));
+
+        $organizationId = $this->organization->getId()->toRfc4122();
+        self::assertEquals([['job' => new ImportKsefInvoicesJob($organizationId), 'deduplicationKey' => 'ksef-import:'.$organizationId]], $this->jobBus->dispatched);
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->view($this->owner)?->lastImportRequestedAt);
+    }
+
+    public function test_it_accepts_import_now_again_only_after_15_minutes(): void
+    {
+        $this->saveToken();
+        $this->requestImport($this->owner);
+        $this->clock->modify('+14 minutes');
+
+        try {
+            $this->requestImport($this->manager);
+            self::fail('Exception expected.');
+        } catch (KsefImportTooSoonException) {
+        }
+        self::assertCount(1, $this->jobBus->dispatched);
+
+        $this->clock->modify('+1 minute');
+        $this->requestImport($this->manager);
+        self::assertCount(2, $this->jobBus->dispatched);
+    }
+
+    public function test_it_refuses_import_now_to_employees(): void
+    {
+        $this->saveToken();
+
+        $this->expectException(KsefConnectionForbiddenException::class);
+
+        $this->requestImport($this->employee);
+    }
+
+    public function test_it_refuses_import_now_without_a_connection_a_token_or_with_a_rejected_one(): void
+    {
+        $attempts = [
+            KsefConnectionNotFoundException::class => function (): void {
+            },
+            KsefTokenRejectedException::class => function (): void {
+                $this->saveToken('a-token-ksef-refuses');
+                $this->test($this->owner);
+            },
+            KsefTokenNotSetException::class => function (): void {
+                $this->removeToken();
+            },
+        ];
+
+        foreach ($attempts as $expected => $arrange) {
+            $arrange();
+            try {
+                $this->requestImport($this->owner);
+                self::fail(\sprintf('%s expected.', $expected));
+            } catch (KsefException $e) {
+                self::assertInstanceOf($expected, $e);
+            }
+        }
+        self::assertSame([], $this->jobBus->dispatched);
+    }
+
+    private function requestImport(User $actor): void
+    {
+        (new RequestKsefImportHandler($this->connections, $this->queryBus, $this->jobBus, $this->clock))(
+            new RequestKsefImportCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122()),
+        );
     }
 
     private function user(string $actor): User

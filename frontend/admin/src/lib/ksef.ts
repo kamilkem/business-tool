@@ -51,6 +51,8 @@ export function ksefErrorLabel(code: string): string {
       return "KSeF could not be reached. Try again later."
     case "request_failed":
       return "KSeF answered in an unexpected way."
+    case "invoice_unreadable":
+      return "Some invoices could not be read and were skipped."
     default:
       return code
   }

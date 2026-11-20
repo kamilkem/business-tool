@@ -12,6 +12,7 @@ use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\Ksef\Application\Query\GetKsefConnection\KsefConnectionView;
 use Ui\Http\Ksef\Processor\RemoveKsefTokenProcessor;
+use Ui\Http\Ksef\Processor\RequestKsefImportProcessor;
 use Ui\Http\Ksef\Processor\SaveKsefTokenProcessor;
 use Ui\Http\Ksef\Processor\TestKsefConnectionProcessor;
 use Ui\Http\Ksef\Provider\KsefConnectionProvider;
@@ -84,6 +85,25 @@ use Ui\Http\Ksef\Provider\KsefConnectionProvider;
             read: false,
             processor: TestKsefConnectionProcessor::class,
         ),
+        new Post(
+            uriTemplate: '/ksef-connection/import',
+            status: 202,
+            openapi: new Operation(
+                summary: 'Queues an import of purchase invoices from KSeF ("Import now").',
+                description: 'Owners and managers only (403 otherwise). Queues the organization\'s import on the jobs worker and returns at once; the outcome shows later in the sync status (lastSyncAt, lastSyncError, the counts). If an import is already queued or running, no second one is queued. At most once every 15 minutes, and not before syncRetryNotBefore after KSeF\'s rate limit (429). The request has no body. 404 when no token was ever saved, 409 when the token was removed or KSeF rejected it, 422 when KSeF is not available to the organization.',
+                responses: [
+                    '202' => new Response('The import is queued; the connection with lastImportRequestedAt.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The organization has no KSeF connection yet.'),
+                    '409' => new Response('The KSeF token was removed, or KSeF rejected it: the owner saves a new one.'),
+                    '422' => new Response('KSeF is not available to the organization (country other than PL, or no valid NIP).'),
+                    '429' => new Response('An import was requested less than 15 minutes ago, or KSeF\'s rate limit is still running.'),
+                ],
+            ),
+            input: false,
+            read: false,
+            processor: RequestKsefImportProcessor::class,
+        ),
     ],
 )]
 final readonly class KsefConnectionResource
@@ -109,13 +129,21 @@ final readonly class KsefConnectionResource
         public ?\DateTimeImmutable $syncedUntil,
         public ?\DateTimeImmutable $lastSyncAt,
         public ?\DateTimeImmutable $lastSyncSucceededAt,
-        /** Why the last import failed (same codes as lastCheckError); null when it succeeded or none ran. */
+        /**
+         * Why the last import failed (same codes as lastCheckError), or `invoice_unreadable` when it
+         * completed but skipped invoices it could not read (named in lastSyncErrorMessage); null when it
+         * succeeded or none ran.
+         */
         public ?string $lastSyncError,
         public ?string $lastSyncErrorMessage,
         /** Purchase invoices imported by the last import. */
         public int $lastSyncImportedCount,
-        /** Invoices the last import skipped (a form other than FA(3)). */
+        /** Invoices the last import skipped: a form other than FA(3), or unreadable. */
         public int $lastSyncSkippedCount,
+        /** After KSeF's rate limit (429): no import runs before this instant; null otherwise. */
+        public ?\DateTimeImmutable $syncRetryNotBefore,
+        /** When "Import now" was last requested; another request is accepted 15 minutes later. */
+        public ?\DateTimeImmutable $lastImportRequestedAt,
         public \DateTimeImmutable $createdAt,
     ) {
     }
@@ -139,6 +167,8 @@ final readonly class KsefConnectionResource
             $view->lastSyncErrorMessage,
             $view->lastSyncImportedCount,
             $view->lastSyncSkippedCount,
+            $view->syncRetryNotBefore,
+            $view->lastImportRequestedAt,
             $view->createdAt,
         );
     }

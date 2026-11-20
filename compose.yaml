@@ -20,7 +20,8 @@ services:
       mailer:
         condition: service_started
 
-  # Consumes the `async` Messenger queue (queued e-mails; adr/0012). The `php` service installs
+  # Consumes the `async` Messenger queue (queued e-mails; adr/0012) and the `default` schedule's
+  # ticks (`scheduler_default`, which only queue jobs; adr/0025). The `php` service installs
   # dependencies and runs migrations, so the worker waits until they are up to date. E-mail templates
   # are rendered here, not in the request. It does not reload code: after changing PHP code or Twig
   # templates it uses, run `make worker-restart`.
@@ -32,7 +33,7 @@ services:
     command:
       - sh
       - -c
-      - until bin/console doctrine:migrations:up-to-date >/dev/null 2>&1; do sleep 2; done; exec bin/console messenger:consume async --time-limit=3600 -vv
+      - until bin/console doctrine:migrations:up-to-date >/dev/null 2>&1; do sleep 2; done; exec bin/console messenger:consume async scheduler_default --time-limit=3600 -vv
     # The image's health check probes FrankenPHP, which the worker does not run.
     healthcheck:
       disable: true
@@ -45,6 +46,29 @@ services:
         condition: service_healthy
       mailer:
         condition: service_started
+
+  # Consumes the `jobs` queue one job at a time (adr/0025): long jobs such as the KSeF import. With
+  # `--keepalive` a job that runs longer than the transport's redeliver_timeout is not handed to
+  # another consumer; `--time-limit` is checked only between jobs. `make worker-restart` restarts it.
+  jobs-worker:
+    build:
+      context: ./api
+      target: dev
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - until bin/console doctrine:migrations:up-to-date >/dev/null 2>&1; do sleep 2; done; exec bin/console messenger:consume jobs --keepalive --time-limit=3600 -vv
+    stop_grace_period: 60s
+    healthcheck:
+      disable: true
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@database:5432/${POSTGRES_DB:-app}?serverVersion=17&charset=utf8
+    volumes:
+      - ./api:/app
+    depends_on:
+      database:
+        condition: service_healthy
 
   # Local mail catcher: SMTP on mailer:1025 inside the network (MAILER_DSN in api/.env.dev), web UI
   # on http://localhost:8025 (`make mail`).

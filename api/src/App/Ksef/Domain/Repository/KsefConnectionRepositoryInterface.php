@@ -11,6 +11,14 @@ interface KsefConnectionRepositoryInterface
 {
     public function findCurrent(): ?KsefConnection;
 
+    /**
+     * Across organizations, for the scheduled fan-out only (ADR 0025 §4): the organization ids of the
+     * connections that may sync at `$now` (KsefConnection::canSync()), by id. Ids only, no tenant data.
+     *
+     * @return list<string>
+     */
+    public function findOrganizationIdsToSync(\DateTimeImmutable $now): array;
+
     public function add(KsefConnection $connection): void;
 
     /** Persists changes made to an already managed connection. */

@@ -25,6 +25,18 @@ enum KsefErrorCode: string
     /** An answer the client does not expect: a bug or an API change. */
     case RequestFailed = 'request_failed';
 
+    /**
+     * The run completed, but some FA(3) invoices could not be read or stored (the parser or Expenses
+     * refused them). They were skipped; the message names their KSeF numbers.
+     */
+    case InvoiceUnreadable = 'invoice_unreadable';
+
+    /** The run stopped because of it; otherwise (unreadable invoices) the run still completed. */
+    public function endsRun(): bool
+    {
+        return self::InvoiceUnreadable !== $this;
+    }
+
     /** The token cannot work any more: the owner has to save a new one. */
     public function rejectsCredentials(): bool
     {
