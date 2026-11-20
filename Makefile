@@ -45,9 +45,12 @@ migrate: ## Run pending migrations
 	$(CONSOLE) doctrine:migrations:migrate --no-interaction
 
 db-reset: ## Recreate the dev database and load demo fixtures
-	$(CONSOLE) doctrine:database:drop --force --if-exists
-	$(CONSOLE) doctrine:database:create
-	$(CONSOLE) doctrine:migrations:migrate --no-interaction
+	@# The queue workers hold connections (LISTEN) that block DROP DATABASE; start them again even if a step fails.
+	$(COMPOSE) stop worker jobs-worker
+	@trap '$(COMPOSE) start worker jobs-worker' EXIT; set -e; \
+	$(CONSOLE) doctrine:database:drop --force --if-exists; \
+	$(CONSOLE) doctrine:database:create; \
+	$(CONSOLE) doctrine:migrations:migrate --no-interaction; \
 	$(CONSOLE) doctrine:fixtures:load --no-interaction
 
 db-validate: ## Check that mapping and migrations match the database
