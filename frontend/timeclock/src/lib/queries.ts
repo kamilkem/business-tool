@@ -5,6 +5,7 @@ import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { api } from "./api"
 
 export type Shift = components["schemas"]["Shift"]
+export type MyPay = components["schemas"]["MyPay"]
 
 export const meQuery = queryOptions({
   queryKey: ["me"],
@@ -58,5 +59,20 @@ export function myShiftChangeRequestsQuery(organizationId: string, userId: strin
     queryKey: [...myShiftChangeRequestsKey(organizationId), { userId }],
     queryFn: async () =>
       (await unwrap(api.GET("/api/shift-change-requests"))).filter((request) => request.userId === userId),
+  })
+}
+
+/** The key of every month of the signed-in person's pay in the organization, to refresh after clocking out. */
+export const myPayKey = (organizationId: string) => ["my-pay", organizationId] as const
+
+/**
+ * The signed-in person's own hours and gross pay in a month (`"YYYY-MM"`): the approved paycheck, or
+ * an estimate. The API always answers with the signed-in person's own, whatever their role; `userId`
+ * is in the key so a cached answer is never shown to someone else signing in on the same phone.
+ */
+export function myPayQuery(organizationId: string, userId: string, month: string) {
+  return queryOptions({
+    queryKey: [...myPayKey(organizationId), { userId, month }],
+    queryFn: () => unwrap(api.GET("/api/my-pay", { params: { query: { month } } })),
   })
 }

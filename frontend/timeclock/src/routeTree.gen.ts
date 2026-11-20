@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppPayRouteImport } from './routes/_app/pay'
 import { Route as AppRequestsRouteImport } from './routes/_app/requests'
 import { Route as AppShiftsRouteImport } from './routes/_app/shifts'
 
@@ -47,6 +48,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPayRoute = AppPayRouteImport.update({
+  id: '/pay',
+  path: '/pay',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRequestsRoute = AppRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/pay': typeof AppPayRoute
   '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
 }
@@ -72,6 +79,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/pay': typeof AppPayRoute
   '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
   '/': typeof AppIndexRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/pay': typeof AppPayRoute
   '/_app/requests': typeof AppRequestsRoute
   '/_app/shifts': typeof AppShiftsRoute
   '/_app/': typeof AppIndexRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/pay'
     | '/requests'
     | '/shifts'
   fileRoutesByTo: FileRoutesByTo
@@ -103,6 +113,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/pay'
     | '/requests'
     | '/shifts'
     | '/'
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/_app/account'
+    | '/_app/pay'
     | '/_app/requests'
     | '/_app/shifts'
     | '/_app/'
@@ -169,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pay': {
+      id: '/_app/pay'
+      path: '/pay'
+      fullPath: '/pay'
+      preLoaderRoute: typeof AppPayRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/requests': {
       id: '/_app/requests'
       path: '/requests'
@@ -188,6 +207,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppPayRoute: typeof AppPayRoute
   AppRequestsRoute: typeof AppRequestsRoute
   AppShiftsRoute: typeof AppShiftsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -195,6 +215,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppPayRoute: AppPayRoute,
   AppRequestsRoute: AppRequestsRoute,
   AppShiftsRoute: AppShiftsRoute,
   AppIndexRoute: AppIndexRoute,

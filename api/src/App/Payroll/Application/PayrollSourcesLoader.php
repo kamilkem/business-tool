@@ -21,8 +21,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Asks Time tracking for a month's shifts and pending change requests, and the rate queries for the
- * rate of every member and date (ADR 0027 §5–7), in the organization's time zone and currency. The
- * caller has checked who may ask.
+ * rate of every member and date (ADR 0027 §5–7), in the organization's time zone and currency, or
+ * of one member's only (their estimate, #66). The caller has checked who may ask.
  */
 final readonly class PayrollSourcesLoader
 {
@@ -31,15 +31,16 @@ final readonly class PayrollSourcesLoader
     ) {
     }
 
-    public function load(BusinessPeriod $month, OrganizationView $organization): PayrollSources
+    public function load(BusinessPeriod $month, OrganizationView $organization, ?Uuid $userId = null): PayrollSources
     {
         $first = $month->first->toString();
         $last = $month->last->toString();
+        $user = $userId?->toRfc4122();
 
         /** @var WorkedShiftsView $worked */
-        $worked = $this->queryBus->ask(new ListWorkedShiftsQuery($first, $last, $organization->timezone));
+        $worked = $this->queryBus->ask(new ListWorkedShiftsQuery($first, $last, $organization->timezone, $user));
         /** @var list<PayRateView> $rates */
-        $rates = $this->queryBus->ask(new ListPayRatesQuery($first, $last));
+        $rates = $this->queryBus->ask(new ListPayRatesQuery($first, $last, $user));
 
         return new PayrollSources(
             $month,

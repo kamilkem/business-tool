@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, WifiOffIcon } from "lucide-react"
+import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, WalletIcon, WifiOffIcon } from "lucide-react"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -108,12 +108,20 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
                 : "Clock in"}
           </Button>
         )}
-        <Button asChild variant="ghost" className="h-11">
-          <Link to="/shifts">
-            <CalendarDaysIcon />
-            My shifts
-          </Link>
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button asChild variant="ghost" className="h-11">
+            <Link to="/shifts">
+              <CalendarDaysIcon />
+              My shifts
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="h-11">
+            <Link to="/pay">
+              <WalletIcon />
+              My pay
+            </Link>
+          </Button>
+        </div>
       </footer>
     </>
   )

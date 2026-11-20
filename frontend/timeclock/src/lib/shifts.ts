@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 
 import { api } from "./api"
-import { currentShiftQuery, meQuery, myShiftsKey } from "./queries"
+import { currentShiftQuery, meQuery, myPayKey, myShiftsKey } from "./queries"
 
 export type ClockAction = "in" | "out"
 
@@ -30,8 +30,9 @@ export function useClockMutation(organizationId: string) {
       action === "in" ? unwrap(api.POST("/api/shifts/clock-in")) : unwrap(api.POST("/api/shifts/clock-out")),
     onSuccess: (shift, action) => {
       queryClient.setQueryData(queryKey, action === "in" ? shift : null)
-      // Not awaited: the button need not wait for "My shifts", which refetches when it is next shown.
+      // Not awaited: the button need not wait for "My shifts" and "My pay", which refetch when next shown.
       void queryClient.invalidateQueries({ queryKey: myShiftsKey(organizationId) })
+      void queryClient.invalidateQueries({ queryKey: myPayKey(organizationId) })
     },
     onError: async (error) => {
       // 401: the API client is already sending the person to sign in again.
