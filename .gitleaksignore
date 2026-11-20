@@ -1,0 +1,8 @@
+# gitleaks findings that are not secrets, one fingerprint per line (commit:file:rule:line).
+# Each entry is a suppression: it needs a comment with the reason here and the
+# `intentional-exception` label on its PR (CLAUDE.md, CI).
+
+# APP_SECRET in api/.env.dev, committed by the symfony/framework-bundle Flex recipe on purpose:
+# a dev-only default, loaded only with APP_ENV=dev. api/.env leaves APP_SECRET empty and the prod
+# image sets APP_ENV=prod, so this value is never used outside local development.
+c5812306e5c2b3e35df4fdc19a329047f54addd4:api/.env.dev:generic-api-key:3
