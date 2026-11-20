@@ -34,4 +34,7 @@ interface PurchaseInvoiceRepositoryInterface
 
     /** Persists changes made to an already managed invoice. */
     public function save(PurchaseInvoice $invoice): void;
+
+    /** Deletes an invoice with its VAT lines (and its document, if it has one). */
+    public function remove(PurchaseInvoice $invoice): void;
 }

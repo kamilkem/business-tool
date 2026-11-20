@@ -169,6 +169,56 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertNotNull($this->invoices->findById($invoice->getId()));
     }
 
+    public function test_it_stores_a_manual_invoice_without_a_number_or_seller_tax_id(): void
+    {
+        $this->switchToNewOrganization();
+        $invoice = $this->add(PurchaseInvoiceMother::manual(invoiceNumber: null, sellerTaxId: null));
+        $this->entityManager->clear();
+
+        $found = $this->invoices->findById($invoice->getId()) ?? self::fail('Stored invoice expected.');
+        self::assertSame(PurchaseInvoiceSource::Manual, $found->getSource());
+        self::assertNull($found->getExternalId());
+        self::assertNull($found->getInvoiceNumber());
+        self::assertNull($found->getSellerTaxId());
+    }
+
+    public function test_it_saves_a_manual_invoices_vat_lines_changed_in_place_removed_and_added(): void
+    {
+        $organization = $this->switchToNewOrganization();
+        $invoice = $this->add(PurchaseInvoiceMother::manual(vatLines: [new PurchaseInvoiceVatAmount('8', 5_000, 400), new PurchaseInvoiceVatAmount('23', 1_000, 230)]));
+        $this->entityManager->clear();
+        // As in a request: the selected organization is managed, so the new line can refer to it.
+        $this->tenantContext->switchTo($this->entityManager->find(Organization::class, $organization->getId()) ?? self::fail('Organization expected.'));
+        $managed = $this->invoices->findById($invoice->getId()) ?? self::fail('Stored invoice expected.');
+
+        // The line at 8% stays (same primary key), 23% goes, 5% comes: one flush.
+        $managed->change(new PurchaseInvoiceDetails(null, null, 'Targ Rybny', BusinessDate::fromString('2026-11-14'), PurchaseInvoiceKind::Regular, 'PLN', 6_000, 530, 6_530, [
+            new PurchaseInvoiceVatAmount('8', 4_000, 320),
+            new PurchaseInvoiceVatAmount('5', 2_000, 100),
+        ]), 'PL', Uuid::v7(), MembershipRole::Owner);
+        $this->invoices->save($managed);
+        $this->entityManager->clear();
+
+        $found = $this->invoices->findById($invoice->getId()) ?? self::fail('Stored invoice expected.');
+        self::assertEquals([new PurchaseInvoiceVatAmount('8', 4_000, 320), new PurchaseInvoiceVatAmount('5', 2_000, 100)], $found->getVatLines());
+        self::assertSame(6_530, $found->getGrossTotal());
+    }
+
+    public function test_it_removes_an_invoice_with_its_vat_lines(): void
+    {
+        $this->switchToNewOrganization();
+        $removed = $this->add(PurchaseInvoiceMother::manual());
+        $kept = $this->add(PurchaseInvoiceMother::manual());
+        $this->entityManager->clear();
+
+        $this->invoices->remove($this->invoices->findById($removed->getId()) ?? self::fail('Stored invoice expected.'));
+        $this->entityManager->clear();
+
+        self::assertNull($this->invoices->findById($removed->getId()));
+        self::assertNotNull($this->invoices->findById($kept->getId()));
+        self::assertSame(1, (int) $this->entityManager->createQuery(\sprintf('SELECT COUNT(IDENTITY(l.purchaseInvoice)) FROM %s l', PurchaseInvoiceVatLine::class))->getSingleScalarResult());
+    }
+
     public function test_it_does_not_show_another_organizations_invoices_lines_or_documents(): void
     {
         $this->switchToNewOrganization();

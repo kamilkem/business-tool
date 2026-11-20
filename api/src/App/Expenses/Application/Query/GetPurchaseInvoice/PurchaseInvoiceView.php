@@ -13,8 +13,8 @@ final readonly class PurchaseInvoiceView
         public string $id,
         public string $source,
         public ?string $externalId,
-        public string $invoiceNumber,
-        public string $sellerTaxId,
+        public ?string $invoiceNumber,
+        public ?string $sellerTaxId,
         public string $sellerName,
         /** YYYY-MM-DD. */
         public string $issueDate,

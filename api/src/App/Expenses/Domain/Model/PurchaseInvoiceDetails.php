@@ -15,12 +15,14 @@ use App\Shared\Domain\Time\BusinessDate;
 final readonly class PurchaseInvoiceDetails
 {
     /**
+     * @param ?string                        $invoiceNumber       required for an imported invoice; optional for a manual one (a receipt may have none)
+     * @param ?string                        $sellerTaxId         required for an imported invoice; optional for a manual one (a foreign seller may have none)
      * @param list<PurchaseInvoiceVatAmount> $vatLines           totals per VAT rate; may be empty
      * @param ?string                        $correctedExternalId for a correction, the corrected invoice's id in the same source when given
      */
     public function __construct(
-        public string $invoiceNumber,
-        public string $sellerTaxId,
+        public ?string $invoiceNumber,
+        public ?string $sellerTaxId,
         public string $sellerName,
         public BusinessDate $issueDate,
         public PurchaseInvoiceKind $kind,

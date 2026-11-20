@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Ui\Http\Expenses;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceView;
 use Symfony\Component\Routing\Requirement\Requirement;
+use Ui\Http\Expenses\Processor\DeleteExpenseProcessor;
+use Ui\Http\Expenses\Processor\EnterExpenseProcessor;
 use Ui\Http\Expenses\Processor\UpdateExpenseProcessor;
 use Ui\Http\Expenses\Provider\ExpenseDocumentProvider;
 use Ui\Http\Expenses\Provider\ExpenseProvider;
@@ -18,8 +22,9 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
 
 /**
  * A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
- * imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
- * else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+ * imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+ * only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+ * categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
  * negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
  * them with totals.
  */
@@ -59,22 +64,56 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
             ),
             provider: ExpenseDocumentProvider::class,
         ),
+        new Post(
+            uriTemplate: '/expenses',
+            openapi: new Operation(
+                summary: 'Enters an expense by hand: a cash receipt, a foreign invoice.',
+                description: 'Owners and managers only (403 otherwise). The expense gets the source `manual`. The invoice number and the seller tax ID are optional; the kind defaults to `regular` and the currency to the organization\'s, which is also the tax currency. Amounts are integer minor units, stored as given (totals are not checked against each other or the lines). VAT lines are optional, use the rates of GET /vat-rates, each once, with vat 0 at a 0% or exempt rate, and give vatInTaxCurrency exactly when the currency is not the organization\'s (422). categoryId, when given, must be a category of the selected organization (404) that is not archived (422).',
+                responses: [
+                    '201' => new Response('The entered expense.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The category is not one of the selected organization\'s.'),
+                    '422' => new Response('A field is missing or invalid, a VAT line breaks a rule, or the category is archived.'),
+                ],
+            ),
+            input: EnterExpenseInput::class,
+            read: false,
+            processor: EnterExpenseProcessor::class,
+        ),
         new Patch(
             uriTemplate: '/expenses/{id}',
             uriVariables: ['id'],
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
-                summary: 'Sets or clears the category of an expense.',
-                description: 'Owners and managers only (403 otherwise); an expense that is not the selected organization\'s is a 404. categoryId must be a category of the selected organization (404) that is not archived (422), unless it is the expense\'s category already; null clears it. Any expense can be categorized, imported or not.',
+                summary: 'Edits a manual expense, or sets or clears the category of any expense.',
+                description: 'Owners and managers only (403 otherwise); an expense that is not the selected organization\'s is a 404. A manual expense takes any of the fields of POST /expenses; a `vatLines` list replaces the current one whole (null or [] removes it), and a blank or null invoiceNumber or sellerTaxId removes it. The tax currency does not change. An imported expense says what its source says: sending other values than its own for anything but categoryId is a 409. categoryId must be a category of the selected organization (404) that is not archived (422), unless it is the expense\'s category already; null clears it.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The expense or the category is not one of the selected organization\'s.'),
-                    '422' => new Response('categoryId is not a UUID, or the category is archived.'),
+                    '409' => new Response('The expense is imported: only its category can change.'),
+                    '422' => new Response('A field is invalid, a VAT line breaks a rule, or the category is archived.'),
                 ],
             ),
             input: UpdateExpenseInput::class,
             provider: UpdateExpenseInputProvider::class,
             processor: UpdateExpenseProcessor::class,
+        ),
+        new Delete(
+            uriTemplate: '/expenses/{id}',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Deletes a manual expense.',
+                description: 'Owners and managers only (403 otherwise); an expense that is not the selected organization\'s is a 404. The expense and its VAT lines are removed and no trace is kept. An imported expense cannot be deleted (409).',
+                responses: [
+                    '204' => new Response('The expense was deleted.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The expense is not one of the selected organization\'s.'),
+                    '409' => new Response('The expense is imported and cannot be deleted.'),
+                ],
+            ),
+            read: false,
+            processor: DeleteExpenseProcessor::class,
         ),
     ],
 )]
@@ -87,8 +126,10 @@ final readonly class ExpenseResource
         public string $source,
         /** The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
         public ?string $externalId,
-        public string $invoiceNumber,
-        public string $sellerTaxId,
+        /** Null for a manual expense without one (a receipt). */
+        public ?string $invoiceNumber,
+        /** Null for a manual expense whose seller has none. */
+        public ?string $sellerTaxId,
         public string $sellerName,
         /** The issue date, `YYYY-MM-DD`. */
         public string $issueDate,

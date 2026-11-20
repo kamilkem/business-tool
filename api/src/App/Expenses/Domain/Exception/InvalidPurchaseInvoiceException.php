@@ -36,6 +36,16 @@ final class InvalidPurchaseInvoiceException extends ExpensesException
         return new self('An imported invoice cannot have the source "manual".');
     }
 
+    public static function unknownKind(string $kind): self
+    {
+        return new self(\sprintf('"%s" is not a kind of invoice.', $kind));
+    }
+
+    public static function correctedInvoiceOnManual(): self
+    {
+        return new self('An invoice entered by hand cannot refer to a corrected invoice\'s id in a source.');
+    }
+
     public static function correctedInvoiceOnNonCorrection(string $kind): self
     {
         return new self(\sprintf('Only a correction refers to a corrected invoice; this invoice is "%s".', $kind));
