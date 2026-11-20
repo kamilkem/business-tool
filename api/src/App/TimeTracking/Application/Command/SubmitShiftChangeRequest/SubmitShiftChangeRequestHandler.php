@@ -10,6 +10,7 @@ use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
 use App\Shared\Domain\Event\EventPublisherInterface;
+use App\TimeTracking\Application\ShiftPeriodLocksLoader;
 use App\TimeTracking\Domain\Event\ShiftChangeRequestSubmitted;
 use App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException;
@@ -17,6 +18,7 @@ use App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Repository\ShiftChangeRequestRepositoryInterface;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
@@ -31,6 +33,7 @@ final readonly class SubmitShiftChangeRequestHandler implements CommandHandlerIn
         private ShiftRepositoryInterface $shifts,
         private QueryBusInterface $queryBus,
         private EventPublisherInterface $events,
+        private ShiftPeriodLocksLoader $locks,
         private ClockInterface $clock,
     ) {
     }
@@ -43,6 +46,7 @@ final readonly class SubmitShiftChangeRequestHandler implements CommandHandlerIn
      * @throws ShiftChangeRequestNoteRequiredException   when the note is blank
      * @throws ShiftEndNotAfterStartException            when the end is not after the start
      * @throws ShiftInTheFutureException                 when the start or the end is after now
+     * @throws ShiftPeriodLockedException                when the shift's start or the asked start is on a locked business date
      */
     public function __invoke(SubmitShiftChangeRequestCommand $command): void
     {
@@ -55,6 +59,7 @@ final readonly class SubmitShiftChangeRequestHandler implements CommandHandlerIn
         $startedAt = new \DateTimeImmutable($command->startedAt);
         $endedAt = null === $command->endedAt ? null : new \DateTimeImmutable($command->endedAt);
         $now = $this->clock->now();
+        $locks = $this->locks->load($command->organizationId, $command->actorId);
 
         if (null === $command->shiftId) {
             $request = ShiftChangeRequest::forMissingShift(
@@ -64,11 +69,12 @@ final readonly class SubmitShiftChangeRequestHandler implements CommandHandlerIn
                 $endedAt ?? throw new \InvalidArgumentException('A missing shift is asked for with its end.'),
                 $command->note,
                 $now,
+                $locks,
             );
         } else {
             $shift = Uuid::isValid($command->shiftId) ? $this->shifts->findById(Uuid::fromString($command->shiftId)) : null;
             $shift ??= throw ShiftNotFoundException::withId($command->shiftId);
-            $request = ShiftChangeRequest::forShift($id, $actorId, $shift, $startedAt, $endedAt, $command->note, $now);
+            $request = ShiftChangeRequest::forShift($id, $actorId, $shift, $startedAt, $endedAt, $command->note, $now, $locks);
         }
 
         $this->requests->add($request);

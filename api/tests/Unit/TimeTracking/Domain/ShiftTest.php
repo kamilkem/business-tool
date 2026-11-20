@@ -13,7 +13,10 @@ use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftSource;
+use App\Tests\Fixtures\LockedShiftPeriodMother;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -156,7 +159,7 @@ final class ShiftTest extends TestCase
         $id = Uuid::v7();
         $now = new \DateTimeImmutable(self::NOW);
 
-        $shift = Shift::record($id, $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), '  Forgot her phone  ', $this->managerId, $role, [], $now);
+        $shift = Shift::record($id, $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), '  Forgot her phone  ', $this->managerId, $role, [], $now, ShiftPeriodLocks::none());
 
         self::assertSame($id, $shift->getId());
         self::assertSame($this->userId, $shift->getUserId());
@@ -181,6 +184,7 @@ final class ShiftTest extends TestCase
             MembershipRole::Manager,
             [],
             new \DateTimeImmutable(self::NOW),
+            ShiftPeriodLocks::none(),
         );
 
         self::assertSame('2026-11-11T16:00:00.000000+00:00', $shift->getStartedAt()->format('Y-m-d\TH:i:s.uP'));
@@ -192,7 +196,7 @@ final class ShiftTest extends TestCase
     {
         $this->expectException(ShiftChangeForbiddenException::class);
 
-        Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), null, $this->userId, MembershipRole::Employee, [], new \DateTimeImmutable(self::NOW));
+        Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), null, $this->userId, MembershipRole::Employee, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     /** @return iterable<string, array{string, string}> */
@@ -291,7 +295,7 @@ final class ShiftTest extends TestCase
         $shift = $this->openShift();
         $now = new \DateTimeImmutable(self::NOW);
 
-        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Forgot to clock out', $this->managerId, $role, [$shift], $now);
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Forgot to clock out', $this->managerId, $role, [$shift], $now, ShiftPeriodLocks::none());
 
         self::assertEquals(new \DateTimeImmutable(self::END), $shift->getEndedAt());
         self::assertFalse($shift->isOpen());
@@ -305,7 +309,7 @@ final class ShiftTest extends TestCase
     {
         $shift = $this->openShift();
 
-        $shift->correct(new \DateTimeImmutable('2026-11-11 15:30:00'), null, null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable('2026-11-11 15:30:00'), null, null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertEquals(new \DateTimeImmutable('2026-11-11 15:30:00'), $shift->getStartedAt());
         self::assertTrue($shift->isOpen());
@@ -317,8 +321,8 @@ final class ShiftTest extends TestCase
         $shift = $this->closedShift();
         $ownerId = Uuid::v7();
 
-        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable('2026-11-12 10:00:00'));
-        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), 'Checked the till log', $ownerId, MembershipRole::Owner, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable('2026-11-12 10:00:00'), ShiftPeriodLocks::none());
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), 'Checked the till log', $ownerId, MembershipRole::Owner, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertSame('Checked the till log', $shift->getNote());
         self::assertSame($ownerId, $shift->getCorrectedBy());
@@ -329,7 +333,7 @@ final class ShiftTest extends TestCase
     {
         $shift = $this->closedShift();
 
-        $shift->correct(new \DateTimeImmutable('2026-11-11T17:00:00+01:00'), new \DateTimeImmutable(self::END), '', $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable('2026-11-11T17:00:00+01:00'), new \DateTimeImmutable(self::END), '', $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertNull($shift->getCorrectedBy());
         self::assertNull($shift->getCorrectedAt());
@@ -340,7 +344,7 @@ final class ShiftTest extends TestCase
         $shift = $this->closedShift();
 
         try {
-            $shift->correct(new \DateTimeImmutable(self::START), null, null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW));
+            $shift->correct(new \DateTimeImmutable(self::START), null, null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
             self::fail('Expected ShiftCannotBeReopenedException.');
         } catch (ShiftCannotBeReopenedException) {
             self::assertEquals(new \DateTimeImmutable(self::END), $shift->getEndedAt());
@@ -354,7 +358,7 @@ final class ShiftTest extends TestCase
 
         $this->expectException(ShiftChangeForbiddenException::class);
 
-        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), null, $this->userId, MembershipRole::Employee, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), null, $this->userId, MembershipRole::Employee, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_refuses_a_correction_that_overlaps_another_shift_but_not_itself(): void
@@ -362,11 +366,11 @@ final class ShiftTest extends TestCase
         $shift = $this->closedShift();
         $next = $this->record('2026-11-12 16:00:00', '2026-11-12 23:00:00', [$shift]);
 
-        $shift->correct(new \DateTimeImmutable('2026-11-11 15:00:00'), new \DateTimeImmutable('2026-11-12 01:00:00'), null, $this->managerId, MembershipRole::Manager, [$shift, $next], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable('2026-11-11 15:00:00'), new \DateTimeImmutable('2026-11-12 01:00:00'), null, $this->managerId, MembershipRole::Manager, [$shift, $next], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
         self::assertEquals(new \DateTimeImmutable('2026-11-12 01:00:00'), $shift->getEndedAt());
 
         try {
-            $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 17:00:00'), null, $this->managerId, MembershipRole::Manager, [$shift, $next], new \DateTimeImmutable(self::NOW));
+            $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 17:00:00'), null, $this->managerId, MembershipRole::Manager, [$shift, $next], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
             self::fail('Expected ShiftOverlapException.');
         } catch (ShiftOverlapException) {
             self::assertEquals(new \DateTimeImmutable('2026-11-11 15:00:00'), $shift->getStartedAt());
@@ -380,7 +384,7 @@ final class ShiftTest extends TestCase
 
         $this->expectException(ShiftInTheFutureException::class);
 
-        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-13 12:00:01'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-13 12:00:01'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_refuses_a_correction_that_does_not_end_after_the_start(): void
@@ -389,13 +393,90 @@ final class ShiftTest extends TestCase
 
         $this->expectException(ShiftEndNotAfterStartException::class);
 
-        $shift->correct(new \DateTimeImmutable(self::END), new \DateTimeImmutable(self::END), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW));
+        $shift->correct(new \DateTimeImmutable(self::END), new \DateTimeImmutable(self::END), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
+    }
+
+    public function test_it_refuses_to_record_a_night_shift_that_started_on_the_last_day_of_a_locked_month(): void
+    {
+        $this->expectException(ShiftPeriodLockedException::class);
+        $this->expectExceptionMessage('2026-10-31');
+
+        // 31 October 20:00 to 1 November 03:00 in Warsaw: all of it is October's (ADR 0027 §5).
+        $this->recordInOrganizationWithOctoberLocked('2026-10-31T20:00:00+01:00', '2026-11-01T03:00:00+01:00');
+    }
+
+    public function test_it_records_a_shift_that_started_on_the_first_day_after_a_locked_month(): void
+    {
+        // 31 October 23:30 UTC is 1 November 00:30 in Warsaw.
+        $shift = $this->recordInOrganizationWithOctoberLocked('2026-10-31T23:30:00Z', '2026-11-01T06:00:00Z');
+
+        self::assertEquals(new \DateTimeImmutable('2026-10-31 23:30:00', new \DateTimeZone('UTC')), $shift->getStartedAt());
+    }
+
+    public function test_it_refuses_to_correct_a_shift_that_started_in_a_locked_month(): void
+    {
+        $shift = $this->recordedShift('2026-10-31 19:00:00', '2026-11-01 02:00:00');
+
+        try {
+            $shift->correct(new \DateTimeImmutable('2026-10-31 19:00:00'), new \DateTimeImmutable('2026-11-01 01:00:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+            self::fail('Expected ShiftPeriodLockedException.');
+        } catch (ShiftPeriodLockedException) {
+            self::assertEquals(new \DateTimeImmutable('2026-11-01 02:00:00', new \DateTimeZone('UTC')), $shift->getEndedAt());
+        }
+    }
+
+    public function test_it_refuses_to_move_a_shift_out_of_a_locked_month(): void
+    {
+        $shift = $this->recordedShift('2026-10-31 19:00:00', '2026-11-01 02:00:00');
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        $shift->correct(new \DateTimeImmutable('2026-11-01 19:00:00'), new \DateTimeImmutable('2026-11-02 02:00:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    public function test_it_refuses_to_move_a_shift_into_a_locked_month(): void
+    {
+        $shift = $this->recordedShift(self::START, self::END);
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        $shift->correct(new \DateTimeImmutable('2026-10-30 16:00:00'), new \DateTimeImmutable('2026-10-31 00:30:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    public function test_it_corrects_a_shift_of_the_month_after_a_locked_one(): void
+    {
+        $shift = $this->recordedShift(self::START, self::END);
+
+        $shift->correct(new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-12 01:00:00', new \DateTimeZone('UTC')), $shift->getEndedAt());
+    }
+
+    public function test_it_does_not_refuse_a_correction_that_changes_nothing_in_a_locked_month(): void
+    {
+        $shift = $this->recordedShift('2026-10-30 16:00:00', '2026-10-30 23:00:00');
+        $correctedAt = $shift->getCorrectedAt();
+
+        $shift->correct(new \DateTimeImmutable('2026-10-30 16:00:00'), new \DateTimeImmutable('2026-10-30 23:00:00'), null, $this->managerId, MembershipRole::Owner, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+
+        self::assertSame($correctedAt, $shift->getCorrectedAt());
+    }
+
+    private function recordInOrganizationWithOctoberLocked(string $start, string $end): Shift
+    {
+        return Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    /** A shift entered before anything was locked (UTC times). */
+    private function recordedShift(string $start, string $end): Shift
+    {
+        return Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), null, $this->managerId, MembershipRole::Manager, [], new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     /** @param list<Shift> $personsShifts */
     private function record(string $start, string $end, array $personsShifts = []): Shift
     {
-        return Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), null, $this->managerId, MembershipRole::Manager, $personsShifts, new \DateTimeImmutable(self::NOW));
+        return Shift::record(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), null, $this->managerId, MembershipRole::Manager, $personsShifts, new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     /** 2026-11-11 16:00 to 2026-11-12 00:30, clocked by the person. */

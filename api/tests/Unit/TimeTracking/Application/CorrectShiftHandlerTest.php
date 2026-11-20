@@ -11,6 +11,7 @@ use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\TimeTracking\Application\Command\CorrectShift\CorrectShiftCommand;
+use App\TimeTracking\Application\ShiftPeriodLocksLoader;
 use App\TimeTracking\Application\Command\CorrectShift\CorrectShiftHandler;
 use App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
@@ -18,6 +19,7 @@ use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
 use App\TimeTracking\Domain\Model\Shift;
 use App\User\Domain\Model\User;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
@@ -29,6 +31,7 @@ final class CorrectShiftHandlerTest extends TestCase
     private const string NOW = '2026-11-13 12:00:00';
 
     private InMemoryShiftRepository $shifts;
+    private InMemoryLockedShiftPeriodRepository $lockedPeriods;
     private InMemoryOrganizationRepository $organizations;
     private Organization $organization;
     private User $owner;
@@ -38,6 +41,7 @@ final class CorrectShiftHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->shifts = new InMemoryShiftRepository();
+        $this->lockedPeriods = new InMemoryLockedShiftPeriodRepository();
         $this->organizations = new InMemoryOrganizationRepository();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
@@ -137,6 +141,40 @@ final class CorrectShiftHandlerTest extends TestCase
         $this->handle($this->manager, $shift, '2026-11-12 16:00:00', '2026-11-12 23:00:00');
     }
 
+    public function test_it_refuses_to_correct_a_shift_of_a_locked_month_and_saves_nothing(): void
+    {
+        $shift = $this->clocked($this->employee, '2026-10-31 19:00:00', '2026-11-01 02:00:00');
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        try {
+            $this->handle($this->manager, $shift, '2026-10-31 19:00:00', '2026-11-01 01:00:00');
+            self::fail('Expected ShiftPeriodLockedException.');
+        } catch (ShiftPeriodLockedException) {
+            self::assertEquals(new \DateTimeImmutable('2026-11-01 02:00:00'), $shift->getEndedAt());
+            self::assertSame(0, $this->shifts->saveCallCount);
+        }
+    }
+
+    public function test_it_refuses_to_move_a_shift_into_a_locked_month(): void
+    {
+        $shift = $this->clocked($this->employee, '2026-11-02 16:00:00', '2026-11-02 23:00:00');
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        $this->handle($this->manager, $shift, '2026-10-30 16:00:00', '2026-10-30 23:00:00');
+    }
+
+    public function test_it_corrects_a_shift_of_the_month_after_a_locked_one(): void
+    {
+        $shift = $this->clocked($this->employee, '2026-11-02 16:00:00', '2026-11-02 23:00:00');
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        $this->handle($this->manager, $shift, '2026-11-02 16:00:00', '2026-11-02 22:00:00');
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-02 22:00:00'), $shift->getEndedAt());
+    }
+
     private function clocked(User $user, string $startedAt, ?string $endedAt): Shift
     {
         $shift = Shift::clockIn(Uuid::v7(), $user->getId(), new \DateTimeImmutable($startedAt), null);
@@ -155,7 +193,7 @@ final class CorrectShiftHandlerTest extends TestCase
 
     private function handleId(User $actor, string $shiftId, string $startedAt, ?string $endedAt, ?string $note = null): void
     {
-        $handler = new CorrectShiftHandler($this->shifts, OrganizationQueryBus::over($this->organizations), new MockClock(self::NOW));
+        $handler = new CorrectShiftHandler($this->shifts, $queryBus = OrganizationQueryBus::over($this->organizations), new ShiftPeriodLocksLoader($this->lockedPeriods, $queryBus), new MockClock(self::NOW));
 
         $handler(new CorrectShiftCommand(
             $this->organization->getId()->toRfc4122(),

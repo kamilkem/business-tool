@@ -11,10 +11,12 @@ use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\TimeTracking\Application\ShiftPeriodLocksLoader;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
 use Psr\Clock\ClockInterface;
@@ -29,6 +31,7 @@ final readonly class AddShiftHandler implements CommandHandlerInterface
     public function __construct(
         private ShiftRepositoryInterface $shifts,
         private QueryBusInterface $queryBus,
+        private ShiftPeriodLocksLoader $locks,
         private ClockInterface $clock,
     ) {
     }
@@ -40,6 +43,7 @@ final readonly class AddShiftHandler implements CommandHandlerInterface
      * @throws ShiftEndNotAfterStartException when the end is not after the start
      * @throws ShiftInTheFutureException      when the start or the end is after now
      * @throws ShiftOverlapException          when it overlaps another shift of the person
+     * @throws ShiftPeriodLockedException     when it starts on a locked business date
      */
     public function __invoke(AddShiftCommand $command): void
     {
@@ -68,6 +72,7 @@ final readonly class AddShiftHandler implements CommandHandlerInterface
             $actorRole,
             $this->shifts->findOverlapping($userId, $startedAt, $endedAt),
             $this->clock->now(),
+            $this->locks->load($command->organizationId, $command->actorId),
         );
 
         $this->shifts->add($shift);

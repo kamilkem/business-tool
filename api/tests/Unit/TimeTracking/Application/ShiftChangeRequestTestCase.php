@@ -12,6 +12,7 @@ use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,7 @@ abstract class ShiftChangeRequestTestCase extends TestCase
 
     protected InMemoryShiftChangeRequestRepository $requests;
     protected InMemoryShiftRepository $shifts;
+    protected InMemoryLockedShiftPeriodRepository $lockedPeriods;
     protected InMemoryOrganizationRepository $organizations;
     protected RecordingEventPublisher $events;
     protected StubQueryBus $queryBus;
@@ -42,6 +44,7 @@ abstract class ShiftChangeRequestTestCase extends TestCase
     {
         $this->requests = new InMemoryShiftChangeRequestRepository();
         $this->shifts = new InMemoryShiftRepository();
+        $this->lockedPeriods = new InMemoryLockedShiftPeriodRepository();
         $this->organizations = new InMemoryOrganizationRepository();
         $this->events = new RecordingEventPublisher();
         $this->clock = new MockClock(new \DateTimeImmutable(self::NOW));
@@ -79,7 +82,7 @@ abstract class ShiftChangeRequestTestCase extends TestCase
     /** A pending request for a missing shift (UTC times), stored. */
     protected function missingShiftRequest(User $user, string $start, string $end, string $note = 'My phone was dead', string $submittedAt = '2026-11-13 08:00:00'): ShiftChangeRequest
     {
-        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $user->getId(), new \DateTimeImmutable($start), new \DateTimeImmutable($end), $note, new \DateTimeImmutable($submittedAt));
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $user->getId(), new \DateTimeImmutable($start), new \DateTimeImmutable($end), $note, new \DateTimeImmutable($submittedAt), ShiftPeriodLocks::none());
         $this->requests->add($request);
 
         return $request;
@@ -88,7 +91,7 @@ abstract class ShiftChangeRequestTestCase extends TestCase
     /** A pending request for new times (UTC) for one of the person's shifts, stored. */
     protected function newTimesRequest(User $user, Shift $shift, string $start, ?string $end, string $note = 'Forgot to clock out', string $submittedAt = '2026-11-13 08:00:00'): ShiftChangeRequest
     {
-        $request = ShiftChangeRequest::forShift(Uuid::v7(), $user->getId(), $shift, new \DateTimeImmutable($start), null === $end ? null : new \DateTimeImmutable($end), $note, new \DateTimeImmutable($submittedAt));
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $user->getId(), $shift, new \DateTimeImmutable($start), null === $end ? null : new \DateTimeImmutable($end), $note, new \DateTimeImmutable($submittedAt), ShiftPeriodLocks::none());
         $this->requests->add($request);
 
         return $request;

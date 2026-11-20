@@ -11,6 +11,7 @@ use App\Shared\Domain\Time\UtcRange;
 use App\Tests\Factory\OrganizationFactory;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftSource;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
 use App\TimeTracking\Infrastructure\Doctrine\Orm\Repository\ShiftRepository;
@@ -213,6 +214,7 @@ final class ShiftRepositoryTest extends KernelTestCase
             MembershipRole::Manager,
             [],
             new \DateTimeImmutable('2026-11-12 09:30:00'),
+            ShiftPeriodLocks::none(),
         );
         $this->shifts->add($shift);
         $this->entityManager->clear();

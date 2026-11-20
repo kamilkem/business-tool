@@ -12,6 +12,7 @@ use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\TimeTracking\Application\Command\AddShift\AddShiftCommand;
+use App\TimeTracking\Application\ShiftPeriodLocksLoader;
 use App\TimeTracking\Application\Command\AddShift\AddShiftHandler;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
@@ -19,6 +20,7 @@ use App\TimeTracking\Domain\Exception\ShiftOverlapException;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Model\ShiftSource;
 use App\User\Domain\Model\User;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -31,6 +33,7 @@ final class AddShiftHandlerTest extends TestCase
     private const string NOW = '2026-11-13 12:00:00';
 
     private InMemoryShiftRepository $shifts;
+    private InMemoryLockedShiftPeriodRepository $lockedPeriods;
     private InMemoryOrganizationRepository $organizations;
     private Organization $organization;
     private User $owner;
@@ -40,6 +43,7 @@ final class AddShiftHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->shifts = new InMemoryShiftRepository();
+        $this->lockedPeriods = new InMemoryLockedShiftPeriodRepository();
         $this->organizations = new InMemoryOrganizationRepository();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
@@ -147,9 +151,35 @@ final class AddShiftHandlerTest extends TestCase
         $this->handle($this->manager, $this->employee, '2026-11-13 08:00:00', '2026-11-13 12:00:01');
     }
 
+    public function test_it_refuses_a_shift_that_started_in_a_locked_month_and_stores_nothing(): void
+    {
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        try {
+            $this->handle($this->manager, $this->employee, '2026-10-31T20:00:00+01:00', '2026-11-01T03:00:00+01:00');
+            self::fail('Expected ShiftPeriodLockedException.');
+        } catch (ShiftPeriodLockedException) {
+            self::assertSame([], $this->shifts->all());
+        }
+
+        $this->handle($this->manager, $this->employee, '2026-11-01T00:30:00+01:00', '2026-11-01T03:00:00+01:00');
+        self::assertCount(1, $this->shifts->all());
+    }
+
+    public function test_it_takes_the_business_date_in_the_organizations_time_zone(): void
+    {
+        $this->organization->changeSettings($this->owner->getId(), 'Corner Pub', null, 'US', 'USD', 'America/New_York');
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        // 1 November 02:00 UTC is 31 October in New York (in Warsaw it would be 1 November).
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        $this->handle($this->manager, $this->employee, '2026-11-01T02:00:00Z', '2026-11-01T08:00:00Z');
+    }
+
     private function handle(User $actor, User $user, string $startedAt, string $endedAt, ?string $note = null, ?string $shiftId = null): void
     {
-        $handler = new AddShiftHandler($this->shifts, OrganizationQueryBus::over($this->organizations), new MockClock(self::NOW));
+        $handler = new AddShiftHandler($this->shifts, $queryBus = OrganizationQueryBus::over($this->organizations), new ShiftPeriodLocksLoader($this->lockedPeriods, $queryBus), new MockClock(self::NOW));
 
         $handler(new AddShiftCommand(
             $this->organization->getId()->toRfc4122(),

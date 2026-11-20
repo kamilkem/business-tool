@@ -14,6 +14,7 @@ use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -33,6 +34,10 @@ use Symfony\Component\Uid\Uuid;
  * open shift runs on until it ends); the model checks it against the shifts from
  * ShiftRepositoryInterface::findOverlapping(). Clock-in and clock-out cannot cause an overlap,
  * because entered times are never after now.
+ *
+ * Once a period is locked (an approved payroll month, ADR 0027 §8), the shifts that started in it no
+ * longer change: record() and correct() check the start dates against ShiftPeriodLocks. Clock-in and
+ * clock-out are not checked (see ShiftPeriodLocks).
  *
  * The person is referenced by id (User is another module's aggregate); their membership is never
  * deleted, only deactivated (ADR 0014), so the id stays meaningful.
@@ -122,6 +127,7 @@ class Shift implements TenantAwareInterface
      * @throws ShiftEndNotAfterStartException when the end is not after the start
      * @throws ShiftInTheFutureException      when the start or the end is after now
      * @throws ShiftOverlapException          when it overlaps another shift of the person
+     * @throws ShiftPeriodLockedException     when it starts on a locked business date
      */
     public static function record(
         Uuid $id,
@@ -133,11 +139,13 @@ class Shift implements TenantAwareInterface
         MembershipRole $actorRole,
         array $personsShifts,
         \DateTimeImmutable $now,
+        ShiftPeriodLocks $locks,
     ): self {
         self::assertCanManageShifts($actorId, $actorRole);
 
         $shift = new self($id, $userId, self::instant($startedAt), self::normalizeNote($note), ShiftSource::Manager);
         $shift->endedAt = self::instant($endedAt);
+        $locks->assertUnlocked($shift->startedAt);
         $shift->assertValidTimes($shift->startedAt, $shift->endedAt, $personsShifts, $now);
         $shift->markCorrected($actorId, $now);
 
@@ -147,7 +155,8 @@ class Shift implements TenantAwareInterface
     /**
      * An owner or manager changes the shift's times and note: a forgotten clock-out gets its end, a
      * wrong time is fixed. The shift may stay open (a corrected start); an ended shift keeps an end.
-     * A change records who made it and when; setting the values the shift already has changes nothing.
+     * A change records who made it and when; setting the values the shift already has changes nothing
+     * (and is not refused, even in a locked period).
      *
      * @param list<Shift> $personsShifts the person's shifts that may overlap the corrected one
      *                                   (ShiftRepositoryInterface::findOverlapping()); this shift is skipped
@@ -157,6 +166,7 @@ class Shift implements TenantAwareInterface
      * @throws ShiftEndNotAfterStartException when the end is not after the start
      * @throws ShiftInTheFutureException      when the start or the end is after now
      * @throws ShiftOverlapException          when it would overlap another shift of the person
+     * @throws ShiftPeriodLockedException     when its current or its new start is on a locked business date
      */
     public function correct(
         \DateTimeImmutable $startedAt,
@@ -166,6 +176,7 @@ class Shift implements TenantAwareInterface
         MembershipRole $actorRole,
         array $personsShifts,
         \DateTimeImmutable $now,
+        ShiftPeriodLocks $locks,
     ): void {
         self::assertCanManageShifts($actorId, $actorRole);
 
@@ -181,6 +192,9 @@ class Shift implements TenantAwareInterface
             return;
         }
 
+        // Both: a shift is neither moved out of a locked period nor into one.
+        $locks->assertUnlocked($this->startedAt);
+        $locks->assertUnlocked($startedAt);
         $this->assertValidTimes($startedAt, $endedAt, $personsShifts, $now);
 
         $this->startedAt = $startedAt;

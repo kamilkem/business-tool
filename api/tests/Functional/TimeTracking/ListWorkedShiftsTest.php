@@ -13,6 +13,7 @@ use App\TimeTracking\Application\Query\ListWorkedShifts\ListWorkedShiftsQuery;
 use App\TimeTracking\Application\Query\ListWorkedShifts\WorkedShiftsView;
 use App\TimeTracking\Application\Query\ListWorkedShifts\WorkedShiftView;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Repository\ShiftChangeRequestRepositoryInterface;
 use App\TimeTracking\Domain\Repository\ShiftRepositoryInterface;
@@ -92,7 +93,7 @@ final class ListWorkedShiftsTest extends KernelTestCase
     {
         $start = new \DateTimeImmutable($startedAt);
         self::getContainer()->get(ShiftChangeRequestRepositoryInterface::class)->add(
-            ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, $start, $start->modify('+6 hours'), 'Forgot to clock in', new \DateTimeImmutable(self::NOW)),
+            ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, $start, $start->modify('+6 hours'), 'Forgot to clock in', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none()),
         );
     }
 

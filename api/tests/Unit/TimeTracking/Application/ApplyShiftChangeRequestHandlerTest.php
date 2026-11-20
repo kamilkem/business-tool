@@ -6,6 +6,7 @@ namespace App\Tests\Unit\TimeTracking\Application;
 
 use App\Organization\Domain\Model\MembershipRole;
 use App\TimeTracking\Application\Command\ApplyShiftChangeRequest\ApplyShiftChangeRequestCommand;
+use App\TimeTracking\Application\ShiftPeriodLocksLoader;
 use App\TimeTracking\Application\Command\ApplyShiftChangeRequest\ApplyShiftChangeRequestHandler;
 use App\TimeTracking\Domain\Event\ShiftChangeRequestApplied;
 use App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException;
@@ -19,6 +20,7 @@ use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Model\ShiftChangeRequestStatus;
 use App\TimeTracking\Domain\Model\ShiftSource;
 use App\User\Domain\Model\User;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Uid\Uuid;
 
@@ -150,13 +152,34 @@ final class ApplyShiftChangeRequestHandlerTest extends ShiftChangeRequestTestCas
     {
         $this->expectException(ShiftChangeRequestNotFoundException::class);
 
-        $handler = new ApplyShiftChangeRequestHandler($this->requests, $this->shifts, $this->queryBus, $this->events, $this->clock);
+        $handler = new ApplyShiftChangeRequestHandler($this->requests, $this->shifts, $this->queryBus, $this->events, new ShiftPeriodLocksLoader($this->lockedPeriods, $this->queryBus), $this->clock);
         $handler(new ApplyShiftChangeRequestCommand($this->organizationId(), $this->owner->getId()->toRfc4122(), 'not-a-uuid', Uuid::v7()->toRfc4122()));
+    }
+
+    public function test_it_refuses_a_request_pending_when_its_month_was_locked_and_changes_nothing(): void
+    {
+        $shift = $this->clocked($this->employee, '2026-10-30 16:00:00', '2026-10-30 23:00:00');
+        $newTimes = $this->newTimesRequest($this->employee, $shift, '2026-10-30 15:00:00', '2026-10-30 23:00:00', 'Came in early');
+        $missing = $this->missingShiftRequest($this->employee, '2026-10-31 19:00:00', '2026-11-01 02:00:00');
+        $this->lockedPeriods->lockMonth(2026, 10);
+
+        foreach ([$newTimes, $missing] as $request) {
+            try {
+                $this->handle($this->owner, $request);
+                self::fail('Expected ShiftPeriodLockedException.');
+            } catch (ShiftPeriodLockedException) {
+                self::assertSame(ShiftChangeRequestStatus::Pending, $request->getStatus());
+            }
+        }
+
+        self::assertCount(1, $this->shifts->all());
+        self::assertEquals(new \DateTimeImmutable('2026-10-30 16:00:00'), $shift->getStartedAt());
+        self::assertSame([], $this->events->events);
     }
 
     private function handle(User $actor, ShiftChangeRequest $request, ?string $newShiftId = null): void
     {
-        $handler = new ApplyShiftChangeRequestHandler($this->requests, $this->shifts, $this->queryBus, $this->events, $this->clock);
+        $handler = new ApplyShiftChangeRequestHandler($this->requests, $this->shifts, $this->queryBus, $this->events, new ShiftPeriodLocksLoader($this->lockedPeriods, $this->queryBus), $this->clock);
         $handler(new ApplyShiftChangeRequestCommand(
             $this->organizationId(),
             $actor->getId()->toRfc4122(),

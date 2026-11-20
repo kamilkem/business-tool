@@ -11,6 +11,7 @@ use App\TimeTracking\Application\Query\ListWorkedShifts\ListWorkedShiftsQuery;
 use App\TimeTracking\Application\Query\ListWorkedShifts\WorkedShiftsView;
 use App\TimeTracking\Application\Query\ListWorkedShifts\WorkedShiftView;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -214,7 +215,7 @@ final class ListWorkedShiftsHandlerTest extends TestCase
 
     private function missingShiftRequest(Uuid $userId, string $startedAt, string $endedAt): ShiftChangeRequest
     {
-        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, new \DateTimeImmutable($startedAt), new \DateTimeImmutable($endedAt), 'Forgot to clock in', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, new \DateTimeImmutable($startedAt), new \DateTimeImmutable($endedAt), 'Forgot to clock in', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
         $this->changeRequests->add($request);
 
         return $request;
@@ -223,7 +224,7 @@ final class ListWorkedShiftsHandlerTest extends TestCase
     private function newTimesRequest(Uuid $userId, string $shiftId, string $startedAt, string $endedAt): void
     {
         $shift = $this->shifts->findById(Uuid::fromString($shiftId)) ?? throw new \LogicException('No such shift.');
-        $this->changeRequests->add(ShiftChangeRequest::forShift(Uuid::v7(), $userId, $shift, new \DateTimeImmutable($startedAt), new \DateTimeImmutable($endedAt), 'Wrong times', new \DateTimeImmutable(self::NOW)));
+        $this->changeRequests->add(ShiftChangeRequest::forShift(Uuid::v7(), $userId, $shift, new \DateTimeImmutable($startedAt), new \DateTimeImmutable($endedAt), 'Wrong times', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none()));
     }
 
     private static function single(WorkedShiftsView $view): WorkedShiftView
