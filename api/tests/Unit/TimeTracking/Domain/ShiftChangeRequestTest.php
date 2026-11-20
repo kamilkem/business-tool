@@ -14,9 +14,12 @@ use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Model\ShiftChangeRequestKind;
 use App\TimeTracking\Domain\Model\ShiftChangeRequestStatus;
+use App\Tests\Fixtures\LockedShiftPeriodMother;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -49,6 +52,7 @@ final class ShiftChangeRequestTest extends TestCase
             new \DateTimeImmutable('2026-11-12T01:30:00+01:00'),
             "  My phone was dead \n",
             new \DateTimeImmutable(self::NOW),
+            ShiftPeriodLocks::none(),
         );
 
         self::assertSame($id, $request->getId());
@@ -79,6 +83,7 @@ final class ShiftChangeRequestTest extends TestCase
             new \DateTimeImmutable(self::END),
             'I started early to set up',
             new \DateTimeImmutable(self::NOW),
+            ShiftPeriodLocks::none(),
         );
 
         self::assertSame(ShiftChangeRequestKind::NewTimes, $request->getKind());
@@ -90,7 +95,7 @@ final class ShiftChangeRequestTest extends TestCase
     {
         $shift = $this->clocked(self::START, null);
 
-        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-11-11 15:30:00'), null, 'Clocked in late', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-11-11 15:30:00'), null, 'Clocked in late', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertNull($request->getEndedAt());
     }
@@ -99,7 +104,7 @@ final class ShiftChangeRequestTest extends TestCase
     {
         $shift = $this->clocked(self::START, null);
 
-        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Forgot to clock out', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Forgot to clock out', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertEquals(new \DateTimeImmutable(self::END), $request->getEndedAt());
     }
@@ -110,7 +115,7 @@ final class ShiftChangeRequestTest extends TestCase
 
         $this->expectException(ShiftNotFoundException::class);
 
-        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $someoneElses, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Mine?', new \DateTimeImmutable(self::NOW));
+        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $someoneElses, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Mine?', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_refuses_to_ask_for_an_ended_shift_to_be_reopened(): void
@@ -119,7 +124,7 @@ final class ShiftChangeRequestTest extends TestCase
 
         $this->expectException(ShiftCannotBeReopenedException::class);
 
-        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), null, 'Still here', new \DateTimeImmutable(self::NOW));
+        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), null, 'Still here', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_refuses_new_times_that_are_the_shifts_own(): void
@@ -128,7 +133,7 @@ final class ShiftChangeRequestTest extends TestCase
 
         $this->expectException(ShiftChangeRequestChangesNothingException::class);
 
-        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-11-11T17:00:00.400+01:00'), new \DateTimeImmutable(self::END), 'Same', new \DateTimeImmutable(self::NOW));
+        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-11-11T17:00:00.400+01:00'), new \DateTimeImmutable(self::END), 'Same', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     /** @return iterable<string, array{string, string, class-string<\Throwable>}> */
@@ -146,12 +151,12 @@ final class ShiftChangeRequestTest extends TestCase
     {
         $this->expectException($exception);
 
-        ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), 'Note', new \DateTimeImmutable(self::NOW));
+        ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable($start), new \DateTimeImmutable($end), 'Note', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_accepts_a_shift_that_ends_right_now(): void
     {
-        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::NOW), 'Note', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::NOW), 'Note', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         self::assertEquals(new \DateTimeImmutable(self::NOW), $request->getEndedAt());
     }
@@ -160,7 +165,7 @@ final class ShiftChangeRequestTest extends TestCase
     {
         $this->expectException(ShiftChangeRequestNoteRequiredException::class);
 
-        ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), "  \n ", new \DateTimeImmutable(self::NOW));
+        ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), "  \n ", new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     public function test_it_is_visible_to_owners_managers_and_the_requester_only(): void
@@ -197,7 +202,7 @@ final class ShiftChangeRequestTest extends TestCase
 
     public function test_it_lets_a_manager_approve_their_own_request(): void
     {
-        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->managerId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Note', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->managerId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Note', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         $request->approve($this->managerId, MembershipRole::Manager, Uuid::v7(), new \DateTimeImmutable(self::NOW));
 
@@ -206,7 +211,7 @@ final class ShiftChangeRequestTest extends TestCase
 
     public function test_it_refuses_a_shift_other_than_the_requests_own_on_approval_as_a_programming_error(): void
     {
-        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $this->clocked(self::START, null), new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Note', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $this->clocked(self::START, null), new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Note', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
 
         $this->expectException(\LogicException::class);
 
@@ -274,9 +279,50 @@ final class ShiftChangeRequestTest extends TestCase
         self::assertSame('No', $request->getRejectionReason());
     }
 
+    public function test_it_refuses_to_ask_for_a_missing_shift_in_a_locked_month(): void
+    {
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable('2026-10-31T20:00:00+01:00'), new \DateTimeImmutable('2026-11-01T03:00:00+01:00'), 'My phone was dead', new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    public function test_it_asks_for_a_missing_shift_on_the_first_day_after_a_locked_month(): void
+    {
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable('2026-11-01T00:30:00+01:00'), new \DateTimeImmutable('2026-11-01T06:00:00+01:00'), 'My phone was dead', new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+
+        self::assertSame(ShiftChangeRequestStatus::Pending, $request->getStatus());
+    }
+
+    public function test_it_refuses_new_times_for_a_shift_that_started_in_a_locked_month(): void
+    {
+        $shift = $this->clocked('2026-10-31 19:00:00', '2026-11-01 02:00:00');
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-11-01 00:00:00'), new \DateTimeImmutable('2026-11-01 02:00:00'), 'Came in late', new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    public function test_it_refuses_new_times_that_move_a_shift_into_a_locked_month(): void
+    {
+        $shift = $this->clocked(self::START, self::END);
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable('2026-10-31 16:00:00'), new \DateTimeImmutable('2026-11-01 00:30:00'), 'Wrong day', new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+    }
+
+    public function test_it_asks_for_new_times_in_the_month_after_a_locked_one(): void
+    {
+        $shift = $this->clocked(self::START, null);
+
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'Forgot to clock out', new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
+
+        self::assertSame(ShiftChangeRequestKind::NewTimes, $request->getKind());
+    }
+
     private function missingShiftRequest(): ShiftChangeRequest
     {
-        return ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'My phone was dead', new \DateTimeImmutable(self::NOW));
+        return ShiftChangeRequest::forMissingShift(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), new \DateTimeImmutable(self::END), 'My phone was dead', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
     }
 
     private function clocked(string $start, ?string $end): Shift

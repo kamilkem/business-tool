@@ -9,6 +9,7 @@ use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Tests\Factory\OrganizationFactory;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Model\ShiftChangeRequestKind;
 use App\TimeTracking\Domain\Model\ShiftChangeRequestStatus;
@@ -47,7 +48,7 @@ final class ShiftChangeRequestRepositoryTest extends KernelTestCase
         $this->switchTo($organization);
         $userId = Uuid::v7();
         $shift = Shift::clockIn(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-12 16:00:00'), null);
-        $request = ShiftChangeRequest::forShift(Uuid::v7(), $userId, $shift, new \DateTimeImmutable('2026-11-12 15:30:00'), null, 'Clocked in late', new \DateTimeImmutable(self::NOW));
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $userId, $shift, new \DateTimeImmutable('2026-11-12 15:30:00'), null, 'Clocked in late', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
         $this->requests->add($request);
         $this->entityManager->clear();
 
@@ -108,7 +109,7 @@ final class ShiftChangeRequestRepositoryTest extends KernelTestCase
 
     private function add(Uuid $userId, string $submittedAt): ShiftChangeRequest
     {
-        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-10 08:00:00'), new \DateTimeImmutable('2026-11-10 16:00:00'), 'My phone was dead', new \DateTimeImmutable($submittedAt));
+        $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-10 08:00:00'), new \DateTimeImmutable('2026-11-10 16:00:00'), 'My phone was dead', new \DateTimeImmutable($submittedAt), ShiftPeriodLocks::none());
         $this->requests->add($request);
 
         return $request;

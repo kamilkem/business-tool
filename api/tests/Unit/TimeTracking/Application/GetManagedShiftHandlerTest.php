@@ -14,6 +14,7 @@ use App\TimeTracking\Application\Query\GetManagedShift\GetManagedShiftQuery;
 use App\TimeTracking\Application\Query\GetShift\ShiftView;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,7 @@ final class GetManagedShiftHandlerTest extends TestCase
             MembershipRole::Manager,
             [],
             new \DateTimeImmutable('2026-11-13 09:00:00'),
+            ShiftPeriodLocks::none(),
         );
         $this->shifts->add($shift);
 

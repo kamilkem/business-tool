@@ -15,6 +15,7 @@ use App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
+use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -33,6 +34,10 @@ use Symfony\Component\Uid\Uuid;
  * Shift::correct()) with the approver as the corrector, so the shift rules, overlap included, run
  * against the shifts as they are at approval; the shift is changed first and the request is
  * approved after it (approve()), so a change the rules refuse leaves the request pending.
+ *
+ * Nobody asks to change a locked period (ADR 0027 §8): submitting is refused when the shift's start
+ * or the asked start is on a locked business date (ShiftPeriodLocks), and approving a request that
+ * was pending when the period was locked is refused by Shift::record() or Shift::correct().
  *
  * The requester is referenced by id (User is another module's aggregate); memberships are never
  * deleted (ADR 0014), so the id stays meaningful.
@@ -136,6 +141,7 @@ class ShiftChangeRequest implements TenantAwareInterface
      * @throws ShiftChangeRequestNoteRequiredException when the note is blank
      * @throws ShiftEndNotAfterStartException          when the end is not after the start
      * @throws ShiftInTheFutureException               when the start or the end is after now
+     * @throws ShiftPeriodLockedException              when the start is on a locked business date
      */
     public static function forMissingShift(
         Uuid $id,
@@ -144,7 +150,10 @@ class ShiftChangeRequest implements TenantAwareInterface
         \DateTimeImmutable $endedAt,
         string $note,
         \DateTimeImmutable $now,
+        ShiftPeriodLocks $locks,
     ): self {
+        $locks->assertUnlocked($startedAt);
+
         return new self($id, $requesterId, ShiftChangeRequestKind::MissingShift, null, $startedAt, $endedAt, $note, $now);
     }
 
@@ -158,6 +167,7 @@ class ShiftChangeRequest implements TenantAwareInterface
      * @throws ShiftChangeRequestNoteRequiredException   when the note is blank
      * @throws ShiftEndNotAfterStartException            when the end is not after the start
      * @throws ShiftInTheFutureException                 when the start or the end is after now
+     * @throws ShiftPeriodLockedException                when the shift's start or the asked start is on a locked business date
      */
     public static function forShift(
         Uuid $id,
@@ -167,11 +177,15 @@ class ShiftChangeRequest implements TenantAwareInterface
         ?\DateTimeImmutable $endedAt,
         string $note,
         \DateTimeImmutable $now,
+        ShiftPeriodLocks $locks,
     ): self {
         if (!$shift->getUserId()->equals($requesterId)) {
             // Someone else's shift is not one the requester may ask about: it does not exist for them.
             throw ShiftNotFoundException::withId($shift->getId()->toRfc4122());
         }
+
+        $locks->assertUnlocked($shift->getStartedAt());
+        $locks->assertUnlocked($startedAt);
 
         if (null === $endedAt && !$shift->isOpen()) {
             throw ShiftCannotBeReopenedException::of($shift->getId()->toRfc4122());
