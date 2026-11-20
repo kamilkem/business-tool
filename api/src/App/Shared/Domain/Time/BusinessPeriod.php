@@ -59,6 +59,20 @@ final readonly class BusinessPeriod
         return new self(BusinessDate::of($year, $month, 1), BusinessDate::of($year, $month, $daysInMonth));
     }
 
+    /**
+     * Parses a YYYY-MM month, as sent in API bodies (`"month": "2026-10"`).
+     *
+     * @throws InvalidBusinessPeriodException when the string is not a month
+     */
+    public static function monthFromString(string $value): self
+    {
+        if (1 !== preg_match('/^(\d{4})-(\d{2})$/', $value, $matches)) {
+            throw InvalidBusinessPeriodException::notAMonthString($value);
+        }
+
+        return self::month((int) $matches[1], (int) $matches[2]);
+    }
+
     /** The calendar month the date falls in. */
     public static function monthOf(BusinessDate $date): self
     {

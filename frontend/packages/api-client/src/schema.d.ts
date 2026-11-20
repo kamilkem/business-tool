@@ -604,6 +604,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payroll-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the payroll runs of the selected organization.
+         * @description Newest month first. Owners and managers see every run with the totals of every paycheck; an employee sees the approved runs that have a paycheck of theirs, with that paycheck's totals.
+         */
+        get: operations["api_payroll-runs_get_collection"];
+        put?: never;
+        /**
+         * Generates a draft payroll run of a month.
+         * @description Owners and managers only (403 otherwise). One line per ended shift of the month (a shift belongs to the business date it started on), one paycheck per member with shifts, deactivated members included; the rate is the member's day rate for the date, else their hourly rate in effect, in the organization's currency (none otherwise: the line has no amount and the run cannot be approved). Each shift's length is rounded as asked. One run per month (409). A month after the current one is a 422; the current month's draft is a preview. A month with no ended shift is a 409.
+         */
+        post: operations["api_payroll-runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One payroll run with its paychecks.
+         * @description Owners and managers see any run with every paycheck. An employee sees an approved run with their own paycheck only; a draft, or a run without a paycheck of theirs, is a 404 for them, as is a run that is not the selected organization's.
+         */
+        get: operations["api_payroll-runs_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a draft payroll run.
+         * @description Owners and managers only (403 otherwise). An approved run is a 409 (reopen it first).
+         */
+        delete: operations["api_payroll-runs_id_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a bonus or a deduction to a member's paycheck on a draft.
+         * @description Owners and managers only (403 otherwise), for any member, active or deactivated (404 otherwise); a member with no shifts that month gets a paycheck. Kept when the run is regenerated. An approved run is a 409.
+         */
+        post: operations["api_payroll-runs_idadjustments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/adjustments/{adjustmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes an adjustment from a draft.
+         * @description Owners and managers only (403 otherwise). A paycheck left with no shift lines and no adjustments is removed too. An approved run is a 409.
+         */
+        delete: operations["api_payroll-runs_idadjustments_adjustmentId_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Corrects an adjustment on a draft.
+         * @description Owners and managers only (403 otherwise). An approved run is a 409.
+         */
+        patch: operations["api_payroll-runs_idadjustments_adjustmentId_patch"];
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approves a draft, which locks the month's shifts.
+         * @description Owners only (403 otherwise). A 409 that names the reason when: the run is approved already; the month has not ended; a shift of the month is open; a shift change request about the month is pending; a line has no rate; a paycheck total is negative; the run has no paychecks; or shifts, rates or the currency changed since it was generated (regenerate and review it again). Once approved, the month's shifts, rates and day rates cannot change.
+         */
+        post: operations["api_payroll-runs_idapprove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuilds a draft from the current shifts and rates.
+         * @description Owners and managers only (403 otherwise). Keeps the adjustments and, unless new rounding is given, the rounding; the currency becomes the organization's. An approved run is a 409 (reopen it first), and so is a result with nothing to pay.
+         */
+        post: operations["api_payroll-runs_idregenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopens an approved run back to draft, which unlocks the month's shifts.
+         * @description Owners only (403 otherwise). A draft is a 409.
+         */
+        post: operations["api_payroll-runs_idreopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/registers": {
         parameters: {
             query?: never;
@@ -2014,6 +2166,314 @@ export interface components {
             /** @enum {string} */
             method: "cash" | "card" | "transfer" | "voucher";
             amount: number;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        PayrollRun: {
+            id: string;
+            /** @description The calendar month (YYYY-MM) in the organization's time zone. */
+            month: string;
+            /** @description The month's first business date (YYYY-MM-DD). */
+            firstDate: string;
+            /** @description The month's last business date (YYYY-MM-DD). */
+            lastDate: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            /** @description ISO 4217: the organization's when the run was last generated. */
+            currency: string;
+            /** @enum {string} */
+            roundingUnit: "none" | "15" | "30" | "60";
+            /** @enum {string} */
+            roundingDirection: "nearest" | "up" | "down";
+            /** @description Shifts of the month still open when the run was last generated; they are not on any paycheck. */
+            openShifts: number;
+            /** @description Pending shift change requests about the month when the run was last generated. */
+            pendingChangeRequests: number;
+            /** @description Lines of the paychecks shown that have no rate. */
+            linesWithoutRate: number;
+            /** @description The sum of the totals of the paychecks shown, in minor units. */
+            total: number;
+            /** @description By member id; an employee sees only their own. */
+            paychecks: components["schemas"]["PayrollRunPaycheck"][];
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Who generated or regenerated the run last. */
+            generatedBy: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description The owner who approved it; null for a draft. */
+            approvedBy: string | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        "PayrollRun.AddPaycheckAdjustmentInput": {
+            /**
+             * Format: uuid
+             * @description The member, active or deactivated; a paycheck is created for one with no shifts that month.
+             */
+            userId: string;
+            /** @description What it is for, e.g. "Bonus" or "Advance paid 10 October". */
+            label: string;
+            /** @description Signed minor units in the run's currency: positive adds (a bonus), negative takes off (an advance). Not 0. */
+            amount: number;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        "PayrollRun.GeneratePayrollRunInput": {
+            /**
+             * @description The calendar month (YYYY-MM) in the organization's time zone.
+             * @example 2026-10
+             */
+            month: string;
+            /**
+             * @description What each shift's length is rounded to: exact seconds, or 15, 30 or 60 minutes.
+             * @enum {string}
+             */
+            roundingUnit?: "none" | "15" | "30" | "60";
+            /**
+             * @description Which way: nearest (a half rounds up), up or down. Ignored with roundingUnit "none".
+             * @enum {string}
+             */
+            roundingDirection?: "nearest" | "up" | "down";
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        "PayrollRun.RegeneratePayrollRunInput": {
+            /** @enum {string|null} */
+            roundingUnit?: "none" | "15" | "30" | "60" | null;
+            /** @enum {string|null} */
+            roundingDirection?: "nearest" | "up" | "down" | null;
+            readonly roundingComplete?: boolean;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        "PayrollRun.UpdatePaycheckAdjustmentInput.jsonMergePatch": {
+            label?: string | null;
+            /** @description Signed minor units in the run's currency; not 0. */
+            amount?: number | null;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
+         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         */
+        "PayrollRun.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The calendar month (YYYY-MM) in the organization's time zone. */
+            month: string;
+            /** @description The month's first business date (YYYY-MM-DD). */
+            firstDate: string;
+            /** @description The month's last business date (YYYY-MM-DD). */
+            lastDate: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            /** @description ISO 4217: the organization's when the run was last generated. */
+            currency: string;
+            /** @enum {string} */
+            roundingUnit: "none" | "15" | "30" | "60";
+            /** @enum {string} */
+            roundingDirection: "nearest" | "up" | "down";
+            /** @description Shifts of the month still open when the run was last generated; they are not on any paycheck. */
+            openShifts: number;
+            /** @description Pending shift change requests about the month when the run was last generated. */
+            pendingChangeRequests: number;
+            /** @description Lines of the paychecks shown that have no rate. */
+            linesWithoutRate: number;
+            /** @description The sum of the totals of the paychecks shown, in minor units. */
+            total: number;
+            /** @description By member id; an employee sees only their own. */
+            paychecks: components["schemas"]["PayrollRunPaycheck.jsonld"][];
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Who generated or regenerated the run last. */
+            generatedBy: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description The owner who approved it; null for a draft. */
+            approvedBy: string | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+        };
+        PayrollRunAdjustment: {
+            id: string;
+            label: string;
+            /** @description Signed minor units in the run's currency. */
+            amount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
+        "PayrollRunAdjustment.jsonld": {
+            id: string;
+            label: string;
+            /** @description Signed minor units in the run's currency. */
+            amount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
+        PayrollRunPaycheck: {
+            id: string;
+            /** @description The member, active or deactivated. */
+            userId: string;
+            /** @description The sum of the lines' paid seconds. */
+            paidSeconds: number;
+            /** @description Σ(paid seconds × rate) / 3600, rounded half up once, in minor units; lines without a rate count 0. */
+            payForHours: number;
+            /** @description The sum of the adjustments, in minor units. */
+            adjustmentsTotal: number;
+            /** @description payForHours + adjustmentsTotal, in minor units. */
+            total: number;
+            /** @description Lines whose member has no rate for the shift's date: the run cannot be approved until the rate is set and the run regenerated. */
+            linesWithoutRate: number;
+            /** @description One line per ended shift of the month, by date. */
+            lines: components["schemas"]["PayrollRunPaycheckLine"][];
+            /** @description Oldest first. */
+            adjustments: components["schemas"]["PayrollRunAdjustment"][];
+        };
+        "PayrollRunPaycheck.jsonld": {
+            id: string;
+            /** @description The member, active or deactivated. */
+            userId: string;
+            /** @description The sum of the lines' paid seconds. */
+            paidSeconds: number;
+            /** @description Σ(paid seconds × rate) / 3600, rounded half up once, in minor units; lines without a rate count 0. */
+            payForHours: number;
+            /** @description The sum of the adjustments, in minor units. */
+            adjustmentsTotal: number;
+            /** @description payForHours + adjustmentsTotal, in minor units. */
+            total: number;
+            /** @description Lines whose member has no rate for the shift's date: the run cannot be approved until the rate is set and the run regenerated. */
+            linesWithoutRate: number;
+            /** @description One line per ended shift of the month, by date. */
+            lines: components["schemas"]["PayrollRunPaycheckLine.jsonld"][];
+            /** @description Oldest first. */
+            adjustments: components["schemas"]["PayrollRunAdjustment.jsonld"][];
+        };
+        PayrollRunPaycheckLine: {
+            shiftId: string;
+            /** @description The business date the shift started on (YYYY-MM-DD); the whole shift counts for it. */
+            date: string;
+            /** @description The real length in seconds. */
+            seconds: number;
+            /** @description The length in seconds after the run's rounding. */
+            paidSeconds: number;
+            /**
+             * @description Which rate paid the shift: the member's day rate for its date or their hourly rate; null when the member has no rate for that date in the run's currency.
+             * @enum {string|null}
+             */
+            rateKind: "hourly" | "day" | null;
+            /** @description The HourlyRate or DayRate; null without a rate. */
+            rateId: string | null;
+            /** @description Gross minor units per hour; null without a rate. */
+            rate: number | null;
+            /** @description This shift's pay rounded half up, for display: the paycheck's payForHours is rounded once from the exact sum, so it may differ from the sum of these by a few minor units. Null without a rate. */
+            amount: number | null;
+        };
+        "PayrollRunPaycheckLine.jsonld": {
+            shiftId: string;
+            /** @description The business date the shift started on (YYYY-MM-DD); the whole shift counts for it. */
+            date: string;
+            /** @description The real length in seconds. */
+            seconds: number;
+            /** @description The length in seconds after the run's rounding. */
+            paidSeconds: number;
+            /**
+             * @description Which rate paid the shift: the member's day rate for its date or their hourly rate; null when the member has no rate for that date in the run's currency.
+             * @enum {string|null}
+             */
+            rateKind: "hourly" | "day" | null;
+            /** @description The HourlyRate or DayRate; null without a rate. */
+            rateId: string | null;
+            /** @description Gross minor units per hour; null without a rate. */
+            rate: number | null;
+            /** @description This shift's pay rounded half up, for display: the paycheck's payForHours is rounded once from the exact sum, so it may differ from the sum of these by a few minor units. Null without a rate. */
+            amount: number | null;
+        };
+        /** @description A payroll run without its lines, for the list of runs of the organization selected by the X-Organization-Id header. */
+        PayrollRunSummary: {
+            id: string;
+            /** @description The calendar month (YYYY-MM). */
+            month: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            currency: string;
+            /** @enum {string} */
+            roundingUnit: "none" | "15" | "30" | "60";
+            /** @enum {string} */
+            roundingDirection: "nearest" | "up" | "down";
+            /** @description How many paychecks are counted below. */
+            paychecks: number;
+            paidSeconds: number;
+            linesWithoutRate: number;
+            /** @description In minor units. */
+            total: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            approvedAt: string | null;
+        };
+        /** @description A payroll run without its lines, for the list of runs of the organization selected by the X-Organization-Id header. */
+        "PayrollRunSummary.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The calendar month (YYYY-MM). */
+            month: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            currency: string;
+            /** @enum {string} */
+            roundingUnit: "none" | "15" | "30" | "60";
+            /** @enum {string} */
+            roundingDirection: "nearest" | "up" | "down";
+            /** @description How many paychecks are counted below. */
+            paychecks: number;
+            paidSeconds: number;
+            linesWithoutRate: number;
+            /** @description In minor units. */
+            total: number;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            approvedAt: string | null;
         };
         /**
          * @description A register (a till with its own fiscal printer) of the organization selected by the
@@ -4800,6 +5260,563 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_get_collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PayrollRunSummary collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["PayrollRunSummary.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["PayrollRunSummary"][];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new PayrollRun resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["PayrollRun.GeneratePayrollRunInput"];
+                "application/json": components["schemas"]["PayrollRun.GeneratePayrollRunInput"];
+            };
+        };
+        responses: {
+            /** @description The new draft. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month has a run, or nothing to pay. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, or the month has not started. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PayrollRun resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description The run is not the selected organization's, or not visible to the signed-in user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_payroll-runs_id_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_payroll-runs_idadjustments_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new PayrollRun resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["PayrollRun.AddPaycheckAdjustmentInput"];
+                "application/json": components["schemas"]["PayrollRun.AddPaycheckAdjustmentInput"];
+            };
+        };
+        responses: {
+            /** @description The run with the adjustment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's, or the userId is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_idadjustments_adjustmentId_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+                /** @description PayrollRun identifier */
+                adjustmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The adjustment was removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run or the adjustment is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_payroll-runs_idadjustments_adjustmentId_patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+                /** @description PayrollRun identifier */
+                adjustmentId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated PayrollRun resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["PayrollRun.UpdatePaycheckAdjustmentInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description The run with the corrected adjustment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run or the adjustment is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is approved. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_idapprove_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The approved run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run cannot be approved; the detail says why. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_idregenerate_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new PayrollRun resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["PayrollRun.RegeneratePayrollRunInput"];
+                "application/json": components["schemas"]["PayrollRun.RegeneratePayrollRunInput"];
+            };
+        };
+        responses: {
+            /** @description The regenerated draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is approved, or nothing would be left to pay. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rounding is invalid or incomplete. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_idreopen_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is a draft. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description An error occurred */
             422: {

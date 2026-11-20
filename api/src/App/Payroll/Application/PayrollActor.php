@@ -16,7 +16,7 @@ use App\Payroll\Domain\Model\PayrollAccess;
 use App\Shared\Application\Query\QueryBusInterface;
 use Symfony\Component\Uid\Uuid;
 
-/** The active member acting on pay rates, asked through the Organization module's queries (ADR 0027 §10). */
+/** The active member acting on pay rates and payroll runs, asked through the Organization module's queries (ADR 0027 §10). */
 final readonly class PayrollActor
 {
     private function __construct(
@@ -36,6 +36,20 @@ final readonly class PayrollActor
     {
         $actor = self::find($queryBus, $organizationId, $actorId) ?? throw OrganizationNotFoundException::forId($organizationId);
         PayrollAccess::assertCanManage($actor->id, $actor->role);
+
+        return $actor;
+    }
+
+    /**
+     * For approving and reopening payroll runs: an owner (ADR 0027 §7, §9).
+     *
+     * @throws OrganizationNotFoundException   when the actor is not an active member of the organization
+     * @throws PayrollAccessForbiddenException when the actor is not an owner
+     */
+    public static function owner(QueryBusInterface $queryBus, string $organizationId, string $actorId): self
+    {
+        $actor = self::find($queryBus, $organizationId, $actorId) ?? throw OrganizationNotFoundException::forId($organizationId);
+        PayrollAccess::assertCanApprove($actor->id, $actor->role);
 
         return $actor;
     }

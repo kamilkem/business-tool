@@ -154,6 +154,36 @@ final class BusinessPeriodTest extends TestCase
         BusinessPeriod::month($year, $month);
     }
 
+    public function test_it_parses_a_month(): void
+    {
+        self::assertTrue(BusinessPeriod::monthFromString('2026-10')->equals(BusinessPeriod::month(2026, 10)));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function notAMonthString(): iterable
+    {
+        yield 'a date' => ['2026-10-01'];
+        yield 'no leading zero' => ['2026-1'];
+        yield 'words' => ['October'];
+    }
+
+    #[DataProvider('notAMonthString')]
+    public function test_it_rejects_a_string_that_is_not_a_month(string $value): void
+    {
+        $this->expectException(InvalidBusinessPeriodException::class);
+        $this->expectExceptionMessage(\sprintf('"%s" is not a month (YYYY-MM).', $value));
+
+        BusinessPeriod::monthFromString($value);
+    }
+
+    public function test_it_rejects_a_month_string_that_does_not_exist(): void
+    {
+        $this->expectException(InvalidBusinessPeriodException::class);
+        $this->expectExceptionMessage('2026-13 is not a month.');
+
+        BusinessPeriod::monthFromString('2026-13');
+    }
+
     private static function assertRange(string $from, string $to, UtcRange $range): void
     {
         self::assertSame($from, $range->from->format(\DATE_ATOM));
