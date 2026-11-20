@@ -716,6 +716,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payroll-runs/{id}/paychecks/{paycheckId}/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marks a paycheck of an approved run paid.
+         * @description Owners only (403 otherwise). The business date it was paid on, today or earlier in the organization's time zone (422 otherwise), and the method. A draft run is a 409, and so is a paycheck marked paid already (undo the mark to change it). The run is paid once all its paychecks are; a run with a paid paycheck cannot be reopened.
+         */
+        post: operations["api_payroll-runs_idpaychecks_paycheckIdpayment_post"];
+        /**
+         * Undoes the paid mark of a paycheck.
+         * @description Owners only (403 otherwise). A paycheck that is not marked paid is a 409.
+         */
+        delete: operations["api_payroll-runs_idpaychecks_paycheckIdpayment_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payroll-runs/{id}/regenerate": {
         parameters: {
             query?: never;
@@ -747,7 +771,7 @@ export interface paths {
         put?: never;
         /**
          * Reopens an approved run back to draft, which unlocks the month's shifts.
-         * @description Owners only (403 otherwise). A draft is a 409.
+         * @description Owners only (403 otherwise). A draft is a 409, and so is a run with a paycheck marked paid: undo the marks first, or fix a mistake with an adjustment in a later month.
          */
         post: operations["api_payroll-runs_idreopen_post"];
         delete?: never;
@@ -2171,8 +2195,9 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         PayrollRun: {
             id: string;
@@ -2198,6 +2223,10 @@ export interface components {
             linesWithoutRate: number;
             /** @description The sum of the totals of the paychecks shown, in minor units. */
             total: number;
+            /** @description How many of the paychecks shown are marked paid. */
+            paidPaychecks: number;
+            /** @description Approved, and every paycheck shown is marked paid (derived, not stored). */
+            paid: boolean;
             /** @description By member id; an employee sees only their own. */
             paychecks: components["schemas"]["PayrollRunPaycheck"][];
             createdBy: string;
@@ -2216,8 +2245,9 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         "PayrollRun.AddPaycheckAdjustmentInput": {
             /**
@@ -2234,8 +2264,9 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         "PayrollRun.GeneratePayrollRunInput": {
             /**
@@ -2258,8 +2289,29 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
+         */
+        "PayrollRun.MarkPaycheckPaidInput": {
+            /**
+             * Format: date
+             * @description The business date it was paid on (YYYY-MM-DD), today or earlier in the organization's time zone.
+             */
+            paidOn: string;
+            /**
+             * @description How it was paid.
+             * @enum {string}
+             */
+            method: "cash" | "transfer";
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         "PayrollRun.RegeneratePayrollRunInput": {
             /** @enum {string|null} */
@@ -2272,8 +2324,9 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         "PayrollRun.UpdatePaycheckAdjustmentInput.jsonMergePatch": {
             label?: string | null;
@@ -2284,8 +2337,9 @@ export interface components {
          * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
          *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
          *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
-         *     approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
-         *     owners approve and reopen; employees read their own paycheck of approved runs.
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
          */
         "PayrollRun.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             id: string;
@@ -2311,6 +2365,10 @@ export interface components {
             linesWithoutRate: number;
             /** @description The sum of the totals of the paychecks shown, in minor units. */
             total: number;
+            /** @description How many of the paychecks shown are marked paid. */
+            paidPaychecks: number;
+            /** @description Approved, and every paycheck shown is marked paid (derived, not stored). */
+            paid: boolean;
             /** @description By member id; an employee sees only their own. */
             paychecks: components["schemas"]["PayrollRunPaycheck.jsonld"][];
             createdBy: string;
@@ -2369,6 +2427,20 @@ export interface components {
             lines: components["schemas"]["PayrollRunPaycheckLine"][];
             /** @description Oldest first. */
             adjustments: components["schemas"]["PayrollRunAdjustment"][];
+            /** @description The business date it was paid on (YYYY-MM-DD); null while it is not marked paid. */
+            paidOn: string | null;
+            /**
+             * @description How it was paid; null while it is not marked paid.
+             * @enum {string|null}
+             */
+            paymentMethod: "cash" | "transfer" | null;
+            /** @description The owner who marked it paid. */
+            paidMarkedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When it was marked paid.
+             */
+            paidMarkedAt: string | null;
         };
         "PayrollRunPaycheck.jsonld": {
             id: string;
@@ -2388,6 +2460,20 @@ export interface components {
             lines: components["schemas"]["PayrollRunPaycheckLine.jsonld"][];
             /** @description Oldest first. */
             adjustments: components["schemas"]["PayrollRunAdjustment.jsonld"][];
+            /** @description The business date it was paid on (YYYY-MM-DD); null while it is not marked paid. */
+            paidOn: string | null;
+            /**
+             * @description How it was paid; null while it is not marked paid.
+             * @enum {string|null}
+             */
+            paymentMethod: "cash" | "transfer" | null;
+            /** @description The owner who marked it paid. */
+            paidMarkedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When it was marked paid.
+             */
+            paidMarkedAt: string | null;
         };
         PayrollRunPaycheckLine: {
             shiftId: string;
@@ -2447,6 +2533,10 @@ export interface components {
             linesWithoutRate: number;
             /** @description In minor units. */
             total: number;
+            /** @description How many of the paychecks counted are marked paid. */
+            paidPaychecks: number;
+            /** @description Approved, and every paycheck counted is marked paid (derived). */
+            paid: boolean;
             /** Format: date-time */
             generatedAt: string;
             /** Format: date-time */
@@ -2470,6 +2560,10 @@ export interface components {
             linesWithoutRate: number;
             /** @description In minor units. */
             total: number;
+            /** @description How many of the paychecks counted are marked paid. */
+            paidPaychecks: number;
+            /** @description Approved, and every paycheck counted is marked paid (derived). */
+            paid: boolean;
             /** Format: date-time */
             generatedAt: string;
             /** Format: date-time */
@@ -5691,6 +5785,125 @@ export interface operations {
             };
         };
     };
+    "api_payroll-runs_idpaychecks_paycheckIdpayment_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+                /** @description PayrollRun identifier */
+                paycheckId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new PayrollRun resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["PayrollRun.MarkPaycheckPaidInput"];
+                "application/json": components["schemas"]["PayrollRun.MarkPaycheckPaidInput"];
+            };
+        };
+        responses: {
+            /** @description The run with the paycheck marked paid. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PayrollRun.jsonld"];
+                    "application/json": components["schemas"]["PayrollRun"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run or the paycheck is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is a draft, or the paycheck is marked paid already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, or the date is after today. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_payroll-runs_idpaychecks_paycheckIdpayment_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+                /** @description PayrollRun identifier */
+                paycheckId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The paycheck is no longer marked paid. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run or the paycheck is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The paycheck is not marked paid. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "api_payroll-runs_idregenerate_post": {
         parameters: {
             query?: never;
@@ -5811,7 +6024,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The run is a draft. */
+            /** @description The run is a draft, or a paycheck is marked paid. */
             409: {
                 headers: {
                     [name: string]: unknown;

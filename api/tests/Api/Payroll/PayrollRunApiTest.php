@@ -15,7 +15,7 @@ use Symfony\Component\Uid\UuidV7;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * /payroll-runs (#62, ADR 0027 §4–10). Organizations are in PLN and Europe/Warsaw, created on
+ * /payroll-runs (#62, #63, ADR 0027 §4–10). Organizations are in PLN and Europe/Warsaw, created on
  * 1 September 2026; the server's time is then mocked at NOW (20 November 2026, UTC), so October has
  * ended and November is the current month.
  */
@@ -53,6 +53,8 @@ final class PayrollRunApiTest extends PayrollApiTestCase
             'pendingChangeRequests' => 0,
             'linesWithoutRate' => 0,
             'total' => 37_950,
+            'paidPaychecks' => 0,
+            'paid' => false,
             'createdBy' => $manager->getId()->toRfc4122(),
             'createdAt' => '2026-11-20T10:00:00+00:00',
             'generatedBy' => $manager->getId()->toRfc4122(),
@@ -340,6 +342,215 @@ final class PayrollRunApiTest extends PayrollApiTestCase
         self::assertResponseStatusCodeSame(404);
         self::get($owner, $other, $otherRun);
         self::assertResponseStatusCodeSame(403, 'Not a member of the other organization');
+    }
+
+    public function test_it_marks_paychecks_paid_shows_the_run_paid_and_refuses_reopening_until_the_marks_are_undone(): void
+    {
+        [$owner, $organization, $employee, $colleague, $runId] = self::approvedRun();
+        $paychecks = self::paycheckIds($owner, $organization, $runId);
+
+        $response = self::pay($owner, $organization, $runId, $paychecks[$employee->getId()->toRfc4122()], ['paidOn' => '2026-11-10', 'method' => 'transfer']);
+
+        self::assertResponseStatusCodeSame(200);
+        $run = $response->toArray();
+        self::assertSame([1, false], [$run['paidPaychecks'], $run['paid']]);
+        $paid = array_column($run['paychecks'], null, 'userId')[$employee->getId()->toRfc4122()];
+        self::assertSame(['2026-11-10', 'transfer', $owner->getId()->toRfc4122(), '2026-11-20T10:00:00+00:00'], [$paid['paidOn'], $paid['paymentMethod'], $paid['paidMarkedBy'], $paid['paidMarkedAt']]);
+        $unpaid = array_column($run['paychecks'], null, 'userId')[$colleague->getId()->toRfc4122()];
+        self::assertSame([null, null, null, null], [$unpaid['paidOn'], $unpaid['paymentMethod'], $unpaid['paidMarkedBy'], $unpaid['paidMarkedAt']]);
+        self::assertSame([[1, false]], array_map(static fn (array $summary): array => [$summary['paidPaychecks'], $summary['paid']], self::list($owner, $organization)));
+
+        // The employee sees their own paycheck paid, so the run is paid for them.
+        $own = self::get($employee, $organization, $runId)->toArray();
+        self::assertSame([1, true, '2026-11-10', 'transfer'], [$own['paidPaychecks'], $own['paid'], $own['paychecks'][0]['paidOn'], $own['paychecks'][0]['paymentMethod']]);
+        self::assertSame([[1, true]], array_map(static fn (array $summary): array => [$summary['paidPaychecks'], $summary['paid']], self::list($employee, $organization)));
+
+        // Today in the organization's time zone is the latest date.
+        self::pay($owner, $organization, $runId, $paychecks[$colleague->getId()->toRfc4122()], ['paidOn' => '2026-11-20', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(200);
+        $all = self::get($owner, $organization, $runId)->toArray();
+        self::assertSame([2, true], [$all['paidPaychecks'], $all['paid']]);
+        self::assertSame([[2, true]], array_map(static fn (array $summary): array => [$summary['paidPaychecks'], $summary['paid']], self::list($owner, $organization)));
+
+        $refused = self::action($owner, $organization, $runId, 'reopen');
+        self::assertResponseStatusCodeSame(409);
+        self::assertStringContainsString('2 paycheck(s) marked paid', self::detail($refused));
+
+        self::unpay($owner, $organization, $runId, $paychecks[$employee->getId()->toRfc4122()]);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame([1, false], [self::get($owner, $organization, $runId)->toArray()['paidPaychecks'], self::get($owner, $organization, $runId)->toArray()['paid']]);
+        self::action($owner, $organization, $runId, 'reopen');
+        self::assertResponseStatusCodeSame(409);
+
+        self::unpay($owner, $organization, $runId, $paychecks[$colleague->getId()->toRfc4122()]);
+        self::assertResponseStatusCodeSame(204);
+        self::action($owner, $organization, $runId, 'reopen');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['draft', 0, false], [self::get($owner, $organization, $runId)->toArray()['status'], self::get($owner, $organization, $runId)->toArray()['paidPaychecks'], self::get($owner, $organization, $runId)->toArray()['paid']]);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function invalidPayments(): iterable
+    {
+        yield 'no date' => [['method' => 'cash']];
+        yield 'blank date' => [['paidOn' => '', 'method' => 'cash']];
+        yield 'not a date' => [['paidOn' => 'yesterday', 'method' => 'cash']];
+        yield 'a date that does not exist' => [['paidOn' => '2026-11-31', 'method' => 'cash']];
+        yield 'an instant' => [['paidOn' => '2026-11-10T10:00:00+01:00', 'method' => 'cash']];
+        yield 'no method' => [['paidOn' => '2026-11-10']];
+        yield 'unknown method' => [['paidOn' => '2026-11-10', 'method' => 'card']];
+        yield 'tomorrow' => [['paidOn' => '2026-11-21', 'method' => 'cash']];
+    }
+
+    /** @param array<string, mixed> $body */
+    #[DataProvider('invalidPayments')]
+    public function test_it_refuses_an_invalid_payment(array $body): void
+    {
+        [$owner, $organization, $employee, , $runId] = self::approvedRun();
+        $paycheckId = self::paycheckIds($owner, $organization, $runId)[$employee->getId()->toRfc4122()];
+
+        self::pay($owner, $organization, $runId, $paycheckId, $body);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertNull(self::get($owner, $organization, $runId)->toArray()['paychecks'][0]['paidOn']);
+    }
+
+    public function test_it_answers_404_for_a_paycheck_that_is_not_on_the_run(): void
+    {
+        [$owner, $organization, $employee, , $runId] = self::approvedRun();
+        $paycheckId = self::paycheckIds($owner, $organization, $runId)[$employee->getId()->toRfc4122()];
+        self::shift($owner, $organization, $employee, '2026-09-03T18:00:00+02:00', '2026-09-03T20:00:00+02:00');
+        $september = self::generate($owner, $organization, ['month' => '2026-09'])->toArray()['id'];
+        self::action($owner, $organization, $september, 'approve');
+        self::assertResponseStatusCodeSame(200);
+        $unknown = Uuid::v7()->toRfc4122();
+        $body = ['paidOn' => '2026-11-10', 'method' => 'cash'];
+
+        self::pay($owner, $organization, $unknown, $paycheckId, $body);
+        self::assertResponseStatusCodeSame(404);
+        self::pay($owner, $organization, $runId, $unknown, $body);
+        self::assertResponseStatusCodeSame(404);
+        self::pay($owner, $organization, $september, $paycheckId, $body);
+        self::assertResponseStatusCodeSame(404, 'October\'s paycheck is not on September\'s run');
+        self::unpay($owner, $organization, $unknown, $paycheckId);
+        self::assertResponseStatusCodeSame(404);
+        self::unpay($owner, $organization, $runId, $unknown);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function test_it_answers_409_for_a_draft_a_paycheck_paid_already_and_one_that_is_not_paid(): void
+    {
+        [$owner, $organization, $employee] = self::organizationWithEmployee();
+        self::addHourlyRate($organization, $employee, '2026-01-01');
+        self::mockTime(self::NOW);
+        self::shift($owner, $organization, $employee, '2026-10-03T18:00:00+02:00', '2026-10-03T20:00:00+02:00');
+        $runId = self::generate($owner, $organization, ['month' => '2026-10'])->toArray()['id'];
+        $paycheckId = self::paycheckIds($owner, $organization, $runId)[$employee->getId()->toRfc4122()];
+
+        self::assertStringContainsString('is a draft', self::detail(self::pay($owner, $organization, $runId, $paycheckId, ['paidOn' => '2026-11-10', 'method' => 'cash'])));
+        self::assertResponseStatusCodeSame(409);
+
+        self::action($owner, $organization, $runId, 'approve');
+        self::unpay($owner, $organization, $runId, $paycheckId);
+        self::assertResponseStatusCodeSame(409);
+        self::pay($owner, $organization, $runId, $paycheckId, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(200);
+
+        $again = self::pay($owner, $organization, $runId, $paycheckId, ['paidOn' => '2026-11-12', 'method' => 'transfer']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertStringContainsString('undo the mark first', self::detail($again));
+        self::assertSame(['2026-11-10', 'cash'], [self::get($owner, $organization, $runId)->toArray()['paychecks'][0]['paidOn'], self::get($owner, $organization, $runId)->toArray()['paychecks'][0]['paymentMethod']]);
+
+        self::action($owner, $organization, $runId, 'reopen');
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    /** @return iterable<string, array{MembershipRole, int, int}> role, then the status of marking paid and of undoing the mark */
+    public static function payers(): iterable
+    {
+        yield 'owner' => [MembershipRole::Owner, 200, 204];
+        yield 'manager' => [MembershipRole::Manager, 403, 403];
+        yield 'employee' => [MembershipRole::Employee, 403, 403];
+    }
+
+    #[DataProvider('payers')]
+    public function test_it_lets_only_owners_mark_paychecks_paid_and_undo_the_mark(MembershipRole $role, int $pay, int $undo): void
+    {
+        [$owner, $organization, $employee, , $runId] = self::approvedRun();
+        $actor = MembershipRole::Owner === $role ? $owner : self::addMember($organization, $role);
+        $paycheckId = self::paycheckIds($owner, $organization, $runId)[$employee->getId()->toRfc4122()];
+
+        self::pay($actor, $organization, $runId, $paycheckId, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame($pay);
+        if (200 !== $pay) {
+            self::assertNull(self::get($owner, $organization, $runId)->toArray()['paychecks'][0]['paidOn']);
+            self::pay($owner, $organization, $runId, $paycheckId, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        }
+
+        self::unpay($actor, $organization, $runId, $paycheckId);
+        self::assertResponseStatusCodeSame($undo);
+        self::assertSame(204 === $undo ? null : '2026-11-10', self::get($owner, $organization, $runId)->toArray()['paychecks'][0]['paidOn']);
+    }
+
+    public function test_it_does_not_mark_or_show_another_organizations_paychecks(): void
+    {
+        [$owner, $organization, $employee, , $runId] = self::approvedRun();
+        [$otherOwner, $other, $otherEmployee, , $otherRunId] = self::approvedRun();
+        $mine = self::paycheckIds($owner, $organization, $runId)[$employee->getId()->toRfc4122()];
+        $theirs = self::paycheckIds($otherOwner, $other, $otherRunId)[$otherEmployee->getId()->toRfc4122()];
+        self::pay($otherOwner, $other, $otherRunId, $theirs, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(200);
+
+        self::pay($owner, $organization, $otherRunId, $theirs, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(404);
+        self::unpay($owner, $organization, $otherRunId, $theirs);
+        self::assertResponseStatusCodeSame(404);
+        self::pay($owner, $organization, $runId, $theirs, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(404, 'Their paycheck is not on my run');
+
+        self::assertSame([[0, false]], array_map(static fn (array $summary): array => [$summary['paidPaychecks'], $summary['paid']], self::list($owner, $organization)));
+        self::assertSame('2026-11-10', self::get($otherOwner, $other, $otherRunId)->toArray()['paychecks'][0]['paidOn'], 'Theirs is still paid');
+        self::pay($owner, $organization, $runId, $mine, ['paidOn' => '2026-11-10', 'method' => 'cash']);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    /**
+     * October approved for an employee (2 h at 30.00) and a colleague (1 h at 30.00), at NOW.
+     *
+     * @return array{User, Organization, User, User, string} the owner, the organization, the employee, the colleague and the run id
+     */
+    private static function approvedRun(): array
+    {
+        [$owner, $organization, $employee] = self::organizationWithEmployee();
+        $colleague = self::addMember($organization, MembershipRole::Employee);
+        self::addHourlyRate($organization, $employee, '2026-01-01');
+        self::addHourlyRate($organization, $colleague, '2026-01-01');
+        self::mockTime(self::NOW);
+        self::shift($owner, $organization, $employee, '2026-10-03T18:00:00+02:00', '2026-10-03T20:00:00+02:00');
+        self::shift($owner, $organization, $colleague, '2026-10-04T18:00:00+02:00', '2026-10-04T19:00:00+02:00');
+        $runId = self::generate($owner, $organization, ['month' => '2026-10'])->toArray()['id'];
+        self::action($owner, $organization, $runId, 'approve');
+        self::assertResponseStatusCodeSame(200);
+
+        return [$owner, $organization, $employee, $colleague, $runId];
+    }
+
+    /** @return array<string, string> paycheck ids by user id */
+    private static function paycheckIds(User $user, Organization $organization, string $runId): array
+    {
+        /** @var array<string, string> */
+        return array_column(self::get($user, $organization, $runId)->toArray()['paychecks'], 'id', 'userId');
+    }
+
+    /** @param array<string, mixed> $body */
+    private static function pay(User $user, Organization $organization, string $runId, string $paycheckId, array $body): ResponseInterface
+    {
+        return static::clientFor($user, $organization)->request('POST', \sprintf('/api/payroll-runs/%s/paychecks/%s/payment', $runId, $paycheckId), ['json' => $body]);
+    }
+
+    private static function unpay(User $user, Organization $organization, string $runId, string $paycheckId): ResponseInterface
+    {
+        return static::clientFor($user, $organization)->request('DELETE', \sprintf('/api/payroll-runs/%s/paychecks/%s/payment', $runId, $paycheckId));
     }
 
     /** @return array{User, Organization, User} the owner, the organization and an employee, created on 1 September */

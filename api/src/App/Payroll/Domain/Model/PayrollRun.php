@@ -10,6 +10,9 @@ use App\Organization\Domain\Model\TenantAwareTrait;
 use App\Payroll\Domain\Exception\InvalidPaycheckAdjustmentException;
 use App\Payroll\Domain\Exception\PayrollAccessForbiddenException;
 use App\Payroll\Domain\Exception\PaycheckAdjustmentNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckPaymentException;
+use App\Payroll\Domain\Exception\PaymentDateInTheFutureException;
 use App\Payroll\Domain\Exception\PayrollMonthInTheFutureException;
 use App\Payroll\Domain\Exception\PayrollRunEmptyException;
 use App\Payroll\Domain\Exception\PayrollRunNotApprovableException;
@@ -36,8 +39,10 @@ use Symfony\Component\Uid\Uuid;
  *   it is pending, every line has a rate, no total is negative and the draft equals a recomputation
  *   from the current shifts, rates and currency. The handler then publishes PayrollRunApproved, and
  *   Time tracking locks the month's shifts.
- * - Only an owner reopens an approved run back to draft (§9), which unlocks the shifts. Once paychecks
- *   can be marked paid (#63), a run with a paid paycheck cannot be reopened.
+ * - Only an owner reopens an approved run back to draft (§9), which unlocks the shifts, and only while
+ *   no paycheck is marked paid: a mistake found after a payment is an adjustment in a later month.
+ * - Only an owner marks a paycheck of an approved run paid, on a business date up to today and with a
+ *   method, and undoes the mark (§9). The run is paid when all its paychecks are: derived, not stored.
  * - One run per organization and month: the unique constraint below stops two concurrent ones (409).
  */
 #[ORM\Entity]
@@ -281,17 +286,68 @@ class PayrollRun implements TenantAwareInterface
      *
      * @throws PayrollAccessForbiddenException when the actor is not an owner
      * @throws PayrollRunStatusException       when the run is a draft
+     * @throws PaycheckPaymentException        when a paycheck is marked paid
      */
     public function reopen(Uuid $actorId, MembershipRole $actorRole): void
     {
         PayrollAccess::assertCanApprove($actorId, $actorRole);
-        if (PayrollRunStatus::Approved !== $this->status) {
-            throw PayrollRunStatusException::notApproved($this->id->toRfc4122());
+        $this->assertApproved();
+        if ($this->paidPaychecks() > 0) {
+            throw PaycheckPaymentException::runHasPayments($this->id->toRfc4122(), $this->paidPaychecks());
         }
 
         $this->status = PayrollRunStatus::Draft;
         $this->approvedBy = null;
         $this->approvedAt = null;
+    }
+
+    /**
+     * @param BusinessDate $today in the organization's time zone
+     *
+     * @throws PayrollAccessForbiddenException when the actor is not an owner
+     * @throws PaycheckNotFoundException       when the paycheck is not on this run
+     * @throws PayrollRunStatusException       when the run is a draft
+     * @throws PaycheckPaymentException        when the paycheck is marked paid already
+     * @throws PaymentDateInTheFutureException when $paidOn is after $today
+     */
+    public function markPaycheckPaid(Uuid $paycheckId, BusinessDate $paidOn, PaymentMethod $method, BusinessDate $today, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): void
+    {
+        PayrollAccess::assertCanPay($actorId, $actorRole);
+        $paycheck = $this->getPaycheck($paycheckId);
+        $this->assertApproved();
+        if ($paycheck->isPaid()) {
+            throw PaycheckPaymentException::alreadyPaid($paycheckId->toRfc4122());
+        }
+        if ($paidOn->isAfter($today)) {
+            throw PaymentDateInTheFutureException::date($paidOn, $today);
+        }
+
+        $paycheck->markPaid($paidOn, $method, $actorId, $now);
+    }
+
+    /**
+     * @throws PayrollAccessForbiddenException when the actor is not an owner
+     * @throws PaycheckNotFoundException       when the paycheck is not on this run
+     * @throws PaycheckPaymentException        when the paycheck is not marked paid
+     */
+    public function undoPaycheckPaid(Uuid $paycheckId, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        PayrollAccess::assertCanPay($actorId, $actorRole);
+        // Only an approved run has paid paychecks: reopening is refused while one is.
+        $this->getPaycheck($paycheckId)->undoPaid();
+    }
+
+    /** Approved, and every paycheck is marked paid (ADR 0027 §9: derived, not stored). */
+    public function isPaid(): bool
+    {
+        return PayrollRunStatus::Approved === $this->status
+            && !$this->paychecks->isEmpty()
+            && $this->paidPaychecks() === $this->paychecks->count();
+    }
+
+    public function paidPaychecks(): int
+    {
+        return \count(array_filter($this->paychecks(), static fn (Paycheck $paycheck): bool => $paycheck->isPaid()));
     }
 
     public function getId(): Uuid
@@ -462,6 +518,26 @@ class PayrollRun implements TenantAwareInterface
         }
 
         throw PaycheckAdjustmentNotFoundException::forId($adjustmentId->toRfc4122());
+    }
+
+    /** @throws PaycheckNotFoundException */
+    private function getPaycheck(Uuid $paycheckId): Paycheck
+    {
+        foreach ($this->paychecks as $paycheck) {
+            if ($paycheck->getId()->equals($paycheckId)) {
+                return $paycheck;
+            }
+        }
+
+        throw PaycheckNotFoundException::forId($paycheckId->toRfc4122());
+    }
+
+    /** @throws PayrollRunStatusException */
+    private function assertApproved(): void
+    {
+        if (PayrollRunStatus::Approved !== $this->status) {
+            throw PayrollRunStatusException::notApproved($this->id->toRfc4122());
+        }
     }
 
     /** @throws PayrollRunStatusException */

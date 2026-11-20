@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payroll\Application\Query\GetPayrollRun;
 
+use App\Payroll\Application\Query\PayrollRunPayment;
 use App\Payroll\Domain\Model\Paycheck;
 use App\Payroll\Domain\Model\PayrollRun;
 
@@ -26,6 +27,10 @@ final readonly class PayrollRunView
         public int $pendingChangeRequests,
         public int $linesWithoutRate,
         public int $total,
+        /** Paychecks shown that are marked paid. */
+        public int $paidPaychecks,
+        /** Approved, and every paycheck shown is marked paid (derived, ADR 0027 §9). */
+        public bool $paid,
         public array $paychecks,
         public string $createdBy,
         public \DateTimeImmutable $createdAt,
@@ -56,6 +61,8 @@ final readonly class PayrollRunView
             $run->getPendingChangeRequests(),
             array_sum(array_map(static fn (PaycheckView $paycheck): int => $paycheck->linesWithoutRate, $views)),
             array_sum(array_map(static fn (PaycheckView $paycheck): int => $paycheck->total, $views)),
+            PayrollRunPayment::paidPaychecks($paychecks),
+            PayrollRunPayment::isPaid($run, $paychecks),
             $views,
             $run->getCreatedBy()->toRfc4122(),
             $run->getCreatedAt(),

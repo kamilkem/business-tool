@@ -21,9 +21,11 @@ use Ui\Http\Payroll\Processor\AddPaycheckAdjustmentProcessor;
 use Ui\Http\Payroll\Processor\ApprovePayrollRunProcessor;
 use Ui\Http\Payroll\Processor\DeletePayrollRunProcessor;
 use Ui\Http\Payroll\Processor\GeneratePayrollRunProcessor;
+use Ui\Http\Payroll\Processor\MarkPaycheckPaidProcessor;
 use Ui\Http\Payroll\Processor\RegeneratePayrollRunProcessor;
 use Ui\Http\Payroll\Processor\RemovePaycheckAdjustmentProcessor;
 use Ui\Http\Payroll\Processor\ReopenPayrollRunProcessor;
+use Ui\Http\Payroll\Processor\UndoPaycheckPaidProcessor;
 use Ui\Http\Payroll\Processor\UpdatePaycheckAdjustmentProcessor;
 use Ui\Http\Payroll\Provider\PayrollRunProvider;
 use Ui\Http\Payroll\Provider\UpdatePaycheckAdjustmentInputProvider;
@@ -32,8 +34,9 @@ use Ui\Http\Payroll\Provider\UpdatePaycheckAdjustmentInputProvider;
  * The pay of one calendar month in the organization selected by the X-Organization-Id header
  * (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
  * paycheck per member with lines per shift and adjustments, regenerated until it is right, then
- * approved by an owner, which locks the month's shifts. Owners and managers prepare drafts; only
- * owners approve and reopen; employees read their own paycheck of approved runs.
+ * approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+ * managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+ * paycheck of approved runs.
  */
 #[ApiResource(
     shortName: 'PayrollRun',
@@ -111,17 +114,54 @@ use Ui\Http\Payroll\Provider\UpdatePaycheckAdjustmentInputProvider;
             status: 200,
             openapi: new Operation(
                 summary: 'Reopens an approved run back to draft, which unlocks the month\'s shifts.',
-                description: 'Owners only (403 otherwise). A draft is a 409.',
+                description: 'Owners only (403 otherwise). A draft is a 409, and so is a run with a paycheck marked paid: undo the marks first, or fix a mistake with an adjustment in a later month.',
                 responses: [
                     '200' => new Response('The draft.'),
                     '403' => new Response('The signed-in user is not an owner.'),
                     '404' => new Response('The run is not the selected organization\'s.'),
-                    '409' => new Response('The run is a draft.'),
+                    '409' => new Response('The run is a draft, or a paycheck is marked paid.'),
                 ],
             ),
             input: false,
             read: false,
             processor: ReopenPayrollRunProcessor::class,
+        ),
+        new Post(
+            uriTemplate: '/payroll-runs/{id}/paychecks/{paycheckId}/payment',
+            uriVariables: ['id', 'paycheckId'],
+            requirements: ['id' => Requirement::UUID, 'paycheckId' => Requirement::UUID],
+            status: 200,
+            openapi: new Operation(
+                summary: 'Marks a paycheck of an approved run paid.',
+                description: 'Owners only (403 otherwise). The business date it was paid on, today or earlier in the organization\'s time zone (422 otherwise), and the method. A draft run is a 409, and so is a paycheck marked paid already (undo the mark to change it). The run is paid once all its paychecks are; a run with a paid paycheck cannot be reopened.',
+                responses: [
+                    '200' => new Response('The run with the paycheck marked paid.'),
+                    '403' => new Response('The signed-in user is not an owner.'),
+                    '404' => new Response('The run or the paycheck is not the selected organization\'s.'),
+                    '409' => new Response('The run is a draft, or the paycheck is marked paid already.'),
+                    '422' => new Response('A field is missing or invalid, or the date is after today.'),
+                ],
+            ),
+            input: MarkPaycheckPaidInput::class,
+            read: false,
+            processor: MarkPaycheckPaidProcessor::class,
+        ),
+        new Delete(
+            uriTemplate: '/payroll-runs/{id}/paychecks/{paycheckId}/payment',
+            uriVariables: ['id', 'paycheckId'],
+            requirements: ['id' => Requirement::UUID, 'paycheckId' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Undoes the paid mark of a paycheck.',
+                description: 'Owners only (403 otherwise). A paycheck that is not marked paid is a 409.',
+                responses: [
+                    '204' => new Response('The paycheck is no longer marked paid.'),
+                    '403' => new Response('The signed-in user is not an owner.'),
+                    '404' => new Response('The run or the paycheck is not the selected organization\'s.'),
+                    '409' => new Response('The paycheck is not marked paid.'),
+                ],
+            ),
+            read: false,
+            processor: UndoPaycheckPaidProcessor::class,
         ),
         new Delete(
             uriTemplate: '/payroll-runs/{id}',
@@ -221,6 +261,10 @@ final readonly class PayrollRunResource
         public int $linesWithoutRate,
         /** The sum of the totals of the paychecks shown, in minor units. */
         public int $total,
+        /** How many of the paychecks shown are marked paid. */
+        public int $paidPaychecks,
+        /** Approved, and every paycheck shown is marked paid (derived, not stored). */
+        public bool $paid,
         /** By member id; an employee sees only their own. */
         public array $paychecks,
         public string $createdBy,
@@ -249,6 +293,8 @@ final readonly class PayrollRunResource
             pendingChangeRequests: $view->pendingChangeRequests,
             linesWithoutRate: $view->linesWithoutRate,
             total: $view->total,
+            paidPaychecks: $view->paidPaychecks,
+            paid: $view->paid,
             paychecks: array_map(static fn (PaycheckView $paycheck): PayrollRunPaycheck => PayrollRunPaycheck::fromView($paycheck), $view->paychecks),
             createdBy: $view->createdBy,
             createdAt: $view->createdAt,

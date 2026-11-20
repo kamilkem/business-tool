@@ -54,6 +54,20 @@ final readonly class PayrollActor
         return $actor;
     }
 
+    /**
+     * For marking paychecks paid and undoing the mark: an owner (ADR 0027 §9–10).
+     *
+     * @throws OrganizationNotFoundException   when the actor is not an active member of the organization
+     * @throws PayrollAccessForbiddenException when the actor is not an owner
+     */
+    public static function payer(QueryBusInterface $queryBus, string $organizationId, string $actorId): self
+    {
+        $actor = self::find($queryBus, $organizationId, $actorId) ?? throw OrganizationNotFoundException::forId($organizationId);
+        PayrollAccess::assertCanPay($actor->id, $actor->role);
+
+        return $actor;
+    }
+
     /** For queries: any active member, or null when the actor is not one. */
     public static function member(QueryBusInterface $queryBus, string $organizationId, string $actorId): ?self
     {

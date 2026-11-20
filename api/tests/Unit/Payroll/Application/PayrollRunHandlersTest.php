@@ -22,12 +22,16 @@ use App\Payroll\Application\Command\DeletePayrollRun\DeletePayrollRunCommand;
 use App\Payroll\Application\Command\DeletePayrollRun\DeletePayrollRunHandler;
 use App\Payroll\Application\Command\GeneratePayrollRun\GeneratePayrollRunCommand;
 use App\Payroll\Application\Command\GeneratePayrollRun\GeneratePayrollRunHandler;
+use App\Payroll\Application\Command\MarkPaycheckPaid\MarkPaycheckPaidCommand;
+use App\Payroll\Application\Command\MarkPaycheckPaid\MarkPaycheckPaidHandler;
 use App\Payroll\Application\Command\RegeneratePayrollRun\RegeneratePayrollRunCommand;
 use App\Payroll\Application\Command\RegeneratePayrollRun\RegeneratePayrollRunHandler;
 use App\Payroll\Application\Command\RemovePaycheckAdjustment\RemovePaycheckAdjustmentCommand;
 use App\Payroll\Application\Command\RemovePaycheckAdjustment\RemovePaycheckAdjustmentHandler;
 use App\Payroll\Application\Command\ReopenPayrollRun\ReopenPayrollRunCommand;
 use App\Payroll\Application\Command\ReopenPayrollRun\ReopenPayrollRunHandler;
+use App\Payroll\Application\Command\UndoPaycheckPaid\UndoPaycheckPaidCommand;
+use App\Payroll\Application\Command\UndoPaycheckPaid\UndoPaycheckPaidHandler;
 use App\Payroll\Application\PayrollActor;
 use App\Payroll\Application\PayrollSourcesLoader;
 use App\Payroll\Application\Query\GetPayrollRun\GetPayrollRunHandler;
@@ -41,11 +45,15 @@ use App\Payroll\Application\Query\ListPayRates\ListPayRatesQuery;
 use App\Payroll\Application\Query\ListPayrollRuns\ListPayrollRunsHandler;
 use App\Payroll\Application\Query\ListPayrollRuns\ListPayrollRunsQuery;
 use App\Payroll\Application\Query\ListPayrollRuns\PayrollRunSummaryView;
+use App\Payroll\Application\Query\PayrollRunPayment;
 use App\Payroll\Application\Query\PayrollRunVisibility;
 use App\Payroll\Domain\Event\PayrollRunApproved;
 use App\Payroll\Domain\Event\PayrollRunReopened;
 use App\Payroll\Domain\Exception\InvalidRoundingException;
 use App\Payroll\Domain\Exception\PaycheckAdjustmentNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckPaymentException;
+use App\Payroll\Domain\Exception\PaymentDateInTheFutureException;
 use App\Payroll\Domain\Exception\PayrollAccessForbiddenException;
 use App\Payroll\Domain\Exception\PayrollRunEmptyException;
 use App\Payroll\Domain\Exception\PayrollRunMonthTakenException;
@@ -83,6 +91,9 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(AddPaycheckAdjustmentHandler::class)]
 #[CoversClass(ChangePaycheckAdjustmentHandler::class)]
 #[CoversClass(RemovePaycheckAdjustmentHandler::class)]
+#[CoversClass(MarkPaycheckPaidHandler::class)]
+#[CoversClass(UndoPaycheckPaidHandler::class)]
+#[CoversClass(PayrollRunPayment::class)]
 #[CoversClass(GetPayrollRunHandler::class)]
 #[CoversClass(ListPayrollRunsHandler::class)]
 #[CoversClass(PayrollRunVisibility::class)]
@@ -355,6 +366,99 @@ final class PayrollRunHandlersTest extends TestCase
         self::assertNull((new ListPayrollRunsHandler($this->runs, $this->queryBus))(new ListPayrollRunsQuery($this->orgId(), $this->id('outsider'))));
         self::assertNull($this->view(Uuid::v7()->toRfc4122(), 'owner'));
         self::assertNull($this->view('not-a-uuid', 'owner'));
+    }
+
+    public function test_it_marks_paychecks_paid_as_an_owner_and_shows_the_run_paid_when_all_are(): void
+    {
+        $this->work($this->employee, '2026-10-03', 3_600);
+        $this->work($this->colleague, '2026-10-03', 7_200);
+        $runId = $this->generate('owner');
+        [$employees, $colleagues] = $this->paycheckIds($runId);
+
+        $this->assertThrows(PayrollRunStatusException::class, fn () => $this->markPaid('owner', $runId, $employees));
+        $this->approve('owner', $runId);
+        $this->assertThrows(PayrollAccessForbiddenException::class, fn () => $this->markPaid('manager', $runId, $employees));
+        $this->assertThrows(PayrollAccessForbiddenException::class, fn () => $this->markPaid('employee', $runId, $employees));
+        $this->assertThrows(OrganizationNotFoundException::class, fn () => $this->markPaid('outsider', $runId, $employees));
+        $this->assertThrows(PayrollRunNotFoundException::class, fn () => $this->markPaid('owner', Uuid::v7()->toRfc4122(), $employees));
+        $this->assertThrows(PaycheckNotFoundException::class, fn () => $this->markPaid('owner', $runId, Uuid::v7()->toRfc4122()));
+        $this->assertThrows(PaycheckNotFoundException::class, fn () => $this->markPaid('owner', $runId, 'not-a-uuid'));
+        $this->assertThrows(PaymentDateInTheFutureException::class, fn () => $this->markPaid('owner', $runId, $employees, '2026-11-21'));
+
+        $this->markPaid('owner', $runId, $employees, '2026-11-10', 'transfer');
+
+        $run = $this->shown($runId, 'manager');
+        self::assertSame([1, false], [$run->paidPaychecks, $run->paid]);
+        $paycheck = array_column($run->paychecks, null, 'id')[$employees];
+        self::assertSame(['2026-11-10', 'transfer', $this->id('owner')], [$paycheck->paidOn, $paycheck->paymentMethod, $paycheck->paidMarkedBy]);
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $paycheck->paidMarkedAt);
+        self::assertSame([1, false], [$this->list('owner')[0]->paidPaychecks, $this->list('owner')[0]->paid]);
+        // An employee sees only their own paycheck, so the run is paid for them once theirs is.
+        $own = $this->shown($runId, 'employee');
+        self::assertSame([1, true], [$own->paidPaychecks, $own->paid]);
+        self::assertSame([1, true], [$this->list('employee')[0]->paidPaychecks, $this->list('employee')[0]->paid]);
+
+        $this->assertThrows(PaycheckPaymentException::class, fn () => $this->markPaid('owner', $runId, $employees, '2026-11-12'));
+        $this->markPaid('owner', $runId, $colleagues, '2026-11-20', 'cash');
+
+        self::assertSame([2, true], [$this->shown($runId, 'owner')->paidPaychecks, $this->shown($runId, 'owner')->paid]);
+        self::assertSame([2, true], [$this->list('manager')[0]->paidPaychecks, $this->list('manager')[0]->paid]);
+    }
+
+    public function test_it_takes_today_in_the_organizations_time_zone(): void
+    {
+        $this->work($this->employee, '2026-10-03', 3_600);
+        $runId = $this->generate('owner');
+        $this->approve('owner', $runId);
+        [$paycheck] = $this->paycheckIds($runId);
+        // 23:30 UTC on 20 November is 00:30 on 21 November in Warsaw.
+        $this->clock = new MockClock('2026-11-20 23:30:00');
+
+        $this->markPaid('owner', $runId, $paycheck, '2026-11-21');
+
+        self::assertSame('2026-11-21', $this->shown($runId, 'owner')->paychecks[0]->paidOn);
+    }
+
+    public function test_it_undoes_a_paid_mark_as_an_owner_and_refuses_reopening_until_then(): void
+    {
+        $this->work($this->employee, '2026-10-03', 3_600);
+        $runId = $this->generate('owner');
+        $this->approve('owner', $runId);
+        [$paycheck] = $this->paycheckIds($runId);
+        $undo = fn (string $actor, string $id = '') => (new UndoPaycheckPaidHandler($this->runs, $this->queryBus))(new UndoPaycheckPaidCommand($this->orgId(), $this->id($actor), $runId, '' === $id ? $paycheck : $id));
+        $reopen = fn () => (new ReopenPayrollRunHandler($this->runs, $this->queryBus, $this->events))(new ReopenPayrollRunCommand($this->orgId(), $this->id('owner'), $runId));
+
+        $this->assertThrows(PaycheckPaymentException::class, fn () => $undo('owner'));
+        $this->markPaid('owner', $runId, $paycheck);
+        $this->assertThrows(PaycheckPaymentException::class, $reopen);
+        self::assertCount(1, $this->events->events, 'No PayrollRunReopened when reopening is refused');
+        $this->assertThrows(PayrollAccessForbiddenException::class, fn () => $undo('manager'));
+        $this->assertThrows(PaycheckNotFoundException::class, fn () => $undo('owner', Uuid::v7()->toRfc4122()));
+
+        $undo('owner');
+
+        $run = $this->shown($runId, 'owner');
+        self::assertSame([0, false, null, null], [$run->paidPaychecks, $run->paid, $run->paychecks[0]->paidOn, $run->paychecks[0]->paymentMethod]);
+        $reopen();
+        self::assertSame('draft', $this->shown($runId, 'owner')->status);
+    }
+
+    private function markPaid(string $actor, string $runId, string $paycheckId, string $paidOn = '2026-11-20', string $method = 'cash'): void
+    {
+        (new MarkPaycheckPaidHandler($this->runs, $this->queryBus, $this->clock))(
+            new MarkPaycheckPaidCommand($this->orgId(), $this->id($actor), $runId, $paycheckId, $paidOn, $method),
+        );
+    }
+
+    /** @return list<string> paycheck ids in the order employee, colleague, former (those present) */
+    private function paycheckIds(string $runId): array
+    {
+        $byUser = [];
+        foreach ($this->shown($runId, 'owner')->paychecks as $paycheck) {
+            $byUser[$paycheck->userId] = $paycheck->id;
+        }
+
+        return array_values(array_filter(array_map(fn (string $name): ?string => $byUser[$this->id($name)] ?? null, ['employee', 'colleague', 'former'])));
     }
 
     private function generate(string $actor, string $month = '2026-10', string $unit = 'none', string $direction = 'nearest'): string

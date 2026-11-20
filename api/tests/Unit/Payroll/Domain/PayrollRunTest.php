@@ -7,6 +7,9 @@ namespace App\Tests\Unit\Payroll\Domain;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Payroll\Domain\Exception\InvalidPaycheckAdjustmentException;
 use App\Payroll\Domain\Exception\PaycheckAdjustmentNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckNotFoundException;
+use App\Payroll\Domain\Exception\PaycheckPaymentException;
+use App\Payroll\Domain\Exception\PaymentDateInTheFutureException;
 use App\Payroll\Domain\Exception\PayrollAccessForbiddenException;
 use App\Payroll\Domain\Exception\PayrollMonthInTheFutureException;
 use App\Payroll\Domain\Exception\PayrollRunEmptyException;
@@ -15,6 +18,7 @@ use App\Payroll\Domain\Exception\PayrollRunStatusException;
 use App\Payroll\Domain\Model\Paycheck;
 use App\Payroll\Domain\Model\PaycheckAdjustment;
 use App\Payroll\Domain\Model\PaycheckLine;
+use App\Payroll\Domain\Model\PaymentMethod;
 use App\Payroll\Domain\Model\PayrollAccess;
 use App\Payroll\Domain\Model\PayrollRun;
 use App\Payroll\Domain\Model\PayrollRunStatus;
@@ -439,6 +443,152 @@ final class PayrollRunTest extends TestCase
 
         $this->expectException(PayrollRunStatusException::class);
         $run->reopen($this->owner, MembershipRole::Owner);
+    }
+
+    public function test_it_marks_paychecks_of_an_approved_run_paid_and_is_paid_when_all_are(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+        $eves = $this->paycheckOf($run, $this->eve);
+
+        $run->markPaycheckPaid($bobs->getId(), BusinessDate::fromString('2026-11-10'), PaymentMethod::Transfer, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        self::assertTrue($bobs->isPaid());
+        self::assertSame('2026-11-10', $bobs->getPaidOn()?->toString());
+        self::assertSame(PaymentMethod::Transfer, $bobs->getPaymentMethod());
+        self::assertTrue($this->owner->equals($bobs->getPaidMarkedBy() ?? Uuid::v7()));
+        self::assertEquals($this->now(), $bobs->getPaidMarkedAt());
+        self::assertFalse($eves->isPaid());
+        self::assertSame(1, $run->paidPaychecks());
+        self::assertFalse($run->isPaid());
+
+        // Today, and a date before the month ended (an early payment), are both fine.
+        $run->markPaycheckPaid($eves->getId(), BusinessDate::fromString('2026-10-25'), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        self::assertSame(2, $run->paidPaychecks());
+        self::assertTrue($run->isPaid());
+    }
+
+    public function test_it_accepts_today_as_the_payment_date_but_not_tomorrow(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+
+        try {
+            $run->markPaycheckPaid($bobs->getId(), $this->today()->next(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+            self::fail('A payment date after today must be refused.');
+        } catch (PaymentDateInTheFutureException) {
+        }
+        self::assertFalse($bobs->isPaid());
+
+        $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+        self::assertTrue($bobs->isPaid());
+    }
+
+    public function test_it_lets_only_owners_mark_paid_and_undo_the_mark(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+
+        foreach ([MembershipRole::Manager, MembershipRole::Employee] as $role) {
+            try {
+                $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->manager, $role, $this->now());
+                self::fail('Only owners mark paid.');
+            } catch (PayrollAccessForbiddenException) {
+            }
+        }
+        $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        $this->expectException(PayrollAccessForbiddenException::class);
+
+        $run->undoPaycheckPaid($bobs->getId(), $this->manager, MembershipRole::Manager);
+    }
+
+    public function test_it_does_not_mark_a_paycheck_of_a_draft_paid(): void
+    {
+        $run = $this->approvableRun();
+
+        $this->expectException(PayrollRunStatusException::class);
+
+        $run->markPaycheckPaid($this->paycheckOf($run, $this->bob)->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+    }
+
+    public function test_it_does_not_mark_a_paycheck_paid_twice(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+        $run->markPaycheckPaid($bobs->getId(), BusinessDate::fromString('2026-11-10'), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        try {
+            $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Transfer, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+            self::fail('A paid paycheck must not be marked again.');
+        } catch (PaycheckPaymentException $e) {
+            self::assertStringContainsString('undo the mark first', $e->getMessage());
+        }
+
+        self::assertSame('2026-11-10', $bobs->getPaidOn()?->toString());
+        self::assertSame(PaymentMethod::Cash, $bobs->getPaymentMethod());
+    }
+
+    public function test_it_undoes_a_paid_mark_but_not_one_that_is_not_there(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+        $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        $run->undoPaycheckPaid($bobs->getId(), $this->owner, MembershipRole::Owner);
+
+        self::assertFalse($bobs->isPaid());
+        self::assertNull($bobs->getPaidOn());
+        self::assertNull($bobs->getPaymentMethod());
+        self::assertNull($bobs->getPaidMarkedBy());
+        self::assertNull($bobs->getPaidMarkedAt());
+        self::assertSame(0, $run->paidPaychecks());
+
+        $this->expectException(PaycheckPaymentException::class);
+        $this->expectExceptionMessage('is not marked paid');
+
+        $run->undoPaycheckPaid($bobs->getId(), $this->owner, MembershipRole::Owner);
+    }
+
+    public function test_it_refuses_a_paycheck_that_is_not_on_the_run(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+
+        $this->expectException(PaycheckNotFoundException::class);
+
+        $run->markPaycheckPaid(Uuid::v7(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+    }
+
+    public function test_it_is_not_reopened_while_a_paycheck_is_paid(): void
+    {
+        $run = $this->approvedRunOfBobAndEve();
+        $bobs = $this->paycheckOf($run, $this->bob);
+        $run->markPaycheckPaid($bobs->getId(), $this->today(), PaymentMethod::Cash, $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        try {
+            $run->reopen($this->owner, MembershipRole::Owner);
+            self::fail('A run with a paid paycheck must not be reopened.');
+        } catch (PaycheckPaymentException $e) {
+            self::assertStringContainsString('1 paycheck(s) marked paid', $e->getMessage());
+        }
+        self::assertSame(PayrollRunStatus::Approved, $run->getStatus());
+
+        $run->undoPaycheckPaid($bobs->getId(), $this->owner, MembershipRole::Owner);
+        $run->reopen($this->owner, MembershipRole::Owner);
+
+        self::assertSame(PayrollRunStatus::Draft, $run->getStatus());
+        self::assertFalse($run->isPaid());
+    }
+
+    private function approvedRunOfBobAndEve(): PayrollRun
+    {
+        $this->shift($this->eve, '2026-10-04', 7_200);
+        $this->hourlyFor($this->eve, '2026-10-01', '2026-10-31', 3_200);
+        $run = $this->approvableRun();
+        $run->approve($this->sources(), $this->today(), $this->owner, MembershipRole::Owner, $this->now());
+
+        return $run;
     }
 
     private function approvableRun(): PayrollRun
