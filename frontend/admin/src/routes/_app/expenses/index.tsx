@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { SearchIcon, XIcon } from "lucide-react"
+import { PlusIcon, SearchIcon, XIcon } from "lucide-react"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -17,6 +17,7 @@ import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 import { cn } from "@business-tool/ui/lib/utils"
 
 import { ExpenseCategorySelect } from "@/components/expense-category-select"
+import { ExpenseDialog, type ExpenseTarget } from "@/components/expense-dialog"
 import { ExpenseSheet } from "@/components/expense-sheet"
 import { ExpensesNav } from "@/components/expenses-nav"
 import { KsefImportStatus } from "@/components/ksef-import-status"
@@ -37,7 +38,7 @@ import {
 } from "@/lib/expenses"
 import { ksefAvailableIn } from "@/lib/ksef"
 import { useCategorizeExpense } from "@/lib/use-categorize-expense"
-import { expenseCategoriesQuery, expensesQuery, ksefConnectionQuery, organizationQuery } from "@/lib/queries"
+import { expenseCategoriesQuery, expensesQuery, ksefConnectionQuery, organizationQuery, vatRatesQuery } from "@/lib/queries"
 
 /*
  * Expenses (#56): purchase invoices of a period by issue date, imported from KSeF or entered by
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/_app/expenses/")({
       queryClient.ensureQueryData(organizationQuery(organization.id)),
       queryClient.ensureQueryData(expensesQuery(organization.id, expensesFilter(deps, period))),
       queryClient.ensureQueryData(expenseCategoriesQuery(organization.id, true)),
+      queryClient.ensureQueryData(vatRatesQuery(organization.id)),
     ])
     if (ksefAvailableIn(details.countryCode) && can(context.membership.role, "ksef")) {
       await queryClient.ensureQueryData(ksefConnectionQuery(organization.id))
@@ -80,6 +82,8 @@ function ExpensesPage() {
   const { data: list } = useSuspenseQuery(expensesQuery(organizationId, expensesFilter(search, period)))
   const { data: categories } = useSuspenseQuery(expenseCategoriesQuery(organizationId, true))
   const { active: activeCategories } = splitCategories(categories)
+  const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
+  const [formTarget, setFormTarget] = useState<ExpenseTarget | null>(null)
 
   // The drawer keeps its own copy: an expense that leaves a filtered list stays open.
   const [selected, setSelected] = useState<Expense | null>(null)
@@ -115,7 +119,13 @@ function ExpensesPage() {
             </p>
           </div>
         </div>
-        <PeriodPicker value={period} onChange={setPeriod} maxDays={EXPENSES_MAX_DAYS} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodPicker value={period} onChange={setPeriod} maxDays={EXPENSES_MAX_DAYS} />
+          <Button onClick={() => setFormTarget({ kind: "add" })}>
+            <PlusIcon />
+            Add expense
+          </Button>
+        </div>
       </div>
 
       {showKsef && <KsefImportStatus membership={membership} />}
@@ -146,10 +156,22 @@ function ExpensesPage() {
 
       <ExpenseSheet
         expense={selected}
+        organizationId={organizationId}
         activeCategories={activeCategories}
         categorizing={busyId !== null && busyId === selected?.id}
         onCategorize={(expense, categoryId) => categorize.mutate({ expense, categoryId })}
+        onEdit={(expense) => setFormTarget({ kind: "edit", expense })}
         onClose={() => setSelected(null)}
+      />
+
+      <ExpenseDialog
+        organizationId={organizationId}
+        activeCategories={activeCategories}
+        vatRates={vatRates}
+        target={formTarget}
+        // An edited expense stays open in the drawer with its new values.
+        onSaved={(saved) => setSelected((current) => (current?.id === saved.id ? saved : current))}
+        onClose={() => setFormTarget(null)}
       />
     </div>
   )
