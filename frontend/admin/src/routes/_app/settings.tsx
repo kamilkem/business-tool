@@ -8,6 +8,7 @@ import { Button } from "@business-tool/ui/components/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 
 import { KsefConnectionCard } from "@/components/ksef-connection-card"
 import { api } from "@/lib/api"
@@ -16,6 +17,12 @@ import { ksefAvailableIn } from "@/lib/ksef"
 import { organizationQuery, refetchMe } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
+type CsvSeparator = components["schemas"]["Organization"]["csvSeparator"]
+
+const csvSeparatorLabels: Record<CsvSeparator, string> = {
+  semicolon: "Semicolon ; with a decimal comma (1234,56)",
+  comma: "Comma , with a decimal point (1234.56)",
+}
 
 export const Route = createFileRoute("/_app/settings")({
   beforeLoad: requireCapability("settings"),
@@ -60,6 +67,7 @@ function SettingsPage() {
       countryCode: String(form.get("countryCode")),
       currency: String(form.get("currency")),
       timezone: String(form.get("timezone")),
+      csvSeparator: String(form.get("csvSeparator")) as CsvSeparator,
     })
   }
 
@@ -97,6 +105,25 @@ function SettingsPage() {
                     <Input id="timezone" name="timezone" defaultValue={organization.timezone} />
                   </Field>
                 </div>
+                <Field>
+                  <FieldLabel htmlFor="csvSeparator">CSV exports</FieldLabel>
+                  <Select name="csvSeparator" defaultValue={organization.csvSeparator}>
+                    <SelectTrigger id="csvSeparator" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(csvSeparatorLabels) as CsvSeparator[]).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {csvSeparatorLabels[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Pick what your spreadsheet expects, e.g. for the payroll export. Excel in Polish or German uses
+                    semicolons.
+                  </FieldDescription>
+                </Field>
                 <Field data-invalid={error ? true : undefined}>
                   {error && <FieldError>{error}</FieldError>}
                 </Field>

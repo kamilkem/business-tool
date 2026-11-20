@@ -16,6 +16,8 @@ final readonly class CreateOrganizationCommand implements CommandInterface
         public string $countryCode,
         public string $currency,
         public string $timezone,
+        /** 'comma' or 'semicolon' (CsvSeparator); null for the country's default. */
+        public ?string $csvSeparator = null,
     ) {
     }
 }

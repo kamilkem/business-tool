@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Application\Command\CreateOrganization;
 
 use App\Organization\Domain\Event\OrganizationCreated;
+use App\Organization\Domain\Model\CsvSeparator;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
@@ -39,6 +40,7 @@ final readonly class CreateOrganizationHandler implements CommandHandlerInterfac
             $command->countryCode,
             $command->currency,
             $command->timezone,
+            null === $command->csvSeparator ? null : CsvSeparator::from($command->csvSeparator),
         );
 
         $this->organizations->add($organization);

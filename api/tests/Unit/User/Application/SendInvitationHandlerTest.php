@@ -43,7 +43,7 @@ final class SendInvitationHandlerTest extends TestCase
         $this->tokens = new InMemoryPasswordTokenRepository();
         $this->mailer = new RecordingMailer();
         $this->organizationId = Uuid::v7()->toRfc4122();
-        $this->organization = new OrganizationView($this->organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', new \DateTimeImmutable());
+        $this->organization = new OrganizationView($this->organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', 'semicolon', new \DateTimeImmutable());
         $this->inviter = new User(Uuid::v7(), 'olivia@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Olivia', 'Owner');
         $this->inviter->changePassword('hash');
         $this->invitee = new User(Uuid::v7(), 'eve@example.com', new \DateTimeImmutable('2026-11-01 09:00:00'), 'Eve', 'Nowak');

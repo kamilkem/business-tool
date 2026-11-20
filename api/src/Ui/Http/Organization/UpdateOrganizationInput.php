@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\Organization;
 
 use App\Organization\Application\Query\GetOrganization\OrganizationView;
+use App\Organization\Domain\Model\CsvSeparator;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -33,6 +34,9 @@ final class UpdateOrganizationInput
     #[Assert\Timezone]
     public string $timezone = '';
 
+    /** How CSV exports are written: `semicolon` (`;` and a decimal comma) or `comma` (`,` and a decimal point). */
+    public CsvSeparator $csvSeparator = CsvSeparator::Comma;
+
     public static function fromView(OrganizationView $view): self
     {
         $input = new self();
@@ -41,6 +45,7 @@ final class UpdateOrganizationInput
         $input->countryCode = $view->countryCode;
         $input->currency = $view->currency;
         $input->timezone = $view->timezone;
+        $input->csvSeparator = CsvSeparator::from($view->csvSeparator);
 
         return $input;
     }

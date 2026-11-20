@@ -736,6 +736,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payroll-runs/{id}/export/paychecks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An approved payroll run as a CSV file for the accountant, one row per paycheck.
+         * @description Owners and managers only (403 otherwise). A draft is a 409: only an approved run is exported. Served as an attachment, UTF-8 with a byte order mark and CRLF line ends, written for the organization's spreadsheet by its csvSeparator: `semicolon` uses `;` and a decimal comma, `comma` uses `,` and a decimal point. Money is a decimal string of the run's currency without grouping. Columns: Month, First name, Last name, Paid time (h:mm:ss), Paid hours (two decimals, half up), Pay for hours, Adjustments, Total, Currency, Run status, Paid on (YYYY-MM-DD, empty while unpaid), Payment method (cash or transfer). People by last name.
+         */
+        get: operations["api_payroll-runs_idexportpaychecks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payroll-runs/{id}/export/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The shift lines of an approved payroll run as a CSV file for the accountant.
+         * @description Owners and managers only (403 otherwise). A draft is a 409: only an approved run is exported. Served as an attachment, UTF-8 with a byte order mark and CRLF line ends, written for the organization's spreadsheet by its csvSeparator: `semicolon` uses `;` and a decimal comma, `comma` uses `,` and a decimal point. Money is a decimal string of the run's currency without grouping. Columns: Month, First name, Last name, Date (the business date the shift started on), Start and End (YYYY-MM-DD HH:MM in the organization's time zone), Length and Paid length (h:mm:ss and hours with two decimals), Rate kind (hourly or day), Rate per hour, Amount (this shift's pay rounded half up, for display: a paycheck's pay for hours is rounded once, so the sum may differ by a few minor units), Currency.
+         */
+        get: operations["api_payroll-runs_idexportshifts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payroll-runs/{id}/paychecks/{paycheckId}/payment": {
         parameters: {
             query?: never;
@@ -2213,6 +2253,12 @@ export interface components {
             countryCode: string;
             currency: string;
             timezone: string;
+            /**
+             * @description How CSV exports are written, for the organization's spreadsheet: `semicolon` uses `;` between
+             *     fields and a decimal comma (1234,56), `comma` uses `,` and a decimal point (1234.56).
+             * @enum {string}
+             */
+            csvSeparator: "comma" | "semicolon";
             /** Format: date-time */
             createdAt: string;
         };
@@ -2224,6 +2270,11 @@ export interface components {
             countryCode?: string;
             currency?: string;
             timezone?: string;
+            /**
+             * @description How CSV exports are written; by default `semicolon` in countries with a decimal comma (PL, DE, ...), else `comma`.
+             * @enum {string|null}
+             */
+            csvSeparator?: "comma" | "semicolon" | null;
         };
         /** @description Organizations the signed-in user belongs to. */
         "Organization.UpdateOrganizationInput.jsonMergePatch": {
@@ -2236,6 +2287,12 @@ export interface components {
             currency?: string;
             /** @default  */
             timezone?: string;
+            /**
+             * @description How CSV exports are written: `semicolon` (`;` and a decimal comma) or `comma` (`,` and a decimal point).
+             * @default comma
+             * @enum {string}
+             */
+            csvSeparator?: "comma" | "semicolon";
         };
         /** @description Organizations the signed-in user belongs to. */
         "Organization.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
@@ -2246,6 +2303,12 @@ export interface components {
             countryCode: string;
             currency: string;
             timezone: string;
+            /**
+             * @description How CSV exports are written, for the organization's spreadsheet: `semicolon` uses `;` between
+             *     fields and a decimal comma (1234,56), `comma` uses `,` and a decimal point (1234.56).
+             * @enum {string}
+             */
+            csvSeparator: "comma" | "semicolon";
             /** Format: date-time */
             createdAt: string;
         };
@@ -2443,6 +2506,56 @@ export interface components {
          *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
          *     paycheck of approved runs.
          */
+        "PayrollRun.csv": {
+            id: string;
+            /** @description The calendar month (YYYY-MM) in the organization's time zone. */
+            month: string;
+            /** @description The month's first business date (YYYY-MM-DD). */
+            firstDate: string;
+            /** @description The month's last business date (YYYY-MM-DD). */
+            lastDate: string;
+            /** @enum {string} */
+            status: "draft" | "approved";
+            /** @description ISO 4217: the organization's when the run was last generated. */
+            currency: string;
+            /** @enum {string} */
+            roundingUnit: "none" | "15" | "30" | "60";
+            /** @enum {string} */
+            roundingDirection: "nearest" | "up" | "down";
+            /** @description Shifts of the month still open when the run was last generated; they are not on any paycheck. */
+            openShifts: number;
+            /** @description Pending shift change requests about the month when the run was last generated. */
+            pendingChangeRequests: number;
+            /** @description Lines of the paychecks shown that have no rate. */
+            linesWithoutRate: number;
+            /** @description The sum of the totals of the paychecks shown, in minor units. */
+            total: number;
+            /** @description How many of the paychecks shown are marked paid. */
+            paidPaychecks: number;
+            /** @description Approved, and every paycheck shown is marked paid (derived, not stored). */
+            paid: boolean;
+            /** @description By member id; an employee sees only their own. */
+            paychecks: components["schemas"]["PayrollRunPaycheck.csv"][];
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Who generated or regenerated the run last. */
+            generatedBy: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description The owner who approved it; null for a draft. */
+            approvedBy: string | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+        };
+        /**
+         * @description The pay of one calendar month in the organization selected by the X-Organization-Id header
+         *     (ADR 0027 §4–10): generated as a draft from the month's ended shifts and the rates in effect, one
+         *     paycheck per member with lines per shift and adjustments, regenerated until it is right, then
+         *     approved by an owner, which locks the month's shifts, and its paychecks marked paid. Owners and
+         *     managers prepare drafts; only owners approve, reopen and mark paid; employees read their own
+         *     paycheck of approved runs.
+         */
         "PayrollRun.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             id: string;
             /** @description The calendar month (YYYY-MM) in the organization's time zone. */
@@ -2486,6 +2599,19 @@ export interface components {
             approvedAt: string | null;
         };
         PayrollRunAdjustment: {
+            id: string;
+            label: string;
+            /** @description Signed minor units in the run's currency. */
+            amount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until then.
+             */
+            updatedAt: string | null;
+        };
+        "PayrollRunAdjustment.csv": {
             id: string;
             label: string;
             /** @description Signed minor units in the run's currency. */
@@ -2544,6 +2670,39 @@ export interface components {
              */
             paidMarkedAt: string | null;
         };
+        "PayrollRunPaycheck.csv": {
+            id: string;
+            /** @description The member, active or deactivated. */
+            userId: string;
+            /** @description The sum of the lines' paid seconds. */
+            paidSeconds: number;
+            /** @description Σ(paid seconds × rate) / 3600, rounded half up once, in minor units; lines without a rate count 0. */
+            payForHours: number;
+            /** @description The sum of the adjustments, in minor units. */
+            adjustmentsTotal: number;
+            /** @description payForHours + adjustmentsTotal, in minor units. */
+            total: number;
+            /** @description Lines whose member has no rate for the shift's date: the run cannot be approved until the rate is set and the run regenerated. */
+            linesWithoutRate: number;
+            /** @description One line per ended shift of the month, by date. */
+            lines: components["schemas"]["PayrollRunPaycheckLine.csv"][];
+            /** @description Oldest first. */
+            adjustments: components["schemas"]["PayrollRunAdjustment.csv"][];
+            /** @description The business date it was paid on (YYYY-MM-DD); null while it is not marked paid. */
+            paidOn: string | null;
+            /**
+             * @description How it was paid; null while it is not marked paid.
+             * @enum {string|null}
+             */
+            paymentMethod: "cash" | "transfer" | null;
+            /** @description The owner who marked it paid. */
+            paidMarkedBy: string | null;
+            /**
+             * Format: date-time
+             * @description When it was marked paid.
+             */
+            paidMarkedAt: string | null;
+        };
         "PayrollRunPaycheck.jsonld": {
             id: string;
             /** @description The member, active or deactivated. */
@@ -2578,6 +2737,26 @@ export interface components {
             paidMarkedAt: string | null;
         };
         PayrollRunPaycheckLine: {
+            shiftId: string;
+            /** @description The business date the shift started on (YYYY-MM-DD); the whole shift counts for it. */
+            date: string;
+            /** @description The real length in seconds. */
+            seconds: number;
+            /** @description The length in seconds after the run's rounding. */
+            paidSeconds: number;
+            /**
+             * @description Which rate paid the shift: the member's day rate for its date or their hourly rate; null when the member has no rate for that date in the run's currency.
+             * @enum {string|null}
+             */
+            rateKind: "hourly" | "day" | null;
+            /** @description The HourlyRate or DayRate; null without a rate. */
+            rateId: string | null;
+            /** @description Gross minor units per hour; null without a rate. */
+            rate: number | null;
+            /** @description This shift's pay rounded half up, for display: the paycheck's payForHours is rounded once from the exact sum, so it may differ from the sum of these by a few minor units. Null without a rate. */
+            amount: number | null;
+        };
+        "PayrollRunPaycheckLine.csv": {
             shiftId: string;
             /** @description The business date the shift started on (YYYY-MM-DD); the whole shift counts for it. */
             date: string;
@@ -5926,6 +6105,94 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_payroll-runs_idexportpaychecks_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The CSV file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is a draft. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_payroll-runs_idexportshifts_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PayrollRun identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The CSV file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is not the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The run is a draft. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

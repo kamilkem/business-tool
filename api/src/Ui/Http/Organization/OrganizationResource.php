@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Organization\Application\Query\GetOrganization\OrganizationView;
+use App\Organization\Domain\Model\CsvSeparator;
 use Ui\Http\Organization\Processor\CreateOrganizationProcessor;
 use Ui\Http\Organization\Processor\UpdateOrganizationProcessor;
 use Ui\Http\Organization\Provider\GetOrganizationProvider;
@@ -52,6 +53,11 @@ final readonly class OrganizationResource
         public string $countryCode,
         public string $currency,
         public string $timezone,
+        /**
+         * How CSV exports are written, for the organization's spreadsheet: `semicolon` uses `;` between
+         * fields and a decimal comma (1234,56), `comma` uses `,` and a decimal point (1234.56).
+         */
+        public CsvSeparator $csvSeparator,
         public \DateTimeImmutable $createdAt,
     ) {
     }
@@ -65,6 +71,7 @@ final readonly class OrganizationResource
             countryCode: $view->countryCode,
             currency: $view->currency,
             timezone: $view->timezone,
+            csvSeparator: CsvSeparator::from($view->csvSeparator),
             createdAt: $view->createdAt,
         );
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ui\Http\Organization;
 
+use App\Organization\Domain\Model\CsvSeparator;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class CreateOrganizationInput
@@ -24,6 +25,8 @@ final readonly class CreateOrganizationInput
         #[Assert\NotBlank]
         #[Assert\Timezone]
         public string $timezone = 'Europe/Warsaw',
+        /** How CSV exports are written; by default `semicolon` in countries with a decimal comma (PL, DE, ...), else `comma`. */
+        public ?CsvSeparator $csvSeparator = null,
     ) {
     }
 }

@@ -15,6 +15,8 @@ final readonly class OrganizationView
         public string $countryCode,
         public string $currency,
         public string $timezone,
+        /** 'comma' or 'semicolon' (CsvSeparator). */
+        public string $csvSeparator,
         public \DateTimeImmutable $createdAt,
     ) {
     }
@@ -28,6 +30,7 @@ final readonly class OrganizationView
             $organization->getCountryCode(),
             $organization->getCurrency(),
             $organization->getTimezone(),
+            $organization->getCsvSeparator()->value,
             $organization->getCreatedAt(),
         );
     }

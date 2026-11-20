@@ -16,6 +16,8 @@ final readonly class UpdateOrganizationCommand implements CommandInterface
         public string $countryCode,
         public string $currency,
         public string $timezone,
+        /** 'comma' or 'semicolon' (CsvSeparator); null keeps the current one. */
+        public ?string $csvSeparator = null,
     ) {
     }
 }
