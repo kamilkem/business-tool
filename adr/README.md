@@ -34,3 +34,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0024](0024-expenses-independent-of-ksef.md) | Expenses is independent of KSeF: a country-neutral purchase invoice with its original document, and KSeF in its own module that feeds it | Accepted |
 | [0025](0025-background-jobs-scheduler-and-job-bus.md) | Background and scheduled jobs: Symfony Scheduler and a job bus on a PostgreSQL `jobs` queue, run by a second worker | Accepted |
 | [0026](0026-per-organization-secrets-encrypted-with-app-keyring.md) | Per-organization secrets are encrypted in the database with libsodium under an application keyring, in their own module, and never leave it through the API | Accepted |
+| [0027](0027-payroll-v1-hourly-gross-monthly-runs.md) | Payroll v1 is hourly pay for a calendar month, gross only: a run is generated from ended shifts, approved by an owner, and locks its shifts | Accepted |
