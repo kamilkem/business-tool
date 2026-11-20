@@ -350,6 +350,20 @@ class PayrollRun implements TenantAwareInterface
         return \count(array_filter($this->paychecks(), static fn (Paycheck $paycheck): bool => $paycheck->isPaid()));
     }
 
+    /**
+     * Only an approved run goes to the accountant (ADR 0027 §12): a draft may still change.
+     *
+     * @throws PayrollAccessForbiddenException when the actor is not an owner or manager
+     * @throws PayrollRunStatusException       when the run is a draft
+     */
+    public function assertCanExport(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        PayrollAccess::assertCanPrepareRuns($actorId, $actorRole);
+        if (PayrollRunStatus::Approved !== $this->status) {
+            throw PayrollRunStatusException::notApproved($this->id->toRfc4122());
+        }
+    }
+
     public function getId(): Uuid
     {
         return $this->id;

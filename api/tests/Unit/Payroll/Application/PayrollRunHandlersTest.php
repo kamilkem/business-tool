@@ -8,6 +8,8 @@ use App\Organization\Application\Query\GetMember\GetMemberHandler;
 use App\Organization\Application\Query\GetMember\GetMemberQuery;
 use App\Organization\Application\Query\GetOrganization\GetOrganizationHandler;
 use App\Organization\Application\Query\GetOrganization\GetOrganizationQuery;
+use App\Organization\Application\Query\ListMembers\ListMembersHandler;
+use App\Organization\Application\Query\ListMembers\ListMembersQuery;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Organization\Domain\Model\MembershipRole;
@@ -34,6 +36,9 @@ use App\Payroll\Application\Command\UndoPaycheckPaid\UndoPaycheckPaidCommand;
 use App\Payroll\Application\Command\UndoPaycheckPaid\UndoPaycheckPaidHandler;
 use App\Payroll\Application\PayrollActor;
 use App\Payroll\Application\PayrollSourcesLoader;
+use App\Payroll\Application\Query\ExportPayrollRun\ExportPayrollRunHandler;
+use App\Payroll\Application\Query\ExportPayrollRun\ExportPayrollRunQuery;
+use App\Payroll\Application\Query\ExportPayrollRun\PayrollRunExportView;
 use App\Payroll\Application\Query\GetPayrollRun\GetPayrollRunHandler;
 use App\Payroll\Application\Query\GetPayrollRun\GetPayrollRunQuery;
 use App\Payroll\Application\Query\GetPayrollRun\PaycheckAdjustmentView;
@@ -104,6 +109,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(PayrollRunSummaryView::class)]
 #[CoversClass(PayrollSourcesLoader::class)]
 #[CoversClass(PayrollActor::class)]
+#[CoversClass(ExportPayrollRunHandler::class)]
 final class PayrollRunHandlersTest extends TestCase
 {
     private const string NOW = '2026-11-20 10:00:00';
@@ -152,6 +158,7 @@ final class PayrollRunHandlersTest extends TestCase
         $this->queryBus = new StubQueryBus(fn (QueryInterface $query): mixed => match (true) {
             $query instanceof GetMemberQuery => (new GetMemberHandler($organizations))($query),
             $query instanceof GetOrganizationQuery => (new GetOrganizationHandler($organizations))($query),
+            $query instanceof ListMembersQuery => (new ListMembersHandler($organizations))($query),
             $query instanceof ListPayRatesQuery => (new ListPayRatesHandler($rates, $dayRates))($query),
             $query instanceof ListWorkedShiftsQuery => $this->workedShifts($query),
             default => throw new \LogicException(\sprintf('Unexpected query %s.', $query::class)),
@@ -459,6 +466,48 @@ final class PayrollRunHandlersTest extends TestCase
         }
 
         return array_values(array_filter(array_map(fn (string $name): ?string => $byUser[$this->id($name)] ?? null, ['employee', 'colleague', 'former'])));
+    }
+
+    #[DataProvider('managers')]
+    public function test_it_exports_an_approved_run_with_names_shift_times_and_the_organizations_csv_settings(string $actor): void
+    {
+        $this->work($this->employee, '2026-10-03', 7_200);
+        $this->work($this->former, '2026-10-04', 3_600);
+        $runId = $this->generate('manager');
+        $this->approve('owner', $runId);
+
+        $run = $this->export($actor, $runId);
+
+        self::assertNotNull($run);
+        self::assertSame([$runId, '2026-10', '2026-10-01', '2026-10-31', 'approved', 'PLN', 'Europe/Warsaw', 'semicolon'], [$run->id, $run->month, $run->firstDate, $run->lastDate, $run->status, $run->currency, $run->timeZone, $run->csvSeparator]);
+        $byUser = [];
+        foreach ($run->paychecks as $paycheck) {
+            $byUser[$paycheck->userId] = $paycheck;
+        }
+        self::assertSame([$this->id('employee'), $this->id('former')], array_keys($byUser), 'Same names: by user id; the deactivated member included');
+        $paycheck = $byUser[$this->id('employee')];
+        self::assertSame(['Jane', 'Doe', 7_200, 6_000, 0, 6_000], [$paycheck->firstName, $paycheck->lastName, $paycheck->paidSeconds, $paycheck->payForHours, $paycheck->adjustmentsTotal, $paycheck->total]);
+        $line = $paycheck->lines[0];
+        self::assertSame([$this->shifts[0]->shiftId, '2026-10-03', 7_200, 7_200, 'hourly', 3_000, 6_000], [$line->shiftId, $line->date, $line->seconds, $line->paidSeconds, $line->rateKind, $line->rate, $line->amount]);
+        self::assertEquals([$this->shifts[0]->startedAt, $this->shifts[0]->endedAt], [$line->startedAt, $line->endedAt]);
+    }
+
+    public function test_it_refuses_to_export_a_draft_or_to_an_employee_and_finds_no_other_run(): void
+    {
+        $this->work($this->employee, '2026-10-03', 3_600);
+        $runId = $this->generate('owner');
+
+        $this->assertThrows(PayrollRunStatusException::class, fn () => $this->export('owner', $runId));
+        $this->approve('owner', $runId);
+        $this->assertThrows(PayrollAccessForbiddenException::class, fn () => $this->export('employee', $runId));
+        $this->assertThrows(OrganizationNotFoundException::class, fn () => $this->export('outsider', $runId));
+        self::assertNull($this->export('owner', Uuid::v7()->toRfc4122()));
+        self::assertNull($this->export('owner', 'not-a-uuid'));
+    }
+
+    private function export(string $actor, string $runId): ?PayrollRunExportView
+    {
+        return (new ExportPayrollRunHandler($this->runs, $this->queryBus))(new ExportPayrollRunQuery($this->orgId(), $this->id($actor), $runId));
     }
 
     private function generate(string $actor, string $month = '2026-10', string $unit = 'none', string $direction = 'nearest'): string

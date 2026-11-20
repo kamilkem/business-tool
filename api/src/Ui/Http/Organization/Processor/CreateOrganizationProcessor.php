@@ -40,6 +40,7 @@ final readonly class CreateOrganizationProcessor implements ProcessorInterface
             countryCode: $data->countryCode,
             currency: $data->currency,
             timezone: $data->timezone,
+            csvSeparator: $data->csvSeparator?->value,
         ));
 
         /** @var OrganizationView $view */

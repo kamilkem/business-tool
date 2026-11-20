@@ -27,7 +27,9 @@ use Ui\Http\Payroll\Processor\RemovePaycheckAdjustmentProcessor;
 use Ui\Http\Payroll\Processor\ReopenPayrollRunProcessor;
 use Ui\Http\Payroll\Processor\UndoPaycheckPaidProcessor;
 use Ui\Http\Payroll\Processor\UpdatePaycheckAdjustmentProcessor;
+use Ui\Http\Payroll\Provider\PayrollRunPaychecksCsvProvider;
 use Ui\Http\Payroll\Provider\PayrollRunProvider;
+use Ui\Http\Payroll\Provider\PayrollRunShiftLinesCsvProvider;
 use Ui\Http\Payroll\Provider\UpdatePaycheckAdjustmentInputProvider;
 
 /**
@@ -51,6 +53,40 @@ use Ui\Http\Payroll\Provider\UpdatePaycheckAdjustmentInputProvider;
                 responses: ['404' => new Response('The run is not the selected organization\'s, or not visible to the signed-in user.')],
             ),
             provider: PayrollRunProvider::class,
+        ),
+        new Get(
+            uriTemplate: '/payroll-runs/{id}/export/paychecks',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            outputFormats: ['csv' => ['text/csv']],
+            openapi: new Operation(
+                summary: 'An approved payroll run as a CSV file for the accountant, one row per paycheck.',
+                description: 'Owners and managers only (403 otherwise). A draft is a 409: only an approved run is exported. Served as an attachment, UTF-8 with a byte order mark and CRLF line ends, written for the organization\'s spreadsheet by its csvSeparator: `semicolon` uses `;` and a decimal comma, `comma` uses `,` and a decimal point. Money is a decimal string of the run\'s currency without grouping. Columns: Month, First name, Last name, Paid time (h:mm:ss), Paid hours (two decimals, half up), Pay for hours, Adjustments, Total, Currency, Run status, Paid on (YYYY-MM-DD, empty while unpaid), Payment method (cash or transfer). People by last name.',
+                responses: [
+                    '200' => new Response('The CSV file.', new \ArrayObject(['text/csv' => ['schema' => ['type' => 'string']]])),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The run is not the selected organization\'s.'),
+                    '409' => new Response('The run is a draft.'),
+                ],
+            ),
+            provider: PayrollRunPaychecksCsvProvider::class,
+        ),
+        new Get(
+            uriTemplate: '/payroll-runs/{id}/export/shifts',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            outputFormats: ['csv' => ['text/csv']],
+            openapi: new Operation(
+                summary: 'The shift lines of an approved payroll run as a CSV file for the accountant.',
+                description: 'Owners and managers only (403 otherwise). A draft is a 409: only an approved run is exported. Served as an attachment, UTF-8 with a byte order mark and CRLF line ends, written for the organization\'s spreadsheet by its csvSeparator: `semicolon` uses `;` and a decimal comma, `comma` uses `,` and a decimal point. Money is a decimal string of the run\'s currency without grouping. Columns: Month, First name, Last name, Date (the business date the shift started on), Start and End (YYYY-MM-DD HH:MM in the organization\'s time zone), Length and Paid length (h:mm:ss and hours with two decimals), Rate kind (hourly or day), Rate per hour, Amount (this shift\'s pay rounded half up, for display: a paycheck\'s pay for hours is rounded once, so the sum may differ by a few minor units), Currency.',
+                responses: [
+                    '200' => new Response('The CSV file.', new \ArrayObject(['text/csv' => ['schema' => ['type' => 'string']]])),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The run is not the selected organization\'s.'),
+                    '409' => new Response('The run is a draft.'),
+                ],
+            ),
+            provider: PayrollRunShiftLinesCsvProvider::class,
         ),
         new Post(
             uriTemplate: '/payroll-runs',

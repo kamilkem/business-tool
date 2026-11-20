@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Organization\Application\Command\UpdateOrganization;
 
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
+use App\Organization\Domain\Model\CsvSeparator;
 use App\Organization\Domain\Repository\OrganizationRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -32,6 +33,7 @@ final readonly class UpdateOrganizationHandler implements CommandHandlerInterfac
             $command->countryCode,
             $command->currency,
             $command->timezone,
+            null === $command->csvSeparator ? null : CsvSeparator::from($command->csvSeparator),
         );
 
         $this->organizations->save($organization);

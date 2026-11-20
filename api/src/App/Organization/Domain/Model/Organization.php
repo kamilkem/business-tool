@@ -39,6 +39,10 @@ class Organization
     #[ORM\Column(length: 64)]
     private string $timezone;
 
+    /** How its CSV exports are written (ADR 0002); defaults from the country. */
+    #[ORM\Column(length: 16, enumType: CsvSeparator::class, options: ['default' => 'comma'])]
+    private CsvSeparator $csvSeparator;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -58,10 +62,12 @@ class Organization
         string $countryCode = 'PL',
         string $currency = 'PLN',
         string $timezone = 'Europe/Warsaw',
+        ?CsvSeparator $csvSeparator = null,
     ) {
         $this->createdAt = $createdAt;
         $this->memberships = new ArrayCollection();
         $this->apply($name, $taxId, $countryCode, $currency, $timezone);
+        $this->csvSeparator = $csvSeparator ?? CsvSeparator::defaultFor($countryCode);
         $this->grantMembership($owner, MembershipRole::Owner, $createdAt);
     }
 
@@ -202,7 +208,8 @@ class Organization
     }
 
     /**
-     * Changes the organization's settings on behalf of a member.
+     * Changes the organization's settings on behalf of a member. A null CSV separator keeps the
+     * current one.
      *
      * @throws OrganizationManagementForbiddenException when the actor is not an owner or manager
      */
@@ -213,10 +220,12 @@ class Organization
         string $countryCode,
         string $currency,
         string $timezone,
+        ?CsvSeparator $csvSeparator = null,
     ): void {
         $this->assertCanManage($actorId);
 
         $this->apply($name, $taxId, $countryCode, $currency, $timezone);
+        $this->csvSeparator = $csvSeparator ?? $this->csvSeparator;
     }
 
     /** The user is a member whose access was not removed (deactivateMember()). */
@@ -358,6 +367,11 @@ class Organization
     public function getTimezone(): string
     {
         return $this->timezone;
+    }
+
+    public function getCsvSeparator(): CsvSeparator
+    {
+        return $this->csvSeparator;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

@@ -9,6 +9,7 @@ use App\Organization\Domain\Exception\LastOwnerException;
 use App\Organization\Domain\Exception\MemberNotFoundException;
 use App\Organization\Domain\Exception\OrganizationManagementForbiddenException;
 use App\Organization\Domain\Exception\RoleAssignmentForbiddenException;
+use App\Organization\Domain\Model\CsvSeparator;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Tests\Fixtures\OrganizationMother;
@@ -170,6 +171,22 @@ final class OrganizationTest extends TestCase
         self::assertSame('DE', $organization->getCountryCode());
         self::assertSame('EUR', $organization->getCurrency());
         self::assertSame('Europe/Berlin', $organization->getTimezone());
+    }
+
+    public function test_it_defaults_the_csv_separator_from_the_country_and_keeps_it_unless_changed(): void
+    {
+        $owner = UserMother::any();
+        $polish = OrganizationMother::ownedBy($owner);
+        $american = new Organization(Uuid::v7(), 'Diner', $owner, new \DateTimeImmutable('2026-11-01'), countryCode: 'US', currency: 'USD', timezone: 'America/New_York');
+
+        self::assertSame(CsvSeparator::Semicolon, $polish->getCsvSeparator());
+        self::assertSame(CsvSeparator::Comma, $american->getCsvSeparator());
+
+        $polish->changeSettings($owner->getId(), 'Bar', null, 'US', 'USD', 'America/New_York');
+        self::assertSame(CsvSeparator::Semicolon, $polish->getCsvSeparator(), 'A new country does not change it');
+
+        $polish->changeSettings($owner->getId(), 'Bar', null, 'US', 'USD', 'America/New_York', CsvSeparator::Comma);
+        self::assertSame(CsvSeparator::Comma, $polish->getCsvSeparator());
     }
 
     /** @return iterable<string, array{MembershipRole}> */

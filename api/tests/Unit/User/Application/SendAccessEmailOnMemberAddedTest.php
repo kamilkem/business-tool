@@ -88,7 +88,7 @@ final class SendAccessEmailOnMemberAddedTest extends TestCase
 
     private function handle(string $role): void
     {
-        $organization = new OrganizationView($this->organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', new \DateTimeImmutable());
+        $organization = new OrganizationView($this->organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', 'semicolon', new \DateTimeImmutable());
         $queryBus = new StubQueryBus(fn (QueryInterface $query): ?OrganizationView => $query instanceof GetOrganizationQuery
             && $query->organizationId === $this->organizationId ? $organization : null);
 

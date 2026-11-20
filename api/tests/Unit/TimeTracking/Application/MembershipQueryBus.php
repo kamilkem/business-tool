@@ -24,7 +24,7 @@ final class MembershipQueryBus
                 return null;
             }
 
-            return new OrganizationView($organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', new \DateTimeImmutable('2026-11-01 09:00:00'));
+            return new OrganizationView($organizationId, 'Corner Pub', null, 'PL', 'PLN', 'Europe/Warsaw', 'semicolon', new \DateTimeImmutable('2026-11-01 09:00:00'));
         });
     }
 }

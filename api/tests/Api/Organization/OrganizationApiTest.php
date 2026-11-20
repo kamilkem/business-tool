@@ -54,7 +54,7 @@ final class OrganizationApiTest extends ApiTestCase
         ])->toArray();
 
         self::assertResponseStatusCodeSame(201);
-        self::assertSame(['Corner Pub', '1234567890', 'PL', 'PLN'], [$data['name'], $data['taxId'], $data['countryCode'], $data['currency']]);
+        self::assertSame(['Corner Pub', '1234567890', 'PL', 'PLN', 'semicolon'], [$data['name'], $data['taxId'], $data['countryCode'], $data['currency'], $data['csvSeparator']]);
         $membership = static::getContainer()->get(MembershipRepositoryInterface::class)
             ->findOne($user->getId(), Uuid::fromString($data['id']));
         self::assertSame(MembershipRole::Owner, $membership?->getRole());
@@ -88,6 +88,23 @@ final class OrganizationApiTest extends ApiTestCase
 
         self::assertResponseIsSuccessful();
         self::assertJsonContains(['name' => $organization->getName(), 'taxId' => '1234567890', 'currency' => 'PLN']);
+    }
+
+    public function test_it_defaults_the_csv_separator_from_the_country_takes_one_on_create_and_changes_it(): void
+    {
+        $user = UserFactory::createOne();
+        $create = static fn (array $body): array => static::clientFor($user)->request('POST', '/api/organizations', ['json' => ['name' => 'Diner'] + $body])->toArray();
+
+        self::assertSame('comma', $create(['countryCode' => 'US', 'currency' => 'USD', 'timezone' => 'America/New_York'])['csvSeparator']);
+        $organization = $create(['csvSeparator' => 'comma']);
+        self::assertSame(['PL', 'comma'], [$organization['countryCode'], $organization['csvSeparator']]);
+
+        static::clientFor($user)->request('PATCH', '/api/organizations/'.$organization['id'], ['json' => ['csvSeparator' => 'semicolon'], 'headers' => self::MERGE_PATCH]);
+        self::assertResponseIsSuccessful();
+        self::assertJsonContains(['csvSeparator' => 'semicolon', 'name' => 'Diner']);
+
+        static::clientFor($user)->request('PATCH', '/api/organizations/'.$organization['id'], ['json' => ['csvSeparator' => 'tab'], 'headers' => self::MERGE_PATCH]);
+        self::assertResponseStatusCodeSame(422);
     }
 
     /** @return iterable<string, array{MembershipRole|null, int}> */
