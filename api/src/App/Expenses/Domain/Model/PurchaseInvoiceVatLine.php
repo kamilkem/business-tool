@@ -38,6 +38,19 @@ class PurchaseInvoiceVatLine implements TenantAwareInterface
     ) {
     }
 
+    public function getRate(): string
+    {
+        return $this->rate;
+    }
+
+    /** The invoice changes its line at this rate (PurchaseInvoice::change()). */
+    public function change(int $net, int $vat, ?int $vatInTaxCurrency): void
+    {
+        $this->net = $net;
+        $this->vat = $vat;
+        $this->vatInTaxCurrency = $vatInTaxCurrency;
+    }
+
     public function toVatAmount(): PurchaseInvoiceVatAmount
     {
         return new PurchaseInvoiceVatAmount($this->rate, $this->net, $this->vat, $this->vatInTaxCurrency);

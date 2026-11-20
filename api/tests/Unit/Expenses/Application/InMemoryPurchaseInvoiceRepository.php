@@ -51,10 +51,11 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
                 && (!$filter->uncategorized || null === $categoryId)
                 && (null === $filter->seller
                     || str_contains(mb_strtolower($invoice->getSellerName()), $filter->seller)
-                    || (null !== $taxId && str_contains(mb_strtolower($invoice->getSellerTaxId()), $taxId)));
+                    || (null !== $taxId && str_contains(mb_strtolower($invoice->getSellerTaxId() ?? ''), $taxId)));
         }));
-        usort($invoices, static fn (PurchaseInvoice $a, PurchaseInvoice $b): int => [$b->getIssueDate()->toString(), $a->getSellerName(), $a->getInvoiceNumber(), $a->getId()->toRfc4122()]
-            <=> [$a->getIssueDate()->toString(), $b->getSellerName(), $b->getInvoiceNumber(), $b->getId()->toRfc4122()]);
+        // PostgreSQL sorts a missing invoice number (NULL) last in ascending order.
+        usort($invoices, static fn (PurchaseInvoice $a, PurchaseInvoice $b): int => [$b->getIssueDate()->toString(), $a->getSellerName(), null === $a->getInvoiceNumber(), (string) $a->getInvoiceNumber(), $a->getId()->toRfc4122()]
+            <=> [$a->getIssueDate()->toString(), $b->getSellerName(), null === $b->getInvoiceNumber(), (string) $b->getInvoiceNumber(), $b->getId()->toRfc4122()]);
 
         return $invoices;
     }
@@ -78,6 +79,11 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
     public function save(PurchaseInvoice $invoice): void
     {
         ++$this->saveCallCount;
+    }
+
+    public function remove(PurchaseInvoice $invoice): void
+    {
+        unset($this->byId[$invoice->getId()->toRfc4122()], $this->documents[$invoice->getId()->toRfc4122()]);
     }
 
     public function findByInvoiceId(Uuid $invoiceId): ?PurchaseInvoiceDocument

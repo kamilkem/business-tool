@@ -2,21 +2,25 @@
 
 declare(strict_types=1);
 
-namespace App\Expenses\Application\Command\CategorizePurchaseInvoice;
+namespace App\Expenses\Application\Command\ChangePurchaseInvoice;
 
+use App\Expenses\Application\Command\PurchaseInvoiceDetailsInput;
 use App\Expenses\Application\ExpensesActor;
 use App\Expenses\Domain\Exception\ExpenseCategoryArchivedException;
 use App\Expenses\Domain\Exception\ExpenseCategoryNotFoundException;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
+use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException;
+use App\Expenses\Domain\Exception\PurchaseInvoiceReadOnlyException;
 use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Time\Exception\InvalidBusinessDateException;
 use Symfony\Component\Uid\Uuid;
 
-final readonly class CategorizePurchaseInvoiceHandler implements CommandHandlerInterface
+final readonly class ChangePurchaseInvoiceHandler implements CommandHandlerInterface
 {
     public function __construct(
         private PurchaseInvoiceRepositoryInterface $invoices,
@@ -26,25 +30,43 @@ final readonly class CategorizePurchaseInvoiceHandler implements CommandHandlerI
     }
 
     /**
+     * Both changes or neither: the details first, then the category, saved once.
+     *
      * @throws OrganizationNotFoundException        when the actor is not an active member of the organization
      * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
      * @throws PurchaseInvoiceNotFoundException     when the invoice is not one of the organization's
+     * @throws PurchaseInvoiceReadOnlyException     when the invoice is imported and the details differ from its own
+     * @throws InvalidPurchaseInvoiceException      when the data breaks a rule of the invoice
+     * @throws InvalidBusinessDateException         when the issue date is not YYYY-MM-DD
      * @throws ExpenseCategoryNotFoundException     when the category is not one of the organization's
      * @throws ExpenseCategoryArchivedException     when the category is archived and not the invoice's already
      */
-    public function __invoke(CategorizePurchaseInvoiceCommand $command): void
+    public function __invoke(ChangePurchaseInvoiceCommand $command): void
     {
         $actor = ExpensesActor::resolve($this->queryBus, $command->organizationId, $command->actorId);
 
         $invoice = Uuid::isValid($command->invoiceId) ? $this->invoices->findById(Uuid::fromString($command->invoiceId)) : null;
         $invoice ??= throw PurchaseInvoiceNotFoundException::withId($command->invoiceId);
 
+        $details = PurchaseInvoiceDetailsInput::toDetails(
+            $command->invoiceNumber,
+            $command->sellerTaxId,
+            $command->sellerName,
+            $command->issueDate,
+            $command->kind,
+            $command->currency,
+            $command->netTotal,
+            $command->vatTotal,
+            $command->grossTotal,
+            $command->vatLines,
+        );
+        $invoice->change($details, $actor->organization($this->queryBus, $command->organizationId)->countryCode, $actor->id, $actor->role);
+
         $category = null;
         if (null !== $command->categoryId) {
             $category = Uuid::isValid($command->categoryId) ? $this->categories->findById(Uuid::fromString($command->categoryId)) : null;
             $category ??= throw ExpenseCategoryNotFoundException::withId($command->categoryId);
         }
-
         $invoice->categorize($category, $actor->id, $actor->role);
 
         $this->invoices->save($invoice);

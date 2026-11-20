@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+    "/api/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the expenses of the selected organization issued from one date to another, with totals per currency.
+         * @description Owners and managers only (403 otherwise). Newest issue date first, then by seller name and invoice number. Filters: categoryId (a category of the selected organization, archived ones included; 404 otherwise) or uncategorized=true, not both (422); seller matches a part of the seller's name (case-insensitive) or tax ID (spaces and dashes in the search ignored). Totals add up the listed expenses per currency: `totals[0]` is always the organization's current currency, also when nothing is listed (all 0), and other currencies follow by code; corrections count with their negative amounts. Invalid dates, to before from and periods longer than 366 days are a 422.
+         */
+        get: operations["api_expenses_get"];
+        put?: never;
+        /**
+         * Enters an expense by hand: a cash receipt, a foreign invoice.
+         * @description Owners and managers only (403 otherwise). The expense gets the source `manual`. The invoice number and the seller tax ID are optional; the kind defaults to `regular` and the currency to the organization's, which is also the tax currency. Amounts are integer minor units, stored as given (totals are not checked against each other or the lines). VAT lines are optional, use the rates of GET /vat-rates, each once, with vat 0 at a 0% or exempt rate, and give vatInTaxCurrency exactly when the currency is not the organization's (422). categoryId, when given, must be a category of the selected organization (404) that is not archived (422).
+         */
+        post: operations["api_expenses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/expenses/{id}": {
         parameters: {
             query?: never;
@@ -18,12 +42,16 @@ export interface paths {
         get: operations["api_expenses_id_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Deletes a manual expense.
+         * @description Owners and managers only (403 otherwise); an expense that is not the selected organization's is a 404. The expense and its VAT lines are removed and no trace is kept. An imported expense cannot be deleted (409).
+         */
+        delete: operations["api_expenses_id_delete"];
         options?: never;
         head?: never;
         /**
-         * Sets or clears the category of an expense.
-         * @description Owners and managers only (403 otherwise); an expense that is not the selected organization's is a 404. categoryId must be a category of the selected organization (404) that is not archived (422), unless it is the expense's category already; null clears it. Any expense can be categorized, imported or not.
+         * Edits a manual expense, or sets or clears the category of any expense.
+         * @description Owners and managers only (403 otherwise); an expense that is not the selected organization's is a 404. A manual expense takes any of the fields of POST /expenses; a `vatLines` list replaces the current one whole (null or [] removes it), and a blank or null invoiceNumber or sellerTaxId removes it. The tax currency does not change. An imported expense says what its source says: sending other values than its own for anything but categoryId is a 409. categoryId must be a category of the selected organization (404) that is not archived (422), unless it is the expense's category already; null clears it.
          */
         patch: operations["api_expenses_id_patch"];
         trace?: never;
@@ -130,26 +158,6 @@ export interface paths {
          * @description Owners and managers only (403 otherwise); a category that is not the selected organization's is a 404. The category is offered for new expenses again. The request has no body. Restoring an active category changes nothing.
          */
         post: operations["api_expense-categories_idrestore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/expenses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Lists the expenses of the selected organization issued from one date to another, with totals per currency.
-         * @description Owners and managers only (403 otherwise). Newest issue date first, then by seller name and invoice number. Filters: categoryId (a category of the selected organization, archived ones included; 404 otherwise) or uncategorized=true, not both (422); seller matches a part of the seller's name (case-insensitive) or tax ID (spaces and dashes in the search ignored). Totals add up the listed expenses per currency: `totals[0]` is always the organization's current currency, also when nothing is listed (all 0), and other currencies follow by code; corrections count with their negative amounts. Invalid dates, to before from and periods longer than 366 days are a 422.
-         */
-        get: operations["api_expenses_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -906,8 +914,9 @@ export interface components {
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
-         *     imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
-         *     else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
          *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
          *     them with totals.
          */
@@ -917,8 +926,10 @@ export interface components {
             source: string;
             /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
             externalId: string | null;
-            invoiceNumber: string;
-            sellerTaxId: string;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
             sellerName: string;
             /** @description The issue date, `YYYY-MM-DD`. */
             issueDate: string;
@@ -950,12 +961,69 @@ export interface components {
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
-         *     imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
-         *     else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
+         *     them with totals.
+         */
+        "Expense.EnterExpenseInput": {
+            sellerName: string;
+            /** @description The seller's tax ID, if it has one; blank or null for none. */
+            sellerTaxId?: string | null;
+            /** @description The receipt's or invoice's number, if it has one; blank or null for none. */
+            invoiceNumber?: string | null;
+            /**
+             * Format: date
+             * @description The issue date (YYYY-MM-DD).
+             */
+            issueDate: string;
+            /**
+             * @default regular
+             * @enum {string}
+             */
+            kind?: "regular" | "correction" | "advance" | "settlement" | "simplified" | "advance_correction" | "settlement_correction";
+            /** @description ISO 4217 code of the amounts; the organization's currency when not given. */
+            currency?: string | null;
+            netTotal: number;
+            vatTotal: number;
+            grossTotal: number;
+            /** @description the VAT breakdown as printed, each rate once; optional */
+            vatLines?: components["schemas"]["ExpenseVatLineInput"][];
+            /**
+             * Format: uuid
+             * @description A category of the organization that is not archived; null leaves the expense uncategorized.
+             */
+            categoryId?: string | null;
+        };
+        /**
+         * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
          *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
          *     them with totals.
          */
         "Expense.UpdateExpenseInput.jsonMergePatch": {
+            sellerName?: string | null;
+            /** @description Blank or null removes it. */
+            sellerTaxId?: string | null;
+            /** @description Blank or null removes it. */
+            invoiceNumber?: string | null;
+            /**
+             * Format: date
+             * @description The issue date (YYYY-MM-DD).
+             */
+            issueDate?: string;
+            /** @enum {string} */
+            kind?: "regular" | "correction" | "advance" | "settlement" | "simplified" | "advance_correction" | "settlement_correction";
+            /** @description ISO 4217 code of the amounts. */
+            currency?: string | null;
+            netTotal?: number | null;
+            vatTotal?: number | null;
+            grossTotal?: number | null;
+            /** @description the VAT breakdown as printed, each rate once; empty or null removes it */
+            vatLines?: components["schemas"]["ExpenseVatLineInput"][];
             /**
              * Format: uuid
              * @description A category of the organization, not archived unless it is the expense's already; null clears it.
@@ -964,8 +1032,9 @@ export interface components {
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
-         *     imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
-         *     else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
          *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
          *     them with totals.
          */
@@ -975,8 +1044,10 @@ export interface components {
             source: string;
             /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
             externalId: string | null;
-            invoiceNumber: string;
-            sellerTaxId: string;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
             sellerName: string;
             /** @description The issue date, `YYYY-MM-DD`. */
             issueDate: string;
@@ -1008,8 +1079,9 @@ export interface components {
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
-         *     imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
-         *     else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
          *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
          *     them with totals.
          */
@@ -1019,8 +1091,10 @@ export interface components {
             source: string;
             /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
             externalId: string | null;
-            invoiceNumber: string;
-            sellerTaxId: string;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
             sellerName: string;
             /** @description The issue date, `YYYY-MM-DD`. */
             issueDate: string;
@@ -1052,8 +1126,9 @@ export interface components {
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
-         *     imported (e.g. from KSeF) or, later, entered by hand (ADR 0024). Owners and managers only: anyone
-         *     else gets a 403. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+         *     imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
+         *     only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
+         *     categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
          *     negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
          *     them with totals.
          */
@@ -1063,8 +1138,10 @@ export interface components {
             source: string;
             /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
             externalId: string | null;
-            invoiceNumber: string;
-            sellerTaxId: string;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
             sellerName: string;
             /** @description The issue date, `YYYY-MM-DD`. */
             issueDate: string;
@@ -1231,6 +1308,14 @@ export interface components {
             vat: number;
             /** @description The VAT in the tax currency, for an invoice in another currency; null otherwise. */
             vatInTaxCurrency: number | null;
+        };
+        ExpenseVatLineInput: {
+            /** @description A rate code of GET /vat-rates: "23", "zw". */
+            rate: string;
+            net: number;
+            vat: number;
+            /** @description The VAT in the organization's currency, required when the expense is in another currency; null otherwise. */
+            vatInTaxCurrency?: number | null;
         };
         HydraCollectionBaseSchema: components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
             /**
@@ -2254,6 +2339,122 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    api_expenses_get: {
+        parameters: {
+            query: {
+                /** @description First issue date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last issue date, inclusive (YYYY-MM-DD); at most 366 days from the first. */
+                to: string;
+                /** @description Only expenses of this category. */
+                categoryId?: string;
+                /** @description Only expenses without a category. */
+                uncategorized?: boolean;
+                /** @description A part of the seller's name or tax ID. */
+                seller?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ExpenseList resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseList.jsonld"];
+                    "application/json": components["schemas"]["ExpenseList"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The categoryId is not a category of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, the period is too long, or a filter is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_expenses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Expense resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Expense.EnterExpenseInput"];
+                "application/json": components["schemas"]["Expense.EnterExpenseInput"];
+            };
+        };
+        responses: {
+            /** @description The entered expense. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Expense.jsonld"];
+                    "application/json": components["schemas"]["Expense"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The category is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, a VAT line breaks a rule, or the category is archived. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     api_expenses_id_get: {
         parameters: {
             query?: never;
@@ -2285,6 +2486,48 @@ export interface operations {
             };
             /** @description The expense is not one of the selected organization's. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_expenses_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expense identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The expense was deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The expense is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The expense is imported and cannot be deleted. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2344,7 +2587,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description categoryId is not a UUID, or the category is archived. */
+            /** @description The expense is imported: only its category can change. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is invalid, a VAT line breaks a rule, or the category is archived. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2718,59 +2968,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
-            };
-        };
-    };
-    api_expenses_get: {
-        parameters: {
-            query: {
-                /** @description First issue date, inclusive (YYYY-MM-DD). */
-                from: string;
-                /** @description Last issue date, inclusive (YYYY-MM-DD); at most 366 days from the first. */
-                to: string;
-                /** @description Only expenses of this category. */
-                categoryId?: string;
-                /** @description Only expenses without a category. */
-                uncategorized?: boolean;
-                /** @description A part of the seller's name or tax ID. */
-                seller?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description ExpenseList resource */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/ld+json": components["schemas"]["ExpenseList.jsonld"];
-                    "application/json": components["schemas"]["ExpenseList"];
-                };
-            };
-            /** @description The signed-in user is not an owner or manager. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The categoryId is not a category of the selected organization. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A date is missing or invalid, to is before from, the period is too long, or a filter is invalid. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

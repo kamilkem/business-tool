@@ -7,6 +7,8 @@ namespace App\Expenses\Application;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Model\ExpensesAccess;
 use App\Organization\Application\Query\GetMember\GetMemberQuery;
+use App\Organization\Application\Query\GetOrganization\GetOrganizationQuery;
+use App\Organization\Application\Query\GetOrganization\OrganizationView;
 use App\Organization\Application\Query\ListMembers\MemberView;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Organization\Domain\Model\MembershipRole;
@@ -47,6 +49,20 @@ final readonly class ExpensesActor
         }
 
         return $actor;
+    }
+
+    /**
+     * The organization's settings an invoice depends on: the country that gives the VAT rates and
+     * the currency it copies as its tax currency (ADR 0024, ADR 0002).
+     *
+     * @throws OrganizationNotFoundException when the actor cannot see the organization
+     */
+    public function organization(QueryBusInterface $queryBus, string $organizationId): OrganizationView
+    {
+        /** @var OrganizationView|null $organization */
+        $organization = $queryBus->ask(new GetOrganizationQuery($organizationId, $this->id->toRfc4122()));
+
+        return $organization ?? throw OrganizationNotFoundException::forId($organizationId);
     }
 
     private static function find(QueryBusInterface $queryBus, string $organizationId, string $actorId): ?self

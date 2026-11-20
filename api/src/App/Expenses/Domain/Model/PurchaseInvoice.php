@@ -7,6 +7,7 @@ namespace App\Expenses\Domain\Model;
 use App\Expenses\Domain\Exception\ExpenseCategoryArchivedException;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
+use App\Expenses\Domain\Exception\PurchaseInvoiceReadOnlyException;
 use App\Income\Domain\Model\VatRates;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
@@ -33,6 +34,10 @@ use Symfony\Component\Uid\Uuid;
  *   currency.
  * - The issue date is a business date (ADR 0017). The original document, when there is one, is a
  *   PurchaseInvoiceDocument in its own table, never loaded with the invoice.
+ * - An owner or manager may enter an invoice by hand (source manual, #54): a cash receipt or a
+ *   foreign invoice, which may lack an invoice number or a seller tax ID. Only such an invoice can be
+ *   changed (change()) or deleted (assertCanBeDeleted()); an imported one stays as its source says,
+ *   except for its category.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchase_invoice')]
@@ -62,11 +67,13 @@ class PurchaseInvoice implements TenantAwareInterface
     #[ORM\Column(length: self::MAX_EXTERNAL_ID_LENGTH, nullable: true)]
     private ?string $externalId;
 
-    #[ORM\Column(length: self::MAX_INVOICE_NUMBER_LENGTH)]
-    private string $invoiceNumber;
+    /** Null only for a manual invoice without one (a receipt). */
+    #[ORM\Column(length: self::MAX_INVOICE_NUMBER_LENGTH, nullable: true)]
+    private ?string $invoiceNumber;
 
-    #[ORM\Column(length: self::MAX_SELLER_TAX_ID_LENGTH)]
-    private string $sellerTaxId;
+    /** Null only for a manual invoice without one (a foreign seller, a market stall). */
+    #[ORM\Column(length: self::MAX_SELLER_TAX_ID_LENGTH, nullable: true)]
+    private ?string $sellerTaxId;
 
     #[ORM\Column(length: self::MAX_SELLER_NAME_LENGTH)]
     private string $sellerName;
@@ -141,6 +148,81 @@ class PurchaseInvoice implements TenantAwareInterface
     }
 
     /**
+     * Stores an invoice an owner or manager entered by hand (source manual): a cash receipt, a
+     * foreign invoice. It has no id in a source and refers to no corrected invoice; the invoice
+     * number and the seller tax ID are optional.
+     *
+     * @param string $countryCode the organization's country, which gives the VAT rates
+     * @param string $taxCurrency the organization's currency (ISO 4217)
+     *
+     * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
+     * @throws InvalidPurchaseInvoiceException      when the data breaks a rule
+     */
+    public static function enter(
+        Uuid $id,
+        PurchaseInvoiceDetails $details,
+        string $countryCode,
+        string $taxCurrency,
+        Uuid $actorId,
+        MembershipRole $actorRole,
+        \DateTimeImmutable $now,
+    ): self {
+        ExpensesAccess::assertCanManage($actorId, $actorRole);
+
+        return new self($id, PurchaseInvoiceSource::Manual, null, self::normalized($details, $countryCode, $taxCurrency, imported: false), strtoupper($taxCurrency), $now);
+    }
+
+    /**
+     * Replaces what a manual invoice says with the given details, VAT lines included (a rate not
+     * given is removed). The tax currency stays the one copied when it was entered. An imported
+     * invoice stays as its source says: giving it the details it already has changes nothing (so a
+     * client may send them back unchanged with a new category), anything else is refused.
+     *
+     * @param string $countryCode the organization's country, which gives the VAT rates
+     *
+     * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
+     * @throws InvalidPurchaseInvoiceException      when the data breaks a rule
+     * @throws PurchaseInvoiceReadOnlyException     when the invoice is imported and the details differ
+     */
+    public function change(PurchaseInvoiceDetails $details, string $countryCode, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        ExpensesAccess::assertCanManage($actorId, $actorRole);
+        if (PurchaseInvoiceSource::Manual !== $this->source) {
+            if (!$this->says($details)) {
+                throw PurchaseInvoiceReadOnlyException::imported($this->id->toRfc4122(), $this->source->value);
+            }
+
+            return;
+        }
+
+        $details = self::normalized($details, $countryCode, $this->taxCurrency, imported: false);
+        $this->invoiceNumber = $details->invoiceNumber;
+        $this->sellerTaxId = $details->sellerTaxId;
+        $this->sellerName = $details->sellerName;
+        $this->issueDate = $details->issueDate;
+        $this->kind = $details->kind;
+        $this->currency = $details->currency;
+        $this->netTotal = $details->netTotal;
+        $this->vatTotal = $details->vatTotal;
+        $this->grossTotal = $details->grossTotal;
+        $this->replaceVatLines($details->vatLines);
+    }
+
+    /**
+     * Only a manual invoice can be deleted; an imported one is part of what its source holds.
+     *
+     * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
+     * @throws PurchaseInvoiceReadOnlyException     when the invoice is imported
+     */
+    public function assertCanBeDeleted(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        ExpensesAccess::assertCanManage($actorId, $actorRole);
+        if (PurchaseInvoiceSource::Manual !== $this->source) {
+            throw PurchaseInvoiceReadOnlyException::imported($this->id->toRfc4122(), $this->source->value);
+        }
+    }
+
+    /**
      * Stores an invoice an importer brought in from its source.
      *
      * @param string $externalId  the invoice's id in the source, unique there
@@ -167,7 +249,7 @@ class PurchaseInvoice implements TenantAwareInterface
         }
         self::assertMaxLength('external id', $externalId, self::MAX_EXTERNAL_ID_LENGTH);
 
-        return new self($id, $source, $externalId, self::normalized($details, $countryCode, $taxCurrency), strtoupper($taxCurrency), $now);
+        return new self($id, $source, $externalId, self::normalized($details, $countryCode, $taxCurrency, imported: true), strtoupper($taxCurrency), $now);
     }
 
     public function getId(): Uuid
@@ -185,12 +267,12 @@ class PurchaseInvoice implements TenantAwareInterface
         return $this->externalId;
     }
 
-    public function getInvoiceNumber(): string
+    public function getInvoiceNumber(): ?string
     {
         return $this->invoiceNumber;
     }
 
-    public function getSellerTaxId(): string
+    public function getSellerTaxId(): ?string
     {
         return $this->sellerTaxId;
     }
@@ -289,21 +371,90 @@ class PurchaseInvoice implements TenantAwareInterface
     }
 
     /**
-     * Checks the details and returns them with texts trimmed and currencies upper-cased.
+     * True when the details say what the invoice says, in the fields change() replaces; the VAT
+     * lines in any order. The corrected invoice's id is not one of them.
+     */
+    private function says(PurchaseInvoiceDetails $details): bool
+    {
+        $lines = static function (array $lines): array {
+            $keyed = [];
+            foreach ($lines as $line) {
+                \assert($line instanceof PurchaseInvoiceVatAmount);
+                $keyed[$line->rate] = [$line->net, $line->vat, $line->vatInTaxCurrency];
+            }
+            ksort($keyed);
+
+            return $keyed;
+        };
+
+        return self::optionalText($details->invoiceNumber) === $this->invoiceNumber
+            && self::optionalText($details->sellerTaxId) === $this->sellerTaxId
+            && trim($details->sellerName) === $this->sellerName
+            && $details->issueDate->equals($this->issueDate)
+            && $details->kind === $this->kind
+            && strtoupper(trim($details->currency)) === $this->currency
+            && $details->netTotal === $this->netTotal
+            && $details->vatTotal === $this->vatTotal
+            && $details->grossTotal === $this->grossTotal
+            && \count($details->vatLines) === \count($lines($details->vatLines))
+            && $lines($details->vatLines) === $lines($this->getVatLines());
+    }
+
+    /**
+     * Updates lines whose rate stays in place, so the (invoice, rate) key is never inserted twice in
+     * one flush; removes the others and adds the new rates.
+     *
+     * @param list<PurchaseInvoiceVatAmount> $amounts already checked (normalized())
+     */
+    private function replaceVatLines(array $amounts): void
+    {
+        $byRate = [];
+        foreach ($amounts as $amount) {
+            $byRate[$amount->rate] = $amount;
+        }
+        foreach ($this->vatLines->toArray() as $line) {
+            $amount = $byRate[$line->getRate()] ?? null;
+            if (null === $amount) {
+                $this->vatLines->removeElement($line);
+                continue;
+            }
+            $line->change($amount->net, $amount->vat, $amount->vatInTaxCurrency);
+            unset($byRate[$line->getRate()]);
+        }
+        foreach ($byRate as $amount) {
+            $this->vatLines->add(new PurchaseInvoiceVatLine($this, $amount->rate, $amount->net, $amount->vat, $amount->vatInTaxCurrency));
+        }
+    }
+
+    /**
+     * Checks the details and returns them with texts trimmed and currencies upper-cased. An imported
+     * invoice needs its number and seller tax ID; a manual one may lack them (blank means none) and
+     * refers to no corrected invoice, since it has no source to refer to.
      *
      * @throws InvalidPurchaseInvoiceException
      */
-    private static function normalized(PurchaseInvoiceDetails $details, string $countryCode, string $taxCurrency): PurchaseInvoiceDetails
+    private static function normalized(PurchaseInvoiceDetails $details, string $countryCode, string $taxCurrency, bool $imported): PurchaseInvoiceDetails
     {
-        $invoiceNumber = self::requiredText('invoice number', $details->invoiceNumber, self::MAX_INVOICE_NUMBER_LENGTH);
-        $sellerTaxId = self::requiredText('seller tax ID', $details->sellerTaxId, self::MAX_SELLER_TAX_ID_LENGTH);
+        if ($imported) {
+            $invoiceNumber = self::requiredText('invoice number', $details->invoiceNumber ?? '', self::MAX_INVOICE_NUMBER_LENGTH);
+            $sellerTaxId = self::requiredText('seller tax ID', $details->sellerTaxId ?? '', self::MAX_SELLER_TAX_ID_LENGTH);
+        } else {
+            $invoiceNumber = self::optionalText($details->invoiceNumber);
+            $sellerTaxId = self::optionalText($details->sellerTaxId);
+            if (null !== $invoiceNumber) {
+                self::assertMaxLength('invoice number', $invoiceNumber, self::MAX_INVOICE_NUMBER_LENGTH);
+            }
+            if (null !== $sellerTaxId) {
+                self::assertMaxLength('seller tax ID', $sellerTaxId, self::MAX_SELLER_TAX_ID_LENGTH);
+            }
+        }
         $sellerName = self::requiredText('seller name', $details->sellerName, self::MAX_SELLER_NAME_LENGTH);
         $currency = self::currency('currency', $details->currency);
         $taxCurrency = self::currency('tax currency', $taxCurrency);
 
-        $corrected = null === $details->correctedExternalId ? null : trim($details->correctedExternalId);
-        if ('' === $corrected) {
-            $corrected = null;
+        $corrected = self::optionalText($details->correctedExternalId);
+        if (null !== $corrected && !$imported) {
+            throw InvalidPurchaseInvoiceException::correctedInvoiceOnManual();
         }
         if (null !== $corrected) {
             if (!$details->kind->isCorrection()) {
@@ -353,6 +504,14 @@ class PurchaseInvoice implements TenantAwareInterface
             }
             $seen[$rate->code] = true;
         }
+    }
+
+    /** Trimmed, or null when blank or not given. */
+    private static function optionalText(?string $value): ?string
+    {
+        $value = null === $value ? null : trim($value);
+
+        return '' === $value ? null : $value;
     }
 
     /** @throws InvalidPurchaseInvoiceException */

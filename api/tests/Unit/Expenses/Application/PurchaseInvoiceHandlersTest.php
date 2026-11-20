@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Expenses\Application;
 
-use App\Expenses\Application\Command\CategorizePurchaseInvoice\CategorizePurchaseInvoiceCommand;
-use App\Expenses\Application\Command\CategorizePurchaseInvoice\CategorizePurchaseInvoiceHandler;
+use App\Expenses\Application\Command\ChangePurchaseInvoice\ChangePurchaseInvoiceCommand;
+use App\Expenses\Application\Command\ChangePurchaseInvoice\ChangePurchaseInvoiceHandler;
 use App\Expenses\Application\Query\GetPurchaseInvoice\GetPurchaseInvoiceHandler;
 use App\Expenses\Application\Query\GetPurchaseInvoice\GetPurchaseInvoiceQuery;
 use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceVatLineView;
@@ -56,7 +56,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ListPurchaseInvoicesHandler::class)]
 #[CoversClass(GetPurchaseInvoiceHandler::class)]
 #[CoversClass(GetPurchaseInvoiceDocumentHandler::class)]
-#[CoversClass(CategorizePurchaseInvoiceHandler::class)]
+#[CoversClass(ChangePurchaseInvoiceHandler::class)]
 #[CoversClass(PurchaseInvoiceView::class)]
 #[CoversClass(PurchaseInvoiceVatLineView::class)]
 #[CoversClass(PurchaseInvoiceCurrencyTotalView::class)]
@@ -432,10 +432,28 @@ final class PurchaseInvoiceHandlersTest extends TestCase
         return $handler(new GetPurchaseInvoiceDocumentQuery($this->organization->getId()->toRfc4122(), $user->getId()->toRfc4122(), $invoiceId));
     }
 
+    /** Changes only the category: the other fields are the invoice's own (an imported invoice accepts no others). */
     private function handleCategorize(User $user, string $invoiceId, ?string $categoryId): void
     {
-        $handler = new CategorizePurchaseInvoiceHandler($this->invoices, $this->categories, $this->queryBus);
+        $handler = new ChangePurchaseInvoiceHandler($this->invoices, $this->categories, $this->queryBus);
+        $invoice = Uuid::isValid($invoiceId) ? $this->invoices->findById(Uuid::fromString($invoiceId)) : null;
+        $invoice ??= PurchaseInvoiceMother::imported();
 
-        $handler(new CategorizePurchaseInvoiceCommand($this->organization->getId()->toRfc4122(), $user->getId()->toRfc4122(), $invoiceId, $categoryId));
+        $handler(new ChangePurchaseInvoiceCommand(
+            $this->organization->getId()->toRfc4122(),
+            $user->getId()->toRfc4122(),
+            $invoiceId,
+            $invoice->getInvoiceNumber(),
+            $invoice->getSellerTaxId(),
+            $invoice->getSellerName(),
+            $invoice->getIssueDate()->toString(),
+            $invoice->getKind()->value,
+            $invoice->getCurrency(),
+            $invoice->getNetTotal(),
+            $invoice->getVatTotal(),
+            $invoice->getGrossTotal(),
+            array_map(static fn (PurchaseInvoiceVatAmount $line): array => ['rate' => $line->rate, 'net' => $line->net, 'vat' => $line->vat, 'vatInTaxCurrency' => $line->vatInTaxCurrency], $invoice->getVatLines()),
+            $categoryId,
+        ));
     }
 }

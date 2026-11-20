@@ -99,6 +99,13 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
         $this->getEntityManager()->flush();
     }
 
+    public function remove(PurchaseInvoice $invoice): void
+    {
+        // The VAT lines go with it (cascade remove); a document, by the database's ON DELETE CASCADE.
+        $this->getEntityManager()->remove($invoice);
+        $this->getEntityManager()->flush();
+    }
+
     /** Makes %, _ and the escape character itself literal in a LIKE pattern. */
     private static function escapeLike(string $text): string
     {
