@@ -18,6 +18,15 @@ interface PurchaseInvoiceRepositoryInterface
     public function findByExternalId(PurchaseInvoiceSource $source, string $externalId): ?PurchaseInvoice;
 
     /**
+     * Which of these ids in the source are stored.
+     *
+     * @param list<string> $externalIds
+     *
+     * @return list<string>
+     */
+    public function findStoredExternalIds(PurchaseInvoiceSource $source, array $externalIds): array;
+
+    /**
      * The invoices the filter selects, newest issue date first, then by seller name and invoice number.
      *
      * @return list<PurchaseInvoice>

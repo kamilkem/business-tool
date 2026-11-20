@@ -6,7 +6,7 @@ PHP := $(COMPOSE) exec php
 CONSOLE := $(PHP) bin/console
 
 ## —— Environment ————————————————————————————————————————————————
-up: ## Start the API (FrankenPHP), queue worker, PostgreSQL and Mailpit
+up: ## Start the API (FrankenPHP), queue workers, PostgreSQL and Mailpit
 	$(COMPOSE) up -d --wait
 
 down: ## Stop containers
@@ -16,10 +16,10 @@ build: ## Rebuild the API image
 	$(COMPOSE) build --pull
 
 logs: ## Follow API and worker logs
-	$(COMPOSE) logs -f php worker
+	$(COMPOSE) logs -f php worker jobs-worker
 
-worker-restart: ## Restart the queue worker (it does not reload code or templates by itself)
-	$(COMPOSE) restart worker
+worker-restart: ## Restart the queue workers (they do not reload code or templates by themselves)
+	$(COMPOSE) restart worker jobs-worker
 
 mail: ## Open the Mailpit inbox with every e-mail sent in dev (http://localhost:8025)
 	@url=http://localhost:$${MAILPIT_PORT:-8025}; echo "Mailpit: $$url"; \

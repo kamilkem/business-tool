@@ -35,6 +35,25 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
         return $this->findOneBy(['source' => $source, 'externalId' => $externalId]);
     }
 
+    public function findStoredExternalIds(PurchaseInvoiceSource $source, array $externalIds): array
+    {
+        if ([] === $externalIds) {
+            return [];
+        }
+
+        /** @var list<string> $stored */
+        $stored = $this->createQueryBuilder('i')
+            ->select('i.externalId')
+            ->where('i.source = :source')
+            ->andWhere('i.externalId IN (:externalIds)')
+            ->setParameter('source', $source)
+            ->setParameter('externalIds', array_values(array_unique($externalIds)))
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return $stored;
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         // The VAT lines are fetched with the invoices: the list shows them and adds them up (#53).

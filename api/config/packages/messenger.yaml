@@ -21,8 +21,18 @@ framework:
             # Symfony Mailer dispatches SendEmailMessage here (config/packages/mailer.yaml). It keeps
             # the default middleware, which sends routed messages to their transport (adr/0012).
             messenger.bus.mailer: ~
+            # Jobs (adr/0025 §2): queued on the `jobs` transport and run by the `jobs-worker`. Unlike the
+            # CQRS buses it keeps the default middleware (sending, deduplication, failure handling).
+            # Handlers register themselves through the _instanceof tag in config/services.yaml.
+            messenger.bus.job:
+                # The entity manager is cleared after every message by DoctrineBundle's
+                # DoctrineClearEntityManagerWorkerSubscriber, which replaced the middleware of that name.
+                middleware:
+                    - doctrine_ping_connection
+                    # switchTo() the job's organization before the handler, reset() after (adr/0025 §4).
+                    - App\Shared\Infrastructure\Bus\Job\SwitchTenantMiddleware
 
-        # Messages that fail every retry on `async` end up here: `messenger:failed:show`,
+        # Messages that fail every retry on `async` or `jobs` end up here: `messenger:failed:show`,
         # `messenger:failed:retry`.
         failure_transport: failed
 
@@ -36,7 +46,17 @@ framework:
                     max_retries: 3
                     delay: 60000
                     multiplier: 5
+            # Jobs (adr/0025 §3): the same PostgreSQL table with queue_name=jobs, consumed one job at a
+            # time by `messenger:consume jobs --keepalive` (the `jobs-worker` service). A job that
+            # throws is retried after 5 and 15 minutes, then moved to `failed`.
+            jobs:
+                dsn: '%env(MESSENGER_JOBS_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 2
+                    delay: 300000
+                    multiplier: 3
             failed: '%env(MESSENGER_FAILED_TRANSPORT_DSN)%'
 
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
+            App\Shared\Application\Job\JobInterface: jobs

@@ -65,6 +65,8 @@ final class KsefConnectionApiTest extends ApiTestCase
             'lastSyncErrorMessage' => null,
             'lastSyncImportedCount' => 0,
             'lastSyncSkippedCount' => 0,
+            'syncRetryNotBefore' => null,
+            'lastImportRequestedAt' => null,
             'createdAt' => '2026-11-13T10:00:00+00:00',
         ], $saved);
         self::assertSame(['in-memory-1'], self::ksef()->endedSessions);

@@ -101,6 +101,8 @@ api_platform:
         App\Ksef\Domain\Exception\KsefNotAvailableException: 422
         App\Ksef\Domain\Exception\KsefConnectionNotFoundException: 404
         App\Ksef\Domain\Exception\KsefTokenNotSetException: 409
+        App\Ksef\Domain\Exception\KsefTokenRejectedException: 409
+        App\Ksef\Domain\Exception\KsefImportTooSoonException: 429
         App\Secret\Domain\Exception\SecretManagementForbiddenException: 403
         App\Secret\Domain\Exception\OrganizationSecretNotFoundException: 404
         # Consumers record an unreadable secret as rejected credentials (adr/0026 §7); mapped in case one escapes.

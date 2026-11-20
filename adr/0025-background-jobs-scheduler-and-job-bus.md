@@ -1,6 +1,6 @@
 # 0025. Background and scheduled jobs: Symfony Scheduler and a job bus on a PostgreSQL `jobs` queue, run by a second worker
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-11-12
 

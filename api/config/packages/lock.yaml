@@ -1,0 +1,5 @@
+# Locks in PostgreSQL (adr/0025 §5): symfony/lock's DoctrineDbalStore on the default connection, table
+# `lock_keys` (created by a migration). Used by Messenger's job deduplication and by the scheduler's
+# lock, so no other service is needed.
+framework:
+    lock: 'doctrine.dbal.default_connection'

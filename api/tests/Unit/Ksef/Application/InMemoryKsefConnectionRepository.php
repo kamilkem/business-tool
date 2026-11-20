@@ -19,6 +19,16 @@ final class InMemoryKsefConnectionRepository implements KsefConnectionRepository
         return $this->connection;
     }
 
+    public function findOrganizationIdsToSync(\DateTimeImmutable $now): array
+    {
+        if (null === $this->connection || !$this->connection->canSync($now)) {
+            return [];
+        }
+        $organization = $this->connection->getOrganization();
+
+        return null === $organization ? [] : [$organization->getId()->toRfc4122()];
+    }
+
     public function add(KsefConnection $connection): void
     {
         if (null !== $this->connection) {

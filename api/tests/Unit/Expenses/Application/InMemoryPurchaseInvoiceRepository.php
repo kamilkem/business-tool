@@ -40,6 +40,19 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
         return null;
     }
 
+    public function findStoredExternalIds(PurchaseInvoiceSource $source, array $externalIds): array
+    {
+        $stored = [];
+        foreach ($this->byId as $invoice) {
+            $externalId = $invoice->getExternalId();
+            if ($invoice->getSource() === $source && null !== $externalId && \in_array($externalId, $externalIds, true)) {
+                $stored[] = $externalId;
+            }
+        }
+
+        return $stored;
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         $invoices = array_values(array_filter($this->byId, static function (PurchaseInvoice $invoice) use ($filter): bool {

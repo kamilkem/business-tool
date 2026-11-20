@@ -20,6 +20,8 @@ function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
     lastSyncErrorMessage: null,
     lastSyncImportedCount: 0,
     lastSyncSkippedCount: 0,
+    syncRetryNotBefore: null,
+    lastImportRequestedAt: null,
     createdAt: "2026-11-13T10:00:00+00:00",
     ...overrides,
   }
@@ -66,6 +68,11 @@ describe("ksefState", () => {
 })
 
 describe("ksefErrorLabel", () => {
+  it("test_it_explains_skipped_unreadable_invoices", () => {
+    expect(ksefErrorLabel("invoice_unreadable")).toBe("Some invoices could not be read and were skipped.")
+  })
+
+
   it("test_it_shows_an_unknown_code_as_is", () => {
     expect(ksefErrorLabel("rate_limited")).toContain("slow down")
     expect(ksefErrorLabel("something_new")).toBe("something_new")

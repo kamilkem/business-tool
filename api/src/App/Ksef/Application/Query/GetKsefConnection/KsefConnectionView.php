@@ -26,6 +26,8 @@ final readonly class KsefConnectionView
         public ?string $lastSyncErrorMessage,
         public int $lastSyncImportedCount,
         public int $lastSyncSkippedCount,
+        public ?\DateTimeImmutable $syncRetryNotBefore,
+        public ?\DateTimeImmutable $lastImportRequestedAt,
         public \DateTimeImmutable $createdAt,
     ) {
     }
@@ -49,6 +51,8 @@ final readonly class KsefConnectionView
             $connection->getLastSyncErrorMessage(),
             $connection->getLastSyncImportedCount(),
             $connection->getLastSyncSkippedCount(),
+            $connection->getSyncRetryNotBefore(),
+            $connection->getLastImportRequestedAt(),
             $connection->getCreatedAt(),
         );
     }

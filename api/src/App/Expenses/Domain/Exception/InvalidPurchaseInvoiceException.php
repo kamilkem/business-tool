@@ -80,4 +80,9 @@ final class InvalidPurchaseInvoiceException extends ExpensesException
     {
         return new self('The invoice document must not be empty.');
     }
+
+    public static function invalid(string $field, string $value): self
+    {
+        return new self(\sprintf('The %s "%s" is not valid.', $field, $value));
+    }
 }
