@@ -18,6 +18,13 @@ interface PurchaseInvoiceRepositoryInterface
     public function findByExternalId(PurchaseInvoiceSource $source, string $externalId): ?PurchaseInvoice;
 
     /**
+     * The invoices the filter selects, newest issue date first, then by seller name and invoice number.
+     *
+     * @return list<PurchaseInvoice>
+     */
+    public function findByFilter(PurchaseInvoiceFilter $filter): array;
+
+    /**
      * Stores a new invoice and, when given, its original document, both or neither.
      *
      * @throws PurchaseInvoiceAlreadyImportedException when the source's id is already stored (the unique constraint caught it)

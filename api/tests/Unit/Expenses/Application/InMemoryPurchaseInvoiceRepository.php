@@ -9,6 +9,7 @@ use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
+use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -39,6 +40,25 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
         return null;
     }
 
+    public function findByFilter(PurchaseInvoiceFilter $filter): array
+    {
+        $invoices = array_values(array_filter($this->byId, static function (PurchaseInvoice $invoice) use ($filter): bool {
+            $categoryId = $invoice->getCategoryId();
+            $taxId = $filter->sellerTaxId();
+
+            return $filter->period->contains($invoice->getIssueDate())
+                && (null === $filter->categoryId || (null !== $categoryId && $categoryId->equals($filter->categoryId)))
+                && (!$filter->uncategorized || null === $categoryId)
+                && (null === $filter->seller
+                    || str_contains(mb_strtolower($invoice->getSellerName()), $filter->seller)
+                    || (null !== $taxId && str_contains(mb_strtolower($invoice->getSellerTaxId()), $taxId)));
+        }));
+        usort($invoices, static fn (PurchaseInvoice $a, PurchaseInvoice $b): int => [$b->getIssueDate()->toString(), $a->getSellerName(), $a->getInvoiceNumber(), $a->getId()->toRfc4122()]
+            <=> [$a->getIssueDate()->toString(), $b->getSellerName(), $b->getInvoiceNumber(), $b->getId()->toRfc4122()]);
+
+        return $invoices;
+    }
+
     public function add(PurchaseInvoice $invoice, ?PurchaseInvoiceDocument $document = null): void
     {
         if (null !== $document && $document->getPurchaseInvoice() !== $invoice) {
@@ -63,6 +83,19 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
     public function findByInvoiceId(Uuid $invoiceId): ?PurchaseInvoiceDocument
     {
         return $this->documents[$invoiceId->toRfc4122()] ?? null;
+    }
+
+    public function findFormatsByInvoiceIds(array $invoiceIds): array
+    {
+        $formats = [];
+        foreach ($invoiceIds as $invoiceId) {
+            $document = $this->documents[$invoiceId->toRfc4122()] ?? null;
+            if (null !== $document) {
+                $formats[$invoiceId->toRfc4122()] = $document->getFormat();
+            }
+        }
+
+        return $formats;
     }
 
     /** @return list<PurchaseInvoice> */

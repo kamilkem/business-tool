@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Ui\Http\Income;
+namespace Ui\Http\Shared\Validator;
 
 use App\Shared\Domain\Time\BusinessPeriod;
 use App\Shared\Domain\Time\Exception\InvalidBusinessDateException;
 use App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
-/** The cross-field rules of a `?from=&to=` period of business dates, for the Income inputs' callbacks. */
-final class RevenuePeriodRules
+/** The cross-field rules of a `?from=&to=` period of business dates, for the list inputs' callbacks (Income, Expenses). */
+final class BusinessPeriodRules
 {
     public static function validate(ExecutionContextInterface $context, ?string $from, ?string $to, int $maxDays): void
     {

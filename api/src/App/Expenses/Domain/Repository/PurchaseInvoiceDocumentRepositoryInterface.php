@@ -14,4 +14,13 @@ use Symfony\Component\Uid\Uuid;
 interface PurchaseInvoiceDocumentRepositoryInterface
 {
     public function findByInvoiceId(Uuid $invoiceId): ?PurchaseInvoiceDocument;
+
+    /**
+     * The formats of the given invoices' documents, without loading their content.
+     *
+     * @param list<Uuid> $invoiceIds
+     *
+     * @return array<string, string> format by invoice id (RFC 4122), only for invoices that have a document
+     */
+    public function findFormatsByInvoiceIds(array $invoiceIds): array;
 }

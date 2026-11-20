@@ -8,10 +8,13 @@ use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
+use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
+use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<PurchaseInvoice> */
@@ -30,6 +33,42 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
     public function findByExternalId(PurchaseInvoiceSource $source, string $externalId): ?PurchaseInvoice
     {
         return $this->findOneBy(['source' => $source, 'externalId' => $externalId]);
+    }
+
+    public function findByFilter(PurchaseInvoiceFilter $filter): array
+    {
+        // The VAT lines are fetched with the invoices: the list shows them and adds them up (#53).
+        $qb = $this->createQueryBuilder('i')
+            ->leftJoin('i.vatLines', 'v')
+            ->addSelect('v')
+            ->where('i.issueDate >= :first')
+            ->andWhere('i.issueDate <= :last')
+            ->setParameter('first', $filter->period->first, BusinessDateType::NAME)
+            ->setParameter('last', $filter->period->last, BusinessDateType::NAME)
+            ->orderBy('i.issueDate', 'DESC')
+            ->addOrderBy('i.sellerName', 'ASC')
+            ->addOrderBy('i.invoiceNumber', 'ASC')
+            ->addOrderBy('i.id', 'ASC');
+
+        if (null !== $filter->categoryId) {
+            $qb->andWhere('i.categoryId = :categoryId')->setParameter('categoryId', $filter->categoryId, UuidType::NAME);
+        }
+        if ($filter->uncategorized) {
+            $qb->andWhere('i.categoryId IS NULL');
+        }
+        if (null !== $filter->seller) {
+            $seller = $qb->expr()->orX("LOWER(i.sellerName) LIKE :sellerName ESCAPE '!'");
+            $qb->setParameter('sellerName', '%'.self::escapeLike($filter->seller).'%');
+            $taxId = $filter->sellerTaxId();
+            if (null !== $taxId) {
+                $seller->add("LOWER(i.sellerTaxId) LIKE :sellerTaxId ESCAPE '!'");
+                $qb->setParameter('sellerTaxId', '%'.self::escapeLike($taxId).'%');
+            }
+            $qb->andWhere($seller);
+        }
+
+        /** @var list<PurchaseInvoice> */
+        return $qb->getQuery()->getResult();
     }
 
     public function add(PurchaseInvoice $invoice, ?PurchaseInvoiceDocument $document = null): void
@@ -58,5 +97,11 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
     public function save(PurchaseInvoice $invoice): void
     {
         $this->getEntityManager()->flush();
+    }
+
+    /** Makes %, _ and the escape character itself literal in a LIKE pattern. */
+    private static function escapeLike(string $text): string
+    {
+        return strtr($text, ['!' => '!!', '%' => '!%', '_' => '!_']);
     }
 }

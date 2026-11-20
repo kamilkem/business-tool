@@ -28,4 +28,26 @@ final class PurchaseInvoiceDocumentRepository extends ServiceEntityRepository im
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    public function findFormatsByInvoiceIds(array $invoiceIds): array
+    {
+        if ([] === $invoiceIds) {
+            return [];
+        }
+
+        /** @var list<array{invoiceId: Uuid, format: string}> $rows */
+        $rows = $this->createQueryBuilder('d')
+            ->select('IDENTITY(d.purchaseInvoice) AS invoiceId', 'd.format AS format')
+            ->where('d.purchaseInvoice IN (:invoiceIds)')
+            ->setParameter('invoiceIds', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $invoiceIds))
+            ->getQuery()
+            ->getArrayResult();
+
+        $formats = [];
+        foreach ($rows as $row) {
+            $formats[Uuid::fromString((string) $row['invoiceId'])->toRfc4122()] = $row['format'];
+        }
+
+        return $formats;
+    }
 }

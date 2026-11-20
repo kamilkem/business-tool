@@ -7,6 +7,7 @@ namespace Ui\Http\Income;
 use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryQuery;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
+use Ui\Http\Shared\Validator\BusinessPeriodRules;
 
 /**
  * The query string of GET /revenue-summary. RevenueSummaryProvider builds it from the query parameters
@@ -29,6 +30,6 @@ final readonly class RevenueSummaryInput
     #[Assert\Callback]
     public function validatePeriod(ExecutionContextInterface $context): void
     {
-        RevenuePeriodRules::validate($context, $this->from, $this->to, GetRevenueSummaryQuery::MAX_DAYS);
+        BusinessPeriodRules::validate($context, $this->from, $this->to, GetRevenueSummaryQuery::MAX_DAYS);
     }
 }
