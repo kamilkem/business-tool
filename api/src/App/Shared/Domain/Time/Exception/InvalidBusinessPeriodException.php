@@ -18,4 +18,9 @@ final class InvalidBusinessPeriodException extends TimeException
     {
         return new self(\sprintf('%04d-%02d is not a month.', $year, $month));
     }
+
+    public static function notAMonthString(string $value): self
+    {
+        return new self(\sprintf('"%s" is not a month (YYYY-MM).', $value));
+    }
 }

@@ -113,5 +113,14 @@ api_platform:
         App\Payroll\Domain\Exception\PayRateDateTakenException: 409
         App\Payroll\Domain\Exception\PayRateNotFoundException: 404
         App\Payroll\Domain\Exception\PayRatePeriodLockedException: 409
+        App\Payroll\Domain\Exception\PayrollRunNotFoundException: 404
+        App\Payroll\Domain\Exception\PayrollRunMonthTakenException: 409
+        App\Payroll\Domain\Exception\PayrollMonthInTheFutureException: 422
+        App\Payroll\Domain\Exception\PayrollRunEmptyException: 409
+        App\Payroll\Domain\Exception\PayrollRunStatusException: 409
+        App\Payroll\Domain\Exception\PayrollRunNotApprovableException: 409
+        App\Payroll\Domain\Exception\InvalidRoundingException: 422
+        App\Payroll\Domain\Exception\InvalidPaycheckAdjustmentException: 422
+        App\Payroll\Domain\Exception\PaycheckAdjustmentNotFoundException: 404
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422
