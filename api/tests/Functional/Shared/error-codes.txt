@@ -108,6 +108,9 @@ payroll.run_not_approvable.pending_change_requests
 payroll.run_not_found
 payroll.run_status.not_approved
 payroll.run_status.not_draft
+reporting.business_summary_forbidden
+reporting.business_summary_month_in_the_future
+reporting.business_summary_period_too_long
 secret.management_forbidden
 secret.organization_secret_not_found
 secret.unreadable.authentication_failed

@@ -127,5 +127,8 @@ api_platform:
         App\Payroll\Domain\Exception\PaycheckNotFoundException: 404
         App\Payroll\Domain\Exception\PaycheckPaymentException: 409
         App\Payroll\Domain\Exception\PaymentDateInTheFutureException: 422
+        App\Reporting\Domain\Exception\BusinessSummaryForbiddenException: 403
+        App\Reporting\Domain\Exception\BusinessSummaryMonthInTheFutureException: 422
+        App\Reporting\Domain\Exception\BusinessSummaryPeriodTooLongException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessDateException: 422
         App\Shared\Domain\Time\Exception\InvalidBusinessPeriodException: 422

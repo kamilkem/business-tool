@@ -65,6 +65,12 @@ services:
         exclude:
             - '../src/App/Payroll/Domain/Model/'
 
+    # The monthly business summary: queries only, over other modules' queries (ADR 0029).
+    App\Reporting\:
+        resource: '../src/App/Reporting/'
+        exclude:
+            - '../src/App/Reporting/Domain/Model/'
+
     Ui\:
         resource: '../src/Ui/'
 
