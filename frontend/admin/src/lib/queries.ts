@@ -137,3 +137,47 @@ export const expensesQuery = (organizationId: string, filter: ExpensesFilter) =>
     queryKey: ["expenses", organizationId, filter],
     queryFn: () => unwrap(api.GET("/api/expenses", { params: { query: filter } })),
   })
+
+/** Payroll runs, newest month first, with their totals (GET /payroll-runs). */
+export const payrollRunsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["payroll-runs", organizationId],
+    queryFn: () => unwrap(api.GET("/api/payroll-runs")),
+  })
+
+/** One payroll run with its paychecks, lines and adjustments. */
+export const payrollRunQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["payroll-run", organizationId, id],
+    queryFn: () => unwrap(api.GET("/api/payroll-runs/{id}", { params: { path: { id } } })),
+  })
+
+/** Every member's hourly rates, by member, newest first. */
+export const hourlyRatesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["hourly-rates", organizationId],
+    queryFn: () => unwrap(api.GET("/api/hourly-rates")),
+  })
+
+/** Every member's day rates, by member, newest first. */
+export const dayRatesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["day-rates", organizationId],
+    queryFn: () => unwrap(api.GET("/api/day-rates")),
+  })
+
+/** After a run is generated, changed, approved, reopened, paid or deleted: the list and every run. */
+export function invalidatePayrollRuns(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["payroll-runs", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["payroll-run", organizationId] }),
+  ])
+}
+
+/** After a rate or day rate is added, changed or deleted. */
+export function invalidatePayRates(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["hourly-rates", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["day-rates", organizationId] }),
+  ])
+}

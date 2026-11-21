@@ -25,6 +25,10 @@ export type Capability =
   | "income"
   /** Expenses: purchase invoices and the categories they are sorted into. */
   | "expenses"
+  /** Payroll: rates, and runs that are generated, reviewed and adjusted (ADR 0027 §10). */
+  | "payroll"
+  /** Payroll: approve and reopen a run, and mark paychecks paid; owners only (ADR 0027 §7, §9). */
+  | "payrollApprove"
   /** KSeF: see the connection and test the token (ADR 0023 §5). Shown for organizations in Poland only. */
   | "ksef"
   /** KSeF: save or remove the token, owners only (ADR 0023 §2, ADR 0026 §5). */
@@ -40,6 +44,8 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   settings: OWNERS_AND_MANAGERS,
   income: OWNERS_AND_MANAGERS,
   expenses: OWNERS_AND_MANAGERS,
+  payroll: OWNERS_AND_MANAGERS,
+  payrollApprove: ["owner"],
   ksef: OWNERS_AND_MANAGERS,
   ksefToken: ["owner"],
 }
