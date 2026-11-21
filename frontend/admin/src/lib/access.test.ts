@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses", "payroll", "ksef"]
+const CAPABILITIES: Capability[] = ["admin", "dashboard", "team", "time", "shiftRequests", "settings", "income", "expenses", "payroll", "ksef"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {

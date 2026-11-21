@@ -17,6 +17,8 @@ export type Membership = components["schemas"]["MeMembership"]
 export type Capability =
   /** The admin's business screens at all: dashboard, sidebar and the pages below. */
   | "admin"
+  /** The dashboard's monthly business summary (ADR 0029 §3); without it the start page is "use the timeclock". */
+  | "dashboard"
   | "team"
   | "time"
   | "shiftRequests"
@@ -38,6 +40,7 @@ const OWNERS_AND_MANAGERS: readonly Role[] = ["owner", "manager"]
 
 const allowedRoles: Record<Capability, readonly Role[]> = {
   admin: OWNERS_AND_MANAGERS,
+  dashboard: OWNERS_AND_MANAGERS,
   team: OWNERS_AND_MANAGERS,
   time: OWNERS_AND_MANAGERS,
   shiftRequests: OWNERS_AND_MANAGERS,

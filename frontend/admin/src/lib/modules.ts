@@ -7,7 +7,7 @@ import type { Role } from "./members"
 export type ModuleKey = "expenses" | "income" | "payroll" | "time"
 
 export interface ModuleInfo {
-  /** Also its texts in the catalog: `modules.<key>.title`, `modules.<key>.description`. */
+  /** Also its title in the catalog: `modules.<key>.title`. */
   key: ModuleKey
   icon: LucideIcon
   /** The module's page, once it is built; until then it is shown as "coming soon". */
@@ -16,7 +16,7 @@ export interface ModuleInfo {
   capability?: Capability
 }
 
-/** Business modules shown in navigation and on the dashboard. */
+/** Business modules shown in the navigation. */
 export const modules: ModuleInfo[] = [
   {
     key: "expenses",
