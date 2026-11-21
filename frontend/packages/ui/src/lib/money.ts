@@ -14,6 +14,8 @@
  * code gets it from `useLocale()` (`hooks/use-locale`).
  */
 
+import { i18n } from "../i18n/i18n"
+
 /** An amount in a currency's smallest unit (grosze for PLN, yen for JPY), as the API sends it. */
 export type MinorUnits = number
 
@@ -190,16 +192,16 @@ function splitDecimal(body: string, locale: { decimal: string; group: string }):
 export function moneyErrorMessage(error: MoneyParseError, currency: string): string {
   switch (error) {
     case "invalid":
-      return "Enter an amount, e.g. 12.50."
+      return i18n.t("money.error.invalid")
     case "negative":
-      return "The amount cannot be negative."
+      return i18n.t("money.error.negative")
     case "too-large":
-      return "The amount is too large."
+      return i18n.t("money.error.tooLarge")
     case "too-many-decimals": {
       const digits = currencyFractionDigits(currency)
       return digits === 0
-        ? `${currency} amounts have no decimal places.`
-        : `${currency} amounts have at most ${digits} decimal place${digits === 1 ? "" : "s"}.`
+        ? i18n.t("money.error.noDecimals", { currency })
+        : i18n.t("money.error.tooManyDecimals", { currency, count: digits })
     }
   }
 }

@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react"
 import { type ApiClient, unwrap, violationsOf } from "@business-tool/api-client"
+import { useTranslation } from "react-i18next"
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -33,6 +34,7 @@ export interface ChangePasswordFormProps {
  * signed in here; a 401 is handled by the API client (it signs out).
  */
 export function ChangePasswordForm({ api, email, touch = false }: ChangePasswordFormProps) {
+  const { t } = useTranslation()
   const formRef = useRef<HTMLFormElement>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
@@ -46,11 +48,11 @@ export function ChangePasswordForm({ api, email, touch = false }: ChangePassword
     const confirmation = String(form.get("confirmation") ?? "")
 
     const local: Errors = {}
-    if (currentPassword === "") local.currentPassword = "Enter your current password."
+    if (currentPassword === "") local.currentPassword = t("password.error.currentMissing")
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      local.newPassword = `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+      local.newPassword = t("password.error.tooShort", { count: MIN_PASSWORD_LENGTH })
     } else if (confirmation !== newPassword) {
-      local.confirmation = "The passwords don't match."
+      local.confirmation = t("password.error.mismatch")
     }
     setErrors(local)
     setChanged(false)
@@ -80,7 +82,7 @@ export function ChangePasswordForm({ api, email, touch = false }: ChangePassword
       <input type="text" name="username" autoComplete="username" value={email} readOnly hidden />
       <FieldGroup>
         <Field data-invalid={errors.currentPassword ? true : undefined}>
-          <FieldLabel htmlFor="currentPassword">Current password</FieldLabel>
+          <FieldLabel htmlFor="currentPassword">{t("password.current")}</FieldLabel>
           <Input
             id="currentPassword"
             name="currentPassword"
@@ -93,7 +95,7 @@ export function ChangePasswordForm({ api, email, touch = false }: ChangePassword
           {errors.currentPassword && <FieldError>{errors.currentPassword}</FieldError>}
         </Field>
         <Field data-invalid={errors.newPassword ? true : undefined}>
-          <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+          <FieldLabel htmlFor="newPassword">{t("password.new")}</FieldLabel>
           <Input
             id="newPassword"
             name="newPassword"
@@ -107,11 +109,11 @@ export function ChangePasswordForm({ api, email, touch = false }: ChangePassword
           {errors.newPassword ? (
             <FieldError>{errors.newPassword}</FieldError>
           ) : (
-            <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters.</FieldDescription>
+            <FieldDescription>{t("password.hint", { count: MIN_PASSWORD_LENGTH })}</FieldDescription>
           )}
         </Field>
         <Field data-invalid={errors.confirmation ? true : undefined}>
-          <FieldLabel htmlFor="confirmation">Repeat the new password</FieldLabel>
+          <FieldLabel htmlFor="confirmation">{t("password.repeat")}</FieldLabel>
           <Input
             id="confirmation"
             name="confirmation"
@@ -132,14 +134,14 @@ export function ChangePasswordForm({ api, email, touch = false }: ChangePassword
         {changed && (
           <Alert>
             <CircleCheckIcon />
-            <AlertTitle>Your password is changed</AlertTitle>
+            <AlertTitle>{t("password.change.doneTitle")}</AlertTitle>
             <AlertDescription className="text-pretty">
-              You stay signed in here. On your other devices, sign in again with the new password.
+              {t("password.change.doneDescription")}
             </AlertDescription>
           </Alert>
         )}
         <Button type="submit" disabled={pending} className={cn(touch ? "h-11 w-full" : "self-start")}>
-          {pending ? "Saving…" : "Change password"}
+          {pending ? t("common.saving") : t("password.change.submit")}
         </Button>
       </FieldGroup>
     </form>

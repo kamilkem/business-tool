@@ -1,8 +1,10 @@
 import { createDateTimeFormat } from "@business-tool/ui/lib/date-time"
 import type { Shift } from "@business-tool/ui/lib/shifts"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
-import { monthKey, monthPeriodOf, shiftChange, shiftCount, shiftHours, validateMyShiftsSearch } from "./my-shifts"
+import { i18n } from "../i18n"
+
+import { inShifts, monthKey, monthPeriodOf, shiftChange, shiftHours, validateMyShiftsSearch } from "./my-shifts"
 
 // The tests run with TZ=America/New_York (vitest.config.mts); the bar is in Warsaw.
 const warsaw = createDateTimeFormat("Europe/Warsaw", "en-GB")
@@ -10,6 +12,10 @@ const warsaw = createDateTimeFormat("Europe/Warsaw", "en-GB")
 const ME = "0193a1b2-0000-7000-8000-000000000001"
 const MANAGER = "0193a1b2-0000-7000-8000-000000000002"
 const NOVEMBER = { from: "2026-11-01", to: "2026-11-30" }
+
+afterEach(async () => {
+  await i18n.changeLanguage("en")
+})
 
 function shift(overrides: Partial<Shift>): Shift {
   return {
@@ -103,9 +109,34 @@ describe("shiftChange", () => {
   })
 })
 
-describe("shiftCount", () => {
+describe("inShifts", () => {
   it("test_it_counts_shifts_in_words", () => {
-    expect(shiftCount(1)).toBe("1 shift")
-    expect(shiftCount(12)).toBe("12 shifts")
+    expect(inShifts(1)).toBe("in 1 shift")
+    expect(inShifts(12)).toBe("in 12 shifts")
+  })
+
+  it("test_it_uses_the_polish_plural_forms", async () => {
+    await i18n.changeLanguage("pl")
+    expect(inShifts(1)).toBe("z 1 zmiany")
+    expect(inShifts(3)).toBe("z 3 zmian")
+    expect(inShifts(5)).toBe("z 5 zmian")
+    expect(inShifts(22)).toBe("z 22 zmian")
+  })
+})
+
+describe("in Polish", () => {
+  const warsawPl = createDateTimeFormat("Europe/Warsaw", "pl-PL")
+
+  it("test_it_says_who_changed_the_shift_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    const corrected = shift({ correctedBy: MANAGER, correctedAt: "2026-11-12T00:00:00+00:00" })
+    expect(shiftChange(warsawPl, corrected, ME)).toBe("Zmieniona przez przełożonego 12 lis 2026, 01:00")
+    const entered = shift({ source: "manager", correctedBy: ME, correctedAt: null })
+    expect(shiftChange(warsawPl, entered, ME)).toBe("Wpisana przez Ciebie")
+  })
+
+  it("test_it_shows_an_open_shift_as_running_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    expect(shiftHours(warsawPl, shift({ endedAt: null, durationMinutes: null }))).toBe("16:00 – teraz")
   })
 })

@@ -1,4 +1,5 @@
 import { useId } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Field, FieldDescription, FieldError, FieldLabel } from "./field"
 import { Input } from "./input"
@@ -30,6 +31,7 @@ export function ShiftMomentField({
   /** `dateChanged` is true when the person set the date themselves. */
   onChange: (value: ShiftMoment, dateChanged: boolean) => void
 }) {
+  const { t } = useTranslation()
   const id = useId()
   const offsets = repeatedOffsets(value, timeZone)
   const invalid = error ? true : undefined
@@ -42,7 +44,7 @@ export function ShiftMomentField({
           id={`${id}-date`}
           name={`${name}Date`}
           type="date"
-          aria-label={`${label} date`}
+          aria-label={t("shiftMoment.date", { label })}
           aria-invalid={invalid}
           value={value.date}
           onChange={(e) => onChange({ ...value, date: e.target.value }, true)}
@@ -59,17 +61,17 @@ export function ShiftMomentField({
       </div>
       {offsets && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">{value.time} happens twice on this day (the clocks go back):</span>
+          <span className="text-muted-foreground">{t("shiftMoment.repeated", { time: value.time })}</span>
           <Select
             value={value.occurrence}
             onValueChange={(occurrence) => onChange({ ...value, occurrence: occurrence as Occurrence }, false)}
           >
-            <SelectTrigger size="sm" aria-label={`Which ${value.time}`}>
+            <SelectTrigger size="sm" aria-label={t("shiftMoment.which", { time: value.time })}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="first">First, UTC{offsets[0]}</SelectItem>
-              <SelectItem value="second">Second, UTC{offsets[1]}</SelectItem>
+              <SelectItem value="first">{t("shiftMoment.first", { offset: offsets[0] })}</SelectItem>
+              <SelectItem value="second">{t("shiftMoment.second", { offset: offsets[1] })}</SelectItem>
             </SelectContent>
           </Select>
         </div>

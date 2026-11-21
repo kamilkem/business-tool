@@ -1,5 +1,7 @@
 import { formatDuration, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 
+import { i18n } from "../i18n"
+
 /** Milliseconds between two moments, never negative (the phone's clock may be behind the server's). */
 export function elapsedMs(from: string, to: Date | string): number {
   return Math.max(0, new Date(to).getTime() - new Date(from).getTime())
@@ -16,7 +18,7 @@ export function formatElapsed(ms: number): string {
 
 /** "7 h 32 min" for a finished shift. */
 export function formatWorked(ms: number): string {
-  return ms < 60_000 ? "less than a minute" : formatDuration(ms / 60_000)
+  return ms < 60_000 ? i18n.t("clock.lessThanAMinute", { ns: "timeclock" }) : formatDuration(ms / 60_000)
 }
 
 /**

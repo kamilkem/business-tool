@@ -7,3 +7,6 @@ import pl from "./locales/pl/timeclock.json"
 // anything renders, so `useTranslation("timeclock")` always finds it.
 i18n.addResourceBundle("en", "timeclock", en)
 i18n.addResourceBundle("pl", "timeclock", pl)
+
+/** The instance with this app's namespace added: helpers outside React (and their tests) import it from here. */
+export { i18n }

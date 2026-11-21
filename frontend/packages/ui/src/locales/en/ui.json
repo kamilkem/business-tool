@@ -10,5 +10,102 @@
   "language": {
     "label": "Language",
     "description": "The language of both apps. Dates and numbers are written the way it writes them."
+  },
+  "common": {
+    "close": "Close",
+    "email": "Email",
+    "saving": "Saving…",
+    "sending": "Sending…"
+  },
+  "sidebar": {
+    "title": "Sidebar",
+    "description": "Displays the mobile sidebar.",
+    "toggle": "Toggle sidebar"
+  },
+  "duration": {
+    "minutes": "{{minutes}} min",
+    "hours": "{{hours}} h",
+    "hoursMinutes": "{{hours}} h {{minutes}} min"
+  },
+  "period": {
+    "label": "Period",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "previousPeriod": "Previous period",
+    "nextPeriod": "Next period",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "from": "From",
+    "to": "To",
+    "apply": "Show these dates",
+    "error": {
+      "bothDates": "Enter both dates.",
+      "endBeforeStart": "The end date is before the start date.",
+      "tooLong_one": "Choose at most {{count}} day.",
+      "tooLong_other": "Choose at most {{count}} days."
+    }
+  },
+  "money": {
+    "error": {
+      "invalid": "Enter an amount, e.g. 12.50.",
+      "negative": "The amount cannot be negative.",
+      "tooLarge": "The amount is too large.",
+      "noDecimals": "{{currency}} amounts have no decimal places.",
+      "tooManyDecimals_one": "{{currency}} amounts have at most {{count}} decimal place.",
+      "tooManyDecimals_other": "{{currency}} amounts have at most {{count}} decimal places."
+    }
+  },
+  "shiftMoment": {
+    "date": "{{label}} date",
+    "repeated": "{{time}} happens twice on this day (the clocks go back):",
+    "which": "Which {{time}}",
+    "first": "First, UTC{{offset}}",
+    "second": "Second, UTC{{offset}}"
+  },
+  "shiftForm": {
+    "error": {
+      "clockInDate": "Enter the clock-in date.",
+      "clockInTime": "Enter the clock-in time.",
+      "clockOutDate": "Enter the clock-out date.",
+      "clockOutTime": "Enter the clock-out time.",
+      "skippedTime": "{{time}} does not exist on {{date}}: the clocks moved forward. Enter a time after the change.",
+      "endBeforeStart": "The clock-out must be after the clock-in.",
+      "noteTooLong_one": "Keep the note under {{count}} character.",
+      "noteTooLong_other": "Keep the note under {{count}} characters.",
+      "noPerson": "Choose who worked the shift.",
+      "noReason": "Say why, for whoever decides the request.",
+      "unchanged": "Change the clock-in or the clock-out: these are the shift's times now."
+    }
+  },
+  "password": {
+    "current": "Current password",
+    "new": "New password",
+    "repeat": "Repeat the new password",
+    "hint_one": "At least {{count}} character.",
+    "hint_other": "At least {{count}} characters.",
+    "error": {
+      "currentMissing": "Enter your current password.",
+      "tooShort_one": "Use at least {{count}} character.",
+      "tooShort_other": "Use at least {{count}} characters.",
+      "mismatch": "The passwords don't match."
+    },
+    "change": {
+      "submit": "Change password",
+      "doneTitle": "Your password is changed",
+      "doneDescription": "You stay signed in here. On your other devices, sign in again with the new password."
+    },
+    "set": {
+      "submit": "Set password",
+      "invalidLinkTitle": "This link doesn't work",
+      "invalidLinkReason": "It may be mistyped, already used, or expired.",
+      "invalidLinkNext": "If you were invited, ask your manager to send you a new invitation. If you were resetting your password, <requestNewLink>request a new link</requestNewLink>."
+    },
+    "forgot": {
+      "emailMissing": "Enter the e-mail address you sign in with.",
+      "submit": "Send me a link",
+      "sentTitle": "Check your e-mail",
+      "sentDescription": "If <email>{{email}}</email> has an account, we've sent it a link to set a new password. The link works once and only for a short time.",
+      "nothingArrived": "Nothing arrived? Check the spam folder, or <retry>try again</retry>."
+    }
   }
 }

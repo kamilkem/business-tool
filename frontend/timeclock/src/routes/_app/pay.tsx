@@ -9,6 +9,7 @@ import {
   LoaderCircleIcon,
   TriangleAlertIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Badge } from "@business-tool/ui/components/badge"
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_app/pay")({
 function MyPayScreen() {
   const { me, membership } = Route.useRouteContext()
   const { month } = Route.useSearch()
+  const { t } = useTranslation("timeclock")
   const navigate = Route.useNavigate()
   const format = useDateTimeFormat()
 
@@ -51,15 +53,15 @@ function MyPayScreen() {
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-3 px-4 pb-4">
       <div className="flex items-center gap-1">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-11">
-          <Link to="/" aria-label="Back to the clock">
+          <Link to="/" aria-label={t("common.backToClock")}>
             <ArrowLeftIcon />
           </Link>
         </Button>
-        <h1 className="text-lg font-semibold">My pay</h1>
+        <h1 className="text-lg font-semibold">{t("pay.title")}</h1>
       </div>
 
-      <div className="flex items-center gap-2" role="group" aria-label="Month">
-        <Button variant="outline" size="icon" className="size-11" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label="Previous month">
+      <div className="flex items-center gap-2" role="group" aria-label={t("common.month")}>
+        <Button variant="outline" size="icon" className="size-11" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label={t("common.previousMonth")}>
           <ChevronLeftIcon />
         </Button>
         <div className="flex-1 text-center font-medium" aria-live="polite">
@@ -71,7 +73,7 @@ function MyPayScreen() {
           className="size-11"
           onClick={() => showMonth(shiftPeriod(period, 1))}
           disabled={isThisMonth}
-          aria-label="Next month"
+          aria-label={t("common.nextMonth")}
         >
           <ChevronRightIcon />
         </Button>
@@ -82,7 +84,7 @@ function MyPayScreen() {
       <Button asChild variant="ghost" className="h-11">
         <Link to="/shifts" search={{ month: isThisMonth ? undefined : monthKey(period) }}>
           <CalendarDaysIcon />
-          My shifts in {format.period(period)}
+          {t("pay.myShiftsIn", { period: format.period(period) })}
         </Link>
       </Button>
     </main>
@@ -90,6 +92,7 @@ function MyPayScreen() {
 }
 
 function MonthPay({ organizationId, userId, period }: { organizationId: string; userId: string; period: BusinessPeriod }) {
+  const { t } = useTranslation("timeclock")
   const pay = useQuery(myPayQuery(organizationId, userId, monthKey(period)))
 
   if (pay.isPending) {
@@ -110,7 +113,7 @@ function MonthPay({ organizationId, userId, period }: { organizationId: string; 
         </Alert>
         <Button variant="outline" className="h-11" onClick={() => pay.refetch()} disabled={pay.isFetching}>
           {pay.isFetching && <LoaderCircleIcon className="animate-spin" />}
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     )
@@ -120,6 +123,7 @@ function MonthPay({ organizationId, userId, period }: { organizationId: string; 
 }
 
 function PayDetails({ pay }: { pay: MyPay }) {
+  const { t } = useTranslation("timeclock")
   const format = useDateTimeFormat()
   const locale = useLocale()
   // The approved run's currency, or the organization's for an estimate: the API says which.
@@ -132,7 +136,7 @@ function PayDetails({ pay }: { pay: MyPay }) {
       <section className="rounded-xl border bg-card p-4" aria-label={payHeading(pay)}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">{payHeading(pay)}</span>
-          <Badge variant={approved ? "default" : "outline"}>{approved ? "Approved" : "Estimate"}</Badge>
+          <Badge variant={approved ? "default" : "outline"}>{approved ? t("pay.approved") : t("pay.estimate")}</Badge>
         </div>
         <div className="text-4xl font-semibold tabular-nums tracking-tight">
           {approved ? "" : "≈ "}
@@ -140,7 +144,7 @@ function PayDetails({ pay }: { pay: MyPay }) {
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{payExplanation(pay)}</p>
         {approved && pay.approvedAt && (
-          <p className="mt-1 text-sm text-muted-foreground">Approved on {format.date(pay.approvedAt)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("pay.approvedOn", { date: format.date(pay.approvedAt) })}</p>
         )}
       </section>
 
@@ -151,18 +155,18 @@ function PayDetails({ pay }: { pay: MyPay }) {
         </Alert>
       )}
 
-      <section className="rounded-xl border bg-card p-4" aria-label="Hours">
-        <div className="text-sm text-muted-foreground">Worked</div>
+      <section className="rounded-xl border bg-card p-4" aria-label={t("pay.hours")}>
+        <div className="text-sm text-muted-foreground">{t("pay.worked")}</div>
         <div className="text-2xl font-semibold tabular-nums">{formatDuration(minutesOf(pay.seconds))}</div>
         <div className="text-sm text-muted-foreground">{hoursDetail(pay)}</div>
-        {pay.openShifts > 0 && <p className="mt-2 text-sm">The shift you're on is added when you clock out.</p>}
+        {pay.openShifts > 0 && <p className="mt-2 text-sm">{t("common.openShiftAddedLater")}</p>}
       </section>
 
       {approved && (
-        <section className="rounded-xl border bg-card p-4" aria-label="Breakdown">
+        <section className="rounded-xl border bg-card p-4" aria-label={t("pay.breakdown")}>
           <dl className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-3">
-              <dt>Pay for hours</dt>
+              <dt>{t("pay.payForHours")}</dt>
               <dd className="tabular-nums">{money(pay.payForHours)}</dd>
             </div>
             {pay.adjustments.map((adjustment) => (
@@ -172,7 +176,7 @@ function PayDetails({ pay }: { pay: MyPay }) {
               </div>
             ))}
             <div className="flex justify-between gap-3 border-t pt-2 font-medium">
-              <dt>Total</dt>
+              <dt>{t("pay.total")}</dt>
               <dd className="tabular-nums">{money(pay.total)}</dd>
             </div>
           </dl>
