@@ -128,7 +128,7 @@ function RatesPage() {
   const withoutRate = entries.filter((entry) => entry.member.deactivatedAt === null && hourlyRateOn(entry.hourly, today) === null)
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <PayrollNav />
         <div>

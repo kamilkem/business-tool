@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@busi
 import { ChangePasswordForm } from "@business-tool/ui/components/change-password-form"
 import { LanguageSetting } from "@business-tool/ui/components/language-setting"
 
+import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { useMeSaved } from "@/lib/use-me-saved"
 
@@ -19,7 +20,7 @@ function AccountPage() {
   const { t } = useTranslation("admin")
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>{t("account.title")}</CardTitle>
@@ -29,7 +30,7 @@ function AccountPage() {
         </CardHeader>
       </Card>
       <Card>
-        <CardContent>
+        <CardContent className={FORM_WIDTH}>
           <LanguageSetting api={api} onSaved={onSaved} />
         </CardContent>
       </Card>
@@ -38,7 +39,7 @@ function AccountPage() {
           <CardTitle>{t("account.changePassword")}</CardTitle>
           <CardDescription>{t("account.changePasswordDescription")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className={FORM_WIDTH}>
           <ChangePasswordForm api={api} email={me.email} />
         </CardContent>
       </Card>

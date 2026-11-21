@@ -14,6 +14,7 @@ import {
 } from "@business-tool/ui/components/dropdown-menu"
 
 import { LanguageMenu } from "@/components/language-menu"
+import { PageContainer } from "@/components/page-container"
 import { roleLabel } from "@/lib/members"
 import { useAccountActions } from "@/lib/use-account-actions"
 
@@ -91,7 +92,9 @@ export function LimitedLayout({ children }: { children: ReactNode }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-      <main className="flex-1 p-4 md:p-6">{children}</main>
+      <main className="flex-1 p-4 md:p-6">
+        <PageContainer>{children}</PageContainer>
+      </main>
     </div>
   )
 }
