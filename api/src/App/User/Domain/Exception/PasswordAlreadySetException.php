@@ -9,6 +9,6 @@ final class PasswordAlreadySetException extends UserException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" has already set a password.', $userId));
+        return new self(\sprintf('User "%s" has already set a password.', $userId), ['userId' => $userId]);
     }
 }

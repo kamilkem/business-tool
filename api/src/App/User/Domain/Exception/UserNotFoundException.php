@@ -8,6 +8,6 @@ final class UserNotFoundException extends UserException
 {
     public static function forId(string $id): self
     {
-        return new self(\sprintf('User "%s" not found.', $id));
+        return new self(\sprintf('User "%s" not found.', $id), ['userId' => $id]);
     }
 }

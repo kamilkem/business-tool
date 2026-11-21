@@ -32,6 +32,8 @@ api_platform:
                 type: header
     # Domain exceptions thrown by handlers are translated to HTTP statuses here, at the Ui
     # boundary. Add every new domain exception in the same change: an unmapped one is a 500.
+    # The problem response also carries the exception's `code` and `parameters` (ADR 0028 §5,
+    # Ui\Http\Shared\Problem); ErrorCodesTest checks that every exception of ours here has a code.
     exception_to_status:
         # API Platform's defaults (replaced, not merged, when this key is set):
         Symfony\Component\Serializer\Exception\ExceptionInterface: 400

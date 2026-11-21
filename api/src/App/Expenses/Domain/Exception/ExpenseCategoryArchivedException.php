@@ -9,6 +9,6 @@ final class ExpenseCategoryArchivedException extends ExpensesException
 {
     public static function of(string $name): self
     {
-        return new self(\sprintf('The expense category "%s" is archived: restore it to assign it.', $name));
+        return new self(\sprintf('The expense category "%s" is archived: restore it to assign it.', $name), ['name' => $name]);
     }
 }

@@ -14,26 +14,26 @@ final class InvalidFa3InvoiceException extends KsefException
 {
     public static function notXml(string $reason): self
     {
-        return new self(\sprintf('The invoice is not well-formed XML: %s', $reason));
+        return new self(\sprintf('The invoice is not well-formed XML: %s', $reason), ['reason' => $reason], variant: __FUNCTION__);
     }
 
     public static function doctype(): self
     {
-        return new self('The invoice declares a DOCTYPE, which FA(3) does not allow.');
+        return new self('The invoice declares a DOCTYPE, which FA(3) does not allow.', [], variant: __FUNCTION__);
     }
 
     public static function missing(string $path): self
     {
-        return new self(\sprintf('The invoice has no %s.', $path));
+        return new self(\sprintf('The invoice has no %s.', $path), ['path' => $path], variant: __FUNCTION__);
     }
 
     public static function repeated(string $path): self
     {
-        return new self(\sprintf('The invoice has more than one %s.', $path));
+        return new self(\sprintf('The invoice has more than one %s.', $path), ['path' => $path], variant: __FUNCTION__);
     }
 
     public static function invalidValue(string $path, string $value, string $expected): self
     {
-        return new self(\sprintf('The invoice\'s %s "%s" is not %s.', $path, $value, $expected));
+        return new self(\sprintf('The invoice\'s %s "%s" is not %s.', $path, $value, $expected), ['path' => $path, 'value' => $value, 'expected' => $expected], variant: __FUNCTION__);
     }
 }

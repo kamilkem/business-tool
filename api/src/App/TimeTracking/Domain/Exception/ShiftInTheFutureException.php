@@ -13,6 +13,6 @@ final class ShiftInTheFutureException extends TimeTrackingException
             'A shift cannot start or end in the future: %s is after now (%s).',
             $time->format(\DATE_ATOM),
             $now->format(\DATE_ATOM),
-        ));
+        ), ['time' => $time->format(\DATE_ATOM), 'now' => $now->format(\DATE_ATOM)]);
     }
 }

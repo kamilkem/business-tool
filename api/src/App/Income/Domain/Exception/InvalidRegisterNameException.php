@@ -8,6 +8,6 @@ final class InvalidRegisterNameException extends IncomeException
 {
     public static function of(string $name, int $maxLength): self
     {
-        return new self(\sprintf('A register name must have 1 to %d characters, "%s" given.', $maxLength, $name));
+        return new self(\sprintf('A register name must have 1 to %d characters, "%s" given.', $maxLength, $name), ['name' => $name, 'maxLength' => $maxLength]);
     }
 }

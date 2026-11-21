@@ -9,6 +9,6 @@ final class ShiftChangeForbiddenException extends TimeTrackingException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" may not add or change shifts: only owners and managers do.', $userId));
+        return new self(\sprintf('User "%s" may not add or change shifts: only owners and managers do.', $userId), ['userId' => $userId]);
     }
 }

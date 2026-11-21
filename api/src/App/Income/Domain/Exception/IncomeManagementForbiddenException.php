@@ -9,6 +9,6 @@ final class IncomeManagementForbiddenException extends IncomeException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" may not manage income: only owners and managers do.', $userId));
+        return new self(\sprintf('User "%s" may not manage income: only owners and managers do.', $userId), ['userId' => $userId]);
     }
 }

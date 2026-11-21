@@ -9,6 +9,6 @@ final class SecretManagementForbiddenException extends SecretException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" may not set or remove secrets: only owners do.', $userId));
+        return new self(\sprintf('User "%s" may not set or remove secrets: only owners do.', $userId), ['userId' => $userId]);
     }
 }

@@ -14,6 +14,6 @@ final class ShiftOverlapException extends TimeTrackingException
             $otherShiftId,
             $otherStartedAt->format(\DATE_ATOM),
             $otherEndedAt?->format(\DATE_ATOM) ?? 'now: it is still open',
-        ));
+        ), ['otherShiftId' => $otherShiftId, 'otherStartedAt' => $otherStartedAt->format(\DATE_ATOM), 'otherEndedAt' => $otherEndedAt?->format(\DATE_ATOM)]);
     }
 }

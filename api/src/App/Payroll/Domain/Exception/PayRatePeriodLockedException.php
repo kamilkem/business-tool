@@ -21,6 +21,6 @@ final class PayRatePeriodLockedException extends PayrollException
             null === $last ? 'onwards' : 'to '.$last,
             $locked->first,
             $locked->last,
-        ));
+        ), ['from' => $first->toString(), 'to' => $last?->toString(), 'lockedFrom' => $locked->first->toString(), 'lockedTo' => $locked->last->toString()]);
     }
 }

@@ -9,6 +9,6 @@ final class OrganizationNotFoundException extends OrganizationException
 {
     public static function forId(string $id): self
     {
-        return new self(\sprintf('Organization "%s" not found.', $id));
+        return new self(\sprintf('Organization "%s" not found.', $id), ['organizationId' => $id]);
     }
 }

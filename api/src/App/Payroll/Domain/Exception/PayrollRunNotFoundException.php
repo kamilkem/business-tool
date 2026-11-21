@@ -9,6 +9,6 @@ final class PayrollRunNotFoundException extends PayrollException
 {
     public static function forId(string $id): self
     {
-        return new self(\sprintf('Payroll run "%s" not found.', $id));
+        return new self(\sprintf('Payroll run "%s" not found.', $id), ['runId' => $id]);
     }
 }

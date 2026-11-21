@@ -9,6 +9,6 @@ final class ShiftAlreadyOpenException extends TimeTrackingException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" is already clocked in. Clock out first.', $userId));
+        return new self(\sprintf('User "%s" is already clocked in. Clock out first.', $userId), ['userId' => $userId]);
     }
 }

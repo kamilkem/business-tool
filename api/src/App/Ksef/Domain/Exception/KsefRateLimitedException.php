@@ -17,6 +17,6 @@ final class KsefRateLimitedException extends KsefException
             'KSeF rate limit exceeded%s%s',
             null === $retryAfterSeconds ? '' : \sprintf(', retry after %d s', $retryAfterSeconds),
             '' === $detail ? '.' : ': '.$detail,
-        ));
+        ), ['retryAfterSeconds' => $retryAfterSeconds]);
     }
 }

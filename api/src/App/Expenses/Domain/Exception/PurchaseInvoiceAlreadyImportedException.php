@@ -9,6 +9,6 @@ final class PurchaseInvoiceAlreadyImportedException extends ExpensesException
 {
     public static function for(string $source, string $externalId): self
     {
-        return new self(\sprintf('The invoice "%s" from "%s" is already stored.', $externalId, $source));
+        return new self(\sprintf('The invoice "%s" from "%s" is already stored.', $externalId, $source), ['source' => $source, 'externalId' => $externalId]);
     }
 }

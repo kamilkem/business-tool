@@ -9,6 +9,6 @@ final class ExpenseCategoryNameTakenException extends ExpensesException
 {
     public static function of(string $name): self
     {
-        return new self(\sprintf('The organization already has an expense category named "%s".', $name));
+        return new self(\sprintf('The organization already has an expense category named "%s".', $name), ['name' => $name]);
     }
 }

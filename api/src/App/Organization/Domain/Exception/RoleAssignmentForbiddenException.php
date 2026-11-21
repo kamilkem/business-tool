@@ -9,6 +9,6 @@ final class RoleAssignmentForbiddenException extends OrganizationException
 {
     public static function forRole(string $actorId, string $role): self
     {
-        return new self(\sprintf('User "%s" may not give the role "%s". Managers add employees only.', $actorId, $role));
+        return new self(\sprintf('User "%s" may not give the role "%s". Managers add employees only.', $actorId, $role), ['userId' => $actorId, 'role' => $role]);
     }
 }

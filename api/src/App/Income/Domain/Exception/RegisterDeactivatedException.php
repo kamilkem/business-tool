@@ -9,6 +9,6 @@ final class RegisterDeactivatedException extends IncomeException
 {
     public static function of(string $registerId): self
     {
-        return new self(\sprintf('Register "%s" is deactivated and takes no new entries.', $registerId));
+        return new self(\sprintf('Register "%s" is deactivated and takes no new entries.', $registerId), ['registerId' => $registerId]);
     }
 }

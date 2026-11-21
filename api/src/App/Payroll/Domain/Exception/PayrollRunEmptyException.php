@@ -14,6 +14,6 @@ final class PayrollRunEmptyException extends PayrollException
 {
     public static function month(BusinessPeriod $month): self
     {
-        return new self(\sprintf('Nothing to pay for %s: there are no ended shifts and no adjustments.', substr($month->first->toString(), 0, 7)));
+        return new self(\sprintf('Nothing to pay for %s: there are no ended shifts and no adjustments.', substr($month->first->toString(), 0, 7)), ['month' => substr($month->first->toString(), 0, 7)]);
     }
 }

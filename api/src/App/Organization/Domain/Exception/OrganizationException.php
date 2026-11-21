@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Organization\Domain\Exception;
 
-abstract class OrganizationException extends \DomainException
+use App\Shared\Domain\Exception\CodedDomainException;
+
+abstract class OrganizationException extends CodedDomainException
 {
+    public static function module(): string
+    {
+        return 'organization';
+    }
 }

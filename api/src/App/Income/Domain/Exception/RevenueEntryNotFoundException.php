@@ -9,6 +9,6 @@ final class RevenueEntryNotFoundException extends IncomeException
 {
     public static function withId(string $entryId): self
     {
-        return new self(\sprintf('Revenue entry "%s" not found.', $entryId));
+        return new self(\sprintf('Revenue entry "%s" not found.', $entryId), ['entryId' => $entryId]);
     }
 }

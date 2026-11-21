@@ -12,6 +12,6 @@ final class ShiftCannotBeReopenedException extends TimeTrackingException
 {
     public static function of(string $shiftId): self
     {
-        return new self(\sprintf('Shift "%s" has ended; its end time can be changed but not removed.', $shiftId));
+        return new self(\sprintf('Shift "%s" has ended; its end time can be changed but not removed.', $shiftId), ['shiftId' => $shiftId]);
     }
 }

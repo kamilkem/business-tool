@@ -13,9 +13,9 @@ namespace App\Ksef\Domain\Exception;
 final class KsefCredentialsRejectedException extends KsefException
 {
     /** @param list<string> $details */
-    private function __construct(string $message, public readonly ?int $statusCode, public readonly array $details)
+    private function __construct(string $message, public readonly ?int $statusCode, public readonly array $details, string $variant)
     {
-        parent::__construct($message);
+        parent::__construct($message, ['statusCode' => $statusCode], $variant);
     }
 
     /**
@@ -30,12 +30,13 @@ final class KsefCredentialsRejectedException extends KsefException
             \sprintf('KSeF rejected the authentication (status %d: %s%s).', $statusCode, $description, [] === $details ? '' : '; '.implode('; ', $details)),
             $statusCode,
             $details,
+            __FUNCTION__,
         );
     }
 
     /** HTTP 403 on a call that needs a permission the token does not have (InvoiceRead). */
     public static function missingPermission(string $detail): self
     {
-        return new self(\sprintf('The KSeF token lacks a required permission: %s', $detail), null, []);
+        return new self(\sprintf('The KSeF token lacks a required permission: %s', $detail), null, [], __FUNCTION__);
     }
 }

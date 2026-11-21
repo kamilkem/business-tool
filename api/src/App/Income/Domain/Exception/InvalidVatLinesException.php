@@ -12,31 +12,31 @@ final class InvalidVatLinesException extends IncomeException
 {
     public static function noRatesForCountry(string $countryCode): self
     {
-        return new self(\sprintf('No VAT rates are defined for the country "%s": an entry there takes no VAT lines.', $countryCode));
+        return new self(\sprintf('No VAT rates are defined for the country "%s": an entry there takes no VAT lines.', $countryCode), ['countryCode' => $countryCode], variant: __FUNCTION__);
     }
 
     public static function unknownRate(string $rate, string $countryCode): self
     {
-        return new self(\sprintf('"%s" is not a VAT rate in the country "%s".', $rate, $countryCode));
+        return new self(\sprintf('"%s" is not a VAT rate in the country "%s".', $rate, $countryCode), ['rate' => $rate, 'countryCode' => $countryCode], variant: __FUNCTION__);
     }
 
     public static function duplicateRate(string $rate): self
     {
-        return new self(\sprintf('The VAT rate "%s" appears more than once.', $rate));
+        return new self(\sprintf('The VAT rate "%s" appears more than once.', $rate), ['rate' => $rate], variant: __FUNCTION__);
     }
 
     public static function grossOutOfRange(string $rate, int $gross, int $max): self
     {
-        return new self(\sprintf('The gross amount for the VAT rate "%s" must be between 0 and %d minor units, %d given.', $rate, $max, $gross));
+        return new self(\sprintf('The gross amount for the VAT rate "%s" must be between 0 and %d minor units, %d given.', $rate, $max, $gross), ['rate' => $rate, 'gross' => $gross, 'max' => $max], variant: __FUNCTION__);
     }
 
     public static function vatOutOfRange(string $rate, int $vat, int $gross): self
     {
-        return new self(\sprintf('The VAT for the rate "%s" must be between 0 and the gross amount %d, %d given.', $rate, $gross, $vat));
+        return new self(\sprintf('The VAT for the rate "%s" must be between 0 and the gross amount %d, %d given.', $rate, $gross, $vat), ['rate' => $rate, 'vat' => $vat, 'gross' => $gross], variant: __FUNCTION__);
     }
 
     public static function vatOnZeroRate(string $rate, int $vat): self
     {
-        return new self(\sprintf('The rate "%s" carries no VAT, %d given.', $rate, $vat));
+        return new self(\sprintf('The rate "%s" carries no VAT, %d given.', $rate, $vat), ['rate' => $rate, 'vat' => $vat], variant: __FUNCTION__);
     }
 }

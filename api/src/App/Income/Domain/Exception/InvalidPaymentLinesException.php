@@ -9,21 +9,21 @@ final class InvalidPaymentLinesException extends IncomeException
 {
     public static function empty(): self
     {
-        return new self('An entry needs at least one payment line (an amount of zero is allowed).');
+        return new self('An entry needs at least one payment line (an amount of zero is allowed).', [], variant: __FUNCTION__);
     }
 
     public static function unknownMethod(string $method): self
     {
-        return new self(\sprintf('"%s" is not a payment method.', $method));
+        return new self(\sprintf('"%s" is not a payment method.', $method), ['method' => $method], variant: __FUNCTION__);
     }
 
     public static function duplicateMethod(string $method): self
     {
-        return new self(\sprintf('The payment method "%s" appears more than once.', $method));
+        return new self(\sprintf('The payment method "%s" appears more than once.', $method), ['method' => $method], variant: __FUNCTION__);
     }
 
     public static function amountOutOfRange(string $method, int $amount, int $max): self
     {
-        return new self(\sprintf('The amount for "%s" must be between 0 and %d minor units, %d given.', $method, $max, $amount));
+        return new self(\sprintf('The amount for "%s" must be between 0 and %d minor units, %d given.', $method, $max, $amount), ['method' => $method, 'amount' => $amount, 'max' => $max], variant: __FUNCTION__);
     }
 }

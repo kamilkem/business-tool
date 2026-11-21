@@ -11,6 +11,6 @@ final class PayrollRunMonthTakenException extends PayrollException
 {
     public static function month(BusinessPeriod $month): self
     {
-        return new self(\sprintf('There is already a payroll run for %s.', substr($month->first->toString(), 0, 7)));
+        return new self(\sprintf('There is already a payroll run for %s.', substr($month->first->toString(), 0, 7)), ['month' => substr($month->first->toString(), 0, 7)]);
     }
 }

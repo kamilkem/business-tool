@@ -9,6 +9,6 @@ final class PaycheckNotFoundException extends PayrollException
 {
     public static function forId(string $id): self
     {
-        return new self(\sprintf('Paycheck "%s" not found.', $id));
+        return new self(\sprintf('Paycheck "%s" not found.', $id), ['paycheckId' => $id]);
     }
 }

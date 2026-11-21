@@ -9,6 +9,6 @@ final class ShiftAlreadyClosedException extends TimeTrackingException
 {
     public static function of(string $shiftId): self
     {
-        return new self(\sprintf('Shift "%s" has already ended.', $shiftId));
+        return new self(\sprintf('Shift "%s" has already ended.', $shiftId), ['shiftId' => $shiftId]);
     }
 }
