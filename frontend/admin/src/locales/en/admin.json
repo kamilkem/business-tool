@@ -55,27 +55,74 @@
   },
   "modules": {
     "expenses": {
-      "title": "Expenses",
-      "description": "Purchase invoices pulled from KSeF and sorted into categories."
+      "title": "Expenses"
     },
     "income": {
-      "title": "Income",
-      "description": "Daily revenue entered by hand, per payment method."
+      "title": "Income"
     },
     "payroll": {
-      "title": "Payroll",
-      "description": "Paychecks calculated from logged hours and rates."
+      "title": "Payroll"
     },
     "time": {
-      "title": "Time tracking",
-      "description": "Shifts clocked in the timeclock app."
+      "title": "Time tracking"
     }
   },
   "dashboard": {
     "hello": "Hello, {{name}}",
-    "description": "Modules will light up here as they are built.",
-    "open": "Open",
-    "comingSoon": "Coming soon"
+    "description": "Your business month by month, net of VAT.",
+    "month": "Month",
+    "gross": "Gross {{amount}}",
+    "partial": {
+      "title": "This month is still running",
+      "description": "The figures so far are a preview and will change until the month ends on {{end}}."
+    },
+    "otherCurrencies": {
+      "title": "Also amounts in {{currencies}}",
+      "description": "They are not converted or included in these figures. Open Income or Expenses to see them."
+    },
+    "income": {
+      "title": "Income",
+      "entries_one": "{{count}} daily entry",
+      "entries_other": "{{count}} daily entries",
+      "open": "Open income"
+    },
+    "expenses": {
+      "title": "Expenses",
+      "invoices_one": "{{count}} invoice",
+      "invoices_other": "{{count}} invoices",
+      "open": "Open expenses"
+    },
+    "payroll": {
+      "title": "Payroll",
+      "approved": "Approved",
+      "draft": "Draft",
+      "none": "No run",
+      "approvedDetail": "Gross pay of the approved run.",
+      "estimate": "≈ {{amount}}",
+      "draftDetail": "An estimate from the draft run. It counts once the run is approved.",
+      "noneDetail": "No payroll run for this month yet.",
+      "open": "Open payroll"
+    },
+    "result": {
+      "title": "Result",
+      "detail": "Net income minus net expenses and payroll.",
+      "detailWithoutPayroll": "Net income minus net expenses. Payroll is not counted until the run is approved."
+    },
+    "trend": {
+      "title": "Trend",
+      "description_one": "Net income and costs over the last {{count}} month.",
+      "description_other": "Net income and costs over the last {{count}} months.",
+      "income": "Net income",
+      "costs": "Costs",
+      "partial": "in progress",
+      "monthLabel": "{{month}}: net income {{income}}, costs {{costs}}, result {{result}}",
+      "tooltipIncome": "Net income: {{amount}}",
+      "tooltipCosts": "Costs: {{amount}}",
+      "tooltipResult": "Result: {{amount}}",
+      "payrollPending": "Payroll not approved: not in the costs.",
+      "footnote": "Costs are net expenses plus approved payroll. Select a month to see its figures.",
+      "partialFootnote": "* The month is still running."
+    }
   },
   "useTimeclock": {
     "noOrganizationTitle": "No organization yet",

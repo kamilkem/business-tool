@@ -181,3 +181,16 @@ export function invalidatePayRates(queryClient: QueryClient, organizationId: str
     queryClient.invalidateQueries({ queryKey: ["day-rates", organizationId] }),
   ])
 }
+
+/**
+ * The business summary of the months `from`–`to` (`YYYY-MM`, at most 12; ADR 0029): income, expenses,
+ * payroll and the result per currency. The dashboard's cards and trend. It adds up what the Income,
+ * Expenses and Payroll pages change, so it is refetched whenever the dashboard opens rather than
+ * invalidated by each of their writes.
+ */
+export const businessSummaryQuery = (organizationId: string, range: { from: string; to: string }) =>
+  queryOptions({
+    queryKey: ["business-summary", organizationId, range],
+    staleTime: 0,
+    queryFn: () => unwrap(api.GET("/api/business-summary", { params: { query: range } })),
+  })

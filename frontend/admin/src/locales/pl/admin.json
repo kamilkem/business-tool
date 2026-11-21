@@ -59,27 +59,80 @@
   },
   "modules": {
     "expenses": {
-      "title": "Wydatki",
-      "description": "Faktury zakupowe pobrane z KSeF i przypisane do kategorii."
+      "title": "Wydatki"
     },
     "income": {
-      "title": "Przychody",
-      "description": "Dzienny utarg wpisywany ręcznie, według form płatności."
+      "title": "Przychody"
     },
     "payroll": {
-      "title": "Wynagrodzenia",
-      "description": "Wypłaty wyliczane z przepracowanych godzin i stawek."
+      "title": "Wynagrodzenia"
     },
     "time": {
-      "title": "Czas pracy",
-      "description": "Zmiany rejestrowane w aplikacji Timeclock."
+      "title": "Czas pracy"
     }
   },
   "dashboard": {
     "hello": "Cześć, {{name}}",
-    "description": "Moduły pojawią się tutaj, gdy będą gotowe.",
-    "open": "Otwórz",
-    "comingSoon": "Wkrótce"
+    "description": "Twoja firma miesiąc po miesiącu, w kwotach netto.",
+    "month": "Miesiąc",
+    "gross": "Brutto {{amount}}",
+    "partial": {
+      "title": "Ten miesiąc jeszcze trwa",
+      "description": "Dotychczasowe kwoty to podgląd i będą się zmieniać do końca miesiąca ({{end}})."
+    },
+    "otherCurrencies": {
+      "title": "Są też kwoty w {{currencies}}",
+      "description": "Nie są przeliczane ani wliczane do tych kwot. Zobaczysz je w Przychodach lub Wydatkach."
+    },
+    "income": {
+      "title": "Przychody",
+      "entries_one": "{{count}} wpis dzienny",
+      "entries_few": "{{count}} wpisy dzienne",
+      "entries_many": "{{count}} wpisów dziennych",
+      "entries_other": "{{count}} wpisu dziennego",
+      "open": "Otwórz przychody"
+    },
+    "expenses": {
+      "title": "Wydatki",
+      "invoices_one": "{{count}} faktura",
+      "invoices_few": "{{count}} faktury",
+      "invoices_many": "{{count}} faktur",
+      "invoices_other": "{{count}} faktury",
+      "open": "Otwórz wydatki"
+    },
+    "payroll": {
+      "title": "Wynagrodzenia",
+      "approved": "Zatwierdzona",
+      "draft": "Wersja robocza",
+      "none": "Brak listy",
+      "approvedDetail": "Wynagrodzenie brutto z zatwierdzonej listy płac.",
+      "estimate": "≈ {{amount}}",
+      "draftDetail": "Szacunek z wersji roboczej. Liczy się dopiero po zatwierdzeniu listy płac.",
+      "noneDetail": "Nie ma jeszcze listy płac za ten miesiąc.",
+      "open": "Otwórz wynagrodzenia"
+    },
+    "result": {
+      "title": "Wynik",
+      "detail": "Przychody netto minus wydatki netto i wynagrodzenia.",
+      "detailWithoutPayroll": "Przychody netto minus wydatki netto. Wynagrodzenia liczą się dopiero po zatwierdzeniu listy płac."
+    },
+    "trend": {
+      "title": "Trend",
+      "description_one": "Przychody netto i koszty z ostatniego {{count}} miesiąca.",
+      "description_few": "Przychody netto i koszty z ostatnich {{count}} miesięcy.",
+      "description_many": "Przychody netto i koszty z ostatnich {{count}} miesięcy.",
+      "description_other": "Przychody netto i koszty z ostatnich {{count}} miesiąca.",
+      "income": "Przychody netto",
+      "costs": "Koszty",
+      "partial": "w toku",
+      "monthLabel": "{{month}}: przychody netto {{income}}, koszty {{costs}}, wynik {{result}}",
+      "tooltipIncome": "Przychody netto: {{amount}}",
+      "tooltipCosts": "Koszty: {{amount}}",
+      "tooltipResult": "Wynik: {{amount}}",
+      "payrollPending": "Lista płac niezatwierdzona: poza kosztami.",
+      "footnote": "Koszty to wydatki netto i zatwierdzone wynagrodzenia. Wybierz miesiąc, aby zobaczyć jego kwoty.",
+      "partialFootnote": "* Miesiąc jeszcze trwa."
+    }
   },
   "useTimeclock": {
     "noOrganizationTitle": "Nie należysz jeszcze do organizacji",
