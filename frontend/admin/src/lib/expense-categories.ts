@@ -1,6 +1,8 @@
 import { ApiError, type components, violationsOf } from "@business-tool/api-client"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
+
 /*
  * Expense categories: what an expense was for (rent, food, ...). Archived, never deleted, because
  * the expenses that have one keep it; an archived category can be restored.
@@ -55,8 +57,8 @@ export function categoryFormErrors(
     const existing = categories.find((c) => c.name === written)
     return {
       name: existing?.archived
-        ? `An archived category is already named “${written}”. Restore it, or pick another name.`
-        : `A category named “${written}” already exists.`,
+        ? i18n.t("categories.error.nameTakenByArchived", { ns: "admin", name: written })
+        : i18n.t("categories.error.nameTaken", { ns: "admin", name: written }),
     }
   }
   if (error instanceof ApiError && error.status === 422) {

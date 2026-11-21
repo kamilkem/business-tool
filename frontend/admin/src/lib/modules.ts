@@ -4,10 +4,11 @@ import { ClockIcon, ReceiptIcon, TrendingUpIcon, WalletIcon, type LucideIcon } f
 import { type Capability, can } from "./access"
 import type { Role } from "./members"
 
+export type ModuleKey = "expenses" | "income" | "payroll" | "time"
+
 export interface ModuleInfo {
-  key: string
-  title: string
-  description: string
+  /** Also its texts in the catalog: `modules.<key>.title`, `modules.<key>.description`. */
+  key: ModuleKey
   icon: LucideIcon
   /** The module's page, once it is built; until then it is shown as "coming soon". */
   to?: LinkProps["to"]
@@ -19,32 +20,24 @@ export interface ModuleInfo {
 export const modules: ModuleInfo[] = [
   {
     key: "expenses",
-    title: "Expenses",
-    description: "Purchase invoices pulled from KSeF and sorted into categories.",
     icon: ReceiptIcon,
     to: "/expenses",
     capability: "expenses",
   },
   {
     key: "income",
-    title: "Income",
-    description: "Daily revenue entered by hand, per payment method.",
     icon: TrendingUpIcon,
     to: "/income",
     capability: "income",
   },
   {
     key: "payroll",
-    title: "Payroll",
-    description: "Paychecks calculated from logged hours and rates.",
     icon: WalletIcon,
     to: "/payroll",
     capability: "payroll",
   },
   {
     key: "time",
-    title: "Time tracking",
-    description: "Shifts clocked in the timeclock app.",
     icon: ClockIcon,
     to: "/time",
     capability: "time",

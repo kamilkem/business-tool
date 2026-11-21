@@ -1,6 +1,7 @@
 import type { components } from "@business-tool/api-client"
 import { type BusinessPeriod, isBusinessDate, periodError } from "@business-tool/ui/lib/date-time"
 
+import { i18n } from "../i18n"
 import type { ExpenseCategory } from "./expense-categories"
 import type { KsefConnection } from "./ksef"
 
@@ -87,24 +88,26 @@ export function sourceLabel(source: string): string {
     case "ksef":
       return "KSeF"
     case "manual":
-      return "Entered by hand"
+      return i18n.t("expenses.source.manual", { ns: "admin" })
     default:
       return source
   }
 }
 
-const KIND_LABELS: Record<string, string> = {
-  regular: "Invoice",
-  correction: "Correction",
-  advance: "Advance invoice",
-  settlement: "Settlement invoice",
-  simplified: "Simplified invoice",
-  advance_correction: "Advance correction",
-  settlement_correction: "Settlement correction",
-}
+const KINDS = [
+  "regular",
+  "correction",
+  "advance",
+  "settlement",
+  "simplified",
+  "advance_correction",
+  "settlement_correction",
+] as const
 
+/** An invoice's kind (FA(3) RodzajFaktury) in words; an unknown one as the API gives it. */
 export function kindLabel(kind: string): string {
-  return KIND_LABELS[kind] ?? kind
+  const known = KINDS.find((k) => k === kind)
+  return known ? i18n.t(`expenses.kind.${known}`, { ns: "admin" }) : kind
 }
 
 export function isCorrection(kind: string): boolean {
@@ -132,7 +135,7 @@ export interface CategoryOption {
 export function categoryOptions(active: readonly ExpenseCategory[], expense: Pick<Expense, "categoryId" | "categoryName">): CategoryOption[] {
   const options = active.map((c) => ({ id: c.id, name: c.name, archived: false }))
   if (expense.categoryId && !options.some((o) => o.id === expense.categoryId)) {
-    options.push({ id: expense.categoryId, name: expense.categoryName ?? "Archived category", archived: true })
+    options.push({ id: expense.categoryId, name: expense.categoryName ?? i18n.t("expenses.archivedCategory", { ns: "admin" }), archived: true })
   }
   return options
 }

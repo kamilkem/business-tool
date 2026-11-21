@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -30,6 +31,7 @@ interface RegisterDialogProps {
 /** Adds a register, or renames one (active or deactivated). */
 export function RegisterDialog({ organizationId, open, onOpenChange, register }: RegisterDialogProps) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const [errors, setErrors] = useState<RegisterFormErrors>({})
   const listKey = registersQuery(organizationId, true).queryKey
   const renaming = register ?? null
@@ -49,7 +51,7 @@ export function RegisterDialog({ organizationId, open, onOpenChange, register }:
       queryClient.setQueryData(listKey, (list) => (list ? withRegister(list, saved) : list))
       // The active-only list (the Income page's entry form) is out of date too.
       await queryClient.invalidateQueries({ queryKey: registersQuery(organizationId, false).queryKey })
-      toast.success(renaming ? `Register renamed to ${saved.name}` : `Register ${saved.name} added`)
+      toast.success(renaming ? t("registers.toast.renamed", { name: saved.name }) : t("registers.toast.added", { name: saved.name }))
       close()
     },
     onError: (error, name) => setErrors(registerFormErrors(error, name, queryClient.getQueryData(listKey) ?? [])),
@@ -72,17 +74,15 @@ export function RegisterDialog({ organizationId, open, onOpenChange, register }:
         {/* A new key per register, so the field starts from that register's name. */}
         <form key={renaming?.id ?? "new"} onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>{renaming ? `Rename ${renaming.name}` : "Add register"}</DialogTitle>
+            <DialogTitle>{renaming ? t("registers.dialog.renameTitle", { name: renaming.name }) : t("registers.add")}</DialogTitle>
             <DialogDescription>
-              {renaming
-                ? "Its revenue entries, past ones included, show the new name."
-                : "A till with its own fiscal printer. You enter one daily report per register."}
+              {renaming ? t("registers.dialog.renameDescription") : t("registers.dialog.addDescription")}
             </DialogDescription>
           </DialogHeader>
           <fieldset disabled={save.isPending} className="py-4">
             <FieldGroup>
               <Field data-invalid={errors.name ? true : undefined}>
-                <FieldLabel htmlFor="register-name">Name</FieldLabel>
+                <FieldLabel htmlFor="register-name">{t("registers.dialog.name")}</FieldLabel>
                 <Input
                   id="register-name"
                   name="name"
@@ -95,7 +95,7 @@ export function RegisterDialog({ organizationId, open, onOpenChange, register }:
                 {errors.name ? (
                   <FieldError>{errors.name}</FieldError>
                 ) : (
-                  <FieldDescription>Up to 64 characters, different from your other registers.</FieldDescription>
+                  <FieldDescription>{t("registers.dialog.nameDescription", { count: 64 })}</FieldDescription>
                 )}
               </Field>
               {errors.form && (
@@ -107,7 +107,7 @@ export function RegisterDialog({ organizationId, open, onOpenChange, register }:
           </fieldset>
           <DialogFooter>
             <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : renaming ? "Rename" : "Add register"}
+              {save.isPending ? t("common.saving", { ns: "ui" }) : renaming ? t("registers.rename") : t("registers.add")}
             </Button>
           </DialogFooter>
         </form>

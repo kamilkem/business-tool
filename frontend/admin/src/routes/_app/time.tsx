@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { ClockIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -67,8 +68,8 @@ function TimePage() {
   return <Shifts organizationId={membership.organization.id} />
 }
 
-/** Who entered or last corrected a shift: a name, or "you". */
-type NameOf = (userId: string) => string
+/** Who entered or last corrected a shift: a name, or null for the signed-in user. */
+type NameOf = (userId: string) => string | null
 
 function Shifts({ organizationId }: { organizationId: string }) {
   const { me } = Route.useRouteContext()
@@ -80,6 +81,7 @@ function Shifts({ organizationId }: { organizationId: string }) {
   const userId = knownUserId(search.userId, members)
   const { data: shifts } = useSuspenseQuery(shiftsQuery(organizationId, period, userId))
   const [dialog, setDialog] = useState<ShiftDialogTarget | null>(null)
+  const { t } = useTranslation("admin")
 
   const totals = totalsPerEmployee(shifts)
   // In the order of the totals: last name, then first name.
@@ -99,31 +101,31 @@ function Shifts({ organizationId }: { organizationId: string }) {
   }
 
   const nameOf: NameOf = (id) => {
-    if (id === me.id) return "you"
+    if (id === me.id) return null
     const member = members.find((m) => m.userId === id)
-    return member ? fullName(member) : "a former member"
+    return member ? fullName(member) : t("time.formerMember")
   }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Time tracking</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("time.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Shifts by the day they started on. Times in {format.timeZone.replaceAll("_", " ")}.
+            {t("time.description", { timeZone: format.timeZone.replaceAll("_", " ") })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={userId ?? EVERYONE} onValueChange={(value) => setUserId(value === EVERYONE ? undefined : value)}>
-            <SelectTrigger aria-label="Employee" className="w-48">
+            <SelectTrigger aria-label={t("time.employee")} className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={EVERYONE}>Everyone</SelectItem>
+              <SelectItem value={EVERYONE}>{t("time.everyone")}</SelectItem>
               {people.map((member) => (
                 <SelectItem key={member.userId} value={member.userId}>
                   {fullName(member)}
-                  {!isActive(member) && <span className="text-muted-foreground"> (deactivated)</span>}
+                  {!isActive(member) && <span className="text-muted-foreground"> {t("time.deactivated")}</span>}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -131,7 +133,7 @@ function Shifts({ organizationId }: { organizationId: string }) {
           <PeriodPicker value={period} onChange={setPeriod} maxDays={SHIFTS_MAX_DAYS} />
           <Button onClick={() => setDialog({ kind: "add", userId })}>
             <PlusIcon />
-            Add shift
+            {t("time.addShift")}
           </Button>
         </div>
       </div>
@@ -149,10 +151,6 @@ function Shifts({ organizationId }: { organizationId: string }) {
   )
 }
 
-function periodName(period: BusinessPeriod, formatted: string): string {
-  return isWholeMonth(period) ? `in ${formatted}` : `for ${formatted}`
-}
-
 function TotalsCard({
   totals,
   period,
@@ -164,26 +162,26 @@ function TotalsCard({
   onSelect?: (userId: string) => void
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const sum = grandTotal(totals)
+  const inPeriod = { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) }
 
   return (
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
-        <CardTitle>Totals per employee</CardTitle>
-        <CardDescription>
-          Time worked {periodName(period, format.period(period))}. An open shift counts once it is clocked out.
-        </CardDescription>
+        <CardTitle>{t("time.totals.title")}</CardTitle>
+        <CardDescription>{t("time.totals.description", inPeriod)}</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         {totals.length === 0 ? (
-          <p className="border-t px-6 py-6 text-sm text-muted-foreground">Nobody worked a shift in this period.</p>
+          <p className="border-t px-6 py-6 text-sm text-muted-foreground">{t("time.totals.none")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Employee</TableHead>
-                <TableHead className="text-right">Shifts</TableHead>
-                <TableHead className="pr-6 text-right">Worked</TableHead>
+                <TableHead className="pl-6">{t("time.employee")}</TableHead>
+                <TableHead className="text-right">{t("time.totals.shifts")}</TableHead>
+                <TableHead className="pr-6 text-right">{t("time.totals.worked")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -208,7 +206,7 @@ function TotalsCard({
             {totals.length > 1 && (
               <TableFooter>
                 <TableRow>
-                  <TableCell className="pl-6">Everyone</TableCell>
+                  <TableCell className="pl-6">{t("time.everyone")}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     <ShiftCount shifts={sum.shifts} open={sum.openShifts} />
                   </TableCell>
@@ -224,10 +222,11 @@ function TotalsCard({
 }
 
 function ShiftCount({ shifts, open }: { shifts: number; open: number }) {
+  const { t } = useTranslation("admin")
   return (
     <>
       {shifts}
-      {open > 0 && <span className="text-muted-foreground"> ({open} open)</span>}
+      {open > 0 && <span className="text-muted-foreground"> {t("time.totals.open", { count: open })}</span>}
     </>
   )
 }
@@ -254,33 +253,32 @@ function ShiftsCard({
   onEdit: (shift: Shift) => void
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const now = useMinuteClock()
 
   return (
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
-        <CardTitle>Shifts</CardTitle>
-        <CardDescription>
-          Newest first. Open shifts are highlighted; end a forgotten one with End shift.
-        </CardDescription>
+        <CardTitle>{t("time.shifts.title")}</CardTitle>
+        <CardDescription>{t("time.shifts.description")}</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         {shifts.length === 0 ? (
           <p className="border-t px-6 py-6 text-sm text-muted-foreground">
-            No shifts {periodName(period, format.period(period))}.
+            {t("time.shifts.none", { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) })}
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Date</TableHead>
-                <TableHead>Employee</TableHead>
-                <TableHead>Clock-in</TableHead>
-                <TableHead>Clock-out</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead>Note</TableHead>
+                <TableHead className="pl-6">{t("time.shifts.date")}</TableHead>
+                <TableHead>{t("time.employee")}</TableHead>
+                <TableHead>{t("time.shifts.clockIn")}</TableHead>
+                <TableHead>{t("time.shifts.clockOut")}</TableHead>
+                <TableHead className="text-right">{t("time.shifts.duration")}</TableHead>
+                <TableHead>{t("time.shifts.note")}</TableHead>
                 <TableHead className="pr-6">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -298,6 +296,7 @@ function ShiftsCard({
 
 function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nameOf: NameOf; onEdit: () => void }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const open = isOpen(shift)
 
   return (
@@ -317,14 +316,14 @@ function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nam
       <TableCell className="tabular-nums">{format.time(shift.startedAt)}</TableCell>
       <TableCell className="tabular-nums">
         {shift.endedAt === null ? (
-          <Badge className="bg-amber-500 text-white dark:bg-amber-600">Open</Badge>
+          <Badge className="bg-amber-500 text-white dark:bg-amber-600">{t("time.shifts.open")}</Badge>
         ) : (
           <EndTime date={shift.date} endedAt={shift.endedAt} />
         )}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {shift.durationMinutes === null ? (
-          <span className="text-muted-foreground">{formatDuration(minutesBetween(shift.startedAt, now))} so far</span>
+          <span className="text-muted-foreground">{t("time.shifts.soFar", { duration: formatDuration(minutesBetween(shift.startedAt, now)) })}</span>
         ) : (
           formatDuration(shift.durationMinutes)
         )}
@@ -336,13 +335,13 @@ function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nam
         {open ? (
           <Button variant="outline" size="sm" onClick={onEdit}>
             <ClockIcon />
-            End shift
+            {t("time.shifts.endShift")}
           </Button>
         ) : (
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Edit the shift of ${shift.firstName} ${shift.lastName} on ${format.businessDate(shift.date)}`}
+            aria-label={t("time.shifts.edit", { name: `${shift.firstName} ${shift.lastName}`, date: format.businessDate(shift.date) })}
             onClick={onEdit}
           >
             <PencilIcon />
@@ -356,12 +355,15 @@ function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nam
 /** "Entered by Anna Nowak, 11 Nov 2026, 14:02" or "Corrected by you, …"; nothing for a shift as clocked. */
 function ChangedBy({ shift, nameOf }: { shift: Shift; nameOf: NameOf }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   if (shift.correctedBy === null || shift.correctedAt === null) return null
-  const what = shift.source === "manager" ? "Entered" : "Corrected"
+  const what = shift.source === "manager" ? "entered" : "corrected"
+  const name = nameOf(shift.correctedBy)
+  const when = format.dateTime(shift.correctedAt)
 
   return (
     <div className="text-xs text-muted-foreground">
-      {what} by {nameOf(shift.correctedBy)}, {format.dateTime(shift.correctedAt)}
+      {name === null ? t(`time.shifts.${what}ByYou`, { when }) : t(`time.shifts.${what}By`, { name, when })}
     </div>
   )
 }

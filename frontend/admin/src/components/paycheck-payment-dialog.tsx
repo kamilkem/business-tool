@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -22,13 +23,14 @@ import { formatMoney } from "@business-tool/ui/lib/money"
 import { api } from "@/lib/api"
 import {
   type FormErrors,
-  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
   type PaymentFormValues,
   type PaymentMethod,
   type PaycheckRow,
   type PayrollRun,
   apiFormErrors,
   paymentFormErrors,
+  paymentMethodLabel,
 } from "@/lib/payroll"
 import { invalidatePayrollRuns, payrollRunQuery } from "@/lib/queries"
 
@@ -54,6 +56,7 @@ function PaymentForm({ organizationId, run, row, onClose }: Omit<PaycheckPayment
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const today = format.today()
   const [values, setValues] = useState<PaymentFormValues>({ paidOn: today, method: "" })
   const [errors, setErrors] = useState<FormErrors>({})
@@ -68,7 +71,7 @@ function PaymentForm({ organizationId, run, row, onClose }: Omit<PaycheckPayment
       ),
     onSuccess: async (saved) => {
       queryClient.setQueryData(payrollRunQuery(organizationId, run.id).queryKey, saved)
-      toast.success(`${row.name}: marked paid`)
+      toast.success(t("payroll.payment.toast", { name: row.name }))
       onClose()
       await invalidatePayrollRuns(queryClient, organizationId)
     },
@@ -86,16 +89,18 @@ function PaymentForm({ organizationId, run, row, onClose }: Omit<PaycheckPayment
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>Mark paid: {row.name}</DialogTitle>
+        <DialogTitle>{t("payroll.payment.title", { name: row.name })}</DialogTitle>
         <DialogDescription>
-          {formatMoney(row.paycheck.total, run.currency, locale)} gross for {format.period({ from: run.firstDate, to: run.lastDate })}.
-          Once a paycheck is marked paid, the run can't be reopened.
+          {t("payroll.payment.description", {
+            amount: formatMoney(row.paycheck.total, run.currency, locale),
+            period: format.period({ from: run.firstDate, to: run.lastDate }),
+          })}
         </DialogDescription>
       </DialogHeader>
       <fieldset disabled={pay.isPending} className="py-4">
         <FieldGroup>
           <Field data-invalid={errors.paidOn ? true : undefined}>
-            <FieldLabel htmlFor="payment-date">Paid on</FieldLabel>
+            <FieldLabel htmlFor="payment-date">{t("payroll.payment.paidOn")}</FieldLabel>
             <Input
               id="payment-date"
               type="date"
@@ -107,15 +112,15 @@ function PaymentForm({ organizationId, run, row, onClose }: Omit<PaycheckPayment
             {errors.paidOn && <FieldError>{errors.paidOn}</FieldError>}
           </Field>
           <Field data-invalid={errors.method ? true : undefined}>
-            <FieldLabel htmlFor="payment-method">Method</FieldLabel>
+            <FieldLabel htmlFor="payment-method">{t("payroll.payment.method")}</FieldLabel>
             <Select value={values.method} onValueChange={(method) => setValues({ ...values, method: method as PaymentMethod })}>
               <SelectTrigger id="payment-method" className="w-full" aria-invalid={errors.method ? true : undefined}>
-                <SelectValue placeholder="Choose how it was paid" />
+                <SelectValue placeholder={t("payroll.payment.choose")} />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((method) => (
+                {PAYMENT_METHODS.map((method) => (
                   <SelectItem key={method} value={method}>
-                    {PAYMENT_METHOD_LABELS[method]}
+                    {paymentMethodLabel(method)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -131,7 +136,7 @@ function PaymentForm({ organizationId, run, row, onClose }: Omit<PaycheckPayment
       </fieldset>
       <DialogFooter>
         <Button type="submit" disabled={pay.isPending}>
-          {pay.isPending ? "Saving…" : "Mark paid"}
+          {pay.isPending ? t("common.saving", { ns: "ui" }) : t("payroll.payment.submit")}
         </Button>
       </DialogFooter>
     </form>

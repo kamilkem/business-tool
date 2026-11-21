@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AlertCircleIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -40,21 +41,22 @@ export interface DecisionTarget {
 /** The shift's times now next to the times asked for. A missing shift has none yet. */
 export function RequestTimes({ request }: { request: ShiftChangeRequest }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
 
   return (
     <dl className="grid gap-3 text-sm sm:grid-cols-2">
       <div className="rounded-md border p-3">
-        <dt className="text-xs font-medium text-muted-foreground">Now</dt>
+        <dt className="text-xs font-medium text-muted-foreground">{t("shiftRequests.now")}</dt>
         <dd className="mt-1 tabular-nums">
           {request.shiftStartedAt === null ? (
-            <span className="text-muted-foreground">No shift</span>
+            <span className="text-muted-foreground">{t("shiftRequests.noShift")}</span>
           ) : (
             timeRange(request.shiftStartedAt, request.shiftEndedAt, format)
           )}
         </dd>
       </div>
       <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
-        <dt className="text-xs font-medium text-muted-foreground">Requested</dt>
+        <dt className="text-xs font-medium text-muted-foreground">{t("shiftRequests.requested")}</dt>
         <dd className="mt-1 font-medium tabular-nums">{timeRange(request.startedAt, request.endedAt, format)}</dd>
         <dd className="mt-1 text-xs text-muted-foreground">{changeSummary(request)}</dd>
       </div>
@@ -104,6 +106,7 @@ function DecisionForm({
   onDone: () => void
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const [reason, setReason] = useState("")
   const [error, setError] = useState<DecisionError | null>(null)
@@ -129,7 +132,7 @@ function DecisionForm({
           ),
     onSuccess: async () => {
       await refresh(decision === "approve")
-      toast.success(decision === "approve" ? `Shift of ${person} updated` : `Request of ${person} rejected`)
+      toast.success(decision === "approve" ? t("shiftDialog.toast.updated", { name: person }) : t("shiftRequests.toast.rejected", { name: person }))
       onDone()
     },
     onError: async (failure) => {
@@ -153,14 +156,14 @@ function DecisionForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{approving ? `Approve ${person}'s request?` : `Reject ${person}'s request?`}</DialogTitle>
+        <DialogTitle>{approving ? t("shiftRequests.dialog.approveTitle", { name: person }) : t("shiftRequests.dialog.rejectTitle", { name: person })}</DialogTitle>
         <DialogDescription>
           {approving
             ? request.kind === "missing_shift"
-              ? `The shift is entered for ${request.firstName}, marked as entered by you.`
-              : "The shift gets the requested times, marked as corrected by you."
-            : `The shift stays as it is. ${request.firstName} is told by e-mail.`}{" "}
-          Times in {format.timeZone.replaceAll("_", " ")}.
+              ? t("shiftRequests.dialog.approveMissing", { name: request.firstName })
+              : t("shiftRequests.dialog.approveNewTimes")
+            : t("shiftRequests.dialog.reject", { name: request.firstName })}{" "}
+          {t("shiftDialog.timesIn", { timeZone: format.timeZone.replaceAll("_", " ") })}
         </DialogDescription>
       </DialogHeader>
 
@@ -168,26 +171,26 @@ function DecisionForm({
         <RequestTimes request={request} />
         <div className="text-sm">
           <div className="text-xs font-medium text-muted-foreground">
-            Note from {request.firstName}, {format.dateTime(request.submittedAt)}
+            {t("shiftRequests.dialog.noteFrom", { name: request.firstName, when: format.dateTime(request.submittedAt) })}
           </div>
           <p className="mt-1 whitespace-pre-line">{request.note}</p>
         </div>
 
         {!approving && (
           <Field data-invalid={reasonTooLong ? true : undefined}>
-            <FieldLabel htmlFor="rejection-reason">Reason (optional)</FieldLabel>
+            <FieldLabel htmlFor="rejection-reason">{t("shiftRequests.dialog.reason")}</FieldLabel>
             <Textarea
               id="rejection-reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               aria-invalid={reasonTooLong ? true : undefined}
-              placeholder="e.g. The rota says you left at 02:00."
+              placeholder={t("shiftRequests.dialog.reasonPlaceholder")}
               autoFocus
             />
             {reasonTooLong ? (
-              <FieldError>Keep the reason under {REASON_MAX_LENGTH} characters.</FieldError>
+              <FieldError>{t("shiftRequests.dialog.reasonTooLong", { count: REASON_MAX_LENGTH })}</FieldError>
             ) : (
-              <FieldDescription>Included in the e-mail to {request.firstName}.</FieldDescription>
+              <FieldDescription>{t("shiftRequests.dialog.reasonInEmail", { name: request.firstName })}</FieldDescription>
             )}
           </Field>
         )}
@@ -195,11 +198,11 @@ function DecisionForm({
         {error && (
           <Alert variant="destructive">
             <AlertCircleIcon />
-            <AlertTitle>{approving ? "Could not approve" : "Could not reject"}</AlertTitle>
+            <AlertTitle>{approving ? t("shiftRequests.dialog.approveFailed") : t("shiftRequests.dialog.rejectFailed")}</AlertTitle>
             <AlertDescription>
               <p>{error.message}</p>
               {error.stillPending && approving && (
-                <p>The request is still pending. Fix the other shift on the Time page, or reject the request.</p>
+                <p>{t("shiftRequests.dialog.stillPending")}</p>
               )}
             </AlertDescription>
           </Alert>
@@ -209,12 +212,12 @@ function DecisionForm({
       <DialogFooter>
         <DialogClose asChild>
           <Button type="button" variant="outline">
-            {blocked ? "Close" : "Cancel"}
+            {blocked ? t("common.close", { ns: "ui" }) : t("common.cancel")}
           </Button>
         </DialogClose>
         {!blocked && (
           <Button type="submit" variant={approving ? "default" : "destructive"} disabled={decide.isPending}>
-            {approving ? "Approve" : "Reject"}
+            {approving ? t("shiftRequests.approve") : t("shiftRequests.reject")}
           </Button>
         )}
       </DialogFooter>

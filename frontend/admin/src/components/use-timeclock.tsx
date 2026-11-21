@@ -1,5 +1,6 @@
 import { useRouteContext } from "@tanstack/react-router"
 import { ArrowRightLeftIcon, ExternalLinkIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@business-tool/ui/components/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
@@ -16,16 +17,15 @@ export function UseTimeclock() {
   const { me, membership } = useRouteContext({ from: "/_app" })
   const { switchOrganization } = useAccountActions()
   const managed = adminMemberships(me.memberships)
+  const { t } = useTranslation("admin")
 
   if (!membership) {
     return (
       <div className="mx-auto max-w-md pt-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">No organization yet</CardTitle>
-            <CardDescription>
-              You don't belong to any organization. When a business adds you, you'll get an e-mail invitation.
-            </CardDescription>
+            <CardTitle className="text-xl">{t("useTimeclock.noOrganizationTitle")}</CardTitle>
+            <CardDescription>{t("useTimeclock.noOrganizationDescription")}</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -36,16 +36,15 @@ export function UseTimeclock() {
     <div className="mx-auto flex max-w-md flex-col gap-4 pt-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Use the timeclock</CardTitle>
+          <CardTitle className="text-xl">{t("useTimeclock.title")}</CardTitle>
           <CardDescription>
-            You're an employee of {membership.organization.name}. The admin is for owners and managers; clock in, see
-            your shifts and ask for changes in the timeclock app.
+            {t("useTimeclock.description", { organization: membership.organization.name })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
             <a href={import.meta.env.VITE_TIMECLOCK_URL}>
-              Open the timeclock
+              {t("useTimeclock.open")}
               <ExternalLinkIcon />
             </a>
           </Button>
@@ -55,8 +54,8 @@ export function UseTimeclock() {
       {managed.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Your other organizations</CardTitle>
-            <CardDescription>You can use the admin for these.</CardDescription>
+            <CardTitle>{t("useTimeclock.otherOrganizations")}</CardTitle>
+            <CardDescription>{t("useTimeclock.otherOrganizationsDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {managed.map((m) => (
@@ -66,7 +65,7 @@ export function UseTimeclock() {
                 className="justify-between"
                 onClick={() => switchOrganization(m.organization.id)}
               >
-                <span className="truncate">Switch to {m.organization.name}</span>
+                <span className="truncate">{t("useTimeclock.switchTo", { organization: m.organization.name })}</span>
                 <ArrowRightLeftIcon />
               </Button>
             ))}

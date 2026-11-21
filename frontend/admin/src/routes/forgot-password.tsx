@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
 import { AuthScreen } from "@business-tool/ui/components/auth-screen"
 import { ForgotPasswordForm } from "@business-tool/ui/components/forgot-password-form"
@@ -11,13 +12,14 @@ export const Route = createFileRoute("/forgot-password")({
 })
 
 function ForgotPasswordPage() {
+  const { t } = useTranslation("admin")
   return (
     <AuthScreen
-      title="Forgot your password?"
-      description="Enter the e-mail you sign in with and we'll send you a link to set a new password."
+      title={t("forgotPassword.title")}
+      description={t("forgotPassword.description")}
       footer={
         <Link to="/login" className="underline-offset-4 hover:underline">
-          Back to sign in
+          {t("common.backToSignIn")}
         </Link>
       }
     >

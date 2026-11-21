@@ -3,6 +3,8 @@ import type { BusinessDate, DateTimeFormat, Instant } from "@business-tool/ui/li
 
 import { type RequestErrorOptions, requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
+
 export type ShiftChangeRequest = components["schemas"]["ShiftChangeRequest"]
 export type ShiftChangeRequestStatus = ShiftChangeRequest["status"]
 export type RejectShiftChangeRequestInput = components["schemas"]["ShiftChangeRequest.RejectShiftChangeRequestInput"]
@@ -10,12 +12,12 @@ export type RejectShiftChangeRequestInput = components["schemas"]["ShiftChangeRe
 /** The status filter: one status, or every request ("all" sends no `status`). */
 export type RequestsFilter = ShiftChangeRequestStatus | "all"
 
-export const requestFilters: { value: RequestsFilter; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "all", label: "All" },
-]
+/** The filter's options, in the order the page shows them; `requestsFilterLabel()` names them. */
+export const REQUEST_FILTERS: readonly RequestsFilter[] = ["pending", "approved", "rejected", "all"]
+
+export function requestsFilterLabel(filter: RequestsFilter): string {
+  return i18n.t(`shiftRequests.filter.${filter}`, { ns: "admin" })
+}
 
 export interface RequestsSearch {
   /** Absent means pending, the default, which stays out of the URL. */
@@ -61,7 +63,7 @@ export function timeRange(
     startDate === onDate
       ? format.time(startedAt)
       : `${format.date(startedAt, { weekday: "short", day: "numeric", month: "short" })}, ${format.time(startedAt)}`
-  if (endedAt === null) return `${start} – open`
+  if (endedAt === null) return i18n.t("shiftRequests.openRange", { ns: "admin", start })
   const endDate = format.dateOf(endedAt)
   const laterDay = endDate === startDate ? "" : ` (${format.businessDate(endDate, { day: "numeric", month: "short" })})`
   return `${start} – ${format.time(endedAt)}${laterDay}`
@@ -85,12 +87,14 @@ export function changedEnds(request: ShiftChangeRequest): { start: boolean; end:
 
 /** What a request changes, in a few words under the times asked for. */
 export function changeSummary(request: ShiftChangeRequest): string {
-  if (request.kind === "missing_shift") return "Enters a shift that was not clocked"
+  const summary = (key: "missingShift" | "both" | "clockIn" | "keepsOpen" | "endsOpen" | "clockOut") =>
+    i18n.t(`shiftRequests.change.${key}`, { ns: "admin" })
+  if (request.kind === "missing_shift") return summary("missingShift")
   const { start, end } = changedEnds(request)
-  if (start && end) return "Changes the clock-in and the clock-out"
-  if (start) return "Changes the clock-in"
-  if (request.endedAt === null) return "Keeps the shift open"
-  return request.shiftEndedAt === null ? "Ends the open shift" : "Changes the clock-out"
+  if (start && end) return summary("both")
+  if (start) return summary("clockIn")
+  if (request.endedAt === null) return summary("keepsOpen")
+  return request.shiftEndedAt === null ? summary("endsOpen") : summary("clockOut")
 }
 
 export interface DecisionError {

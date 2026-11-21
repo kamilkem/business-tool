@@ -3,6 +3,7 @@ import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { MailIcon, MoreHorizontalIcon, UserCheckIcon, UserXIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -84,6 +85,7 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
   const queryClient = useQueryClient()
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, deactivated))
   const [pending, setPending] = useState<Pending | null>(null)
+  const { t } = useTranslation("admin")
 
   /** After any change: refresh the list, and the signed-in user's own access when they changed themselves. */
   async function refresh(member: Member) {
@@ -114,40 +116,40 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
         }),
       ),
     onSuccess: async (updated, { member }) => {
-      toast.success(`${fullName(updated)} is now ${roleLabel(updated.role).toLowerCase()}`)
+      toast.success(t(`team.toast.roleChanged.${updated.role}`, { name: fullName(updated) }))
       await refresh(member)
     },
-    onError: onError("Could not change the role"),
+    onError: onError(t("team.error.changeRole")),
   })
 
   const resendInvitation = useMutation({
     mutationFn: (member: Member) =>
       unwrap(api.POST("/api/members/{userId}/invitation", { params: { path: { userId: member.userId } } })),
     onSuccess: async (_, member) => {
-      toast.success(`Invitation sent again to ${member.email}`)
+      toast.success(t("team.toast.invitationResent", { email: member.email }))
       await refresh(member)
     },
-    onError: onError("Could not resend the invitation"),
+    onError: onError(t("team.error.resendInvitation")),
   })
 
   const deactivate = useMutation({
     mutationFn: (member: Member) =>
       unwrap(api.POST("/api/members/{userId}/deactivate", { params: { path: { userId: member.userId } } })),
     onSuccess: async (_, member) => {
-      toast.success(`${fullName(member)} no longer has access`)
+      toast.success(t("team.toast.deactivated", { name: fullName(member) }))
       await refresh(member)
     },
-    onError: onError("Could not deactivate the member"),
+    onError: onError(t("team.error.deactivate")),
   })
 
   const reactivate = useMutation({
     mutationFn: (member: Member) =>
       unwrap(api.POST("/api/members/{userId}/reactivate", { params: { path: { userId: member.userId } } })),
     onSuccess: async (_, member) => {
-      toast.success(`${fullName(member)} has access again`)
+      toast.success(t("team.toast.reactivated", { name: fullName(member) }))
       await refresh(member)
     },
-    onError: onError("Could not reactivate the member"),
+    onError: onError(t("team.error.reactivate")),
   })
 
   function requestRoleChange(member: Member, role: Role) {
@@ -175,11 +177,9 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("team.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {actorRole === "owner"
-              ? "People with access to this organization."
-              : "People with access to this organization. Managers manage employees only."}
+            {actorRole === "owner" ? t("team.description") : t("team.descriptionManager")}
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -189,7 +189,7 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
               checked={deactivated}
               onCheckedChange={(checked) => navigate({ search: { deactivated: checked || undefined } })}
             />
-            <Label htmlFor="show-deactivated">Show deactivated</Label>
+            <Label htmlFor="show-deactivated">{t("team.showDeactivated")}</Label>
           </div>
           <AddMemberDialog organizationId={organizationId} actorId={me.id} actorRole={actorRole} />
         </div>
@@ -200,13 +200,13 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-4">Name</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead className="pl-4">{t("team.column.name")}</TableHead>
+                <TableHead>{t("common.email", { ns: "ui" })}</TableHead>
+                <TableHead>{t("team.column.role")}</TableHead>
+                <TableHead>{t("team.column.status")}</TableHead>
+                <TableHead>{t("team.column.joined")}</TableHead>
                 <TableHead className="pr-4">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -234,9 +234,9 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
         <AlertDialogContent>
           {pending && <ConfirmText pending={pending} isSelf={pending.member.userId === me.id} />}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant={pending?.kind === "deactivate" ? "destructive" : "default"} onClick={confirm}>
-              {pending?.kind === "deactivate" ? "Deactivate" : "Change role"}
+              {pending?.kind === "deactivate" ? t("team.deactivate") : t("team.confirm.changeRole")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -246,35 +246,33 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
 }
 
 function ConfirmText({ pending, isSelf }: { pending: Pending; isSelf: boolean }) {
+  const { t } = useTranslation("admin")
   const name = fullName(pending.member)
   if (pending.kind === "deactivate") {
     return (
       <AlertDialogHeader>
-        <AlertDialogTitle>{isSelf ? "Deactivate yourself?" : `Deactivate ${name}?`}</AlertDialogTitle>
+        <AlertDialogTitle>{isSelf ? t("team.confirm.deactivateSelfTitle") : t("team.confirm.deactivateTitle", { name })}</AlertDialogTitle>
         <AlertDialogDescription>
-          {isSelf
-            ? "You will lose access to this organization right away. Another owner can reactivate you."
-            : "They lose access to this organization right away, and a pending invitation stops working. Their history stays, and you can reactivate them later."}
+          {isSelf ? t("team.confirm.deactivateSelfDescription") : t("team.confirm.deactivateDescription")}
         </AlertDialogDescription>
       </AlertDialogHeader>
     )
   }
   return (
     <AlertDialogHeader>
-      <AlertDialogTitle>Change your own role to {roleLabel(pending.role).toLowerCase()}?</AlertDialogTitle>
+      <AlertDialogTitle>{t(`team.confirm.ownRoleTitle.${pending.role}`)}</AlertDialogTitle>
       <AlertDialogDescription>
-        {pending.role === "employee"
-          ? "Employees can't manage the team or the organization settings. Only another owner can give you your role back."
-          : "Only another owner can give you your role back."}
+        {pending.role === "employee" ? t("team.confirm.ownRoleEmployee") : t("team.confirm.ownRoleDescription")}
       </AlertDialogDescription>
     </AlertDialogHeader>
   )
 }
 
-const statusBadges: Record<MemberStatus, { label: string; variant: "secondary" | "outline" | "ghost" }> = {
-  active: { label: "Active", variant: "secondary" },
-  pending: { label: "Invitation pending", variant: "outline" },
-  deactivated: { label: "Deactivated", variant: "ghost" },
+/** Each status's badge; its text is `team.status.<status>`. */
+const statusVariants: Record<MemberStatus, "secondary" | "outline" | "ghost"> = {
+  active: "secondary",
+  pending: "outline",
+  deactivated: "ghost",
 }
 
 interface MemberRowProps {
@@ -301,10 +299,11 @@ function MemberRow({
   onReactivate,
 }: MemberRowProps) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const active = isActive(member)
   const allowed = canActOn(actorRole, member)
   const roles = assignableRoles(actorRole)
-  const status = statusBadges[statusOf(member)]
+  const status = statusOf(member)
 
   const canChangeRole = allowed && active && roles.length > 1
   const canResend = allowed && active && member.invitationPending
@@ -316,7 +315,7 @@ function MemberRow({
       <TableCell className="pl-4 font-medium">
         <span className="flex items-center gap-2">
           {fullName(member)}
-          {isSelf && <Badge variant="outline">You</Badge>}
+          {isSelf && <Badge variant="outline">{t("team.you")}</Badge>}
         </span>
       </TableCell>
       <TableCell>{member.email}</TableCell>
@@ -328,14 +327,14 @@ function MemberRow({
         )}
       </TableCell>
       <TableCell>
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Badge variant={statusVariants[status]}>{t(`team.status.${status}`)}</Badge>
       </TableCell>
       <TableCell>{format.date(member.joinedAt)}</TableCell>
       <TableCell className="pr-4 text-right">
         {(canResend || canDeactivate || canReactivate) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" disabled={busy} aria-label={`Actions for ${fullName(member)}`}>
+              <Button variant="ghost" size="icon-sm" disabled={busy} aria-label={t("team.actionsFor", { name: fullName(member) })}>
                 <MoreHorizontalIcon />
               </Button>
             </DropdownMenuTrigger>
@@ -343,19 +342,19 @@ function MemberRow({
               {canResend && (
                 <DropdownMenuItem onSelect={onResend}>
                   <MailIcon />
-                  Resend invitation
+                  {t("team.resendInvitation")}
                 </DropdownMenuItem>
               )}
               {canReactivate && (
                 <DropdownMenuItem onSelect={onReactivate}>
                   <UserCheckIcon />
-                  Reactivate
+                  {t("team.reactivate")}
                 </DropdownMenuItem>
               )}
               {canDeactivate && (
                 <DropdownMenuItem variant="destructive" onSelect={onDeactivate}>
                   <UserXIcon />
-                  Deactivate
+                  {t("team.deactivate")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -375,9 +374,10 @@ interface RoleSelectProps {
 }
 
 function RoleSelect({ role, roles, lastOwner, disabled, onChange }: RoleSelectProps) {
+  const { t } = useTranslation("admin")
   const select = (
     <Select value={role} onValueChange={(value) => onChange(value as Role)} disabled={disabled || lastOwner}>
-      <SelectTrigger size="sm" aria-label="Role" className="w-32">
+      <SelectTrigger size="sm" aria-label={t("team.column.role")} className="w-32">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -400,7 +400,7 @@ function RoleSelect({ role, roles, lastOwner, disabled, onChange }: RoleSelectPr
           {select}
         </span>
       </TooltipTrigger>
-      <TooltipContent>The organization needs at least one active owner.</TooltipContent>
+      <TooltipContent>{t("team.lastOwner")}</TooltipContent>
     </Tooltip>
   )
 }

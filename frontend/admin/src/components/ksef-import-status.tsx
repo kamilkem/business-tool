@@ -3,6 +3,7 @@ import { ApiError, unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { DownloadCloudIcon, KeyRoundIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -30,6 +31,7 @@ export function KsefImportStatus({ membership }: { membership: Membership }) {
   const organizationId = membership.organization.id
   const query = ksefConnectionQuery(organizationId)
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const { data: connection } = useSuspenseQuery({
     ...query,
     refetchInterval: (q) => (isImportPending(q.state.data ?? null, new Date()) ? PENDING_POLL_MS : false),
@@ -55,11 +57,11 @@ export function KsefImportStatus({ membership }: { membership: Membership }) {
     mutationFn: () => unwrap(api.POST("/api/ksef-connection/import")),
     onSuccess: (data) => {
       queryClient.setQueryData(query.queryKey, data)
-      toast.success("Import started", { description: "New invoices show up here when it finishes." })
+      toast.success(t("ksef.import.started"), { description: t("ksef.import.startedDescription") })
     },
     onError: async (error) => {
       toast.error(
-        error instanceof ApiError && error.status === 429 ? "An import was requested less than 15 minutes ago" : "Could not start the import",
+        error instanceof ApiError && error.status === 429 ? t("ksef.import.tooSoon") : t("ksef.import.failed"),
         { description: requestErrorMessage(error) },
       )
       await queryClient.invalidateQueries({ queryKey: query.queryKey })
@@ -72,7 +74,7 @@ export function KsefImportStatus({ membership }: { membership: Membership }) {
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>KSeF import</CardTitle>
+        <CardTitle>{t("ksef.import.title")}</CardTitle>
         <CardDescription>
           <ImportSummary connection={connection} pending={isImportPending(connection, now)} />
         </CardDescription>
@@ -85,7 +87,7 @@ export function KsefImportStatus({ membership }: { membership: Membership }) {
               onClick={() => importNow.mutate()}
             >
               <DownloadCloudIcon />
-              {importNow.isPending ? "Starting…" : "Import now"}
+              {importNow.isPending ? t("ksef.import.starting") : t("ksef.import.now")}
             </Button>
           </CardAction>
         )}
@@ -120,14 +122,15 @@ function useNow(at: number | null): Date {
 
 function ImportSummary({ connection, pending }: { connection: KsefConnection; pending: boolean }) {
   const format = useDateTimeFormat()
-  if (pending) return <>Importing invoices from KSeF…</>
-  if (!connection.lastSyncAt) return <>Purchase invoices are imported from KSeF every night. Nothing was imported yet.</>
-  const counts = `${connection.lastSyncImportedCount} imported${connection.lastSyncSkippedCount > 0 ? `, ${connection.lastSyncSkippedCount} skipped` : ""}`
-  return (
-    <>
-      Imported every night. Last run {format.dateTime(connection.lastSyncAt)}: {counts}.
-    </>
-  )
+  const { t } = useTranslation("admin")
+  if (pending) return <>{t("ksef.import.importing")}</>
+  if (!connection.lastSyncAt) return <>{t("ksef.import.never")}</>
+  const imported = t("ksef.import.imported", { count: connection.lastSyncImportedCount })
+  const counts =
+    connection.lastSyncSkippedCount > 0
+      ? `${imported}, ${t("ksef.import.skipped", { count: connection.lastSyncSkippedCount })}`
+      : imported
+  return <>{t("ksef.import.lastRun", { when: format.dateTime(connection.lastSyncAt), counts })}</>
 }
 
 function ImportDetails({
@@ -140,15 +143,16 @@ function ImportDetails({
   membership: Membership
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-      <dt className="text-muted-foreground">Last run</dt>
-      <dd>{connection.lastSyncAt ? format.dateTime(connection.lastSyncAt) : "Not yet"}</dd>
-      <dt className="text-muted-foreground">Last success</dt>
-      <dd>{connection.lastSyncSucceededAt ? format.dateTime(connection.lastSyncSucceededAt) : "Not yet"}</dd>
+      <dt className="text-muted-foreground">{t("ksef.import.lastRunLabel")}</dt>
+      <dd>{connection.lastSyncAt ? format.dateTime(connection.lastSyncAt) : t("ksef.card.notYet")}</dd>
+      <dt className="text-muted-foreground">{t("ksef.import.lastSuccess")}</dt>
+      <dd>{connection.lastSyncSucceededAt ? format.dateTime(connection.lastSyncSucceededAt) : t("ksef.card.notYet")}</dd>
       {connection.lastSyncError && (
         <>
-          <dt className="text-muted-foreground">Last error</dt>
+          <dt className="text-muted-foreground">{t("ksef.import.lastError")}</dt>
           <dd className={connection.lastSyncError === "invoice_unreadable" ? "text-amber-600 dark:text-amber-500" : "text-destructive"}>
             {ksefErrorLabel(connection.lastSyncError)}
             {connection.lastSyncErrorMessage && (
@@ -159,24 +163,25 @@ function ImportDetails({
       )}
       {availability.kind === "wait" && (
         <>
-          <dt className="text-muted-foreground">Import now</dt>
+          <dt className="text-muted-foreground">{t("ksef.import.now")}</dt>
           <dd>
-            {availability.reason === "rate-limited" ? "KSeF asked us to slow down. " : "Requested recently. "}
-            Available again at {format.time(availability.until)}.
+            {t(availability.reason === "rate-limited" ? "ksef.import.waitRateLimited" : "ksef.import.waitRecent", {
+              time: format.time(availability.until),
+            })}
           </dd>
         </>
       )}
       {availability.kind === "no-token" && (
         <>
-          <dt className="text-muted-foreground">Import</dt>
+          <dt className="text-muted-foreground">{t("ksef.import.import")}</dt>
           <dd>
-            Stopped: no KSeF token is saved.{" "}
+            {t("ksef.import.noToken")}{" "}
             {can(membership.role, "ksefToken") ? (
               <Link to="/settings" hash="ksef" className="underline underline-offset-4">
-                Save one in Settings
+                {t("ksef.import.saveInSettings")}
               </Link>
             ) : (
-              "An owner saves one in Settings."
+              t("ksef.import.ownerSaves")
             )}
           </dd>
         </>
@@ -188,25 +193,26 @@ function ImportDetails({
 /** KSeF refused the token, or it no longer decrypts (`credentials_rejected`): nothing is imported until an owner saves a new one. */
 function RejectedNotice({ connection, membership }: { connection: KsefConnection; membership: Membership }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const isOwner = can(membership.role, "ksefToken")
   const state = ksefState(connection)
 
   return (
     <Alert variant="destructive">
       <KeyRoundIcon />
-      <AlertTitle>KSeF import stopped: the token was rejected</AlertTitle>
+      <AlertTitle>{t("ksef.rejected.title")}</AlertTitle>
       <AlertDescription>
         <p>
           {state.hint}
-          {connection.lastSyncSucceededAt && ` Invoices up to ${format.dateTime(connection.lastSyncSucceededAt)} are here.`}
+          {connection.lastSyncSucceededAt && ` ${t("ksef.rejected.upTo", { when: format.dateTime(connection.lastSyncSucceededAt) })}`}
         </p>
-        {!isOwner && <p>Ask an owner to save a new token in Settings.</p>}
+        {!isOwner && <p>{t("ksef.rejected.askOwner")}</p>}
       </AlertDescription>
       {isOwner && (
         <AlertAction>
           <Button size="sm" variant="outline" asChild>
             <Link to="/settings" hash="ksef">
-              Open KSeF settings
+              {t("ksef.rejected.openSettings")}
             </Link>
           </Button>
         </AlertAction>

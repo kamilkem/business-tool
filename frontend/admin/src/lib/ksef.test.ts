@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import { type KsefConnection, ksefAvailableIn, ksefErrorLabel, ksefState } from "./ksef"
 
 function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
@@ -75,6 +76,28 @@ describe("ksefErrorLabel", () => {
 
   it("test_it_shows_an_unknown_code_as_is", () => {
     expect(ksefErrorLabel("rate_limited")).toContain("slow down")
+    expect(ksefErrorLabel("something_new")).toBe("something_new")
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_reads_the_state_and_the_failure_in_polish", () => {
+    expect(ksefState(null).label).toBe("Niepołączony")
+    expect(ksefState(connection({ lastCheckError: "unavailable" }))).toEqual({
+      label: "Połączony, ostatnie sprawdzenie nie powiodło się",
+      tone: "warning",
+      hint: "Nie udało się połączyć z KSeF. Spróbuj ponownie później.",
+    })
+  })
+
+  it("test_it_keeps_an_unknown_code_as_it_is", () => {
     expect(ksefErrorLabel("something_new")).toBe("something_new")
   })
 })

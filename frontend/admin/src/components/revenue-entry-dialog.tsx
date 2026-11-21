@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Trash2Icon, TriangleAlertIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -49,7 +50,6 @@ import {
   type EntryLines,
   NOTE_MAX_LENGTH,
   PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
   type PaymentMethod,
   type RevenueEntry,
   type VatLineValues,
@@ -61,6 +61,7 @@ import {
   formPaymentsTotal,
   formVatGross,
   isDuplicateEntry,
+  paymentMethodLabel,
   vatDifference,
   vatRateLabel,
 } from "@/lib/income"
@@ -78,8 +79,8 @@ interface RevenueEntryDialogProps {
   activeRegisters: Register[]
   /** The rates of the organization's country; none hides the VAT breakdown. */
   vatRates: VatRate[]
-  /** Who recorded or changed an entry: a name, or "you". */
-  nameOf: (userId: string) => string
+  /** Who recorded or changed an entry: a name, or null for the signed-in user. */
+  nameOf: (userId: string) => string | null
   /** The dialog is open while there is a target. */
   target: RevenueEntryTarget | null
   /** Switches the dialog to another target (the existing entry after a 409). */
@@ -117,6 +118,7 @@ function EntryForm({
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const organizationCurrency = useOrganizationCurrency()
   const editing = target.kind === "edit" ? target.entry : null
   // An entry keeps the currency it was recorded in (ADR 0022 §5).
@@ -140,7 +142,7 @@ function EntryForm({
   const [duplicate, setDuplicate] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const registerName = (id: string) => activeRegisters.find((r) => r.id === id)?.name ?? "This register"
+  const registerName = (id: string) => activeRegisters.find((r) => r.id === id)?.name ?? t("income.entry.thisRegister")
 
   function clearErrors(...fields: string[]) {
     setErrors((prev) => {
@@ -204,7 +206,7 @@ function EntryForm({
         }),
       ),
     onSuccess: (entry) =>
-      saved(entry, `Entry added for ${entry.registerName}, ${format.businessDate(entry.businessDate)}`),
+      saved(entry, t("income.entry.toast.added", { register: entry.registerName, date: format.businessDate(entry.businessDate) })),
     onError,
   })
 
@@ -219,7 +221,7 @@ function EntryForm({
         }),
       ),
     onSuccess: (entry) =>
-      saved(entry, `Entry of ${entry.registerName}, ${format.businessDate(entry.businessDate)} updated`),
+      saved(entry, t("income.entry.toast.updated", { register: entry.registerName, date: format.businessDate(entry.businessDate) })),
     onError: (error, { lines }) => onError(error, lines),
   })
 
@@ -228,7 +230,7 @@ function EntryForm({
       unwrap(api.DELETE("/api/revenue-entries/{id}", { params: { path: { id: entry.id } } })),
     onSuccess: async (_, entry) => {
       await invalidateRevenue(queryClient, organizationId)
-      toast.success(`Entry of ${entry.registerName}, ${format.businessDate(entry.businessDate)} deleted`)
+      toast.success(t("income.entry.toast.deleted", { register: entry.registerName, date: format.businessDate(entry.businessDate) }))
       onDone()
     },
     onError: (error) => setErrors({ form: requestErrorMessage(error) }),
@@ -242,7 +244,7 @@ function EntryForm({
     onSuccess: (entries) => {
       const existing = entries[0]
       if (existing) onTargetChange({ kind: "edit", entry: existing })
-      else setErrors({ form: "That entry was deleted in the meantime. Try saving again." })
+      else setErrors({ form: t("income.entry.deletedMeanwhile") })
     },
     onError: (error) => setErrors({ form: requestErrorMessage(error) }),
   })
@@ -270,26 +272,26 @@ function EntryForm({
   const paymentsTotal = formPaymentsTotal(values)
   const vatGross = formVatGross(values, vatRates)
   const difference = vatDifference(paymentsTotal, vatGross.total, vatGross.hasLines)
+  const by = (userId: string, when: string, key: "createdBy" | "updatedBy") => {
+    const name = nameOf(userId)
+    return name === null ? t(`income.entry.${key}You`, { when }) : t(`income.entry.${key}`, { name, when })
+  }
 
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
         <DialogTitle>
-          {editing ? `${editing.registerName}, ${format.businessDate(editing.businessDate)}` : "Add income entry"}
+          {editing ? `${editing.registerName}, ${format.businessDate(editing.businessDate)}` : t("income.entry.addTitle")}
         </DialogTitle>
         <DialogDescription>
           {editing ? (
             <>
-              Entered by {nameOf(editing.createdBy)}, {format.dateTime(editing.createdAt)}
-              {editing.updatedBy && editing.updatedAt && (
-                <>
-                  ; last changed by {nameOf(editing.updatedBy)}, {format.dateTime(editing.updatedAt)}
-                </>
-              )}
-              . The register and the day don't change: delete the entry and add it again.
+              {by(editing.createdBy, format.dateTime(editing.createdAt), "createdBy")}
+              {editing.updatedBy && editing.updatedAt && `; ${by(editing.updatedBy, format.dateTime(editing.updatedAt), "updatedBy")}`}
+              . {t("income.entry.fixed")}
             </>
           ) : (
-            "One register's daily report: what it took per payment method, and the VAT breakdown if you have it."
+            t("income.entry.addDescription")
           )}
         </DialogDescription>
       </DialogHeader>
@@ -299,7 +301,7 @@ function EntryForm({
           {!editing && (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={errors.registerId ? true : undefined}>
-                <FieldLabel htmlFor="entry-register">Register</FieldLabel>
+                <FieldLabel htmlFor="entry-register">{t("income.entry.register")}</FieldLabel>
                 <Select
                   value={values.registerId}
                   onValueChange={(registerId) => {
@@ -312,7 +314,7 @@ function EntryForm({
                     className="w-full"
                     aria-invalid={errors.registerId ? true : undefined}
                   >
-                    <SelectValue placeholder="Choose a register" />
+                    <SelectValue placeholder={t("income.entry.chooseRegister")} />
                   </SelectTrigger>
                   <SelectContent>
                     {activeRegisters.map((register) => (
@@ -325,7 +327,7 @@ function EntryForm({
                 {errors.registerId && <FieldError>{errors.registerId}</FieldError>}
               </Field>
               <Field data-invalid={errors.businessDate ? true : undefined}>
-                <FieldLabel htmlFor="entry-date">Day</FieldLabel>
+                <FieldLabel htmlFor="entry-date">{t("income.days.day")}</FieldLabel>
                 <Input
                   id="entry-date"
                   type="date"
@@ -349,7 +351,7 @@ function EntryForm({
               className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
             >
               <span>
-                {registerName(values.registerId)} already has an entry for {format.businessDate(values.businessDate)}.
+                {t("income.entry.duplicate", { register: registerName(values.registerId), date: format.businessDate(values.businessDate) })}
               </span>
               <Button
                 type="button"
@@ -358,20 +360,20 @@ function EntryForm({
                 disabled={openExisting.isPending}
                 onClick={() => openExisting.mutate()}
               >
-                Open that entry
+                {t("income.entry.openExisting")}
               </Button>
             </div>
           )}
 
           <FieldSet>
-            <FieldLegend variant="label">Payments</FieldLegend>
-            <FieldDescription>Gross amounts. Leave a method empty if it wasn't used; 0 is fine.</FieldDescription>
+            <FieldLegend variant="label">{t("income.summary.payments")}</FieldLegend>
+            <FieldDescription>{t("income.entry.paymentsDescription")}</FieldDescription>
             <div className="grid gap-4 sm:grid-cols-2">
               {PAYMENT_METHODS.map((method) => {
                 const error = errorOf(`payment.${method}`)
                 return (
                   <Field key={method} data-invalid={error ? true : undefined}>
-                    <FieldLabel htmlFor={`entry-payment-${method}`}>{PAYMENT_METHOD_LABELS[method]}</FieldLabel>
+                    <FieldLabel htmlFor={`entry-payment-${method}`}>{paymentMethodLabel(method)}</FieldLabel>
                     <MoneyInput
                       id={`entry-payment-${method}`}
                       currency={currency}
@@ -386,21 +388,19 @@ function EntryForm({
             </div>
             {errors.payments && <FieldError>{errors.payments}</FieldError>}
             <p className="text-sm">
-              Total <span className="font-medium tabular-nums">{money(paymentsTotal)}</span>
+              {t("income.total")} <span className="font-medium tabular-nums">{money(paymentsTotal)}</span>
             </p>
           </FieldSet>
 
           {vatRates.length > 0 && (
             <FieldSet>
-              <FieldLegend variant="label">VAT breakdown (optional)</FieldLegend>
-              <FieldDescription>
-                As printed on the register's daily report. You can also add it later.
-              </FieldDescription>
+              <FieldLegend variant="label">{t("income.entry.vatBreakdown")}</FieldLegend>
+              <FieldDescription>{t("income.entry.vatBreakdownDescription")}</FieldDescription>
               <div className="grid grid-cols-[3.5rem_1fr_1fr] items-start gap-x-3 gap-y-2 sm:grid-cols-[3.5rem_1fr_1fr_6rem]">
                 <span />
-                <span className="text-xs font-medium text-muted-foreground">Gross</span>
-                <span className="text-xs font-medium text-muted-foreground">VAT</span>
-                <span className="hidden text-right text-xs font-medium text-muted-foreground sm:block">Net</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("income.vat.gross")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("income.vat.vat")}</span>
+                <span className="hidden text-right text-xs font-medium text-muted-foreground sm:block">{t("income.vat.net")}</span>
                 {vatRates.map((rate) => (
                   <VatRow
                     key={rate.code}
@@ -416,7 +416,7 @@ function EntryForm({
               {errors.vatLines && <FieldError>{errors.vatLines}</FieldError>}
               {vatGross.hasLines && (
                 <p className="text-sm">
-                  Gross total <span className="font-medium tabular-nums">{money(vatGross.total)}</span>
+                  {t("income.entry.grossTotal")} <span className="font-medium tabular-nums">{money(vatGross.total)}</span>
                 </p>
               )}
               {difference !== null && (
@@ -426,8 +426,7 @@ function EntryForm({
                 >
                   <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    The VAT breakdown is {money(Math.abs(difference))} {difference > 0 ? "more" : "less"} than the
-                    payments. That's allowed, e.g. for a transfer that isn't on the fiscal report.
+                    {t(difference > 0 ? "income.entry.vatMore" : "income.entry.vatLess", { amount: money(Math.abs(difference)) })}
                   </span>
                 </p>
               )}
@@ -435,12 +434,12 @@ function EntryForm({
           )}
 
           <Field data-invalid={errors.note ? true : undefined}>
-            <FieldLabel htmlFor="entry-note">Note</FieldLabel>
+            <FieldLabel htmlFor="entry-note">{t("time.shifts.note")}</FieldLabel>
             <Textarea
               id="entry-note"
               value={values.note}
               maxLength={NOTE_MAX_LENGTH}
-              placeholder="Optional, e.g. an invoiced event paid by transfer"
+              placeholder={t("income.entry.notePlaceholder")}
               aria-invalid={errors.note ? true : undefined}
               onChange={(e) => {
                 const note = e.target.value
@@ -463,13 +462,13 @@ function EntryForm({
         {editing ? (
           <Button type="button" variant="ghost" className="text-destructive" disabled={pending} onClick={() => setConfirmDelete(true)}>
             <Trash2Icon />
-            Delete
+            {t("common.delete")}
           </Button>
         ) : (
           <span />
         )}
         <Button type="submit" disabled={pending}>
-          {record.isPending || update.isPending ? "Saving…" : editing ? "Save" : "Add entry"}
+          {record.isPending || update.isPending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("income.addEntry")}
         </Button>
       </DialogFooter>
 
@@ -478,17 +477,16 @@ function EntryForm({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                Delete the entry of {editing.registerName}, {format.businessDate(editing.businessDate)}?
+                {t("income.entry.deleteTitle", { register: editing.registerName, date: format.businessDate(editing.businessDate) })}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {money(editing.paymentsTotal)} leaves the month's totals. A deleted entry can't be restored; you can
-                enter the day again.
+                {t("income.entry.deleteDescription", { amount: money(editing.paymentsTotal) })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={() => remove.mutate(editing)}>
-                Delete
+                {t("common.delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -514,6 +512,7 @@ function VatRow({
   onChange: (part: keyof VatLineValues, amount: MinorUnits | null, error: MoneyParseError | null) => void
 }) {
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const label = vatRateLabel(rate.code)
   // A rate without VAT (0%, exempt) always has 0 VAT; the API refuses anything else.
   const vat = rate.zeroVat ? (line.gross === null ? null : 0) : line.vat
@@ -524,7 +523,7 @@ function VatRow({
       <span className="pt-2 text-sm font-medium tabular-nums">{label}</span>
       <div className="flex flex-col gap-1">
         <MoneyInput
-          aria-label={`Gross at ${label}`}
+          aria-label={t("income.entry.grossAt", { rate: label })}
           currency={currency}
           value={line.gross}
           aria-invalid={grossError ? true : undefined}
@@ -534,11 +533,11 @@ function VatRow({
       </div>
       <div className="flex flex-col gap-1">
         <MoneyInput
-          aria-label={`VAT at ${label}`}
+          aria-label={t("income.entry.vatAt", { rate: label })}
           currency={currency}
           value={vat}
           disabled={rate.zeroVat}
-          placeholder={rate.zeroVat ? "No VAT" : undefined}
+          placeholder={rate.zeroVat ? t("income.entry.noVat") : undefined}
           aria-invalid={vatError ? true : undefined}
           onValueChange={(amount, error) => onChange("vat", amount, error)}
         />

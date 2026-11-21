@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { ChangePasswordForm } from "@business-tool/ui/components/change-password-form"
@@ -15,12 +16,13 @@ export const Route = createFileRoute("/_app/account")({
 function AccountPage() {
   const { me } = Route.useRouteContext()
   const onSaved = useMeSaved()
+  const { t } = useTranslation("admin")
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <CardTitle>{t("account.title")}</CardTitle>
           <CardDescription>
             {me.firstName} {me.lastName} · {me.email}
           </CardDescription>
@@ -33,8 +35,8 @@ function AccountPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Change password</CardTitle>
-          <CardDescription>You stay signed in here; your other devices and apps are signed out.</CardDescription>
+          <CardTitle>{t("account.changePassword")}</CardTitle>
+          <CardDescription>{t("account.changePasswordDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ChangePasswordForm api={api} email={me.email} />

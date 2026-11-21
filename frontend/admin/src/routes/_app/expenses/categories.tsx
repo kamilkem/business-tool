@@ -3,6 +3,7 @@ import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { ArchiveIcon, ArchiveRestoreIcon, ChevronRightIcon, MoreHorizontalIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -48,6 +49,7 @@ function ExpenseCategoriesPage() {
   const { membership } = Route.useRouteContext()
   const organizationId = membership.organization.id
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const listKey = expenseCategoriesQuery(organizationId, true).queryKey
   const { data: categories } = useSuspenseQuery(expenseCategoriesQuery(organizationId, true))
   const { active, archived } = splitCategories(categories)
@@ -76,16 +78,16 @@ function ExpenseCategoriesPage() {
       queryClient.setQueryData(listKey, (list) => (list ? withCategory(list, saved) : list))
       await queryClient.invalidateQueries({ queryKey: expenseCategoriesQuery(organizationId, false).queryKey })
       if (to === "archive") {
-        toast.success(`${saved.name} archived`, {
-          description: "It is no longer offered for new expenses.",
-          action: { label: "Undo", onClick: () => change.mutate({ category: saved, to: "restore" }) },
+        toast.success(t("categories.toast.archived", { name: saved.name }), {
+          description: t("categories.toast.archivedDescription"),
+          action: { label: t("categories.toast.undo"), onClick: () => change.mutate({ category: saved, to: "restore" }) },
         })
       } else {
-        toast.success(`${saved.name} restored`)
+        toast.success(t("categories.toast.restored", { name: saved.name }))
       }
     },
     onError: async (error, { to }) => {
-      toast.error(`Could not ${to} the category`, { description: requestErrorMessage(error) })
+      toast.error(t(`categories.error.${to}`), { description: requestErrorMessage(error) })
       await queryClient.invalidateQueries({ queryKey: ["expense-categories", organizationId] })
     },
   })
@@ -97,15 +99,13 @@ function ExpenseCategoriesPage() {
         <div className="flex flex-col gap-3">
           <ExpensesNav />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Expense categories</h1>
-            <p className="text-sm text-muted-foreground">
-              What expenses are for, such as rent or drinks. Purchase invoices are sorted into them.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("categories.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("categories.description")}</p>
           </div>
         </div>
         <Button onClick={openAdd}>
           <PlusIcon />
-          Add category
+          {t("categories.add")}
         </Button>
       </div>
 
@@ -113,7 +113,7 @@ function ExpenseCategoriesPage() {
         <CardContent className="px-0">
           {active.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No active categories. Add one, or restore an archived one.
+              {t("categories.noneActive")}
             </p>
           ) : (
             <CategoriesTable
@@ -131,13 +131,11 @@ function ExpenseCategoriesPage() {
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="group self-start px-2 text-muted-foreground">
               <ChevronRightIcon className="transition-transform group-data-[state=open]:rotate-90" />
-              Archived categories ({archived.length})
+              {t("categories.archivedCount", { count: archived.length })}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="flex flex-col gap-3">
-            <p className="px-2 text-sm text-muted-foreground">
-              They are not offered for new expenses. Expenses that have one keep it. Restore one to use it again.
-            </p>
+            <p className="px-2 text-sm text-muted-foreground">{t("categories.archivedDescription")}</p>
             <Card className="py-0">
               <CardContent className="px-0">
                 <CategoriesTable
@@ -173,15 +171,16 @@ interface CategoriesTableProps {
 
 function CategoriesTable({ categories, busyId, onRename, onChange }: CategoriesTableProps) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-1/2 pl-4">Name</TableHead>
-          <TableHead>{categories[0]?.archived ? "Archived" : "Added"}</TableHead>
+          <TableHead className="w-1/2 pl-4">{t("registers.dialog.name")}</TableHead>
+          <TableHead>{categories[0]?.archived ? t("categories.archivedOn") : t("categories.added")}</TableHead>
           <TableHead className="pr-4">
-            <span className="sr-only">Actions</span>
+            <span className="sr-only">{t("common.actions")}</span>
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -197,7 +196,7 @@ function CategoriesTable({ categories, busyId, onRename, onChange }: CategoriesT
                     variant="ghost"
                     size="icon-sm"
                     disabled={busyId === category.id}
-                    aria-label={`Actions for ${category.name}`}
+                    aria-label={t("team.actionsFor", { name: category.name })}
                   >
                     <MoreHorizontalIcon />
                   </Button>
@@ -205,17 +204,17 @@ function CategoriesTable({ categories, busyId, onRename, onChange }: CategoriesT
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onSelect={() => onRename(category)}>
                     <PencilIcon />
-                    Rename
+                    {t("registers.rename")}
                   </DropdownMenuItem>
                   {category.archived ? (
                     <DropdownMenuItem onSelect={() => onChange(category)}>
                       <ArchiveRestoreIcon />
-                      Restore
+                      {t("categories.restore")}
                     </DropdownMenuItem>
                   ) : (
                     <DropdownMenuItem onSelect={() => onChange(category)}>
                       <ArchiveIcon />
-                      Archive
+                      {t("categories.archive")}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>

@@ -10,6 +10,7 @@ import {
 import type { MinorUnits } from "@business-tool/ui/lib/money"
 import { type RequestErrorOptions, requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
 import { type Member, fullName } from "./members"
 
 /*
@@ -88,12 +89,9 @@ export function runState(run: Pick<PayrollRunSummary, "status" | "paid" | "paidP
   return run.paidPaychecks > 0 ? "partlyPaid" : "approved"
 }
 
-export const RUN_STATE_LABELS: Record<RunState, string> = {
-  none: "Not generated",
-  draft: "Draft",
-  approved: "Approved",
-  partlyPaid: "Partly paid",
-  paid: "Paid",
+/** "Draft", "Approved", …: a month's state as a badge. */
+export function runStateLabel(state: RunState): string {
+  return i18n.t(`payroll.state.${state}`, { ns: "admin" })
 }
 
 /** The run of a month among the list's summaries, or null. */
@@ -103,25 +101,27 @@ export function runOfMonth(runs: readonly PayrollRunSummary[], month: Month): Pa
 
 // --- Rounding --------------------------------------------------------------------------------------
 
-export const ROUNDING_UNITS: { value: RoundingUnit; label: string }[] = [
-  { value: "none", label: "Exact time" },
-  { value: "15", label: "15 minutes" },
-  { value: "30", label: "30 minutes" },
-  { value: "60", label: "1 hour" },
-]
+/** The rounding options, in the order the form offers them; `roundingUnitLabel()` and `roundingDirectionLabel()` name them. */
+export const ROUNDING_UNITS: readonly RoundingUnit[] = ["none", "15", "30", "60"]
+export const ROUNDING_DIRECTIONS: readonly RoundingDirection[] = ["nearest", "up", "down"]
 
-export const ROUNDING_DIRECTIONS: { value: RoundingDirection; label: string }[] = [
-  { value: "nearest", label: "To the nearest" },
-  { value: "up", label: "Up" },
-  { value: "down", label: "Down" },
-]
+const UNIT_KEYS = { none: "none", "15": "minutes15", "30": "minutes30", "60": "hour" } as const satisfies Record<RoundingUnit, string>
 
-/** "Exact time", or "Each shift to the nearest 15 minutes" / "rounded up to 1 hour". */
+export function roundingUnitLabel(unit: RoundingUnit): string {
+  return i18n.t(`payroll.rounding.unit.${UNIT_KEYS[unit]}`, { ns: "admin" })
+}
+
+export function roundingDirectionLabel(direction: RoundingDirection): string {
+  return i18n.t(`payroll.rounding.direction.${direction}`, { ns: "admin" })
+}
+
+/**
+ * "Exact time", or "Each shift to the nearest 15 minutes" / "Each shift rounded up to 1 hour". One
+ * text per unit and direction, because Polish declines the length differently after each.
+ */
 export function roundingLabel(unit: RoundingUnit, direction: RoundingDirection): string {
-  if (unit === "none") return "Exact time"
-  const length = ROUNDING_UNITS.find((u) => u.value === unit)?.label ?? `${unit} minutes`
-  if (direction === "nearest") return `Each shift to the nearest ${length}`
-  return `Each shift rounded ${direction} to ${length}`
+  if (unit === "none") return roundingUnitLabel("none")
+  return i18n.t(`payroll.rounding.summary.${direction}.${UNIT_KEYS[unit]}`, { ns: "admin" })
 }
 
 // --- Approval --------------------------------------------------------------------------------------
@@ -135,35 +135,23 @@ export function approvalBlockers(run: PayrollRun, today: BusinessDate): string[]
   if (run.status !== "draft") return []
   const blockers: string[] = []
   if (compareBusinessDates(run.lastDate, today) >= 0) {
-    blockers.push("The month isn't over yet: this draft is a preview.")
+    blockers.push(i18n.t("payroll.blocker.monthNotOver", { ns: "admin" }))
   }
   if (run.openShifts > 0) {
-    blockers.push(
-      `${count(run.openShifts, "shift is", "shifts are")} still open. End ${run.openShifts === 1 ? "it" : "them"} on the Time page, then regenerate.`,
-    )
+    blockers.push(i18n.t("payroll.blocker.openShifts", { ns: "admin", count: run.openShifts }))
   }
   if (run.pendingChangeRequests > 0) {
-    blockers.push(
-      `${count(run.pendingChangeRequests, "shift change request is", "shift change requests are")} waiting for a decision. Decide ${run.pendingChangeRequests === 1 ? "it" : "them"}, then regenerate.`,
-    )
+    blockers.push(i18n.t("payroll.blocker.pendingRequests", { ns: "admin", count: run.pendingChangeRequests }))
   }
   if (run.linesWithoutRate > 0) {
-    blockers.push(
-      `${count(run.linesWithoutRate, "shift has", "shifts have")} no rate. Set the rate, then regenerate.`,
-    )
+    blockers.push(i18n.t("payroll.blocker.linesWithoutRate", { ns: "admin", count: run.linesWithoutRate }))
   }
   const negative = run.paychecks.filter((paycheck) => paycheck.total < 0).length
   if (negative > 0) {
-    blockers.push(
-      `${count(negative, "paycheck has", "paychecks have")} a negative total. Move part of the deduction to a later month.`,
-    )
+    blockers.push(i18n.t("payroll.blocker.negativeTotals", { ns: "admin", count: negative }))
   }
-  if (run.paychecks.length === 0) blockers.push("The run has no paychecks.")
+  if (run.paychecks.length === 0) blockers.push(i18n.t("payroll.blocker.noPaychecks", { ns: "admin" }))
   return blockers
-}
-
-function count(n: number, one: string, many: string): string {
-  return `${n} ${n === 1 ? one : many}`
 }
 
 // --- Paychecks -------------------------------------------------------------------------------------
@@ -182,7 +170,7 @@ export function paycheckRows(run: PayrollRun, members: readonly Member[]): Paych
       const member = members.find((m) => m.userId === paycheck.userId)
       return {
         paycheck,
-        name: member ? fullName(member) : "Former member",
+        name: member ? fullName(member) : i18n.t("payroll.formerMember", { ns: "admin" }),
         deactivated: member ? member.deactivatedAt !== null : true,
       }
     })
@@ -287,9 +275,9 @@ export function withFieldError(errors: FormErrors, field: string, message: strin
 /** What the API would refuse anyway: a date and an amount above zero. */
 export function rateFormErrors(values: RateFormValues): FormErrors {
   const errors: FormErrors = {}
-  if (!isBusinessDate(values.date)) errors.date = "Choose a date."
-  if (values.amount === null) errors.amount = "Enter the gross amount per hour."
-  else if (values.amount <= 0) errors.amount = "The rate must be more than zero."
+  if (!isBusinessDate(values.date)) errors.date = i18n.t("payroll.error.date", { ns: "admin" })
+  if (values.amount === null) errors.amount = i18n.t("payroll.error.rateAmount", { ns: "admin" })
+  else if (values.amount <= 0) errors.amount = i18n.t("payroll.error.rateNotPositive", { ns: "admin" })
   return errors
 }
 
@@ -301,12 +289,12 @@ export interface AdjustmentFormValues {
 
 export function adjustmentFormErrors(values: AdjustmentFormValues): FormErrors {
   const errors: FormErrors = {}
-  if (values.userId === "") errors.userId = "Choose a person."
+  if (values.userId === "") errors.userId = i18n.t("payroll.error.person", { ns: "admin" })
   const label = values.label.trim()
-  if (label === "") errors.label = "Say what it is for, e.g. “Bonus” or “Advance paid 10 Oct”."
-  else if (label.length > ADJUSTMENT_LABEL_MAX_LENGTH) errors.label = `Up to ${ADJUSTMENT_LABEL_MAX_LENGTH} characters.`
-  if (values.amount === null) errors.amount = "Enter an amount: positive adds to the pay, negative takes off."
-  else if (values.amount === 0) errors.amount = "The amount can't be zero."
+  if (label === "") errors.label = i18n.t("payroll.error.labelMissing", { ns: "admin" })
+  else if (label.length > ADJUSTMENT_LABEL_MAX_LENGTH) errors.label = i18n.t("payroll.error.labelTooLong", { ns: "admin", count: ADJUSTMENT_LABEL_MAX_LENGTH })
+  if (values.amount === null) errors.amount = i18n.t("payroll.error.adjustmentAmount", { ns: "admin" })
+  else if (values.amount === 0) errors.amount = i18n.t("payroll.error.adjustmentZero", { ns: "admin" })
   return errors
 }
 
@@ -317,15 +305,17 @@ export interface PaymentFormValues {
 
 export function paymentFormErrors(values: PaymentFormValues, today: BusinessDate): FormErrors {
   const errors: FormErrors = {}
-  if (!isBusinessDate(values.paidOn)) errors.paidOn = "Choose the day it was paid."
-  else if (compareBusinessDates(values.paidOn, today) > 0) errors.paidOn = "The day can't be after today."
-  if (values.method === "") errors.method = "Choose how it was paid."
+  if (!isBusinessDate(values.paidOn)) errors.paidOn = i18n.t("payroll.error.paidOn", { ns: "admin" })
+  else if (compareBusinessDates(values.paidOn, today) > 0) errors.paidOn = i18n.t("payroll.error.futureDate", { ns: "admin" })
+  if (values.method === "") errors.method = i18n.t("payroll.error.method", { ns: "admin" })
   return errors
 }
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  transfer: "Transfer",
+/** How a paycheck was paid, in the order the form offers them; `paymentMethodLabel()` names them. */
+export const PAYMENT_METHODS: readonly PaymentMethod[] = ["cash", "transfer"]
+
+export function paymentMethodLabel(method: PaymentMethod): string {
+  return i18n.t(`payroll.paymentMethod.${method}`, { ns: "admin" })
 }
 
 /**

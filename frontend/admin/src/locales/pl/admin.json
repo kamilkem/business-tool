@@ -1,8 +1,983 @@
 {
+  "app": {
+    "name": "Business Tool"
+  },
+  "common": {
+    "backToSignIn": "Wróć do logowania",
+    "cancel": "Anuluj",
+    "actions": "Akcje",
+    "save": "Zapisz",
+    "nothingChanged": "Nic się nie zmieniło",
+    "saveChanges": "Zapisz zmiany",
+    "delete": "Usuń",
+    "deleting": "Usuwanie…",
+    "loading": "Wczytywanie…"
+  },
+  "login": {
+    "description": "Zaloguj się do panelu administracyjnego",
+    "passwordSet": "Hasło jest ustawione. Zaloguj się nim.",
+    "password": "Hasło",
+    "forgotPassword": "Nie pamiętasz hasła?",
+    "submit": "Zaloguj się",
+    "submitting": "Logowanie…"
+  },
+  "setPassword": {
+    "title": "Ustaw hasło",
+    "description": "Wybierz hasło, którym będziesz logować się do panelu administracyjnego."
+  },
+  "forgotPassword": {
+    "title": "Nie pamiętasz hasła?",
+    "description": "Podaj e-mail, którym się logujesz, a wyślemy Ci link do ustawienia nowego hasła."
+  },
+  "account": {
+    "account": "Konto",
+    "signOut": "Wyloguj się",
+    "organizations": "Organizacje",
+    "startPage": "Strona startowa",
+    "title": "Konto",
+    "changePassword": "Zmień hasło",
+    "changePasswordDescription": "Na tym urządzeniu nie musisz logować się ponownie. Pozostałe urządzenia i aplikacje zostaną wylogowane."
+  },
+  "nav": {
+    "dashboard": "Pulpit",
+    "team": "Zespół",
+    "shiftRequests": "Prośby o zmiany",
+    "shiftRequestsPending_one": "Prośby o zmiany ({{count}} oczekuje)",
+    "shiftRequestsPending_few": "Prośby o zmiany ({{count}} oczekują)",
+    "shiftRequestsPending_many": "Prośby o zmiany ({{count}} oczekuje)",
+    "shiftRequestsPending_other": "Prośby o zmiany ({{count}} oczekuje)",
+    "pending_one": "{{count}} oczekuje",
+    "pending_few": "{{count}} oczekują",
+    "pending_many": "{{count}} oczekuje",
+    "pending_other": "{{count}} oczekuje",
+    "modules": "Moduły",
+    "soon": "Wkrótce",
+    "settings": "Ustawienia organizacji",
+    "expenses": "Wydatki",
+    "income": "Przychody",
+    "payroll": "Wynagrodzenia"
+  },
+  "modules": {
+    "expenses": {
+      "title": "Wydatki",
+      "description": "Faktury zakupowe pobrane z KSeF i przypisane do kategorii."
+    },
+    "income": {
+      "title": "Przychody",
+      "description": "Dzienny utarg wpisywany ręcznie, według form płatności."
+    },
+    "payroll": {
+      "title": "Wynagrodzenia",
+      "description": "Wypłaty wyliczane z przepracowanych godzin i stawek."
+    },
+    "time": {
+      "title": "Czas pracy",
+      "description": "Zmiany rejestrowane w aplikacji Timeclock."
+    }
+  },
+  "dashboard": {
+    "hello": "Cześć, {{name}}",
+    "description": "Moduły pojawią się tutaj, gdy będą gotowe.",
+    "open": "Otwórz",
+    "comingSoon": "Wkrótce"
+  },
+  "useTimeclock": {
+    "noOrganizationTitle": "Nie należysz jeszcze do organizacji",
+    "noOrganizationDescription": "Nie należysz do żadnej organizacji. Gdy ktoś Cię doda, dostaniesz zaproszenie e-mailem.",
+    "title": "Korzystaj z aplikacji Timeclock",
+    "description": "W organizacji {{organization}} jesteś pracownikiem. Panel administracyjny jest dla właścicieli i kierowników. Zmiany rozpoczynasz i kończysz, przeglądasz i prosisz o ich poprawienie w aplikacji Timeclock.",
+    "open": "Otwórz Timeclock",
+    "otherOrganizations": "Twoje pozostałe organizacje",
+    "otherOrganizationsDescription": "W nich możesz korzystać z panelu administracyjnego.",
+    "switchTo": "Przejdź do: {{organization}}"
+  },
+  "role": {
+    "owner": "Właściciel",
+    "manager": "Kierownik",
+    "employee": "Pracownik"
+  },
+  "ksef": {
+    "state": {
+      "notConnected": "Niepołączony",
+      "tokenRejected": "Token odrzucony",
+      "checkFailed": "Połączony, ostatnie sprawdzenie nie powiodło się",
+      "notChecked": "Token zapisany, jeszcze niesprawdzony",
+      "connected": "Połączony"
+    },
+    "hint": {
+      "notConnected": "Aby importować faktury zakupowe, właściciel zapisuje token KSeF.",
+      "tokenUnreadable": "Zapisanego tokenu nie da się już odczytać. Właściciel musi zapisać go ponownie.",
+      "tokenRejected": "KSeF odrzucił token. Właściciel musi wygenerować nowy w KSeF i go zapisać.",
+      "notChecked": "Sprawdź połączenie, aby go zweryfikować."
+    },
+    "error": {
+      "credentials_rejected": "KSeF odrzucił token.",
+      "token_unreadable": "Zapisanego tokenu nie da się już odczytać.",
+      "rate_limited": "KSeF ograniczył liczbę zapytań. Spróbuj ponownie później.",
+      "unavailable": "Nie udało się połączyć z KSeF. Spróbuj ponownie później.",
+      "request_failed": "KSeF odpowiedział w nieoczekiwany sposób.",
+      "invoice_unreadable": "Niektórych faktur nie udało się odczytać i zostały pominięte."
+    },
+    "card": {
+      "description": "Faktury zakupowe są importowane z KSeF za pomocą tokenu KSeF wygenerowanego dla NIP organizacji wyłącznie z uprawnieniem do odczytu faktur (InvoiceRead).",
+      "savedAccepted": "Token KSeF zapisany i przyjęty",
+      "savedCheckFailed": "Token KSeF zapisany, ale sprawdzenie się nie powiodło",
+      "accepted": "KSeF przyjął token",
+      "removed": "Token KSeF usunięty",
+      "testing": "Sprawdzanie…",
+      "test": "Sprawdź połączenie",
+      "replaceToken": "Zastąp token KSeF",
+      "token": "Token KSeF",
+      "tokenDescription": "Przechowywany w postaci zaszyfrowanej i nigdy więcej niewyświetlany. Przy zapisie od razu sprawdzamy go w KSeF.",
+      "saving": "Zapisywanie i sprawdzanie…",
+      "save": "Zapisz i sprawdź",
+      "removeToken": "Usuń token",
+      "removeTitle": "Usunąć token KSeF?",
+      "removeDescription": "Import faktur zakupowych zatrzyma się do czasu zapisania nowego tokenu. Zaimportowane faktury zostaną.",
+      "remove": "Usuń",
+      "nip": "NIP {{nip}}",
+      "tokenSaved": "Token zapisany",
+      "lastAccepted": "Ostatnio przyjęty przez KSeF",
+      "notYet": "Jeszcze nie",
+      "lastCheckFailed": "Ostatnie nieudane sprawdzenie"
+    },
+    "import": {
+      "started": "Import rozpoczęty",
+      "startedDescription": "Nowe faktury pojawią się tutaj po jego zakończeniu.",
+      "tooSoon": "Import zlecono mniej niż 15 minut temu",
+      "failed": "Nie udało się rozpocząć importu",
+      "title": "Import z KSeF",
+      "starting": "Rozpoczynanie…",
+      "now": "Importuj teraz",
+      "importing": "Importowanie faktur z KSeF…",
+      "never": "Faktury zakupowe są importowane z KSeF co noc. Jeszcze nic nie zaimportowano.",
+      "imported_one": "zaimportowano {{count}}",
+      "imported_few": "zaimportowano {{count}}",
+      "imported_many": "zaimportowano {{count}}",
+      "imported_other": "zaimportowano {{count}}",
+      "skipped_one": "pominięto {{count}}",
+      "skipped_few": "pominięto {{count}}",
+      "skipped_many": "pominięto {{count}}",
+      "skipped_other": "pominięto {{count}}",
+      "lastRun": "Import co noc. Ostatni: {{when}} ({{counts}}).",
+      "lastRunLabel": "Ostatni import",
+      "lastSuccess": "Ostatni udany",
+      "lastError": "Ostatni błąd",
+      "waitRateLimited": "KSeF ograniczył liczbę zapytań. Znów dostępne o {{time}}.",
+      "waitRecent": "Zlecono niedawno. Znów dostępne o {{time}}.",
+      "import": "Import",
+      "noToken": "Wstrzymany: nie zapisano tokenu KSeF.",
+      "saveInSettings": "Zapisz go w ustawieniach",
+      "ownerSaves": "Token zapisuje właściciel w ustawieniach."
+    },
+    "rejected": {
+      "title": "Import z KSeF wstrzymany: token został odrzucony",
+      "upTo": "Faktury do {{when}} są już tutaj.",
+      "askOwner": "Poproś właściciela o zapisanie nowego tokenu w ustawieniach.",
+      "openSettings": "Otwórz ustawienia KSeF"
+    }
+  },
+  "registers": {
+    "error": {
+      "nameTakenByDeactivated": "Dezaktywowana kasa ma już nazwę „{{name}}”. Dezaktywowane kasy zachowują nazwy, więc wybierz inną.",
+      "nameTaken": "Kasa o nazwie „{{name}}” już istnieje.",
+      "deactivate": "Nie udało się dezaktywować kasy"
+    },
+    "title": "Kasy",
+    "description": "Kasy z własną drukarką fiskalną. Przychody wpisuje się osobno dla każdej kasy, z jednego raportu dobowego.",
+    "add": "Dodaj kasę",
+    "rename": "Zmień nazwę",
+    "deactivate": "Dezaktywuj",
+    "added": "Dodana",
+    "deactivatedOn": "Dezaktywowana",
+    "noneActive": "Brak aktywnych kas. Dodaj kasę, zanim wpiszesz przychody.",
+    "deactivatedCount_one": "Dezaktywowane kasy ({{count}})",
+    "deactivatedCount_few": "Dezaktywowane kasy ({{count}})",
+    "deactivatedCount_many": "Dezaktywowane kasy ({{count}})",
+    "deactivatedCount_other": "Dezaktywowane kasy ({{count}})",
+    "deactivatedDescription": "Nie przyjmują nowych wpisów. Ich wpisy zostają na stronie Przychody, pod ich nazwami.",
+    "confirm": {
+      "title": "Dezaktywować kasę {{name}}?",
+      "description": "Od teraz nie przyjmie nowych wpisów. Jej dotychczasowe wpisy zostaną na stronie Przychody i nadal możesz je poprawiać. Kasy nie da się ponownie aktywować, a jej nazwa pozostanie zajęta."
+    },
+    "toast": {
+      "added": "Dodano kasę {{name}}",
+      "renamed": "Nowa nazwa kasy: {{name}}",
+      "deactivated": "Kasa {{name}} dezaktywowana"
+    },
+    "dialog": {
+      "renameTitle": "Zmień nazwę: {{name}}",
+      "renameDescription": "Jej wpisy przychodów, także dawne, będą pokazywać nową nazwę.",
+      "addDescription": "Kasa z własną drukarką fiskalną. Dla każdej kasy wpisujesz jeden raport dobowy.",
+      "name": "Nazwa",
+      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych kas.",
+      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych kas.",
+      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych kas.",
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych kas."
+    }
+  },
+  "categories": {
+    "error": {
+      "nameTakenByArchived": "Zarchiwizowana kategoria ma już nazwę „{{name}}”. Przywróć ją albo wybierz inną nazwę.",
+      "nameTaken": "Kategoria o nazwie „{{name}}” już istnieje.",
+      "archive": "Nie udało się zarchiwizować kategorii",
+      "restore": "Nie udało się przywrócić kategorii"
+    },
+    "title": "Kategorie wydatków",
+    "description": "Na co są wydatki, np. czynsz albo napoje. Faktury zakupowe przypisuje się do tych kategorii.",
+    "add": "Dodaj kategorię",
+    "noneActive": "Brak aktywnych kategorii. Dodaj nową albo przywróć zarchiwizowaną.",
+    "archivedCount_one": "Zarchiwizowane kategorie ({{count}})",
+    "archivedCount_few": "Zarchiwizowane kategorie ({{count}})",
+    "archivedCount_many": "Zarchiwizowane kategorie ({{count}})",
+    "archivedCount_other": "Zarchiwizowane kategorie ({{count}})",
+    "archivedDescription": "Nie można ich wybrać dla nowych wydatków. Wydatki, które je mają, zachowują je. Przywróć kategorię, aby znów jej używać.",
+    "added": "Dodana",
+    "archivedOn": "Zarchiwizowana",
+    "restore": "Przywróć",
+    "archive": "Archiwizuj",
+    "toast": {
+      "added": "Dodano kategorię {{name}}",
+      "renamed": "Nowa nazwa kategorii: {{name}}",
+      "archived": "Kategoria {{name}} zarchiwizowana",
+      "archivedDescription": "Nie można jej już wybrać dla nowych wydatków.",
+      "undo": "Cofnij",
+      "restored": "Kategoria {{name}} przywrócona"
+    },
+    "dialog": {
+      "renameDescription": "Wydatki z tej kategorii, także dawne, będą pokazywać nową nazwę.",
+      "addDescription": "Na co był wydatek, np. czynsz albo napoje. Faktury zakupowe przypisujesz do kategorii.",
+      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych kategorii.",
+      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych kategorii.",
+      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych kategorii.",
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych kategorii."
+    }
+  },
+  "shiftRequests": {
+    "filter": {
+      "pending": "Oczekujące",
+      "approved": "Zatwierdzone",
+      "rejected": "Odrzucone",
+      "all": "Wszystkie"
+    },
+    "openRange": "{{start}} – otwarta",
+    "change": {
+      "missingShift": "Dodaje zmianę, której nie odnotowano",
+      "both": "Zmienia rozpoczęcie i zakończenie",
+      "clockIn": "Zmienia rozpoczęcie",
+      "keepsOpen": "Zostawia zmianę otwartą",
+      "endsOpen": "Kończy otwartą zmianę",
+      "clockOut": "Zmienia zakończenie"
+    },
+    "title": "Prośby o zmiany",
+    "description": "Pracownicy proszą o dodanie zapomnianej zmiany albo o zmianę godzin. Godziny w strefie {{timeZone}}.",
+    "status": "Status",
+    "decision": "Decyzja",
+    "cardTitle": {
+      "pending": "Oczekujące prośby",
+      "approved": "Zatwierdzone prośby",
+      "rejected": "Odrzucone prośby",
+      "all": "Wszystkie prośby"
+    },
+    "cardDescription": "Od najnowszych. Zatwierdzenie nadaje zmianie godziny z prośby. Wtedy też sprawdzane są zasady zmian: nie mogą na siebie nachodzić ani wypadać w przyszłości.",
+    "empty": {
+      "pending": "Żadna prośba nie czeka na decyzję.",
+      "approved": "Nie ma jeszcze zatwierdzonych próśb.",
+      "rejected": "Nie ma jeszcze odrzuconych próśb.",
+      "all": "Nikt jeszcze nie poprosił o zmianę."
+    },
+    "now": "Teraz",
+    "requested": "Prośba",
+    "noShift": "Brak zmiany",
+    "asked": "Wysłana {{when}}",
+    "missingShift": "Brakująca zmiana",
+    "reject": "Odrzuć",
+    "approve": "Zatwierdź",
+    "rejectFor": "Odrzuć prośbę: {{name}}, {{day}}",
+    "approveFor": "Zatwierdź prośbę: {{name}}, {{day}}",
+    "approved": "Zatwierdzona",
+    "rejected": "Odrzucona",
+    "decidedBy": "przez: {{name}}, {{when}}",
+    "decidedByYou": "przez Ciebie, {{when}}",
+    "quoted": "„{{text}}”",
+    "toast": {
+      "rejected": "Odrzucono prośbę: {{name}}"
+    },
+    "dialog": {
+      "approveTitle": "Zatwierdzić prośbę: {{name}}?",
+      "rejectTitle": "Odrzucić prośbę: {{name}}?",
+      "approveMissing": "Zmiana zostanie dopisana osobie {{name}} i oznaczona jako wpisana przez Ciebie.",
+      "approveNewTimes": "Zmiana dostanie godziny z prośby i zostanie oznaczona jako poprawiona przez Ciebie.",
+      "reject": "Godziny zmiany zostaną takie, jakie są. {{name}} dostanie wiadomość e-mail.",
+      "noteFrom": "Notatka: {{name}}, {{when}}",
+      "reason": "Powód (opcjonalnie)",
+      "reasonPlaceholder": "np. Według grafiku wyjście było o 02:00.",
+      "reasonTooLong_one": "Powód może mieć najwyżej {{count}} znak.",
+      "reasonTooLong_few": "Powód może mieć najwyżej {{count}} znaki.",
+      "reasonTooLong_many": "Powód może mieć najwyżej {{count}} znaków.",
+      "reasonTooLong_other": "Powód może mieć najwyżej {{count}} znaku.",
+      "reasonInEmail": "Trafi do e-maila, który dostanie {{name}}.",
+      "approveFailed": "Nie udało się zatwierdzić",
+      "rejectFailed": "Nie udało się odrzucić",
+      "stillPending": "Prośba nadal czeka na decyzję. Popraw drugą zmianę na stronie Czas pracy albo odrzuć prośbę."
+    }
+  },
+  "expenses": {
+    "nav": {
+      "invoices": "Faktury",
+      "categories": "Kategorie"
+    },
+    "source": {
+      "manual": "Wpisany ręcznie",
+      "manualShort": "Ręcznie"
+    },
+    "kind": {
+      "regular": "Faktura",
+      "correction": "Korekta",
+      "advance": "Faktura zaliczkowa",
+      "settlement": "Faktura rozliczeniowa",
+      "simplified": "Faktura uproszczona",
+      "advance_correction": "Korekta faktury zaliczkowej",
+      "settlement_correction": "Korekta faktury rozliczeniowej"
+    },
+    "archivedCategory": "Zarchiwizowana kategoria",
+    "categorized": "Kategoria: {{category}}",
+    "categoryCleared": "Usunięto kategorię",
+    "categorizeFailed": "Nie udało się zmienić kategorii",
+    "categoryOf": "Kategoria: {{expense}}",
+    "uncategorized": "Bez kategorii",
+    "archived": "(zarchiwizowana)",
+    "title": "Wydatki",
+    "description": "Faktury zakupowe według daty wystawienia. Kliknij fakturę, aby zobaczyć szczegóły.",
+    "descriptionKsef": "Faktury zakupowe według daty wystawienia, zaimportowane z KSeF lub wpisane ręcznie. Kliknij fakturę, aby zobaczyć szczegóły.",
+    "add": "Dodaj wydatek",
+    "noneMatching": "W tym okresie żaden wydatek nie pasuje do filtrów.",
+    "none": "{{period}}: brak wydatków.",
+    "none_month": "{{period}}: brak wydatków.",
+    "category": "Kategoria",
+    "allCategories": "Wszystkie kategorie",
+    "seller": "Sprzedawca",
+    "sellerPlaceholder": "Nazwa sprzedawcy lub NIP",
+    "clearFilters": "Wyczyść filtry",
+    "noTaxId": "Bez NIP",
+    "column": {
+      "issued": "Wystawiona",
+      "invoice": "Faktura"
+    },
+    "totals": {
+      "gross": "Brutto",
+      "grossIn": "Brutto w {{currency}}",
+      "filtered": ", po filtrach",
+      "netVat": "Netto {{net}} · VAT {{vat}}",
+      "count_one": "{{count}} wydatek: {{period}}",
+      "count_few": "{{count}} wydatki: {{period}}",
+      "count_many": "{{count}} wydatków: {{period}}",
+      "count_other": "{{count}} wydatku: {{period}}",
+      "count_month_one": "{{count}} wydatek: {{period}}",
+      "count_month_few": "{{count}} wydatki: {{period}}",
+      "count_month_many": "{{count}} wydatków: {{period}}",
+      "count_month_other": "{{count}} wydatku: {{period}}"
+    },
+    "sheet": {
+      "issued": "{{number}}, wystawiona {{date}}",
+      "noNumber": "Bez numeru",
+      "importedFrom": "Zaimportowany z {{source}}: można zmienić tylko kategorię.",
+      "sellerTaxId": "NIP sprzedawcy",
+      "issueDate": "Data wystawienia",
+      "kind": "Rodzaj",
+      "corrects": "Koryguje",
+      "vatSettledIn": "(VAT rozliczany w {{currency}})",
+      "source": "Źródło",
+      "ksefNumber": "Numer KSeF",
+      "sourceId": "Identyfikator w źródle",
+      "entered": "Wpisany",
+      "imported": "Zaimportowany",
+      "noVat": "Faktura nie ma rozbicia VAT.",
+      "vatIn": "VAT w {{currency}}",
+      "document": "Oryginalny dokument",
+      "noDocumentManual": "Wpisany ręcznie, bez dokumentu.",
+      "noDocument": "Nie zapisano dokumentu.",
+      "deleted": "Wydatek usunięty",
+      "deleteFailed": "Nie udało się usunąć wydatku",
+      "edit": "Edytuj",
+      "deleteTitle": "Usunąć wydatek: {{seller}}?",
+      "deleteDescription": "{{amount}} zniknie z sum okresu. Usuniętego wydatku nie da się przywrócić, ale możesz wpisać go ponownie.",
+      "downloadFailed": "Nie udało się pobrać dokumentu",
+      "downloading": "Pobieranie…",
+      "download": "Pobierz XML"
+    }
+  },
+  "expenseForm": {
+    "error": {
+      "sellerName": "Podaj nazwę sprzedawcy.",
+      "issueDate": "Wybierz datę z dokumentu.",
+      "currency": "Podaj trzyliterowy kod waluty, np. EUR.",
+      "negative": "Ujemne kwoty może mieć tylko korekta.",
+      "grossTotal": "Podaj kwotę brutto.",
+      "vatTotal": "Podaj kwotę VAT. Dla dokumentu bez VAT wpisz 0.",
+      "net": "Podaj kwotę netto.",
+      "vat": "Podaj VAT tak, jak jest na dokumencie.",
+      "vatInTaxCurrency": "Podaj VAT w {{currency}}."
+    },
+    "added": "Dodano wydatek",
+    "updated": "Zaktualizowano wydatek",
+    "editTitle": "Edytuj: {{seller}}",
+    "enteredOn": "Wpisany ręcznie, {{when}}.",
+    "addDescription": "Paragon lub faktura spoza KSeF, z kwotami jak na dokumencie.",
+    "sellerPlaceholder": "np. Makro Cash & Carry",
+    "optional": "Opcjonalnie",
+    "number": "Numer faktury lub paragonu",
+    "foreign": "VAT rozlicza się w {{currency}}: rozbicie wymaga obu kwot.",
+    "totals": "Sumy",
+    "totalsDescription": "Jak na dokumencie. Netto to brutto minus VAT.",
+    "totalsDescriptionCorrection": "Jak na dokumencie; korekta może być ujemna. Netto to brutto minus VAT.",
+    "breakdownDescription": "Netto i VAT dla każdej stawki, jak na dokumencie. Zostaw stawkę pustą, jeśli jej nie ma na dokumencie.",
+    "breakdownSums": "Rozbicie: netto <amount>{{net}}</amount>, VAT <amount>{{vat}}</amount>, brutto <amount>{{gross}}</amount>",
+    "mismatch": "Rozbicie nie sumuje się do kwot łącznych. To dopuszczalne, jeśli dokument zaokrągla inaczej.",
+    "totalsEmpty": "Sumy są puste.",
+    "useBreakdown": "Użyj sum z rozbicia",
+    "netAt": "Netto, stawka {{rate}}",
+    "vatInAt": "VAT w {{currency}}, stawka {{rate}}"
+  },
+  "income": {
+    "nav": {
+      "dailyEntries": "Wpisy dzienne",
+      "registers": "Kasy"
+    },
+    "paymentMethod": {
+      "cash": "Gotówka",
+      "card": "Karta",
+      "transfer": "Przelew",
+      "voucher": "Bon"
+    },
+    "error": {
+      "register": "Wybierz kasę.",
+      "businessDate": "Wybierz dzień, którego dotyczy raport dobowy.",
+      "futureDate": "Ten dzień nie może być późniejszy niż dzisiaj.",
+      "payments": "Podaj co najmniej jedną kwotę. Dla kasy bez sprzedaży wpisz 0.",
+      "gross": "Podaj kwotę brutto.",
+      "vat": "Podaj VAT tak, jak jest na raporcie.",
+      "vatAboveGross": "VAT nie może być wyższy niż kwota brutto."
+    },
+    "title": "Przychody",
+    "description": "Raporty dobowe każdej kasy, według dnia, którego dotyczą. Kliknij kwotę, aby ją poprawić.",
+    "addEntry": "Dodaj wpis",
+    "deactivated": "(dezaktywowana)",
+    "total": "Razem",
+    "noRegister": {
+      "title": "Najpierw dodaj kasę",
+      "description": "Przychody wpisuje się osobno dla każdej kasy, z jednego raportu dobowego. Dodaj kasy z własną drukarką fiskalną, a potem wróć, aby wpisać utarg.",
+      "action": "Dodaj kasę"
+    },
+    "days": {
+      "title": "Dni",
+      "none": "{{period}}: nie ma jeszcze dni do wpisania.",
+      "none_month": "{{period}}: nie ma jeszcze dni do wpisania.",
+      "allEntered": "Każdy dotychczasowy dzień ma co najmniej jeden wpis.",
+      "missing_one": "{{count}} dzień nie ma jeszcze wpisu. Kliknij pustą komórkę, aby dodać dzień tej kasy.",
+      "missing_few": "{{count}} dni nie mają jeszcze wpisu. Kliknij pustą komórkę, aby dodać dzień tej kasy.",
+      "missing_many": "{{count}} dni nie ma jeszcze wpisu. Kliknij pustą komórkę, aby dodać dzień tej kasy.",
+      "missing_other": "{{count}} dnia nie ma jeszcze wpisu. Kliknij pustą komórkę, aby dodać dzień tej kasy.",
+      "day": "Dzień",
+      "add": "Dodaj: {{register}}, {{date}}",
+      "edit": "{{register}}, {{date}}: {{amount}}. Edytuj",
+      "vatDiffers": "Rozbicie VAT różni się od płatności o {{amount}}"
+    },
+    "summary": {
+      "payments": "Płatności",
+      "paymentsIn": "Płatności w {{currency}}",
+      "entries_one": "{{count}} wpis: {{period}}.",
+      "entries_few": "{{count}} wpisy: {{period}}.",
+      "entries_many": "{{count}} wpisów: {{period}}.",
+      "entries_other": "{{count}} wpisu: {{period}}.",
+      "entries_month_one": "{{count}} wpis: {{period}}.",
+      "entries_month_few": "{{count}} wpisy: {{period}}.",
+      "entries_month_many": "{{count}} wpisów: {{period}}.",
+      "entries_month_other": "{{count}} wpisu: {{period}}.",
+      "daysEntered_one": "Wpisane dni: {{entered}} z {{count}}.",
+      "daysEntered_few": "Wpisane dni: {{entered}} z {{count}}.",
+      "daysEntered_many": "Wpisane dni: {{entered}} z {{count}}.",
+      "daysEntered_other": "Wpisane dni: {{entered}} z {{count}}.",
+      "nothing": "Nic jeszcze nie wpisano.",
+      "method": "Forma płatności",
+      "amount": "Kwota"
+    },
+    "vat": {
+      "title": "VAT",
+      "none": "Żaden wpis nie ma rozbicia VAT.",
+      "description": "VAT {{vat}} w kwocie brutto {{gross}}, według raportów dobowych.",
+      "rate": "Stawka",
+      "gross": "Brutto",
+      "vat": "VAT",
+      "net": "Netto",
+      "grossMore": "Brutto z rozbicia VAT jest o {{amount}} wyższe niż płatności. To dopuszczalne: np. przelewy fakturowane nie trafiają na raporty fiskalne.",
+      "grossLess": "Brutto z rozbicia VAT jest o {{amount}} niższe niż płatności. To dopuszczalne: np. przelewy fakturowane nie trafiają na raporty fiskalne."
+    },
+    "entry": {
+      "addTitle": "Dodaj wpis przychodu",
+      "addDescription": "Raport dobowy jednej kasy: utarg według form płatności i rozbicie VAT, jeśli je masz.",
+      "createdBy": "Wpis dodany przez: {{name}}, {{when}}",
+      "createdByYou": "Wpis dodany przez Ciebie, {{when}}",
+      "updatedBy": "ostatnia zmiana: {{name}}, {{when}}",
+      "updatedByYou": "ostatnia zmiana: Ty, {{when}}",
+      "fixed": "Kasy i dnia nie da się zmienić: usuń wpis i dodaj go ponownie.",
+      "thisRegister": "Ta kasa",
+      "register": "Kasa",
+      "chooseRegister": "Wybierz kasę",
+      "duplicate": "{{register}}: wpis z dnia {{date}} już istnieje.",
+      "openExisting": "Otwórz ten wpis",
+      "deletedMeanwhile": "Ten wpis został w międzyczasie usunięty. Spróbuj zapisać ponownie.",
+      "paymentsDescription": "Kwoty brutto. Zostaw formę płatności pustą, jeśli jej nie było. Można też wpisać 0.",
+      "vatBreakdown": "Rozbicie VAT (opcjonalnie)",
+      "vatBreakdownDescription": "Tak jak na raporcie dobowym kasy. Możesz je też dodać później.",
+      "grossTotal": "Razem brutto",
+      "vatMore": "Rozbicie VAT jest o {{amount}} wyższe niż płatności. To dopuszczalne, np. przy przelewie, którego nie ma na raporcie fiskalnym.",
+      "vatLess": "Rozbicie VAT jest o {{amount}} niższe niż płatności. To dopuszczalne, np. przy przelewie, którego nie ma na raporcie fiskalnym.",
+      "notePlaceholder": "Opcjonalnie, np. impreza na fakturę opłacona przelewem",
+      "grossAt": "Brutto, stawka {{rate}}",
+      "vatAt": "VAT, stawka {{rate}}",
+      "noVat": "Bez VAT",
+      "deleteTitle": "Usunąć wpis: {{register}}, {{date}}?",
+      "deleteDescription": "{{amount}} zniknie z sum miesiąca. Usuniętego wpisu nie da się przywrócić, ale możesz wpisać ten dzień ponownie.",
+      "toast": {
+        "added": "Dodano wpis: {{register}}, {{date}}",
+        "updated": "Zaktualizowano wpis: {{register}}, {{date}}",
+        "deleted": "Usunięto wpis: {{register}}, {{date}}"
+      }
+    }
+  },
+  "payroll": {
+    "nav": {
+      "paychecks": "Wypłaty",
+      "rates": "Stawki"
+    },
+    "state": {
+      "none": "Niewygenerowana",
+      "draft": "Wersja robocza",
+      "approved": "Zatwierdzona",
+      "partlyPaid": "Częściowo wypłacona",
+      "paid": "Wypłacona"
+    },
+    "rounding": {
+      "unit": {
+        "none": "Dokładny czas",
+        "minutes15": "15 minut",
+        "minutes30": "30 minut",
+        "hour": "1 godzina"
+      },
+      "direction": {
+        "nearest": "Do najbliższej wartości",
+        "up": "W górę",
+        "down": "W dół"
+      },
+      "summary": {
+        "nearest": {
+          "minutes15": "Każda zmiana zaokrąglona do najbliższych 15 minut",
+          "minutes30": "Każda zmiana zaokrąglona do najbliższych 30 minut",
+          "hour": "Każda zmiana zaokrąglona do najbliższej pełnej godziny"
+        },
+        "up": {
+          "minutes15": "Każda zmiana zaokrąglona w górę do 15 minut",
+          "minutes30": "Każda zmiana zaokrąglona w górę do 30 minut",
+          "hour": "Każda zmiana zaokrąglona w górę do pełnej godziny"
+        },
+        "down": {
+          "minutes15": "Każda zmiana zaokrąglona w dół do 15 minut",
+          "minutes30": "Każda zmiana zaokrąglona w dół do 30 minut",
+          "hour": "Każda zmiana zaokrąglona w dół do pełnej godziny"
+        }
+      }
+    },
+    "blocker": {
+      "monthNotOver": "Miesiąc jeszcze się nie skończył: ta wersja robocza to tylko podgląd.",
+      "openShifts_one": "{{count}} zmiana jest nadal otwarta. Zakończ ją na stronie Czas pracy i wygeneruj listę ponownie.",
+      "openShifts_few": "{{count}} zmiany są nadal otwarte. Zakończ je na stronie Czas pracy i wygeneruj listę ponownie.",
+      "openShifts_many": "{{count}} zmian jest nadal otwartych. Zakończ je na stronie Czas pracy i wygeneruj listę ponownie.",
+      "openShifts_other": "{{count}} zmiany jest nadal otwartej. Zakończ je na stronie Czas pracy i wygeneruj listę ponownie.",
+      "pendingRequests_one": "{{count}} prośba o zmianę czeka na decyzję. Rozpatrz ją i wygeneruj listę ponownie.",
+      "pendingRequests_few": "{{count}} prośby o zmianę czekają na decyzję. Rozpatrz je i wygeneruj listę ponownie.",
+      "pendingRequests_many": "{{count}} próśb o zmianę czeka na decyzję. Rozpatrz je i wygeneruj listę ponownie.",
+      "pendingRequests_other": "{{count}} prośby o zmianę czeka na decyzję. Rozpatrz je i wygeneruj listę ponownie.",
+      "linesWithoutRate_one": "{{count}} zmiana nie ma stawki. Ustaw stawkę i wygeneruj listę ponownie.",
+      "linesWithoutRate_few": "{{count}} zmiany nie mają stawki. Ustaw stawkę i wygeneruj listę ponownie.",
+      "linesWithoutRate_many": "{{count}} zmian nie ma stawki. Ustaw stawkę i wygeneruj listę ponownie.",
+      "linesWithoutRate_other": "{{count}} zmiany nie ma stawki. Ustaw stawkę i wygeneruj listę ponownie.",
+      "negativeTotals_one": "{{count}} wypłata ma ujemną kwotę. Przenieś część potrącenia na kolejny miesiąc.",
+      "negativeTotals_few": "{{count}} wypłaty mają ujemną kwotę. Przenieś część potrącenia na kolejny miesiąc.",
+      "negativeTotals_many": "{{count}} wypłat ma ujemną kwotę. Przenieś część potrącenia na kolejny miesiąc.",
+      "negativeTotals_other": "{{count}} wypłaty ma ujemną kwotę. Przenieś część potrącenia na kolejny miesiąc.",
+      "noPaychecks": "Lista płac nie zawiera żadnych wypłat."
+    },
+    "formerMember": "Osoba spoza zespołu",
+    "paymentMethod": {
+      "cash": "Gotówka",
+      "transfer": "Przelew"
+    },
+    "error": {
+      "date": "Wybierz datę.",
+      "rateAmount": "Podaj kwotę brutto za godzinę.",
+      "rateNotPositive": "Stawka musi być większa od zera.",
+      "person": "Wybierz osobę.",
+      "labelMissing": "Napisz, czego dotyczy, np. „Premia” albo „Zaliczka wypłacona 10 paź”.",
+      "labelTooLong_one": "Najwyżej {{count}} znak.",
+      "labelTooLong_few": "Najwyżej {{count}} znaki.",
+      "labelTooLong_many": "Najwyżej {{count}} znaków.",
+      "labelTooLong_other": "Najwyżej {{count}} znaku.",
+      "adjustmentAmount": "Podaj kwotę: dodatnia zwiększa wypłatę, ujemna ją zmniejsza.",
+      "adjustmentZero": "Kwota nie może być zerowa.",
+      "paidOn": "Wybierz dzień wypłaty.",
+      "futureDate": "Ten dzień nie może być późniejszy niż dzisiaj.",
+      "method": "Wybierz formę wypłaty."
+    },
+    "title": "Wynagrodzenia",
+    "description": "Wynagrodzenie brutto za miesiąc z zakończonych zmian i stawki każdej osoby. Resztą zajmie się księgowa lub księgowy.",
+    "month": "Miesiąc",
+    "approve": "Zatwierdź",
+    "reopen": "Otwórz ponownie",
+    "deleteDraft": "Usuń wersję roboczą",
+    "notReady": "Jeszcze nie do zatwierdzenia",
+    "setRates": "Ustaw stawki",
+    "ready": "Gotowa do zatwierdzenia",
+    "readyOwner": "Sprawdź wypłaty i zatwierdź listę. Zatwierdzenie blokuje zmiany i stawki z tego miesiąca.",
+    "readyManager": "Sprawdź wypłaty. Listę zatwierdza właściciel, co blokuje zmiany i stawki z tego miesiąca.",
+    "withoutRate_one": "{{count}} bez stawki",
+    "withoutRate_few": "{{count}} bez stawki",
+    "withoutRate_many": "{{count}} bez stawki",
+    "withoutRate_other": "{{count}} bez stawki",
+    "noRun": {
+      "thisMonth": "Ten miesiąc jeszcze trwa. Wersja robocza będzie tylko podglądem: zatwierdzić ją można po końcu miesiąca.",
+      "pastMonth": "Wygeneruj wersję roboczą z zakończonych zmian i stawek, sprawdź ją, a potem właściciel ją zatwierdzi."
+    },
+    "run": {
+      "generatedBy": "Wygenerowana przez: {{name}}, {{when}}.",
+      "generatedByYou": "Wygenerowana przez Ciebie, {{when}}.",
+      "approvedBy": "Zatwierdzona przez: {{name}}, {{when}}.",
+      "approvedByYou": "Zatwierdzona przez Ciebie, {{when}}.",
+      "locked": "Zmiany i stawki z tego miesiąca są zablokowane.",
+      "grossPaychecks_one": "brutto, {{count}} wypłata",
+      "grossPaychecks_few": "brutto, {{count}} wypłaty",
+      "grossPaychecks_many": "brutto, {{count}} wypłat",
+      "grossPaychecks_other": "brutto, {{count}} wypłaty",
+      "paidCount_one": ", {{count}} wypłacona",
+      "paidCount_few": ", {{count}} wypłacone",
+      "paidCount_many": ", {{count}} wypłaconych",
+      "paidCount_other": ", {{count}} wypłaconej"
+    },
+    "toast": {
+      "approve": "{{period}}: lista zatwierdzona, zmiany zablokowane",
+      "reopen": "{{period}}: lista otwarta ponownie jako wersja robocza, zmiany odblokowane",
+      "delete": "{{period}}: wersja robocza usunięta"
+    },
+    "refused": {
+      "approve": "Nie zatwierdzono",
+      "reopen": "Nie otwarto ponownie",
+      "delete": "Nie usunięto"
+    },
+    "confirm": {
+      "approveTitle": "Zatwierdzić listę płac: {{period}}?",
+      "reopenTitle": "Otworzyć ponownie listę płac: {{period}}?",
+      "deleteTitle": "Usunąć wersję roboczą: {{period}}?",
+      "approveDescription_one": "{{amount}} brutto w {{count}} wypłacie. Zmiany i stawki z tego miesiąca zostaną zablokowane, dopóki lista nie zostanie otwarta ponownie.",
+      "approveDescription_few": "{{amount}} brutto w {{count}} wypłatach. Zmiany i stawki z tego miesiąca zostaną zablokowane, dopóki lista nie zostanie otwarta ponownie.",
+      "approveDescription_many": "{{amount}} brutto w {{count}} wypłatach. Zmiany i stawki z tego miesiąca zostaną zablokowane, dopóki lista nie zostanie otwarta ponownie.",
+      "approveDescription_other": "{{amount}} brutto w {{count}} wypłaty. Zmiany i stawki z tego miesiąca zostaną zablokowane, dopóki lista nie zostanie otwarta ponownie.",
+      "reopenDescription": "Lista wróci do wersji roboczej, a zmiany i stawki z tego miesiąca zostaną odblokowane. Trzeba będzie zatwierdzić ją ponownie.",
+      "deleteDescription": "Jej wypłaty, premie i potrącenia zostaną usunięte. Ten miesiąc możesz wygenerować ponownie."
+    },
+    "paychecks": {
+      "title": "Wypłaty",
+      "draft": "Kliknij osobę, aby zobaczyć jej zmiany, premie i potrącenia.",
+      "markEach": "Oznacz każdą wypłatę jako wypłaconą, gdy pieniądze zostaną przekazane.",
+      "ownerMarks": "Wypłaty jako wypłacone oznacza właściciel.",
+      "shifts": "Zmiany",
+      "paidTime": "Płatny czas",
+      "payForHours": "Za godziny",
+      "adjustments": "Premie i potrącenia",
+      "total": "Razem",
+      "payment": "Wypłata"
+    },
+    "lines": {
+      "shift": "Zmiana",
+      "length": "Czas trwania",
+      "paid": "Płatne",
+      "rate": "Stawka za godzinę",
+      "amount": "Kwota",
+      "roundedMore": "Kwota za godziny jest zaokrąglana raz, z dokładnego czasu, więc jest o {{amount}} wyższa niż suma kwot za zmiany.",
+      "roundedLess": "Kwota za godziny jest zaokrąglana raz, z dokładnego czasu, więc jest o {{amount}} niższa niż suma kwot za zmiany."
+    },
+    "export": {
+      "paychecks": "Wypłaty (CSV)",
+      "shifts": "Zmiany (CSV)",
+      "failed": "Nie udało się pobrać pliku"
+    },
+    "runs": {
+      "title": "Wszystkie miesiące",
+      "state": "Stan"
+    },
+    "generate": {
+      "generated": "Wygenerowano wersję roboczą",
+      "regenerated": "Wygenerowano wersję roboczą ponownie",
+      "generateTitle": "Wygeneruj listę płac: {{period}}",
+      "regenerateTitle": "Wygeneruj ponownie listę płac: {{period}}",
+      "generateDescription": "Jedna wypłata dla każdej osoby z zakończonymi zmianami w tym miesiącu, jedna pozycja na zmianę, według stawki danej zmiany.",
+      "regenerateDescription": "Wylicza wypłaty od nowa z obecnych zmian i stawek. Premie i potrącenia zostają.",
+      "unit": "Zaokrąglaj każdą zmianę do",
+      "direction": "Kierunek",
+      "exact": "Zmiany są płatne co do sekundy.",
+      "nearest": "Przy zaokrąglaniu do najbliższej wartości połowa jest zaokrąglana w górę.",
+      "working": "Przetwarzanie…",
+      "regenerate": "Wygeneruj ponownie",
+      "generate": "Wygeneruj wersję roboczą"
+    },
+    "payment": {
+      "toast": "{{name}}: oznaczono jako wypłaconą",
+      "title": "Oznacz jako wypłaconą: {{name}}",
+      "description": "{{amount}} brutto za okres: {{period}}. Gdy wypłata zostanie oznaczona jako wypłacona, listy płac nie da się otworzyć ponownie.",
+      "paidOn": "Data wypłaty",
+      "method": "Forma wypłaty",
+      "choose": "Wybierz formę wypłaty",
+      "submit": "Oznacz jako wypłaconą",
+      "undone": "{{name}}: już nie jest oznaczona jako wypłacona",
+      "undoFailed": "Nie udało się cofnąć oznaczenia wypłaty",
+      "undo": "Cofnij wypłacenie: {{name}}",
+      "unpaid": "Niewypłacona",
+      "paidOnDate": "Wypłacona {{date}}, oznaczona {{marked}}.",
+      "paidBy": {
+        "cash": "Wypłacona gotówką {{date}}, oznaczona {{marked}}.",
+        "transfer": "Wypłacona przelewem {{date}}, oznaczona {{marked}}."
+      }
+    },
+    "adjustment": {
+      "saved": "Zapisano premię lub potrącenie",
+      "added": "Dodano premię lub potrącenie",
+      "removed": "Usunięto premię lub potrącenie",
+      "removeFailed": "Nie udało się usunąć premii lub potrącenia",
+      "addTitle": "Dodaj premię lub potrącenie",
+      "changeTitle": "Zmień premię lub potrącenie",
+      "description": "Premia zwiększa wypłatę za miesiąc, a wypłacona już zaliczka ją zmniejsza. Premie i potrącenia zostają po ponownym wygenerowaniu listy.",
+      "person": "Osoba",
+      "label": "Za co",
+      "labelPlaceholder": "Premia, Zaliczka wypłacona 10 paź…",
+      "amount": "Kwota",
+      "amountDescription": "Brutto. Potrącenie wpisz z minusem, np. −200.",
+      "add": "Dodaj",
+      "none": "Brak premii i potrąceń.",
+      "change": "Zmień: {{label}}",
+      "remove": "Usuń: {{label}}"
+    },
+    "rate": {
+      "toast": {
+        "hourlyAdded": "Dodano stawkę godzinową",
+        "hourlySaved": "Zapisano stawkę godzinową",
+        "dayAdded": "Dodano stawkę na dzień",
+        "daySaved": "Zapisano stawkę na dzień",
+        "description": "{{name}}: {{amount}} za godzinę. Wygeneruj ponownie wersje robocze, aby ją uwzględnić."
+      },
+      "title": {
+        "hourlyNew": "Ustaw stawkę godzinową: {{name}}",
+        "hourlyChange": "Zmień stawkę godzinową: {{name}}",
+        "dayNew": "Dodaj stawkę na dzień: {{name}}",
+        "dayChange": "Zmień stawkę na dzień: {{name}}"
+      },
+      "hourlyDescription": "Zwykła stawka brutto za godzinę od wybranej daty do następnej stawki. Wcześniejsze zmiany zachowują wcześniejszą stawkę.",
+      "dayDescription": "Inna stawka brutto za godzinę dla zmian rozpoczętych w jednym dniu, np. w sylwestra.",
+      "from": "Od",
+      "date": "Data",
+      "lockedDates": "Daty z miesiąca z zatwierdzoną listą płac nie mogą się zmienić.",
+      "amount": "Brutto za godzinę",
+      "setRate": "Ustaw stawkę",
+      "addDayRate": "Dodaj stawkę na dzień"
+    },
+    "rates": {
+      "title": "Stawki",
+      "description": "Wynagrodzenie brutto za godzinę. Podwyżka to nowa stawka od wybranej daty; wcześniejsze zmiany zachowują wcześniejszą stawkę. Stawka na dzień zastępuje ją dla zmian rozpoczętych w jednym dniu.",
+      "people": "Osoby",
+      "everyoneHasRate": "Każdy ma dziś stawkę. Kliknij osobę, aby zobaczyć historię jej stawek i stawki na dzień.",
+      "withoutRate_one": "{{count}} osoba nie ma dziś stawki: jej zmiany nie zostaną opłacone, dopóki stawka nie zostanie ustawiona.",
+      "withoutRate_few": "{{count}} osoby nie mają dziś stawki: ich zmiany nie zostaną opłacone, dopóki stawka nie zostanie ustawiona.",
+      "withoutRate_many": "{{count}} osób nie ma dziś stawki: ich zmiany nie zostaną opłacone, dopóki stawka nie zostanie ustawiona.",
+      "withoutRate_other": "{{count}} osoby nie ma dziś stawki: ich zmiany nie zostaną opłacone, dopóki stawka nie zostanie ustawiona.",
+      "rateToday": "Stawka dziś",
+      "since": "Od",
+      "noRate": "Brak stawki",
+      "upcoming": "{{amount}} od {{date}}",
+      "ratesOf": "Stawki: {{name}}",
+      "newRateFromDate": "Nowa stawka od wybranej daty",
+      "setHourlyRate": "Ustaw stawkę godzinową",
+      "deleted": {
+        "hourly": "Usunięto stawkę godzinową",
+        "day": "Usunięto stawkę na dzień"
+      },
+      "deleteFailed": "Nie udało się usunąć stawki",
+      "deleteHourlyTitle": "Usunąć tę stawkę godzinową?",
+      "deleteDayTitle": "Usunąć tę stawkę na dzień?",
+      "deleteDayDescription": "{{name}}: zmiany z dnia {{date}} wrócą do stawki godzinowej.",
+      "deleteHourlyDescription": "{{name}}: zmiany od {{date}} wrócą do poprzedniej stawki albo zostaną bez stawki.",
+      "hourlyRates": "Stawki godzinowe",
+      "newRate": "Nowa stawka",
+      "noHourlyRate": "Brak stawki godzinowej.",
+      "fromDate": "Od {{date}}",
+      "changeHourly": "Zmień stawkę godzinową od {{date}}",
+      "dayRates": "Stawki na dzień",
+      "dayRate": "Stawka na dzień",
+      "noDayRate": "Brak stawek na dzień.",
+      "changeDay": "Zmień stawkę na dzień {{date}}",
+      "lockedTitle": "W miesiącu z zatwierdzoną listą płac: aby ją zmienić, otwórz listę ponownie",
+      "locked": "Zablokowana przez zatwierdzoną listę płac",
+      "change": "Zmień"
+    }
+  },
+  "team": {
+    "title": "Zespół",
+    "description": "Osoby z dostępem do tej organizacji.",
+    "descriptionManager": "Osoby z dostępem do tej organizacji. Kierownicy zarządzają tylko pracownikami.",
+    "showDeactivated": "Pokaż osoby bez dostępu",
+    "column": {
+      "name": "Imię i nazwisko",
+      "role": "Rola",
+      "status": "Status",
+      "joined": "Data dołączenia"
+    },
+    "status": {
+      "active": "Ma dostęp",
+      "pending": "Zaproszenie wysłane",
+      "deactivated": "Bez dostępu"
+    },
+    "you": "Ty",
+    "actionsFor": "Akcje: {{name}}",
+    "resendInvitation": "Wyślij zaproszenie ponownie",
+    "reactivate": "Przywróć dostęp",
+    "deactivate": "Odbierz dostęp",
+    "lastOwner": "Organizacja musi mieć co najmniej jednego aktywnego właściciela.",
+    "toast": {
+      "roleChanged": {
+        "owner": "{{name}}: rola zmieniona na właściciela",
+        "manager": "{{name}}: rola zmieniona na kierownika",
+        "employee": "{{name}}: rola zmieniona na pracownika"
+      },
+      "invitationResent": "Zaproszenie wysłane ponownie na {{email}}",
+      "deactivated": "{{name}} nie ma już dostępu",
+      "reactivated": "{{name}} znów ma dostęp"
+    },
+    "error": {
+      "changeRole": "Nie udało się zmienić roli",
+      "resendInvitation": "Nie udało się ponownie wysłać zaproszenia",
+      "deactivate": "Nie udało się odebrać dostępu",
+      "reactivate": "Nie udało się przywrócić dostępu"
+    },
+    "confirm": {
+      "changeRole": "Zmień rolę",
+      "deactivateSelfTitle": "Odebrać sobie dostęp?",
+      "deactivateTitle": "Odebrać dostęp osobie {{name}}?",
+      "deactivateSelfDescription": "Od razu stracisz dostęp do tej organizacji. Przywrócić go może inny właściciel.",
+      "deactivateDescription": "Ta osoba od razu straci dostęp do tej organizacji, a wysłane zaproszenie przestanie działać. Jej historia zostanie, a dostęp możesz przywrócić później.",
+      "ownRoleTitle": {
+        "owner": "Zmienić swoją rolę na właściciela?",
+        "manager": "Zmienić swoją rolę na kierownika?",
+        "employee": "Zmienić swoją rolę na pracownika?"
+      },
+      "ownRoleEmployee": "Pracownicy nie zarządzają zespołem ani ustawieniami organizacji. Poprzednią rolę może Ci przywrócić tylko inny właściciel.",
+      "ownRoleDescription": "Poprzednią rolę może Ci przywrócić tylko inny właściciel."
+    }
+  },
   "addMember": {
+    "title": "Dodaj osobę",
+    "adding": "Dodawanie…",
+    "description": "Nowe osoby dostaną e-mail z linkiem do ustawienia hasła. Osoby, które mają już konto, zachowują swoje imię, nazwisko i hasło.",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "role": "Rola",
+    "managersAddEmployees": "Kierownicy mogą dodawać tylko pracowników.",
     "language": {
       "label": "Język",
       "description": "Język e-maila z zaproszeniem i nowej osoby, dopóki sama go nie wybierze. Osoby, które mają już konto, zachowują swój."
+    },
+    "toast": {
+      "invited": "Zaproszenie wysłane na {{email}}",
+      "added": {
+        "owner": "{{name}}: dodano jako właściciela",
+        "manager": "{{name}}: dodano jako kierownika",
+        "employee": "{{name}}: dodano jako pracownika"
+      }
+    },
+    "error": {
+      "alreadyMember": "{{name}} ({{email}}) już należy do tej organizacji.",
+      "deactivatedMember": "{{name}} ({{email}}) nie ma już dostępu do tej organizacji. Pokaż osoby bez dostępu i przywróć go."
     }
+  },
+  "time": {
+    "title": "Czas pracy",
+    "description": "Zmiany według dnia rozpoczęcia. Godziny w strefie {{timeZone}}.",
+    "employee": "Pracownik",
+    "everyone": "Wszyscy",
+    "deactivated": "(bez dostępu)",
+    "addShift": "Dodaj zmianę",
+    "formerMember": "osobę spoza zespołu",
+    "totals": {
+      "title": "Suma na pracownika",
+      "description": "Czas pracy: {{period}}. Otwarta zmiana zostanie doliczona po jej zakończeniu.",
+      "description_month": "Czas pracy: {{period}}. Otwarta zmiana zostanie doliczona po jej zakończeniu.",
+      "none": "W tym okresie nikt nie miał zmiany.",
+      "shifts": "Zmiany",
+      "worked": "Czas pracy",
+      "open_one": "({{count}} otwarta)",
+      "open_few": "({{count}} otwarte)",
+      "open_many": "({{count}} otwartych)",
+      "open_other": "({{count}} otwartej)"
+    },
+    "shifts": {
+      "title": "Zmiany",
+      "description": "Od najnowszych. Otwarte zmiany są wyróżnione. Zapomnianą zakończysz przyciskiem Zakończ zmianę.",
+      "none": "{{period}}: brak zmian.",
+      "none_month": "{{period}}: brak zmian.",
+      "date": "Data",
+      "clockIn": "Rozpoczęcie",
+      "clockOut": "Zakończenie",
+      "duration": "Czas trwania",
+      "note": "Notatka",
+      "open": "Otwarta",
+      "soFar": "na razie {{duration}}",
+      "endShift": "Zakończ zmianę",
+      "edit": "Edytuj zmianę: {{name}}, {{date}}",
+      "enteredBy": "Wpisana przez: {{name}}, {{when}}",
+      "enteredByYou": "Wpisana przez Ciebie, {{when}}",
+      "correctedBy": "Poprawiona przez: {{name}}, {{when}}",
+      "correctedByYou": "Poprawiona przez Ciebie, {{when}}"
+    }
+  },
+  "shiftDialog": {
+    "addTitle": "Dodaj zmianę",
+    "editTitle": "Edytuj zmianę",
+    "endTitle": "Zakończ lub edytuj otwartą zmianę",
+    "addDescription": "Zmiana, której ktoś zapomniał odnotować. Zostanie oznaczona jako wpisana przez Ciebie.",
+    "editDescription": "{{name}}, {{date}}. Zmiana zapamiętuje, kto i kiedy ją poprawił.",
+    "endDescription": "{{name}}: zmiana nadal trwa. Podaj zakończenie, aby ją zakończyć, albo zostaw puste, aby pozostała otwarta.",
+    "timesIn": "Godziny w strefie {{timeZone}}.",
+    "choosePerson": "Wybierz osobę",
+    "keepOpen": "Zostaw puste, aby zmiana pozostała otwarta.",
+    "nextDay": "Następnego dnia: godzina zakończenia nie jest późniejsza niż rozpoczęcia.",
+    "notePlaceholder": "Opcjonalnie, np. dlaczego zmiana została wpisana lub poprawiona",
+    "toast": {
+      "added": "Dodano zmianę: {{name}}, {{date}}",
+      "ended": "{{name}}: zmiana zakończona o {{time}}",
+      "updated": "Zaktualizowano zmianę: {{name}}"
+    }
+  },
+  "settings": {
+    "title": "Ustawienia organizacji",
+    "description": "Używane we wszystkich modułach: w fakturach, wynagrodzeniach i raportach.",
+    "saved": "Ustawienia zapisane",
+    "name": "Nazwa firmy",
+    "taxId": "NIP",
+    "taxIdDescription": "Potrzebny do pobierania faktur zakupowych z KSeF.",
+    "country": "Kraj",
+    "currency": "Waluta",
+    "timeZone": "Strefa czasowa",
+    "csvExports": "Eksport do CSV",
+    "csvSeparator": {
+      "semicolon": "Średnik ; i przecinek dziesiętny (1234,56)",
+      "comma": "Przecinek , i kropka dziesiętna (1234.56)"
+    },
+    "csvDescription": "Wybierz to, czego oczekuje Twój arkusz kalkulacyjny, np. przy eksporcie wynagrodzeń. Polski i niemiecki Excel używa średników."
   }
 }

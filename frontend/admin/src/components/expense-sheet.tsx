@@ -2,6 +2,7 @@ import { useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { DownloadIcon, LockIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -72,6 +73,7 @@ function ExpenseDetails({
 }: ExpenseActions & { expense: Expense; onDeleted: () => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const money = (minor: MinorUnits) => formatMoney(minor, expense.currency, locale)
   const taxMoney = (minor: MinorUnits) => formatMoney(minor, expense.taxCurrency, locale)
   const foreign = expense.currency !== expense.taxCurrency
@@ -86,7 +88,10 @@ function ExpenseDetails({
         </div>
         <SheetTitle className="text-lg">{expense.sellerName}</SheetTitle>
         <SheetDescription>
-          {expense.invoiceNumber ?? "No invoice number"}, issued {format.businessDate(expense.issueDate)}
+          {t("expenses.sheet.issued", {
+            number: expense.invoiceNumber ?? t("expenses.sheet.noNumber"),
+            date: format.businessDate(expense.issueDate),
+          })}
         </SheetDescription>
         <p className={cn("text-2xl font-semibold tabular-nums", expense.grossTotal < 0 && "text-destructive")}>
           {money(expense.grossTotal)}
@@ -96,14 +101,14 @@ function ExpenseDetails({
         ) : (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <LockIcon className="size-3.5" />
-            Imported from {sourceLabel(expense.source)}: only the category can be changed.
+            {t("expenses.sheet.importedFrom", { source: sourceLabel(expense.source) })}
           </p>
         )}
       </SheetHeader>
 
       <div className="flex flex-col gap-6 p-4">
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Category</h3>
+          <h3 className="text-sm font-medium">{t("expenses.category")}</h3>
           <ExpenseCategorySelect
             expense={expense}
             activeCategories={activeCategories}
@@ -114,49 +119,51 @@ function ExpenseDetails({
         </section>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Seller tax ID</dt>
+          <dt className="text-muted-foreground">{t("expenses.sheet.sellerTaxId")}</dt>
           <dd className="tabular-nums">{expense.sellerTaxId ?? "—"}</dd>
-          <dt className="text-muted-foreground">Issue date</dt>
+          <dt className="text-muted-foreground">{t("expenses.sheet.issueDate")}</dt>
           <dd>{format.businessDate(expense.issueDate)}</dd>
-          <dt className="text-muted-foreground">Kind</dt>
+          <dt className="text-muted-foreground">{t("expenses.sheet.kind")}</dt>
           <dd>{kindLabel(expense.kind)}</dd>
           {expense.correctedExternalId && (
             <>
-              <dt className="text-muted-foreground">Corrects</dt>
+              <dt className="text-muted-foreground">{t("expenses.sheet.corrects")}</dt>
               <dd className="break-all">{expense.correctedExternalId}</dd>
             </>
           )}
-          <dt className="text-muted-foreground">Currency</dt>
+          <dt className="text-muted-foreground">{t("settings.currency")}</dt>
           <dd>
             {expense.currency}
-            {foreign && <span className="text-muted-foreground"> (VAT settled in {expense.taxCurrency})</span>}
+            {foreign && <span className="text-muted-foreground"> {t("expenses.sheet.vatSettledIn", { currency: expense.taxCurrency })}</span>}
           </dd>
-          <dt className="text-muted-foreground">Source</dt>
+          <dt className="text-muted-foreground">{t("expenses.sheet.source")}</dt>
           <dd>{sourceLabel(expense.source)}</dd>
           {expense.externalId && (
             <>
-              <dt className="text-muted-foreground">{expense.source === "ksef" ? "KSeF number" : "Source id"}</dt>
+              <dt className="text-muted-foreground">{expense.source === "ksef" ? t("expenses.sheet.ksefNumber") : t("expenses.sheet.sourceId")}</dt>
               <dd className="break-all tabular-nums">{expense.externalId}</dd>
             </>
           )}
-          <dt className="text-muted-foreground">{expense.source === "manual" ? "Entered" : "Imported"}</dt>
+          <dt className="text-muted-foreground">{expense.source === "manual" ? t("expenses.sheet.entered") : t("expenses.sheet.imported")}</dt>
           <dd>{format.dateTime(expense.createdAt)}</dd>
         </dl>
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">VAT</h3>
+          <h3 className="text-sm font-medium">{t("income.vat.vat")}</h3>
           {expense.vatLines.length === 0 ? (
-            <p className="text-sm text-muted-foreground">The invoice has no VAT breakdown.</p>
+            <p className="text-sm text-muted-foreground">{t("expenses.sheet.noVat")}</p>
           ) : (
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="pl-3">Rate</TableHead>
-                    <TableHead className="text-right">Net</TableHead>
-                    <TableHead className="text-right">VAT</TableHead>
-                    {foreign && <TableHead className="text-right">VAT in {expense.taxCurrency}</TableHead>}
-                    <TableHead className="pr-3 text-right">Gross</TableHead>
+                    <TableHead className="pl-3">{t("income.vat.rate")}</TableHead>
+                    <TableHead className="text-right">{t("income.vat.net")}</TableHead>
+                    <TableHead className="text-right">{t("income.vat.vat")}</TableHead>
+                    {foreign && (
+                      <TableHead className="text-right">{t("expenses.sheet.vatIn", { currency: expense.taxCurrency })}</TableHead>
+                    )}
+                    <TableHead className="pr-3 text-right">{t("income.vat.gross")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -176,7 +183,7 @@ function ExpenseDetails({
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell className="pl-3">Total</TableCell>
+                    <TableCell className="pl-3">{t("income.total")}</TableCell>
                     <TableCell className="text-right tabular-nums">{money(expense.netTotal)}</TableCell>
                     <TableCell className="text-right tabular-nums">{money(expense.vatTotal)}</TableCell>
                     {foreign && <TableCell />}
@@ -189,12 +196,12 @@ function ExpenseDetails({
         </section>
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Original document</h3>
+          <h3 className="text-sm font-medium">{t("expenses.sheet.document")}</h3>
           {expense.hasDocument ? (
             <DocumentDownload expense={expense} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              {expense.source === "manual" ? "Entered by hand, without a document." : "No document is stored."}
+              {expense.source === "manual" ? t("expenses.sheet.noDocumentManual") : t("expenses.sheet.noDocument")}
             </p>
           )}
         </section>
@@ -217,6 +224,7 @@ function ManualExpenseActions({
 }) {
   const queryClient = useQueryClient()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const [confirm, setConfirm] = useState(false)
 
   const remove = useMutation({
@@ -224,33 +232,32 @@ function ManualExpenseActions({
     onSuccess: async () => {
       setConfirm(false)
       onDeleted()
-      toast.success("Expense deleted", { description: expense.sellerName })
+      toast.success(t("expenses.sheet.deleted"), { description: expense.sellerName })
       await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
     },
-    onError: (error) => toast.error("Could not delete the expense", { description: requestErrorMessage(error) }),
+    onError: (error) => toast.error(t("expenses.sheet.deleteFailed"), { description: requestErrorMessage(error) }),
   })
 
   return (
     <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" onClick={() => onEdit(expense)}>
         <PencilIcon />
-        Edit
+        {t("expenses.sheet.edit")}
       </Button>
       <Button variant="ghost" size="sm" className="text-destructive" disabled={remove.isPending} onClick={() => setConfirm(true)}>
         <Trash2Icon />
-        Delete
+        {t("common.delete")}
       </Button>
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete the expense from {expense.sellerName}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenses.sheet.deleteTitle", { seller: expense.sellerName })}</AlertDialogTitle>
             <AlertDialogDescription>
-              {formatMoney(expense.grossTotal, expense.currency, locale)} leaves the period's totals. A deleted expense
-              can't be restored; you can enter it again.
+              {t("expenses.sheet.deleteDescription", { amount: formatMoney(expense.grossTotal, expense.currency, locale) })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={remove.isPending}
@@ -259,7 +266,7 @@ function ManualExpenseActions({
                 remove.mutate()
               }}
             >
-              {remove.isPending ? "Deleting…" : "Delete"}
+              {remove.isPending ? t("common.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -270,6 +277,7 @@ function ManualExpenseActions({
 
 /** Downloads the stored copy (GET /expenses/{id}/document): the API answers XML, not JSON. */
 function DocumentDownload({ expense }: { expense: Expense }) {
+  const { t } = useTranslation("admin")
   const [busy, setBusy] = useState(false)
 
   async function download() {
@@ -290,7 +298,7 @@ function DocumentDownload({ expense }: { expense: Expense }) {
       // Some browsers read the URL after click() returns.
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (error) {
-      toast.error("Could not download the document", { description: requestErrorMessage(error) })
+      toast.error(t("expenses.sheet.downloadFailed"), { description: requestErrorMessage(error) })
     } finally {
       setBusy(false)
     }
@@ -300,7 +308,7 @@ function DocumentDownload({ expense }: { expense: Expense }) {
     <div className="flex flex-wrap items-center gap-3">
       <Button variant="outline" size="sm" disabled={busy} onClick={() => void download()}>
         <DownloadIcon />
-        {busy ? "Downloading…" : "Download XML"}
+        {busy ? t("expenses.sheet.downloading") : t("expenses.sheet.download")}
       </Button>
       {expense.documentFormat && <span className="text-sm text-muted-foreground">{expense.documentFormat}</span>}
     </div>

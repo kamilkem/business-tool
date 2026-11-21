@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -27,6 +28,8 @@ import {
   type RoundingUnit,
   apiFormErrors,
   monthKey,
+  roundingDirectionLabel,
+  roundingUnitLabel,
 } from "@/lib/payroll"
 import { invalidatePayrollRuns, payrollRunQuery } from "@/lib/queries"
 
@@ -56,6 +59,7 @@ export function PayrollGenerateDialog({ organizationId, period, run, open, onClo
 function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGenerateDialogProps, "open">) {
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const [unit, setUnit] = useState<RoundingUnit>(run?.roundingUnit ?? "none")
   const [direction, setDirection] = useState<RoundingDirection>(run?.roundingDirection ?? "nearest")
   const [errors, setErrors] = useState<FormErrors>({})
@@ -76,7 +80,7 @@ function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGene
           ),
     onSuccess: async (saved) => {
       queryClient.setQueryData(payrollRunQuery(organizationId, saved.id).queryKey, saved)
-      toast.success(run ? "Draft regenerated" : "Draft generated", { description: format.period(period) })
+      toast.success(run ? t("payroll.generate.regenerated") : t("payroll.generate.generated"), { description: format.period(period) })
       onClose()
       await invalidatePayrollRuns(queryClient, organizationId)
     },
@@ -93,26 +97,24 @@ function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGene
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
         <DialogTitle>
-          {run ? "Regenerate" : "Generate"} payroll: {format.period(period)}
+          {t(run ? "payroll.generate.regenerateTitle" : "payroll.generate.generateTitle", { period: format.period(period) })}
         </DialogTitle>
         <DialogDescription>
-          {run
-            ? "Rebuilds the paychecks from the current shifts and rates. Adjustments stay."
-            : "One paycheck per person with ended shifts this month, one line per shift, at each shift's rate."}
+          {run ? t("payroll.generate.regenerateDescription") : t("payroll.generate.generateDescription")}
         </DialogDescription>
       </DialogHeader>
       <fieldset disabled={generate.isPending} className="py-4">
         <FieldGroup>
           <Field data-invalid={errors.unit ? true : undefined}>
-            <FieldLabel htmlFor="rounding-unit">Round each shift to</FieldLabel>
+            <FieldLabel htmlFor="rounding-unit">{t("payroll.generate.unit")}</FieldLabel>
             <Select value={unit} onValueChange={(value) => setUnit(value as RoundingUnit)}>
               <SelectTrigger id="rounding-unit" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ROUNDING_UNITS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                  <SelectItem key={option} value={option}>
+                    {roundingUnitLabel(option)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -120,15 +122,15 @@ function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGene
             {errors.unit && <FieldError>{errors.unit}</FieldError>}
           </Field>
           <Field data-invalid={errors.direction ? true : undefined} data-disabled={unit === "none" ? true : undefined}>
-            <FieldLabel htmlFor="rounding-direction">Direction</FieldLabel>
+            <FieldLabel htmlFor="rounding-direction">{t("payroll.generate.direction")}</FieldLabel>
             <Select value={direction} onValueChange={(value) => setDirection(value as RoundingDirection)} disabled={unit === "none"}>
               <SelectTrigger id="rounding-direction" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ROUNDING_DIRECTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                  <SelectItem key={option} value={option}>
+                    {roundingDirectionLabel(option)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -137,7 +139,7 @@ function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGene
               <FieldError>{errors.direction}</FieldError>
             ) : (
               <FieldDescription>
-                {unit === "none" ? "Shifts are paid to the second." : "To the nearest rounds a half up."}
+                {unit === "none" ? t("payroll.generate.exact") : t("payroll.generate.nearest")}
               </FieldDescription>
             )}
           </Field>
@@ -150,7 +152,7 @@ function GenerateForm({ organizationId, period, run, onClose }: Omit<PayrollGene
       </fieldset>
       <DialogFooter>
         <Button type="submit" disabled={generate.isPending}>
-          {generate.isPending ? "Working…" : run ? "Regenerate" : "Generate draft"}
+          {generate.isPending ? t("payroll.generate.working") : run ? t("payroll.generate.regenerate") : t("payroll.generate.generate")}
         </Button>
       </DialogFooter>
     </form>

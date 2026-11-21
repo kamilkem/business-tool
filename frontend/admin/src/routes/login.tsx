@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { login, safeRedirectPath } from "@business-tool/api-client"
 import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { CircleCheckIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { AuthScreen } from "@business-tool/ui/components/auth-screen"
@@ -26,6 +27,7 @@ function LoginPage() {
   const { session, queryClient } = Route.useRouteContext()
   const { redirect: redirectTo, passwordSet } = Route.useSearch()
   const navigate = useNavigate()
+  const { t } = useTranslation("admin")
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -47,31 +49,31 @@ function LoginPage() {
   }
 
   return (
-    <AuthScreen title="Business Tool" description="Sign in to the admin panel">
+    <AuthScreen title={t("app.name")} description={t("login.description")}>
       <form onSubmit={onSubmit}>
         <FieldGroup>
           {passwordSet && (
             <Alert>
               <CircleCheckIcon />
-              <AlertDescription>Your password is set. Sign in with it.</AlertDescription>
+              <AlertDescription>{t("login.passwordSet")}</AlertDescription>
             </Alert>
           )}
           <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <FieldLabel htmlFor="email">{t("common.email", { ns: "ui" })}</FieldLabel>
             <Input id="email" name="email" type="email" autoComplete="username" required />
           </Field>
           <Field data-invalid={error ? true : undefined}>
             <div className="flex items-center">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password">{t("login.password")}</FieldLabel>
               <Link to="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
-                Forgot password?
+                {t("login.forgotPassword")}
               </Link>
             </div>
             <Input id="password" name="password" type="password" autoComplete="current-password" required />
             {error && <FieldError>{error}</FieldError>}
           </Field>
           <Button type="submit" disabled={pending}>
-            {pending ? "Signing in…" : "Sign in"}
+            {pending ? t("login.submitting") : t("login.submit")}
           </Button>
         </FieldGroup>
       </form>

@@ -10,6 +10,7 @@ import {
 import type { MinorUnits } from "@business-tool/ui/lib/money"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
 import type { Register } from "./registers"
 
 /*
@@ -27,11 +28,9 @@ export type UpdateRevenueEntryInput = components["schemas"]["RevenueEntry.Update
 /** The fixed payment methods of v1, in the API's order (ADR 0022 §4). */
 export const PAYMENT_METHODS: readonly PaymentMethod[] = ["cash", "card", "transfer", "voucher"]
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  card: "Card",
-  transfer: "Transfer",
-  voucher: "Voucher",
+/** "Cash", "Card", …: a payment method as a label. */
+export function paymentMethodLabel(method: PaymentMethod): string {
+  return i18n.t(`income.paymentMethod.${method}`, { ns: "admin" })
 }
 
 /** The longest period GET /revenue-entries accepts. */
@@ -238,26 +237,26 @@ export type EntryLinesResult = { ok: true; lines: EntryLines } | { ok: false; er
  */
 export function entryLines(values: EntryFormValues, rates: readonly VatRate[], today: BusinessDate): EntryLinesResult {
   const errors: EntryFormErrors = {}
-  if (values.registerId === "") errors.registerId = "Choose a register."
-  if (!isBusinessDate(values.businessDate)) errors.businessDate = "Choose the day the daily report covers."
-  else if (compareBusinessDates(values.businessDate, today) > 0) errors.businessDate = "The day can't be after today."
+  if (values.registerId === "") errors.registerId = i18n.t("income.error.register", { ns: "admin" })
+  if (!isBusinessDate(values.businessDate)) errors.businessDate = i18n.t("income.error.businessDate", { ns: "admin" })
+  else if (compareBusinessDates(values.businessDate, today) > 0) errors.businessDate = i18n.t("income.error.futureDate", { ns: "admin" })
 
   const payments = PAYMENT_METHODS.flatMap((method) => {
     const amount = values.payments[method]
     return amount === null ? [] : [{ method, amount }]
   })
-  if (payments.length === 0) errors.payments = "Enter at least one amount. Enter 0 for a register that sold nothing."
+  if (payments.length === 0) errors.payments = i18n.t("income.error.payments", { ns: "admin" })
 
   const vatLines: components["schemas"]["VatLineInput"][] = []
   for (const rate of rates) {
     const line = values.vatLines[rate.code]
     if (!line || line.gross === null) {
-      if (line && line.vat !== null && line.vat !== 0) errors[`vat.${rate.code}.gross`] = "Enter the gross amount."
+      if (line && line.vat !== null && line.vat !== 0) errors[`vat.${rate.code}.gross`] = i18n.t("income.error.gross", { ns: "admin" })
       continue
     }
     const vat = rate.zeroVat ? 0 : line.vat
-    if (vat === null) errors[`vat.${rate.code}.vat`] = "Enter the VAT, as printed."
-    else if (vat > line.gross) errors[`vat.${rate.code}.vat`] = "The VAT can't be more than the gross amount."
+    if (vat === null) errors[`vat.${rate.code}.vat`] = i18n.t("income.error.vat", { ns: "admin" })
+    else if (vat > line.gross) errors[`vat.${rate.code}.vat`] = i18n.t("income.error.vatAboveGross", { ns: "admin" })
     else vatLines.push({ rate: rate.code, gross: line.gross, vat })
   }
 

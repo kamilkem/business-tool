@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -64,6 +65,7 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
   const queryClient = useQueryClient()
   const currency = useOrganizationCurrency()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const [values, setValues] = useState<RateFormValues>(() => ({
     date: target.rate ? (target.kind === "hourly" ? target.rate.effectiveFrom : target.rate.date) : "",
     amount: target.rate?.amount ?? null,
@@ -97,8 +99,8 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
         : unwrap(api.POST("/api/day-rates", { body: { userId: target.member.userId, date, amount } }))
     },
     onSuccess: async (_, { amount }) => {
-      toast.success(`${target.kind === "hourly" ? "Hourly rate" : "Day rate"} ${editing ? "saved" : "added"}`, {
-        description: `${name}: ${formatMoney(amount, currency, locale)} per hour. Regenerate drafts to use it.`,
+      toast.success(t(`payroll.rate.toast.${target.kind}${editing ? "Saved" : "Added"}`), {
+        description: t("payroll.rate.toast.description", { name, amount: formatMoney(amount, currency, locale) }),
       })
       onClose()
       // A draft generated before the change no longer matches (approval would refuse it).
@@ -123,22 +125,20 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
   }
 
   const hourly = target.kind === "hourly"
-  const title = `${editing ? "Change" : hourly ? "Set" : "Add"} ${hourly ? "hourly rate" : "day rate"}: ${name}`
+  const title = t(`payroll.rate.title.${hourly ? "hourly" : "day"}${editing ? "Change" : "New"}`, { name })
 
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>
-          {hourly
-            ? "The usual gross rate per hour from a date until the next rate. Earlier shifts keep the earlier rate."
-            : "A different gross rate per hour for the shifts that start on one date, such as New Year's Eve."}
+          {hourly ? t("payroll.rate.hourlyDescription") : t("payroll.rate.dayDescription")}
         </DialogDescription>
       </DialogHeader>
       <fieldset disabled={save.isPending} className="py-4">
         <FieldGroup>
           <Field data-invalid={errors.date ? true : undefined}>
-            <FieldLabel htmlFor="rate-date">{hourly ? "From" : "Date"}</FieldLabel>
+            <FieldLabel htmlFor="rate-date">{hourly ? t("payroll.rate.from") : t("payroll.rate.date")}</FieldLabel>
             <Input
               id="rate-date"
               type="date"
@@ -150,11 +150,11 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
             {errors.date ? (
               <FieldError>{errors.date}</FieldError>
             ) : (
-              <FieldDescription>Dates in an approved payroll month can't change.</FieldDescription>
+              <FieldDescription>{t("payroll.rate.lockedDates")}</FieldDescription>
             )}
           </Field>
           <Field data-invalid={errors.amount ? true : undefined}>
-            <FieldLabel htmlFor="rate-amount">Gross per hour</FieldLabel>
+            <FieldLabel htmlFor="rate-amount">{t("payroll.rate.amount")}</FieldLabel>
             <MoneyInput
               id="rate-amount"
               currency={currency}
@@ -176,7 +176,7 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
       </fieldset>
       <DialogFooter>
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : editing ? "Save" : hourly ? "Set rate" : "Add day rate"}
+          {save.isPending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : hourly ? t("payroll.rate.setRate") : t("payroll.rate.addDayRate")}
         </Button>
       </DialogFooter>
     </form>

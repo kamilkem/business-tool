@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { CheckIcon, XIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -20,7 +21,8 @@ import {
   type ShiftChangeRequest,
   changeSummary,
   filterOf,
-  requestFilters,
+  REQUEST_FILTERS,
+  requestsFilterLabel,
   timeRange,
   validateRequestsSearch,
 } from "@/lib/shift-change-requests"
@@ -45,15 +47,8 @@ function ShiftRequestsPage() {
   return <ShiftRequests organizationId={membership.organization.id} />
 }
 
-/** Who decided a request: a name, or "you". */
-type NameOf = (userId: string) => string
-
-const EMPTY: Record<RequestsFilter, string> = {
-  pending: "No requests are waiting for a decision.",
-  approved: "No approved requests yet.",
-  rejected: "No rejected requests yet.",
-  all: "Nobody has asked for a shift change yet.",
-}
+/** Who decided a request: a name, or null for the signed-in user. */
+type NameOf = (userId: string) => string | null
 
 function ShiftRequests({ organizationId }: { organizationId: string }) {
   const { me } = Route.useRouteContext()
@@ -64,9 +59,10 @@ function ShiftRequests({ organizationId }: { organizationId: string }) {
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
   const { data: requests } = useSuspenseQuery(shiftChangeRequestsQuery(organizationId, filter))
   const [dialog, setDialog] = useState<DecisionTarget | null>(null)
+  const { t } = useTranslation("admin")
 
   const names = memberNames(members)
-  const nameOf: NameOf = (id) => (id === me.id ? "you" : (names[id] ?? "a former member"))
+  const nameOf: NameOf = (id) => (id === me.id ? null : (names[id] ?? t("time.formerMember")))
   const deactivated = new Set(members.filter((m) => !isActive(m)).map((m) => m.userId))
 
   function setFilter(next: RequestsFilter) {
@@ -78,20 +74,19 @@ function ShiftRequests({ organizationId }: { organizationId: string }) {
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Shift change requests</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("shiftRequests.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            People ask for a shift they forgot to clock, or for new times. Times in{" "}
-            {format.timeZone.replaceAll("_", " ")}.
+            {t("shiftRequests.description", { timeZone: format.timeZone.replaceAll("_", " ") })}
           </p>
         </div>
         <Select value={filter} onValueChange={(value) => setFilter(value as RequestsFilter)}>
-          <SelectTrigger aria-label="Status" className="w-40">
+          <SelectTrigger aria-label={t("shiftRequests.status")} className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {requestFilters.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            {REQUEST_FILTERS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {requestsFilterLabel(option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -100,25 +95,24 @@ function ShiftRequests({ organizationId }: { organizationId: string }) {
 
       <Card className="gap-0 pb-0">
         <CardHeader className="pb-4">
-          <CardTitle>{requestFilters.find((f) => f.value === filter)?.label} requests</CardTitle>
-          <CardDescription>
-            Newest first. Approving gives the shift the requested times; the shift rules (no overlap, nothing in the
-            future) are checked then.
-          </CardDescription>
+          <CardTitle>{t(`shiftRequests.cardTitle.${filter}`)}</CardTitle>
+          <CardDescription>{t("shiftRequests.cardDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           {requests.length === 0 ? (
-            <p className="border-t px-6 py-6 text-sm text-muted-foreground">{EMPTY[filter]}</p>
+            <p className="border-t px-6 py-6 text-sm text-muted-foreground">{t(`shiftRequests.empty.${filter}`)}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Employee</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Now</TableHead>
-                  <TableHead>Requested</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="pr-6 text-right">{filter === "pending" ? "Decision" : "Status"}</TableHead>
+                  <TableHead className="pl-6">{t("time.employee")}</TableHead>
+                  <TableHead>{t("time.shifts.date")}</TableHead>
+                  <TableHead>{t("shiftRequests.now")}</TableHead>
+                  <TableHead>{t("shiftRequests.requested")}</TableHead>
+                  <TableHead>{t("time.shifts.note")}</TableHead>
+                  <TableHead className="pr-6 text-right">
+                    {filter === "pending" ? t("shiftRequests.decision") : t("shiftRequests.status")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -159,6 +153,7 @@ function RequestRow({
   onDecide: (decision: DecisionTarget["decision"]) => void
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const person = `${request.firstName} ${request.lastName}`
   // The day of the shift as it is now, or as asked for when there is none.
   const day = format.dateOf(request.shiftStartedAt ?? request.startedAt)
@@ -169,10 +164,10 @@ function RequestRow({
       <TableCell className="pl-6">
         <div className="font-medium">
           {person}
-          {deactivated && <span className="font-normal text-muted-foreground"> (deactivated)</span>}
+          {deactivated && <span className="font-normal text-muted-foreground"> {t("time.deactivated")}</span>}
         </div>
         <div className="text-xs text-muted-foreground" title={format.dateTime(request.submittedAt)}>
-          Asked {format.date(request.submittedAt, { day: "numeric", month: "short" })}, {format.time(request.submittedAt)}
+          {t("shiftRequests.asked", { when: `${format.date(request.submittedAt, { day: "numeric", month: "short" })}, ${format.time(request.submittedAt)}` })}
         </div>
       </TableCell>
       <TableCell className="tabular-nums">
@@ -180,7 +175,7 @@ function RequestRow({
       </TableCell>
       <TableCell className="tabular-nums">
         {request.kind === "missing_shift" && request.status !== "approved" ? (
-          <Badge variant="outline">Missing shift</Badge>
+          <Badge variant="outline">{t("shiftRequests.missingShift")}</Badge>
         ) : request.shiftStartedAt === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
@@ -201,13 +196,13 @@ function RequestRow({
       <TableCell className={request.status === "pending" ? "pr-6 text-right" : "max-w-56 min-w-40 pr-6 text-right whitespace-normal"}>
         {request.status === "pending" ? (
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDecide("reject")} aria-label={`Reject ${person}'s request for ${dayName}`}>
+            <Button variant="outline" size="sm" onClick={() => onDecide("reject")} aria-label={t("shiftRequests.rejectFor", { name: person, day: dayName })}>
               <XIcon />
-              Reject
+              {t("shiftRequests.reject")}
             </Button>
-            <Button size="sm" onClick={() => onDecide("approve")} aria-label={`Approve ${person}'s request for ${dayName}`}>
+            <Button size="sm" onClick={() => onDecide("approve")} aria-label={t("shiftRequests.approveFor", { name: person, day: dayName })}>
               <CheckIcon />
-              Approve
+              {t("shiftRequests.approve")}
             </Button>
           </div>
         ) : (
@@ -221,19 +216,23 @@ function RequestRow({
 /** "Approved by you, 12 Nov 2026, 09:14", with the reason of a rejection. */
 function Decided({ request, nameOf }: { request: ShiftChangeRequest; nameOf: NameOf }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const approved = request.status === "approved"
+  const decidedBy = request.decidedBy === null ? null : nameOf(request.decidedBy)
 
   return (
     <div className="flex flex-col items-end gap-1 text-right">
-      <Badge variant={approved ? "secondary" : "outline"}>{approved ? "Approved" : "Rejected"}</Badge>
+      <Badge variant={approved ? "secondary" : "outline"}>{approved ? t("shiftRequests.approved") : t("shiftRequests.rejected")}</Badge>
       {request.decidedBy !== null && request.decidedAt !== null && (
         <div className="text-xs text-muted-foreground">
-          by {nameOf(request.decidedBy)}, {format.dateTime(request.decidedAt)}
+          {decidedBy === null
+            ? t("shiftRequests.decidedByYou", { when: format.dateTime(request.decidedAt) })
+            : t("shiftRequests.decidedBy", { name: decidedBy, when: format.dateTime(request.decidedAt) })}
         </div>
       )}
       {request.rejectionReason && (
         <div className="line-clamp-2 text-xs text-muted-foreground" title={request.rejectionReason}>
-          “{request.rejectionReason}”
+          {t("shiftRequests.quoted", { text: request.rejectionReason })}
         </div>
       )}
     </div>
