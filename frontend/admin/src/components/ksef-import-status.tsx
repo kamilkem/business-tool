@@ -9,6 +9,7 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@business-tool
 import { Button } from "@business-tool/ui/components/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { type Membership, can } from "@/lib/access"
 import { api } from "@/lib/api"
@@ -59,7 +60,7 @@ export function KsefImportStatus({ membership }: { membership: Membership }) {
     onError: async (error) => {
       toast.error(
         error instanceof ApiError && error.status === 429 ? "An import was requested less than 15 minutes ago" : "Could not start the import",
-        { description: error instanceof ApiError && error.status === 429 ? "Try again later." : error.message },
+        { description: requestErrorMessage(error) },
       )
       await queryClient.invalidateQueries({ queryKey: query.queryKey })
     },

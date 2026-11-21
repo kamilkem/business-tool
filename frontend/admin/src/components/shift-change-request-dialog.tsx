@@ -70,7 +70,7 @@ export function ShiftChangeRequestDialog({
   onClose,
 }: {
   organizationId: string
-  /** User ids to names ("You" for the signed-in user), for the API's error details. */
+  /** User ids to names, for the people an API error names. */
   names: Record<string, string>
   target: DecisionTarget | null
   onClose: () => void
@@ -133,7 +133,7 @@ function DecisionForm({
       onDone()
     },
     onError: async (failure) => {
-      const next = decisionError(failure, format, names, request.firstName)
+      const next = decisionError(failure, format, { names })
       setError(next)
       // Decided by someone else meanwhile: the list is out of date. (A shift may have changed too.)
       if (!next.stillPending) await refresh(true)

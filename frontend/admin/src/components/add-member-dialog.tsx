@@ -21,9 +21,10 @@ import { LanguageSelect } from "@business-tool/ui/components/language-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { currentLanguage } from "@business-tool/ui/i18n/current-language"
 import type { Language } from "@business-tool/ui/i18n/languages"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
-import { type Role, assignableRoles, fullName, isActive, readableError, roleLabel } from "@/lib/members"
+import { type Role, assignableRoles, fullName, isActive, roleLabel } from "@/lib/members"
 import { membersQuery } from "@/lib/queries"
 
 type AddMemberInput = components["schemas"]["Member.AddMemberInput"]
@@ -76,7 +77,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
     },
     onError: async (error, body) => {
       setFieldErrors(violationsOf(error))
-      const message = readableError(error.message, { [actorId]: "You" })
+      const message = requestErrorMessage(error, { selfId: actorId })
       if (error instanceof ApiError && error.status === 422) {
         setFormError(null)
       } else if (error instanceof ApiError && error.status === 409) {

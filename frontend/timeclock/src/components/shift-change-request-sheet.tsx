@@ -26,7 +26,6 @@ import {
   emptyShiftForm,
   missingShiftRequestBody,
   newTimesRequestBody,
-  readableShiftError,
   shiftFormFrom,
   suggestedEndDate,
 } from "@business-tool/ui/lib/shift-form"
@@ -126,9 +125,7 @@ function RequestForm({
       const fieldViolations = error instanceof ApiError && error.status === 422 && Object.keys(fields).length > 0
       if (shiftId) setFormError(shiftId)
       else if (fieldViolations) setFormError(null)
-      else if (error instanceof ApiError && error.status < 500 && error.status !== 429) {
-        setFormError(readableShiftError(error.message, format, { [userId]: "You" }))
-      } else setFormError(requestErrorMessage(error))
+      else setFormError(requestErrorMessage(error, { selfId: userId, format }))
     },
   })
 

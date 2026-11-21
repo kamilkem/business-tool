@@ -10,7 +10,6 @@ import {
   emptyShiftForm,
   missingShiftRequestBody,
   newTimesRequestBody,
-  readableShiftError,
   repeatedOffsets,
   shiftFormFrom,
   suggestedEndDate,
@@ -20,7 +19,6 @@ import type { Shift } from "./shifts"
 const WARSAW = "Europe/Warsaw"
 const format = createDateTimeFormat(WARSAW, "en-GB")
 const ANNA = "0193a000-0000-7000-8000-000000000001"
-const OWNER = "0193a000-0000-7000-8000-000000000002"
 const SHIFT_ID = "0193a000-0000-7000-8000-0000000000aa"
 
 function shift(overrides: Partial<Shift> = {}): Shift {
@@ -182,33 +180,6 @@ describe("editing a shift", () => {
   })
 })
 
-describe("errors from the API", () => {
-  it("test_it_shows_an_overlap_in_the_organizations_time_without_ids", () => {
-    const detail = `The shift would overlap the person's shift "${SHIFT_ID}" (2026-11-10T21:00:37+00:00 to 2026-11-11T02:30:12+00:00).`
-    expect(readableShiftError(detail, format, {})).toBe(
-      "The shift would overlap the person's shift (10 Nov 2026, 22:00 to 11 Nov 2026, 03:30).",
-    )
-    const open = `The shift would overlap the person's shift "${SHIFT_ID}" (2026-11-11T21:25:00+00:00 to now: it is still open).`
-    expect(readableShiftError(open, format, {})).toBe(
-      "The shift would overlap the person's shift (11 Nov 2026, 22:25 to now: it is still open).",
-    )
-  })
-
-  it("test_it_names_people_and_shifts_in_other_errors", () => {
-    expect(
-      readableShiftError(
-        `Shift "${SHIFT_ID}" cannot end at 2026-11-10T20:00:00+00:00: it started at 2026-11-10T21:00:00+00:00.`,
-        format,
-        {},
-      ),
-    ).toBe("The shift cannot end at 10 Nov 2026, 21:00: it started at 10 Nov 2026, 22:00.")
-    expect(
-      readableShiftError(`User "${OWNER}" may not add or change shifts: only owners and managers do.`, format, {
-        [OWNER]: "You",
-      }),
-    ).toBe("You may not add or change shifts: only owners and managers do.")
-  })
-})
 
 describe("requesting a missing shift", () => {
   it("test_it_sends_both_ends_in_the_organizations_zone_and_the_note", () => {

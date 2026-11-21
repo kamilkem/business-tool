@@ -116,54 +116,48 @@ describe("changedEnds", () => {
 
 describe("decisionError", () => {
   const names = { [ANNA]: "Anna Nowak" }
+  const coded = (status: number, code: string, parameters: Record<string, unknown> = {}) =>
+    new ApiError(status, { detail: "English detail.", code, parameters })
 
   it("test_it_explains_an_overlap_in_the_organization_zone_and_keeps_the_request_pending", () => {
-    const error = problem(
-      409,
-      `The shift would overlap the person's shift "${SHIFT_ID}" (2026-11-10T21:00:00+00:00 to 2026-11-11T01:00:00+00:00).`,
-    )
-    expect(decisionError(error, format, names)).toEqual({
-      message: "The shift would overlap the person's shift (10 Nov 2026, 22:00 to 11 Nov 2026, 02:00).",
+    const error = coded(409, "time_tracking.shift_overlap", {
+      otherShiftId: SHIFT_ID,
+      otherStartedAt: "2026-11-10T21:00:00+00:00",
+      otherEndedAt: "2026-11-11T01:00:00+00:00",
+    })
+    expect(decisionError(error, format, { names })).toEqual({
+      message: "The shift would overlap another shift, from 10 Nov 2026, 22:00 to 11 Nov 2026, 02:00.",
       stillPending: true,
     })
   })
 
-  it("test_it_names_the_person_whose_shift_overlaps", () => {
-    const error = problem(
-      409,
-      `The shift would overlap the person's shift "${SHIFT_ID}" (2026-11-10T21:00:00+00:00 to now: it is still open).`,
-    )
-    expect(decisionError(error, format, names, "Anna").message).toBe(
-      "The shift would overlap Anna's shift (10 Nov 2026, 22:00 to now: it is still open).",
-    )
-  })
-
   it("test_it_keeps_the_request_pending_after_a_shift_rule_422", () => {
-    const error = problem(422, `Shift "${SHIFT_ID}" has ended; its end time can be changed but not removed.`)
-    expect(decisionError(error, format, names)).toEqual({
-      message: "The shift has ended; its end time can be changed but not removed.",
+    const error = coded(422, "time_tracking.shift_cannot_be_reopened", { shiftId: SHIFT_ID })
+    expect(decisionError(error, format, { names })).toEqual({
+      message: "This shift has ended: its end time can be changed but not removed.",
       stillPending: true,
     })
   })
 
   it("test_it_reports_a_request_someone_else_already_decided", () => {
-    const error = problem(409, `Shift change request "${REQUEST_ID}" has already been decided: it is rejected.`)
-    expect(decisionError(error, format, names)).toEqual({
-      message: "This request has already been decided: it is rejected.",
+    const error = coded(409, "time_tracking.shift_change_request_already_decided", { requestId: REQUEST_ID, status: "rejected" })
+    expect(decisionError(error, format, { names })).toEqual({
+      message: "This request has already been decided.",
       stillPending: false,
     })
   })
 
   it("test_it_reports_a_request_that_is_gone", () => {
-    expect(decisionError(problem(404, "Not found"), format, names)).toEqual({
+    const error = coded(404, "time_tracking.shift_change_request_not_found", { requestId: REQUEST_ID })
+    expect(decisionError(error, format, { names })).toEqual({
       message: "This request no longer exists.",
       stillPending: false,
     })
   })
 
   it("test_it_falls_back_for_server_and_network_errors", () => {
-    expect(decisionError(problem(500, "boom"), format, names).message).toMatch(/our side/)
-    expect(decisionError(new TypeError("fetch failed"), format, names).message).toMatch(/connection/)
+    expect(decisionError(problem(500, "boom"), format, { names }).message).toMatch(/our side/)
+    expect(decisionError(new TypeError("fetch failed"), format, { names }).message).toMatch(/connection/)
   })
 })
 

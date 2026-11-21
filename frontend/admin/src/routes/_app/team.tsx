@@ -37,6 +37,7 @@ import {
 } from "@business-tool/ui/components/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@business-tool/ui/components/tooltip"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { AddMemberDialog } from "@/components/add-member-dialog"
 import { api } from "@/lib/api"
@@ -49,7 +50,7 @@ import {
   fullName,
   isActive,
   isLastActiveOwner,
-  readableError,
+  memberNames,
   roleLabel,
   statusOf,
 } from "@/lib/members"
@@ -98,8 +99,7 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
   /** The API refused: show why, and reload the list, which was probably out of date. */
   function onError(title: string) {
     return async (error: Error) => {
-      const names = Object.fromEntries(members.map((m) => [m.userId, m.userId === me.id ? "You" : fullName(m)]))
-      toast.error(title, { description: readableError(error.message, names) })
+      toast.error(title, { description: requestErrorMessage(error, { names: memberNames(members), selfId: me.id }) })
       await queryClient.invalidateQueries({ queryKey: ["members", organizationId] })
     }
   }

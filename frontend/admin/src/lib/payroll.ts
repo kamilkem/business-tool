@@ -1,4 +1,4 @@
-import { ApiError, type components, violationsOf } from "@business-tool/api-client"
+import { type components, violationsOf } from "@business-tool/api-client"
 import {
   type BusinessDate,
   type BusinessPeriod,
@@ -8,8 +8,9 @@ import {
   monthOf,
 } from "@business-tool/ui/lib/date-time"
 import type { MinorUnits } from "@business-tool/ui/lib/money"
+import { type RequestErrorOptions, requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
-import { type Member, fullName, readableError } from "./members"
+import { type Member, fullName } from "./members"
 
 /*
  * Payroll v1 (ADR 0027): hourly and day rates per member, and one run per calendar month that is
@@ -329,33 +330,22 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 /**
  * A refused write as form errors: a 422's violations on the fields (`fields` maps the API's
- * property paths to the form's), anything else (a 409's reason, a domain 422) on the form.
+ * property paths to the form's), anything else (a 409's reason, a domain 422) on the form, translated
+ * from its code (`options.names` puts people's names in).
  */
-export function apiFormErrors(error: unknown, fields: Record<string, string> = {}): FormErrors {
-  if (!(error instanceof ApiError)) {
-    return { form: error instanceof Error ? error.message : "Something went wrong. Try again." }
-  }
+export function apiFormErrors(
+  error: unknown,
+  fields: Record<string, string> = {},
+  options: RequestErrorOptions = {},
+): FormErrors {
   const violations = violationsOf(error)
-  if (Object.keys(violations).length === 0) return { form: error.message }
+  if (Object.keys(violations).length === 0) return { form: requestErrorMessage(error, options) }
   const errors: FormErrors = {}
   for (const [path, message] of Object.entries(violations)) {
     const field = fields[path] ?? "form"
     errors[field] = errors[field] ? `${errors[field]} ${message}` : message
   }
   return errors
-}
-
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-
-/**
- * An API refusal in words the reader knows: people by name (`names` maps user ids to names) and the
- * run, paycheck or rate as "this run" rather than its id.
- */
-export function payrollErrorMessage(message: string, names: Record<string, string>): string {
-  return readableError(message, names).replace(
-    new RegExp(`(P|p)ayroll run "${UUID}"`, "g"),
-    (_, p: string) => (p === "P" ? "This run" : "this run"),
-  )
 }
 
 // --- Export ----------------------------------------------------------------------------------------

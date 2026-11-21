@@ -1,4 +1,230 @@
 {
+  "apiError": {
+    "expenses": {
+      "expense_category_archived": "Kategoria „{{name}}” jest zarchiwizowana. Przywróć ją, aby ją przypisać.",
+      "expense_category_name_taken": "Kategoria o nazwie „{{name}}” już istnieje.",
+      "expense_category_not_found": "Ta kategoria już nie istnieje. Odśwież stronę.",
+      "expense_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni.",
+      "invalid_expense_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
+      "invalid_expense_filter": "Filtruj według kategorii albo wydatków bez kategorii, nie obu naraz.",
+      "invalid_purchase_invoice": {
+        "blank": "Brakuje wymaganej wartości faktury ({{field}}).",
+        "corrected_invoice_on_manual": "Faktura wprowadzona ręcznie nie może wskazywać korygowanej faktury z innego źródła.",
+        "corrected_invoice_on_non_correction": "Tylko korekta może wskazywać korygowaną fakturę.",
+        "duplicate_vat_rate": "Stawka VAT {{rate}} występuje więcej niż raz.",
+        "empty_document": "Dokument faktury jest pusty.",
+        "invalid": "„{{value}}” nie jest prawidłową wartością ({{field}}).",
+        "invalid_currency": "„{{currency}}” nie jest kodem waluty ({{field}}).",
+        "missing_external_id": "Zaimportowana faktura wymaga swojego identyfikatora z systemu, z którego pochodzi.",
+        "missing_vat_in_tax_currency": "Podaj VAT dla stawki {{rate}} także w {{taxCurrency}}: faktura jest w innej walucie.",
+        "not_imported": "Zaimportowana faktura nie może być oznaczona jako wprowadzona ręcznie.",
+        "too_long": "Wartość faktury jest za długa ({{field}}: najwyżej {{max}} znaków).",
+        "unexpected_vat_in_tax_currency": "Faktura jest już w walucie podatku: nie podawaj ponownie VAT dla stawki {{rate}}.",
+        "unknown_kind": "„{{kind}}” nie jest rodzajem faktury.",
+        "unknown_vat_rate": "{{rate}} nie jest stawką VAT w tym kraju.",
+        "vat_on_zero_rate": "Stawka {{rate}} nie ma VAT: zostaw kwotę VAT równą zero."
+      },
+      "management_forbidden": "Wydatkami mogą zarządzać tylko właściciele i menedżerowie.",
+      "purchase_invoice_already_imported": "Ta faktura jest już zapisana.",
+      "purchase_invoice_document_not_found": "Ten wydatek nie ma oryginalnego dokumentu.",
+      "purchase_invoice_not_found": "Ten wydatek już nie istnieje. Odśwież stronę.",
+      "purchase_invoice_read_only": "Ten wydatek został zaimportowany: można zmienić tylko jego kategorię."
+    },
+    "income": {
+      "invalid_payment_lines": {
+        "amount_out_of_range": "Kwota płatności jest poza dozwolonym zakresem.",
+        "duplicate_method": "Metoda płatności występuje więcej niż raz.",
+        "empty": "Dodaj co najmniej jedną płatność (kwota zero jest dozwolona).",
+        "unknown_method": "„{{method}}” nie jest metodą płatności."
+      },
+      "invalid_register_name": "Nazwa kasy musi mieć od 1 do {{maxLength}} znaków.",
+      "invalid_vat_lines": {
+        "duplicate_rate": "Stawka VAT {{rate}} występuje więcej niż raz.",
+        "gross_out_of_range": "Kwota brutto dla stawki VAT {{rate}} jest poza dozwolonym zakresem.",
+        "no_rates_for_country": "Kraj tej organizacji nie ma stawek VAT: nie dodawaj pozycji VAT.",
+        "unknown_rate": "{{rate}} nie jest stawką VAT w tym kraju.",
+        "vat_on_zero_rate": "Stawka {{rate}} nie ma VAT: zostaw kwotę VAT równą zero.",
+        "vat_out_of_range": "VAT dla stawki {{rate}} musi wynosić od zera do kwoty brutto."
+      },
+      "management_forbidden": "Przychodami mogą zarządzać tylko właściciele i menedżerowie.",
+      "register_deactivated": "Ta kasa jest wyłączona i nie przyjmuje nowych wpisów.",
+      "register_name_taken": "Kasa o nazwie „{{name}}” już istnieje.",
+      "register_not_found": "Ta kasa już nie istnieje. Odśwież stronę.",
+      "revenue_entry_already_exists": "Ta kasa ma już wpis za {{businessDate}}.",
+      "revenue_entry_in_the_future": "{{businessDate}} to dzień późniejszy niż dziś ({{today}}).",
+      "revenue_entry_not_found": "Ten wpis już nie istnieje. Odśwież stronę.",
+      "revenue_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni."
+    },
+    "ksef": {
+      "connection_forbidden": {
+        "to_manage_token": "Token KSeF mogą zapisać lub usunąć tylko właściciele.",
+        "to_use": "Z połączenia z KSeF mogą korzystać tylko właściciele i menedżerowie."
+      },
+      "connection_not_found": "Nie ma jeszcze połączenia z KSeF: najpierw zapisz token KSeF.",
+      "credentials_rejected": {
+        "authentication_failed": "KSeF odrzucił logowanie tokenem (status {{statusCode}}). Sprawdź token i jego uprawnienia.",
+        "missing_permission": "Tokenowi KSeF brakuje wymaganego uprawnienia. Utwórz token z prawem do przeglądania faktur."
+      },
+      "import_too_soon_one": "Import można uruchomić ponownie za {{count}} minutę.",
+      "import_too_soon_few": "Import można uruchomić ponownie za {{count}} minuty.",
+      "import_too_soon_many": "Import można uruchomić ponownie za {{count}} minut.",
+      "import_too_soon_other": "Import można uruchomić ponownie za {{count}} minuty.",
+      "invalid_fa3_invoice": {
+        "doctype": "Faktura nie jest poprawnym dokumentem FA(3).",
+        "invalid_value": "Faktura ma nieprawidłową wartość w {{path}}.",
+        "missing": "W fakturze brakuje elementu {{path}}.",
+        "not_xml": "Faktura nie jest poprawnym dokumentem XML.",
+        "repeated": "Element {{path}} występuje w fakturze więcej niż raz."
+      },
+      "not_available": {
+        "invalid_nip": "KSeF wymaga poprawnego NIP-u organizacji: ustaw go w ustawieniach.",
+        "outside_poland": "KSeF jest dostępny tylko dla organizacji w Polsce."
+      },
+      "rate_limited": "KSeF otrzymuje zbyt wiele zapytań. Spróbuj ponownie później.",
+      "request_failed": {
+        "malformed_response": "KSeF wysłał odpowiedź, której nie udało się odczytać. Spróbuj ponownie później.",
+        "no_token_encryption_key": "KSeF nie udostępnia klucza do zaszyfrowania tokenu. Spróbuj ponownie później.",
+        "unexpected_status": "KSeF odrzucił zapytanie (status {{httpStatus}}). Spróbuj ponownie później."
+      },
+      "token_not_set": "Token KSeF został usunięty: najpierw zapisz nowy.",
+      "token_rejected": "KSeF odrzucił token: właściciel musi zapisać nowy.",
+      "unavailable": {
+        "after_retries": "KSeF nie odpowiada. Spróbuj ponownie później.",
+        "authentication_cancelled": "KSeF nie dokończył logowania (status {{statusCode}}). Spróbuj ponownie później.",
+        "authentication_not_finished": "KSeF wciąż przetwarza logowanie. Spróbuj ponownie za chwilę."
+      },
+      "unsupported_invoice_form": {
+        "form_code": "Formularz faktury {{systemCode}} nie jest obsługiwany: obsługiwany jest tylko FA (3).",
+        "root_element": "Dokument nie jest fakturą FA(3)."
+      }
+    },
+    "organization": {
+      "already_a_member": "{{user}} jest już członkiem tej organizacji.",
+      "last_owner": "Organizacja musi mieć co najmniej jednego właściciela. Najpierw nadaj tę rolę innemu członkowi.",
+      "management_forbidden": "Organizacją mogą zarządzać tylko właściciele i menedżerowie.",
+      "member_deactivated": "{{user}} ma wyłączony dostęp do tej organizacji. Najpierw go przywróć.",
+      "member_not_found": "{{user}} nie jest członkiem tej organizacji.",
+      "no_organization_selected": "Nie wybrano organizacji. Wybierz ją i spróbuj ponownie.",
+      "not_found": "Ta organizacja nie istnieje lub nie masz do niej dostępu.",
+      "role_assignment_forbidden": "Nie możesz nadać tej roli: menedżerowie dodają tylko pracowników."
+    },
+    "payroll": {
+      "access_forbidden": {
+        "to_approve": "Tylko właściciele mogą zatwierdzać i ponownie otwierać listy płac.",
+        "to_manage": "Tylko właściciele i menedżerowie mogą zmieniać stawki.",
+        "to_manage_runs": "Tylko właściciele i menedżerowie mogą przygotowywać listy płac.",
+        "to_pay": "Tylko właściciele mogą oznaczać wypłaty jako wypłacone.",
+        "to_read": "Pracownicy widzą tylko własne stawki."
+      },
+      "invalid_pay_rate": "Stawka musi być większa od zera i mieścić się w dozwolonym zakresie.",
+      "invalid_paycheck_adjustment": {
+        "amount": "Korekta musi być niezerową kwotą w dozwolonym zakresie.",
+        "label": "Korekta wymaga opisu o długości od 1 do {{maxLength}} znaków."
+      },
+      "invalid_rounding": "Wybierz jednostkę zaokrąglenia (brak, 15, 30 lub 60 minut) i kierunek (do najbliższej, w górę lub w dół).",
+      "month_in_the_future": "{{month}} jeszcze się nie zaczął.",
+      "pay_rate_date_taken": {
+        "day_rate": "{{user}} ma już stawkę dzienną na {{date}}.",
+        "hourly_rate": "{{user}} ma już stawkę godzinową od {{date}}."
+      },
+      "pay_rate_not_found": {
+        "day_rate": "Ta stawka już nie istnieje. Odśwież stronę.",
+        "hourly_rate": "Ta stawka już nie istnieje. Odśwież stronę."
+      },
+      "pay_rate_period_locked": "Zmiana dotyczy stawek od {{from}} do {{to}}, a okres od {{lockedFrom}} do {{lockedTo}} jest już rozliczony.",
+      "pay_rate_period_locked_onwards": "Zmiana dotyczy stawek od {{from}}, a okres od {{lockedFrom}} do {{lockedTo}} jest już rozliczony.",
+      "paycheck_adjustment_not_found": "Ta korekta już nie istnieje. Odśwież stronę.",
+      "paycheck_not_found": "Ta wypłata już nie istnieje. Odśwież stronę.",
+      "paycheck_payment": {
+        "already_paid": "Ta wypłata jest oznaczona jako wypłacona: aby ją zmienić, najpierw cofnij oznaczenie.",
+        "not_paid": "Ta wypłata nie jest oznaczona jako wypłacona.",
+        "run_has_payments_one": "{{count}} wypłata z tej listy jest oznaczona jako wypłacona: najpierw cofnij oznaczenie albo popraw błąd korektą w kolejnym miesiącu.",
+        "run_has_payments_few": "{{count}} wypłaty z tej listy są oznaczone jako wypłacone: najpierw cofnij oznaczenia albo popraw błąd korektą w kolejnym miesiącu.",
+        "run_has_payments_many": "{{count}} wypłat z tej listy jest oznaczonych jako wypłacone: najpierw cofnij oznaczenia albo popraw błąd korektą w kolejnym miesiącu.",
+        "run_has_payments_other": "{{count}} wypłaty z tej listy są oznaczone jako wypłacone: najpierw cofnij oznaczenia albo popraw błąd korektą w kolejnym miesiącu."
+      },
+      "payment_date_in_the_future": "Data wypłaty {{date}} jest późniejsza niż dziś ({{today}}).",
+      "run_empty": "Za {{month}} nie ma nic do wypłaty: brak zakończonych zmian i korekt.",
+      "run_month_taken": "Lista płac za {{month}} już istnieje.",
+      "run_not_approvable": {
+        "lines_without_rate_one": "{{count}} pozycja zmiany nie ma stawki: ustaw stawki, a potem wygeneruj listę ponownie.",
+        "lines_without_rate_few": "{{count}} pozycje zmian nie mają stawki: ustaw stawki, a potem wygeneruj listę ponownie.",
+        "lines_without_rate_many": "{{count}} pozycji zmian nie ma stawki: ustaw stawki, a potem wygeneruj listę ponownie.",
+        "lines_without_rate_other": "{{count}} pozycji zmian nie ma stawki: ustaw stawki, a potem wygeneruj listę ponownie.",
+        "month_not_ended": "{{month}} jeszcze się nie skończył: szkic jest tylko podglądem.",
+        "negative_total": "{{user}} ma ujemną sumę wypłaty: przenieś część potrącenia na kolejny miesiąc.",
+        "nothing_to_pay": "Lista płac nie zawiera wypłat.",
+        "open_shifts_one": "{{count}} zmiana z tego miesiąca jest wciąż otwarta: najpierw ją zakończ.",
+        "open_shifts_few": "{{count}} zmiany z tego miesiąca są wciąż otwarte: najpierw je zakończ.",
+        "open_shifts_many": "{{count}} zmian z tego miesiąca jest wciąż otwartych: najpierw je zakończ.",
+        "open_shifts_other": "{{count}} zmiany z tego miesiąca są wciąż otwarte: najpierw je zakończ.",
+        "out_of_date": "Po wygenerowaniu listy zmieniono zmiany, stawki lub walutę: wygeneruj ją ponownie i sprawdź jeszcze raz.",
+        "pending_change_requests_one": "{{count}} wniosek o korektę zmiany z tego miesiąca czeka na decyzję: najpierw go rozpatrz.",
+        "pending_change_requests_few": "{{count}} wnioski o korektę zmian z tego miesiąca czekają na decyzję: najpierw je rozpatrz.",
+        "pending_change_requests_many": "{{count}} wniosków o korektę zmian z tego miesiąca czeka na decyzję: najpierw je rozpatrz.",
+        "pending_change_requests_other": "{{count}} wnioski o korektę zmian z tego miesiąca czekają na decyzję: najpierw je rozpatrz."
+      },
+      "run_not_found": "Ta lista płac już nie istnieje. Odśwież stronę.",
+      "run_status": {
+        "not_approved": "Ta lista płac jest szkicem, a nie zatwierdzoną listą.",
+        "not_draft": "Ta lista płac jest zatwierdzona: najpierw otwórz ją ponownie."
+      }
+    },
+    "secret": {
+      "management_forbidden": "Tylko właściciele mogą zapisywać i usuwać dane dostępowe.",
+      "organization_secret_not_found": "Zapisane dane dostępowe już nie istnieją. Zapisz je ponownie.",
+      "unreadable": {
+        "authentication_failed": "Nie można odczytać zapisanych danych dostępowych. Zapisz je ponownie.",
+        "malformed": "Nie można odczytać zapisanych danych dostępowych. Zapisz je ponownie.",
+        "of_secret": "Nie można odczytać zapisanych danych dostępowych. Zapisz je ponownie.",
+        "unknown_key": "Nie można odczytać zapisanych danych dostępowych. Zapisz je ponownie."
+      }
+    },
+    "time": {
+      "invalid_business_date": {
+        "not_a_calendar_date": "{{value}} nie jest prawidłową datą.",
+        "not_ymd": "„{{value}}” nie jest datą (RRRR-MM-DD)."
+      },
+      "invalid_business_period": {
+        "ends_before_it_starts": "Okres kończy się ({{to}}) przed swoim początkiem ({{from}}).",
+        "not_a_month": "{{value}} nie jest miesiącem.",
+        "not_a_month_string": "„{{value}}” nie jest miesiącem (RRRR-MM)."
+      }
+    },
+    "time_tracking": {
+      "not_clocked_in": "Nie masz rozpoczętej zmiany. Najpierw ją rozpocznij.",
+      "shift_already_closed": "Ta zmiana już się zakończyła.",
+      "shift_already_open": "{{user}} ma już rozpoczętą zmianę. Najpierw trzeba ją zakończyć.",
+      "shift_already_open_self": "Masz już rozpoczętą zmianę. Najpierw ją zakończ.",
+      "shift_cannot_be_reopened": "Ta zmiana się zakończyła: godzinę zakończenia można zmienić, ale nie usunąć.",
+      "shift_change_forbidden": "Tylko właściciele i menedżerowie mogą dodawać i zmieniać zmiany.",
+      "shift_change_request_already_decided": "Ten wniosek został już rozpatrzony.",
+      "shift_change_request_changes_nothing": "Wnioskowane godziny są takie same jak obecne godziny zmiany.",
+      "shift_change_request_decision_forbidden": "Tylko właściciele i menedżerowie mogą zatwierdzać i odrzucać wnioski.",
+      "shift_change_request_not_found": "Ten wniosek już nie istnieje.",
+      "shift_change_request_note_required": "Dodaj notatkę wyjaśniającą zmianę.",
+      "shift_end_not_after_start": {
+        "of": "Zmiana nie może się kończyć {{endedAt}}, skoro zaczęła się {{startedAt}}.",
+        "requested": "Zmiana nie może się kończyć {{endedAt}}, jeśli zaczyna się {{startedAt}}."
+      },
+      "shift_in_the_future": "Zmiana nie może zaczynać się ani kończyć w przyszłości: {{time}} to później niż teraz ({{now}}).",
+      "shift_not_found": {
+        "current_of": "Nie masz rozpoczętej zmiany.",
+        "with_id": "Ta zmiana już nie istnieje. Odśwież stronę."
+      },
+      "shift_overlap": "Zmiana nachodziłaby na inną zmianę, od {{otherStartedAt}} do {{otherEndedAt}}.",
+      "shift_overlap_open": "Zmiana nachodziłaby na inną zmianę, rozpoczętą {{otherStartedAt}} i wciąż otwartą.",
+      "shift_period_locked": "Zmiany z dnia {{date}} są zablokowane: ten okres został już rozliczony.",
+      "shift_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni."
+    },
+    "user": {
+      "email_already_registered": "Użytkownik z adresem e-mail {{email}} już istnieje.",
+      "invalid_password_token": "Ten link jest nieprawidłowy lub wygasł.",
+      "invalid_refresh_token": "Twoja sesja wygasła. Zaloguj się ponownie.",
+      "not_found": "Ten użytkownik już nie istnieje.",
+      "password_already_set": "{{user}} ma już ustawione hasło."
+    }
+  },
   "requestError": {
     "tooManyAttempts": "Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.",
     "tooManyAttemptsMinute": "Zbyt wiele prób. Odczekaj minutę i spróbuj ponownie.",
@@ -7,7 +233,18 @@
     "tooManyAttemptsMinutes_many": "Zbyt wiele prób. Odczekaj {{count}} minut i spróbuj ponownie.",
     "tooManyAttemptsMinutes_other": "Zbyt wiele prób. Odczekaj {{count}} minuty i spróbuj ponownie.",
     "serverError": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie za chwilę.",
-    "noConnection": "Nie udało się połączyć z serwerem. Sprawdź połączenie i spróbuj ponownie."
+    "noConnection": "Nie udało się połączyć z serwerem. Sprawdź połączenie i spróbuj ponownie.",
+    "someone": "Ta osoba",
+    "wrongCredentials": "Nieprawidłowy e-mail lub hasło.",
+    "byStatus": {
+      "400": "Nie udało się zrozumieć zapytania. Odśwież stronę i spróbuj ponownie.",
+      "401": "Twoja sesja wygasła. Zaloguj się ponownie.",
+      "403": "Nie masz do tego dostępu.",
+      "404": "To już nie istnieje albo nie masz do tego dostępu. Odśwież stronę.",
+      "409": "W międzyczasie coś się zmieniło. Odśwież stronę i spróbuj ponownie.",
+      "422": "Niektóre wartości nie zostały przyjęte. Sprawdź je i spróbuj ponownie.",
+      "other": "Zapytanie zostało odrzucone. Odśwież stronę i spróbuj ponownie."
+    }
   },
   "language": {
     "label": "Język",

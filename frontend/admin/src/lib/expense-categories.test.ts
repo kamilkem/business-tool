@@ -94,16 +94,16 @@ describe("categoryFormErrors", () => {
 
   it("test_it_shows_a_422_without_violations_under_the_form", () => {
     expect(categoryFormErrors(new ApiError(422, { detail: "Invalid body." }), "Food", categories)).toEqual({
-      form: "Invalid body.",
+      form: "Some values were not accepted. Check them and try again.",
     })
   })
 
   it("test_it_shows_any_other_failure_under_the_form", () => {
     expect(categoryFormErrors(new ApiError(500, { detail: "Server error" }), "Food", categories)).toEqual({
-      form: "Server error",
+      form: "Something went wrong on our side. Try again in a moment.",
     })
     expect(categoryFormErrors(new TypeError("Failed to fetch"), "Food", categories)).toEqual({
-      form: "Failed to fetch",
+      form: "Could not reach the server. Check your connection and try again.",
     })
   })
 })

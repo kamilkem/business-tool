@@ -1,4 +1,5 @@
 import { ApiError, type components, violationsOf } from "@business-tool/api-client"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 /*
  * Expense categories: what an expense was for (rent, food, ...). Archived, never deleted, because
@@ -64,8 +65,8 @@ export function categoryFormErrors(
     const result: CategoryFormErrors = {}
     if (nameError) result.name = nameError
     // A 422 that names no field (or another one) still needs to be seen.
-    if (rest || !nameError) result.form = rest || error.message
+    if (rest || !nameError) result.form = rest || requestErrorMessage(error)
     return result
   }
-  return { form: error instanceof Error ? error.message : "Something went wrong. Try again." }
+  return { form: requestErrorMessage(error) }
 }

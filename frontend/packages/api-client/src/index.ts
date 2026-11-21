@@ -47,9 +47,23 @@ export interface ApiClientOptions {
   fetch?: typeof globalThis.fetch
 }
 
+/** A domain error's stable code (ADR 0028 §5), e.g. "income.register_name_taken". */
+export type ErrorCode = components["schemas"]["ErrorCode"]
+
+/** The values a code's translation puts in: ids, names, counts, dates (Y-m-d), instants (ISO 8601). */
+export type ErrorParameters = components["schemas"]["Error"]["parameters"]
+
 export class ApiError extends Error {
   readonly status: number
   readonly body: unknown
+  /**
+   * The problem's code, or null for an error that is not a domain error (a listener's 403, a
+   * malformed body, a 422 with violations). A string the client does not know yet stays here too:
+   * translate it only when the catalog has it.
+   */
+  readonly code: string | null
+  /** The code's parameters; empty without a code. */
+  readonly parameters: ErrorParameters
   /** Seconds from the `Retry-After` header (429), when the API sent one. */
   readonly retryAfter: number | null
 
@@ -61,6 +75,12 @@ export class ApiError extends Error {
     super(detail)
     this.status = status
     this.body = body
+    const problem = (typeof body === "object" && body !== null ? body : {}) as Partial<components["schemas"]["Error"]>
+    this.code = typeof problem.code === "string" ? problem.code : null
+    this.parameters =
+      typeof problem.parameters === "object" && problem.parameters !== null && !Array.isArray(problem.parameters)
+        ? problem.parameters
+        : {}
     const retryAfter = Number.parseInt(headers?.get("Retry-After") ?? "", 10)
     this.retryAfter = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : null
   }

@@ -1,7 +1,7 @@
 import { ApiError, type components } from "@business-tool/api-client"
 import type { BusinessDate, DateTimeFormat, Instant } from "@business-tool/ui/lib/date-time"
 
-import { readableShiftError } from "@business-tool/ui/lib/shift-form"
+import { type RequestErrorOptions, requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 export type ShiftChangeRequest = components["schemas"]["ShiftChangeRequest"]
 export type ShiftChangeRequestStatus = ShiftChangeRequest["status"]
@@ -93,8 +93,6 @@ export function changeSummary(request: ShiftChangeRequest): string {
   return request.shiftEndedAt === null ? "Ends the open shift" : "Changes the clock-out"
 }
 
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-
 export interface DecisionError {
   message: string
   /** The request is still pending, so it can be decided again (after the other shift is fixed, say). */
@@ -103,26 +101,17 @@ export interface DecisionError {
 
 /**
  * Why approving or rejecting failed, for people. The shift rules (409 overlap, 422 end before start
- * or in the future, 422 a shift that has ended since) leave the request pending; a 409 "already
- * decided" means someone else was quicker. Times are shown in the organization's zone, ids as names.
+ * or in the future, 422 a shift that has ended since) leave the request pending; "already decided"
+ * means someone else was quicker, and a 404 that the request is gone. Times are shown in the
+ * organization's zone (`format`), user ids as names.
  */
 export function decisionError(
   error: unknown,
   format: DateTimeFormat,
-  names: Record<string, string>,
-  /** The requester's first name, for "the person's shift" in an overlap. */
-  person?: string,
+  options: Omit<RequestErrorOptions, "format"> = {},
 ): DecisionError {
-  if (!(error instanceof ApiError)) {
-    return { message: "Could not reach the server. Check your connection and try again.", stillPending: true }
-  }
-  if (error.status >= 500) {
-    return { message: "Something went wrong on our side. Try again in a moment.", stillPending: true }
-  }
-  let detail = error.message.replace(new RegExp(`Shift change request "${UUID}"`, "g"), "This request")
-  if (person) detail = detail.replaceAll("the person's shift", `${person}'s shift`)
-  const message = readableShiftError(detail, format, names)
-  if (error.status === 409 && /already been decided/.test(error.message)) return { message, stillPending: false }
-  if (error.status === 404) return { message: "This request no longer exists.", stillPending: false }
-  return { message, stillPending: true }
+  const message = requestErrorMessage(error, { ...options, format })
+  if (!(error instanceof ApiError)) return { message, stillPending: true }
+  const settled = error.code === "time_tracking.shift_change_request_already_decided" || error.status === 404
+  return { message, stillPending: !settled }
 }

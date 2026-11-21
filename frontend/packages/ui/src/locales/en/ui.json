@@ -1,11 +1,238 @@
 {
+  "apiError": {
+    "expenses": {
+      "expense_category_archived": "The category “{{name}}” is archived. Restore it to assign it.",
+      "expense_category_name_taken": "A category named “{{name}}” already exists.",
+      "expense_category_not_found": "This category no longer exists. Reload the page.",
+      "expense_period_too_long": "Choose a period of at most {{maxDays}} days.",
+      "invalid_expense_category_name": "A category name must have 1 to {{maxLength}} characters.",
+      "invalid_expense_filter": "Filter either by a category or by uncategorized expenses, not both.",
+      "invalid_purchase_invoice": {
+        "blank": "A required value of the invoice is missing ({{field}}).",
+        "corrected_invoice_on_manual": "An invoice entered by hand cannot refer to a corrected invoice in another source.",
+        "corrected_invoice_on_non_correction": "Only a correction refers to a corrected invoice.",
+        "duplicate_vat_rate": "The VAT rate {{rate}} appears more than once.",
+        "empty_document": "The invoice document is empty.",
+        "invalid": "“{{value}}” is not a valid value ({{field}}).",
+        "invalid_currency": "“{{currency}}” is not a currency code ({{field}}).",
+        "missing_external_id": "An imported invoice needs its id in the system it came from.",
+        "missing_vat_in_tax_currency": "Give the VAT for the rate {{rate}} in {{taxCurrency}} too: the invoice is in another currency.",
+        "not_imported": "An imported invoice cannot be marked as entered by hand.",
+        "too_long": "A value of the invoice is too long ({{field}}: at most {{max}} characters).",
+        "unexpected_vat_in_tax_currency": "The invoice is already in the tax currency: don't give the VAT for the rate {{rate}} again.",
+        "unknown_kind": "“{{kind}}” is not a kind of invoice.",
+        "unknown_vat_rate": "{{rate}} is not a VAT rate in this country.",
+        "vat_on_zero_rate": "The rate {{rate}} carries no VAT: leave its VAT at zero."
+      },
+      "management_forbidden": "Only owners and managers can manage expenses.",
+      "purchase_invoice_already_imported": "This invoice is already stored.",
+      "purchase_invoice_document_not_found": "This expense has no original document.",
+      "purchase_invoice_not_found": "This expense no longer exists. Reload the page.",
+      "purchase_invoice_read_only": "This expense was imported: only its category can be changed."
+    },
+    "income": {
+      "invalid_payment_lines": {
+        "amount_out_of_range": "A payment amount is out of range.",
+        "duplicate_method": "A payment method appears more than once.",
+        "empty": "Add at least one payment (an amount of zero is fine).",
+        "unknown_method": "“{{method}}” is not a payment method."
+      },
+      "invalid_register_name": "A register name must have 1 to {{maxLength}} characters.",
+      "invalid_vat_lines": {
+        "duplicate_rate": "The VAT rate {{rate}} appears more than once.",
+        "gross_out_of_range": "The gross amount for the VAT rate {{rate}} is out of range.",
+        "no_rates_for_country": "This organization's country has no VAT rates: leave the VAT lines out.",
+        "unknown_rate": "{{rate}} is not a VAT rate in this country.",
+        "vat_on_zero_rate": "The rate {{rate}} carries no VAT: leave its VAT at zero.",
+        "vat_out_of_range": "The VAT for the rate {{rate}} must be between zero and the gross amount."
+      },
+      "management_forbidden": "Only owners and managers can manage income.",
+      "register_deactivated": "This register is deactivated and takes no new entries.",
+      "register_name_taken": "A register named “{{name}}” already exists.",
+      "register_not_found": "This register no longer exists. Reload the page.",
+      "revenue_entry_already_exists": "This register already has an entry for {{businessDate}}.",
+      "revenue_entry_in_the_future": "{{businessDate}} is after today ({{today}}).",
+      "revenue_entry_not_found": "This entry no longer exists. Reload the page.",
+      "revenue_period_too_long": "Choose a period of at most {{maxDays}} days."
+    },
+    "ksef": {
+      "connection_forbidden": {
+        "to_manage_token": "Only owners can save or remove the KSeF token.",
+        "to_use": "Only owners and managers can use the KSeF connection."
+      },
+      "connection_not_found": "There is no KSeF connection yet: save a KSeF token first.",
+      "credentials_rejected": {
+        "authentication_failed": "KSeF refused to sign in with the token (status {{statusCode}}). Check the token and its permissions.",
+        "missing_permission": "The KSeF token lacks a required permission. Create a token that can read invoices."
+      },
+      "import_too_soon_one": "An import can be started again in {{count}} minute.",
+      "import_too_soon_other": "An import can be started again in {{count}} minutes.",
+      "invalid_fa3_invoice": {
+        "doctype": "The invoice is not a valid FA(3) document.",
+        "invalid_value": "The invoice has an invalid value in {{path}}.",
+        "missing": "The invoice has no {{path}}.",
+        "not_xml": "The invoice is not a well-formed XML document.",
+        "repeated": "The invoice has more than one {{path}}."
+      },
+      "not_available": {
+        "invalid_nip": "KSeF needs the organization's tax ID to be a valid NIP: set it in the settings.",
+        "outside_poland": "KSeF is only available for organizations in Poland."
+      },
+      "rate_limited": "KSeF is receiving too many requests. Try again later.",
+      "request_failed": {
+        "malformed_response": "KSeF sent an answer that could not be read. Try again later.",
+        "no_token_encryption_key": "KSeF offers no key to encrypt the token with. Try again later.",
+        "unexpected_status": "KSeF refused the request (status {{httpStatus}}). Try again later."
+      },
+      "token_not_set": "The KSeF token was removed: save a new one first.",
+      "token_rejected": "KSeF rejected the token: the owner has to save a new one.",
+      "unavailable": {
+        "after_retries": "KSeF is not answering. Try again later.",
+        "authentication_cancelled": "KSeF could not finish signing in (status {{statusCode}}). Try again later.",
+        "authentication_not_finished": "KSeF is still signing in. Try again in a moment."
+      },
+      "unsupported_invoice_form": {
+        "form_code": "The invoice form {{systemCode}} is not supported: only FA (3) is.",
+        "root_element": "The document is not an FA(3) invoice."
+      }
+    },
+    "organization": {
+      "already_a_member": "{{user}} is already a member of this organization.",
+      "last_owner": "The organization must keep at least one owner. Make another member an owner first.",
+      "management_forbidden": "Only owners and managers can manage this organization.",
+      "member_deactivated": "{{user}} has no access to this organization any more. Reactivate them first.",
+      "member_not_found": "{{user}} is not a member of this organization.",
+      "no_organization_selected": "No organization is selected. Choose one and try again.",
+      "not_found": "This organization no longer exists, or you have no access to it.",
+      "role_assignment_forbidden": "You may not give this role: managers add employees only."
+    },
+    "payroll": {
+      "access_forbidden": {
+        "to_approve": "Only owners can approve or reopen payroll runs.",
+        "to_manage": "Only owners and managers can change pay rates.",
+        "to_manage_runs": "Only owners and managers can prepare payroll runs.",
+        "to_pay": "Only owners can mark paychecks paid.",
+        "to_read": "Employees see their own pay rates only."
+      },
+      "invalid_pay_rate": "The pay rate must be more than zero and within the allowed range.",
+      "invalid_paycheck_adjustment": {
+        "amount": "An adjustment must be a non-zero amount within the allowed range.",
+        "label": "An adjustment needs a label of 1 to {{maxLength}} characters."
+      },
+      "invalid_rounding": "Choose a rounding unit (none, 15, 30 or 60 minutes) and a direction (nearest, up or down).",
+      "month_in_the_future": "{{month}} has not started yet.",
+      "pay_rate_date_taken": {
+        "day_rate": "{{user}} already has a day rate on {{date}}.",
+        "hourly_rate": "{{user}} already has an hourly rate from {{date}}."
+      },
+      "pay_rate_not_found": {
+        "day_rate": "This rate no longer exists. Reload the page.",
+        "hourly_rate": "This rate no longer exists. Reload the page."
+      },
+      "pay_rate_period_locked": "The change affects the rates from {{from}} to {{to}}, and {{lockedFrom}} to {{lockedTo}} has been settled.",
+      "pay_rate_period_locked_onwards": "The change affects the rates from {{from}} onwards, and {{lockedFrom}} to {{lockedTo}} has been settled.",
+      "paycheck_adjustment_not_found": "This adjustment no longer exists. Reload the page.",
+      "paycheck_not_found": "This paycheck no longer exists. Reload the page.",
+      "paycheck_payment": {
+        "already_paid": "This paycheck is marked paid: undo the mark first to change it.",
+        "not_paid": "This paycheck is not marked paid.",
+        "run_has_payments_one": "{{count}} paycheck of this run is marked paid: undo the mark first, or fix a mistake with an adjustment in a later month.",
+        "run_has_payments_other": "{{count}} paychecks of this run are marked paid: undo the marks first, or fix a mistake with an adjustment in a later month."
+      },
+      "payment_date_in_the_future": "The payment date {{date}} is after today ({{today}}).",
+      "run_empty": "Nothing to pay for {{month}}: there are no ended shifts and no adjustments.",
+      "run_month_taken": "There is already a payroll run for {{month}}.",
+      "run_not_approvable": {
+        "lines_without_rate_one": "{{count}} shift line has no rate: set the rates, then regenerate the run.",
+        "lines_without_rate_other": "{{count}} shift lines have no rate: set the rates, then regenerate the run.",
+        "month_not_ended": "{{month}} has not ended yet: its draft is a preview.",
+        "negative_total": "{{user}}'s paycheck has a negative total: move part of the deduction to a later month.",
+        "nothing_to_pay": "The run has no paychecks.",
+        "open_shifts_one": "{{count}} shift of the month is still open: end it first.",
+        "open_shifts_other": "{{count}} shifts of the month are still open: end them first.",
+        "out_of_date": "Shifts, rates or the currency changed since the run was generated: regenerate it and review it again.",
+        "pending_change_requests_one": "{{count}} shift change request about the month is pending: decide it first.",
+        "pending_change_requests_other": "{{count}} shift change requests about the month are pending: decide them first."
+      },
+      "run_not_found": "This payroll run no longer exists. Reload the page.",
+      "run_status": {
+        "not_approved": "This run is a draft, not an approved run.",
+        "not_draft": "This run is approved: reopen it first."
+      }
+    },
+    "secret": {
+      "management_forbidden": "Only owners can save or remove credentials.",
+      "organization_secret_not_found": "The saved credential no longer exists. Save it again.",
+      "unreadable": {
+        "authentication_failed": "The saved credential cannot be read. Save it again.",
+        "malformed": "The saved credential cannot be read. Save it again.",
+        "of_secret": "The saved credential cannot be read. Save it again.",
+        "unknown_key": "The saved credential cannot be read. Save it again."
+      }
+    },
+    "time": {
+      "invalid_business_date": {
+        "not_a_calendar_date": "{{value}} is not a calendar date.",
+        "not_ymd": "“{{value}}” is not a date (YYYY-MM-DD)."
+      },
+      "invalid_business_period": {
+        "ends_before_it_starts": "The period ends ({{to}}) before it starts ({{from}}).",
+        "not_a_month": "{{value}} is not a month.",
+        "not_a_month_string": "“{{value}}” is not a month (YYYY-MM)."
+      }
+    },
+    "time_tracking": {
+      "not_clocked_in": "You are not clocked in. Clock in first.",
+      "shift_already_closed": "This shift has already ended.",
+      "shift_already_open": "{{user}} is already clocked in. Clock out first.",
+      "shift_already_open_self": "You are already clocked in. Clock out first.",
+      "shift_cannot_be_reopened": "This shift has ended: its end time can be changed but not removed.",
+      "shift_change_forbidden": "Only owners and managers can add or change shifts.",
+      "shift_change_request_already_decided": "This request has already been decided.",
+      "shift_change_request_changes_nothing": "The requested times are already the shift's times.",
+      "shift_change_request_decision_forbidden": "Only owners and managers can approve or reject requests.",
+      "shift_change_request_not_found": "This request no longer exists.",
+      "shift_change_request_note_required": "Add a note explaining the change.",
+      "shift_end_not_after_start": {
+        "of": "The shift cannot end at {{endedAt}}: it started at {{startedAt}}.",
+        "requested": "A shift cannot end at {{endedAt}} if it starts at {{startedAt}}."
+      },
+      "shift_in_the_future": "A shift cannot start or end in the future: {{time}} is after now ({{now}}).",
+      "shift_not_found": {
+        "current_of": "You are not clocked in: there is no current shift.",
+        "with_id": "This shift no longer exists. Reload the page."
+      },
+      "shift_overlap": "The shift would overlap another shift, from {{otherStartedAt}} to {{otherEndedAt}}.",
+      "shift_overlap_open": "The shift would overlap another shift, which started at {{otherStartedAt}} and is still open.",
+      "shift_period_locked": "The shifts of {{date}} are locked: that period has been settled.",
+      "shift_period_too_long": "Choose a period of at most {{maxDays}} days."
+    },
+    "user": {
+      "email_already_registered": "A user with the e-mail {{email}} already exists.",
+      "invalid_password_token": "This link is invalid or has expired.",
+      "invalid_refresh_token": "Your session has expired. Sign in again.",
+      "not_found": "This user no longer exists.",
+      "password_already_set": "{{user}} has already set a password."
+    }
+  },
   "requestError": {
     "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
     "tooManyAttemptsMinute": "Too many attempts. Wait a minute and try again.",
     "tooManyAttemptsMinutes_one": "Too many attempts. Wait {{count}} minute and try again.",
     "tooManyAttemptsMinutes_other": "Too many attempts. Wait {{count}} minutes and try again.",
     "serverError": "Something went wrong on our side. Try again in a moment.",
-    "noConnection": "Could not reach the server. Check your connection and try again."
+    "noConnection": "Could not reach the server. Check your connection and try again.",
+    "someone": "This person",
+    "wrongCredentials": "Wrong e-mail or password.",
+    "byStatus": {
+      "400": "The request was not understood. Reload the page and try again.",
+      "401": "Your session has expired. Sign in again.",
+      "403": "You do not have access to this.",
+      "404": "It no longer exists, or you cannot see it. Reload the page.",
+      "409": "It changed in the meantime. Reload the page and try again.",
+      "422": "Some values were not accepted. Check them and try again.",
+      "other": "The request was refused. Reload the page and try again."
+    }
   },
   "language": {
     "label": "Language",

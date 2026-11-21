@@ -1,4 +1,5 @@
 import { unwrap } from "@business-tool/api-client"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -32,7 +33,7 @@ export function useCategorizeExpense(organizationId: string, onSaved?: (expense:
       await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
     },
     onError: async (error) => {
-      toast.error("Could not change the category", { description: error.message })
+      toast.error("Could not change the category", { description: requestErrorMessage(error) })
       // An archived or removed category: the pickers get the current list.
       await queryClient.invalidateQueries({ queryKey: ["expense-categories", organizationId] })
     },

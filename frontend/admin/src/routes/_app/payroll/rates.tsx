@@ -42,7 +42,7 @@ import { PayRateDialog, type PayRateTarget } from "@/components/pay-rate-dialog"
 import { PayrollNav } from "@/components/payroll-nav"
 import { requireCapability } from "@/lib/access"
 import { api } from "@/lib/api"
-import { fullName, roleLabel } from "@/lib/members"
+import { fullName, memberNames, roleLabel } from "@/lib/members"
 import {
   type DayRate,
   type HourlyRate,
@@ -51,7 +51,6 @@ import {
   isDayRateLocked,
   isHourlyRateLocked,
   lockedPeriods,
-  payrollErrorMessage,
   ratesByMember,
 } from "@/lib/payroll"
 import { dayRatesQuery, hourlyRatesQuery, invalidatePayRates, invalidatePayrollRuns, membersQuery, payrollRunsQuery } from "@/lib/queries"
@@ -97,7 +96,7 @@ function RatesPage() {
   const [removal, setRemoval] = useState<Removal | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
 
-  const names = Object.fromEntries(members.map((m) => [m.userId, fullName(m)]))
+  const names = memberNames(members)
 
   const remove = useMutation({
     mutationFn: (target: Removal) =>
@@ -111,7 +110,7 @@ function RatesPage() {
     },
     onError: (error) => {
       setRemoval(null)
-      toast.error("Could not delete the rate", { description: payrollErrorMessage(requestErrorMessage(error), names) })
+      toast.error("Could not delete the rate", { description: requestErrorMessage(error, { names }) })
     },
   })
 

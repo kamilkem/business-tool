@@ -86,14 +86,14 @@ describe("registerFormErrors", () => {
 
   it("test_it_shows_a_422_without_violations_under_the_form", () => {
     expect(registerFormErrors(new ApiError(422, { detail: "Invalid body." }), "Bar", registers)).toEqual({
-      form: "Invalid body.",
+      form: "Some values were not accepted. Check them and try again.",
     })
   })
 
   it("test_it_shows_any_other_failure_under_the_form", () => {
     expect(registerFormErrors(new ApiError(500, { detail: "Server error" }), "Bar", registers)).toEqual({
-      form: "Server error",
+      form: "Something went wrong on our side. Try again in a moment.",
     })
-    expect(registerFormErrors(new TypeError("Failed to fetch"), "Bar", registers)).toEqual({ form: "Failed to fetch" })
+    expect(registerFormErrors(new TypeError("Failed to fetch"), "Bar", registers)).toEqual({ form: "Could not reach the server. Check your connection and try again." })
   })
 })

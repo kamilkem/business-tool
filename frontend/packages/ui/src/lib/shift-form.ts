@@ -263,17 +263,3 @@ export function newTimesRequestBody(
     },
   }
 }
-
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-const ISO_INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/g
-
-/**
- * A shift error from the API (409 overlap, 422 end before start or in the future) for people:
- * UTC times become the organization's, shift ids go, user ids become names.
- */
-export function readableShiftError(message: string, format: DateTimeFormat, names: Record<string, string>): string {
-  return message
-    .replace(new RegExp(`(S|s)hift "${UUID}"`, "g"), (_, s: string) => (s === "S" ? "The shift" : "shift"))
-    .replace(new RegExp(`User "(${UUID})"`, "g"), (_, id: string) => names[id] ?? "This person")
-    .replace(ISO_INSTANT, (instant) => format.dateTime(instant))
-}
