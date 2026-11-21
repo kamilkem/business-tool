@@ -21,10 +21,16 @@ use App\Ksef\Domain\Model\KsefConnection;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Payroll\Domain\Model\DayRate;
+use App\Payroll\Domain\Model\HourlyRate;
+use App\Payroll\Domain\Model\HourlyRateHistory;
+use App\Payroll\Domain\Model\LockedPayrollDates;
 use App\Secret\Domain\Model\OrganizationSecret;
 use App\Secret\Domain\Model\SecretKind;
 use App\Secret\Domain\SecretCipherInterface;
 use App\Shared\Domain\Time\BusinessDate;
+use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\User\Domain\Model\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -47,7 +53,12 @@ use Symfony\Component\Uid\Uuid;
  * "Demo Bar" (NIP 526-025-09-95) has a KSeF connection with a dev-only token whose last import
  * succeeded, and purchase invoices of this month and the last two: imported from KSeF (with their
  * XML, a correction with negative amounts and one in EUR) and entered by hand, some without a
- * category. In dev, KSEF_API_URL in a git-ignored `.env.dev.local` should point at ksef.invalid,
+ * category.
+ *
+ * For payroll, Eve Employee and Mia Mixed have hourly rates from the first day of the month before
+ * last (Eve also a day rate on the 31st of last month), Max Manager has none, and the three have
+ * ended shifts last month and this month (evening shifts, some past midnight). No payroll run
+ * exists: generate last month's on the Payroll page. In dev, KSEF_API_URL in a git-ignored `.env.dev.local` should point at ksef.invalid,
  * so "Import now" never reaches KSeF.
  */
 final class AppFixtures extends Fixture
@@ -69,8 +80,10 @@ final class AppFixtures extends Fixture
         $now = $this->clock->now();
         $owner = $this->user($manager, 'owner@example.com', 'Olivia', 'Owner', $now);
         $bar = new Organization(Uuid::v7(), 'Demo Bar', $owner, $now, self::DEMO_BAR_NIP);
-        $bar->addMember($owner->getId(), $this->user($manager, 'manager@example.com', 'Max', 'Manager', $now), MembershipRole::Manager, $now);
-        $bar->addMember($owner->getId(), $this->user($manager, 'employee@example.com', 'Eve', 'Employee', $now), MembershipRole::Employee, $now);
+        $barManager = $this->user($manager, 'manager@example.com', 'Max', 'Manager', $now);
+        $bar->addMember($owner->getId(), $barManager, MembershipRole::Manager, $now);
+        $employee = $this->user($manager, 'employee@example.com', 'Eve', 'Employee', $now);
+        $bar->addMember($owner->getId(), $employee, MembershipRole::Employee, $now);
         $manager->persist($bar);
 
         $mixed = $this->user($manager, 'mixed@example.com', 'Mia', 'Mixed', $now);
@@ -88,6 +101,52 @@ final class AppFixtures extends Fixture
 
         $this->ksefConnection($manager, $bar, $owner->getId(), $now);
         $this->purchaseInvoices($manager, $bar, $barCategories, $owner->getId(), $now);
+
+        $this->payroll($manager, $bar, $owner->getId(), [$employee->getId(), $mixed->getId(), $barManager->getId()], $now);
+        $manager->flush();
+    }
+
+    /**
+     * Rates and ended shifts for payroll (ADR 0027): the first two people have an hourly rate, the
+     * third none, so last month's run flags their shifts until a rate is set.
+     *
+     * @param list<Uuid> $people
+     */
+    private function payroll(ObjectManager $manager, Organization $organization, Uuid $ownerId, array $people, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        $timeZone = new \DateTimeZone($organization->getTimezone());
+        $today = new \DateTimeImmutable(BusinessDate::containing($now, $timeZone)->toString(), $timeZone);
+        $lastMonth = $today->modify('first day of last month');
+        $rateFrom = BusinessDate::fromString($today->modify('first day of -2 month')->format('Y-m-d'));
+
+        foreach (array_slice($people, 0, 2) as $index => $userId) {
+            $manager->persist(HourlyRate::set(Uuid::v7(), HourlyRateHistory::of($userId, []), $rateFrom, [3200, 3000][$index], $organization->getCurrency(), LockedPayrollDates::none(), $ownerId, MembershipRole::Owner, $now));
+        }
+        $newYearsEveLike = BusinessDate::fromString($lastMonth->modify('last day of this month')->format('Y-m-d'));
+        $manager->persist(DayRate::set(Uuid::v7(), $people[0], $newYearsEveLike, 4500, $organization->getCurrency(), null, LockedPayrollDates::none(), $ownerId, MembershipRole::Owner, $now));
+
+        // Days of the month (last month, then this month up to yesterday), start "H:i" and length in minutes.
+        $schedule = [
+            [[3, '18:00', 480], [7, '16:00', 360], [10, '20:00', 420], [14, '17:30', 390], [17, '18:00', 480], [21, '12:00', 300], [24, '19:00', 465], [31, '20:00', 420]],
+            [[5, '17:00', 360], [12, '18:00', 420], [19, '16:30', 330], [26, '18:00', 480], [28, '10:00', 240]],
+            [[2, '09:00', 480], [9, '09:00', 450], [16, '09:00', 480], [23, '09:00', 510]],
+        ];
+        foreach ($schedule as $index => $shifts) {
+            foreach ([$lastMonth, $today->modify('first day of this month')] as $month) {
+                foreach ($shifts as [$day, $start, $minutes]) {
+                    if ($day > (int) $month->format('t')) {
+                        continue;
+                    }
+                    $startedAt = $month->setDate((int) $month->format('Y'), (int) $month->format('n'), $day)->modify($start);
+                    $endedAt = $startedAt->modify(\sprintf('+%d minutes', $minutes));
+                    if ($endedAt >= $today) {
+                        continue;
+                    }
+                    $manager->persist(Shift::record(Uuid::v7(), $people[$index], $startedAt, $endedAt, null, $ownerId, MembershipRole::Owner, [], $now, ShiftPeriodLocks::none()));
+                }
+            }
+        }
     }
 
     /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */

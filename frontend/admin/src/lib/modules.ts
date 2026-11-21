@@ -38,6 +38,8 @@ export const modules: ModuleInfo[] = [
     title: "Payroll",
     description: "Paychecks calculated from logged hours and rates.",
     icon: WalletIcon,
+    to: "/payroll",
+    capability: "payroll",
   },
   {
     key: "time",

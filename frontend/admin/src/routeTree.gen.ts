@@ -23,6 +23,8 @@ import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/ind
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
 import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
+import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
+import { Route as AppPayrollRatesRouteImport } from './routes/_app/payroll/rates'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -93,6 +95,16 @@ const AppIncomeRegistersRoute = AppIncomeRegistersRouteImport.update({
   path: '/income/registers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPayrollIndexRoute = AppPayrollIndexRouteImport.update({
+  id: '/payroll/',
+  path: '/payroll/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayrollRatesRoute = AppPayrollRatesRouteImport.update({
+  id: '/payroll/rates',
+  path: '/payroll/rates',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -106,8 +118,10 @@ export interface FileRoutesByFullPath {
   '/time': typeof AppTimeRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/registers': typeof AppIncomeRegistersRoute
+  '/payroll/rates': typeof AppPayrollRatesRoute
   '/expenses/': typeof AppExpensesIndexRoute
   '/income/': typeof AppIncomeIndexRoute
+  '/payroll/': typeof AppPayrollIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -121,8 +135,10 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/registers': typeof AppIncomeRegistersRoute
+  '/payroll/rates': typeof AppPayrollRatesRoute
   '/expenses': typeof AppExpensesIndexRoute
   '/income': typeof AppIncomeIndexRoute
+  '/payroll': typeof AppPayrollIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -138,8 +154,10 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
+  '/_app/payroll/rates': typeof AppPayrollRatesRoute
   '/_app/expenses/': typeof AppExpensesIndexRoute
   '/_app/income/': typeof AppIncomeIndexRoute
+  '/_app/payroll/': typeof AppPayrollIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,8 +173,10 @@ export interface FileRouteTypes {
     | '/time'
     | '/expenses/categories'
     | '/income/registers'
+    | '/payroll/rates'
     | '/expenses/'
     | '/income/'
+    | '/payroll/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -170,8 +190,10 @@ export interface FileRouteTypes {
     | '/'
     | '/expenses/categories'
     | '/income/registers'
+    | '/payroll/rates'
     | '/expenses'
     | '/income'
+    | '/payroll'
   id:
     | '__root__'
     | '/_app'
@@ -186,8 +208,10 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/expenses/categories'
     | '/_app/income/registers'
+    | '/_app/payroll/rates'
     | '/_app/expenses/'
     | '/_app/income/'
+    | '/_app/payroll/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -297,6 +321,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncomeRegistersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/payroll/': {
+      id: '/_app/payroll/'
+      path: '/payroll'
+      fullPath: '/payroll/'
+      preLoaderRoute: typeof AppPayrollIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payroll/rates': {
+      id: '/_app/payroll/rates'
+      path: '/payroll/rates'
+      fullPath: '/payroll/rates'
+      preLoaderRoute: typeof AppPayrollRatesRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -309,8 +347,10 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
+  AppPayrollRatesRoute: typeof AppPayrollRatesRoute
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
+  AppPayrollIndexRoute: typeof AppPayrollIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -322,8 +362,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,
+  AppPayrollRatesRoute: AppPayrollRatesRoute,
   AppExpensesIndexRoute: AppExpensesIndexRoute,
   AppIncomeIndexRoute: AppIncomeIndexRoute,
+  AppPayrollIndexRoute: AppPayrollIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

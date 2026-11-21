@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses", "ksef"]
+const CAPABILITIES: Capability[] = ["admin", "team", "time", "shiftRequests", "settings", "income", "expenses", "payroll", "ksef"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {
@@ -34,7 +34,7 @@ describe("can", () => {
   })
 
   it("test_it_lets_employees_use_no_admin_screen", () => {
-    for (const capability of [...CAPABILITIES, "ksefToken" as const]) {
+    for (const capability of [...CAPABILITIES, "ksefToken" as const, "payrollApprove" as const]) {
       expect(can("employee", capability)).toBe(false)
     }
   })
@@ -43,6 +43,13 @@ describe("can", () => {
     expect(can("owner", "ksefToken")).toBe(true)
     expect(can("manager", "ksefToken")).toBe(false)
     expect(can(null, "ksefToken")).toBe(false)
+  })
+
+  it("test_it_lets_only_owners_approve_reopen_and_pay_payroll", () => {
+    expect(can("owner", "payrollApprove")).toBe(true)
+    expect(can("manager", "payrollApprove")).toBe(false)
+    expect(can("manager", "payroll")).toBe(true)
+    expect(can(null, "payrollApprove")).toBe(false)
   })
 
   it("test_it_lets_no_role_use_anything_when_no_organization_is_selected", () => {
@@ -94,12 +101,17 @@ describe("modulesFor", () => {
   it("test_it_shows_built_modules_only_to_roles_that_may_open_them", () => {
     expect(modulesFor("manager").some((m) => m.to === "/time")).toBe(true)
     expect(modulesFor("employee").some((m) => m.to === "/time")).toBe(false)
-    expect(modulesFor("employee").some((m) => m.key === "payroll")).toBe(true)
+    expect(modulesFor("employee").some((m) => m.key === "payroll")).toBe(false)
   })
 
   it("test_it_links_income_to_its_page_for_owners_and_managers_only", () => {
     expect(modulesFor("owner").find((m) => m.key === "income")?.to).toBe("/income")
     expect(modulesFor("employee").some((m) => m.key === "income")).toBe(false)
+  })
+
+  it("test_it_links_payroll_to_its_page_for_owners_and_managers_only", () => {
+    expect(modulesFor("manager").find((m) => m.key === "payroll")?.to).toBe("/payroll")
+    expect(modulesFor("owner").find((m) => m.key === "payroll")?.to).toBe("/payroll")
   })
 
   it("test_it_links_expenses_to_its_categories_for_owners_and_managers_only", () => {
