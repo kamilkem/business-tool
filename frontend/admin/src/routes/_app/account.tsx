@@ -2,16 +2,19 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { ChangePasswordForm } from "@business-tool/ui/components/change-password-form"
+import { LanguageSetting } from "@business-tool/ui/components/language-setting"
 
 import { api } from "@/lib/api"
+import { useMeSaved } from "@/lib/use-me-saved"
 
 export const Route = createFileRoute("/_app/account")({
   component: AccountPage,
 })
 
-/** The signed-in person's own account: who they are and their password (#16). */
+/** The signed-in person's own account: who they are, their language (ADR 0028) and their password (#16). */
 function AccountPage() {
   const { me } = Route.useRouteContext()
+  const onSaved = useMeSaved()
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
@@ -22,6 +25,11 @@ function AccountPage() {
             {me.firstName} {me.lastName} · {me.email}
           </CardDescription>
         </CardHeader>
+      </Card>
+      <Card>
+        <CardContent>
+          <LanguageSetting api={api} onSaved={onSaved} />
+        </CardContent>
       </Card>
       <Card>
         <CardHeader>

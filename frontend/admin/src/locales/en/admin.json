@@ -1,0 +1,8 @@
+{
+  "addMember": {
+    "language": {
+      "label": "Language",
+      "description": "Of the invitation e-mail, and the new person's language until they choose one. People who already have an account keep theirs."
+    }
+  }
+}

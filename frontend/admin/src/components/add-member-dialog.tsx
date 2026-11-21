@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { ApiError, type components, unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { UserPlusIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -16,7 +17,10 @@ import {
 } from "@business-tool/ui/components/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
+import { LanguageSelect } from "@business-tool/ui/components/language-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
+import { currentLanguage } from "@business-tool/ui/i18n/current-language"
+import type { Language } from "@business-tool/ui/i18n/languages"
 
 import { api } from "@/lib/api"
 import { type Role, assignableRoles, fullName, isActive, readableError, roleLabel } from "@/lib/members"
@@ -31,15 +35,19 @@ interface AddMemberDialogProps {
 }
 
 export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMemberDialogProps) {
+  const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const roles = assignableRoles(actorRole)
   const [open, setOpen] = useState(false)
   const [role, setRole] = useState<Role>("employee")
+  // A new person's language defaults to the inviter's (ADR 0028 §6).
+  const [language, setLanguage] = useState<Language>(currentLanguage)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
 
   function reset() {
     setRole("employee")
+    setLanguage(currentLanguage())
     setFieldErrors({})
     setFormError(null)
   }
@@ -89,6 +97,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
       firstName: String(form.get("firstName")),
       lastName: String(form.get("lastName")),
       role,
+      language,
     })
   }
 
@@ -169,6 +178,12 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
                 </Select>
                 {roles.length < 2 && <FieldDescription>Managers add employees only.</FieldDescription>}
                 {fieldErrors.role && <FieldError>{fieldErrors.role}</FieldError>}
+              </Field>
+              <Field data-invalid={fieldErrors.language ? true : undefined}>
+                <FieldLabel htmlFor="member-language">{t("addMember.language.label")}</FieldLabel>
+                <LanguageSelect id="member-language" value={language} onValueChange={setLanguage} />
+                <FieldDescription>{t("addMember.language.description")}</FieldDescription>
+                {fieldErrors.language && <FieldError>{fieldErrors.language}</FieldError>}
               </Field>
               {formError && (
                 <Field data-invalid>

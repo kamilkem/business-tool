@@ -11,6 +11,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
+    "test:catalogs": "vitest run packages/ui/src/i18n/catalogs.test.ts",
     "test": "vitest run",
     "api:types": "pnpm --filter @business-tool/api-client generate"
   },

@@ -4,6 +4,7 @@ import { LogOutIcon } from "lucide-react"
 
 import { Button } from "@business-tool/ui/components/button"
 import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { languageForUser, showLanguage } from "@business-tool/ui/i18n/current-language"
 
 import { meQuery } from "@/lib/queries"
 
@@ -30,6 +31,8 @@ export const Route = createFileRoute("/_app")({
       }
       throw error
     }
+    // The user's own language, else the browser's (ADR 0028 §2); a no-op when it is already shown.
+    showLanguage(languageForUser(me.language))
     const memberships = me.memberships
     const selected = session.get().organizationId
     const membership = memberships.find((m) => m.organization.id === selected) ?? memberships[0] ?? null

@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@business-tool/ui
 import { Separator } from "@business-tool/ui/components/separator"
 import { OrganizationCurrencyContext } from "@business-tool/ui/hooks/use-organization-currency"
 import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { languageForUser, showLanguage } from "@business-tool/ui/i18n/current-language"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { LimitedLayout } from "@/components/limited-layout"
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/_app")({
     }
 
     const me = await queryClient.ensureQueryData(meQuery)
+    // The user's own language, else the browser's (ADR 0028 §2); a no-op when it is already shown.
+    showLanguage(languageForUser(me.language))
     const memberships = me.memberships
     const selected = session.get().organizationId
     const current = memberships.find((m) => m.organization.id === selected) ?? memberships[0]

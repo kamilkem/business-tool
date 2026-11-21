@@ -3,16 +3,19 @@ import { ArrowLeftIcon } from "lucide-react"
 
 import { Button } from "@business-tool/ui/components/button"
 import { ChangePasswordForm } from "@business-tool/ui/components/change-password-form"
+import { LanguageSetting } from "@business-tool/ui/components/language-setting"
 
 import { api } from "@/lib/api"
+import { useMeSaved } from "@/lib/use-me-saved"
 
 export const Route = createFileRoute("/_app/account")({
   component: AccountScreen,
 })
 
-/** The signed-in person's own account: who they are and their password (#16). */
+/** The signed-in person's own account: who they are, their language (ADR 0028) and their password (#16). */
 function AccountScreen() {
   const { me } = Route.useRouteContext()
+  const onSaved = useMeSaved()
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 px-4 pb-4">
@@ -31,6 +34,10 @@ function AccountScreen() {
         </div>
         <div className="truncate text-muted-foreground">{me.email}</div>
       </div>
+
+      <section className="rounded-xl border bg-card p-4">
+        <LanguageSetting api={api} onSaved={onSaved} touch />
+      </section>
 
       <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
         <h2 className="font-medium">Change password</h2>

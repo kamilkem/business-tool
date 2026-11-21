@@ -8,7 +8,13 @@ const BASE = "http://api.test"
 
 /** A fake API: answers by path, records every request with the Authorization it carried. */
 function fakeApi(handlers: Record<string, (request: Request) => Response | Promise<Response>>) {
-  const calls: { path: string; authorization: string | null; organization: string | null; body: string }[] = []
+  const calls: {
+    path: string
+    authorization: string | null
+    organization: string | null
+    language: string | null
+    body: string
+  }[] = []
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     const path = new URL(request.url).pathname
@@ -16,6 +22,7 @@ function fakeApi(handlers: Record<string, (request: Request) => Response | Promi
       path,
       authorization: request.headers.get("Authorization"),
       organization: request.headers.get("X-Organization-Id"),
+      language: request.headers.get("Accept-Language"),
       body: await request.clone().text(),
     })
     const handler = handlers[path]
@@ -236,6 +243,37 @@ describe("createApiClient", () => {
 
     expect(session.get().token).toBe("expired-jwt")
     expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it("test_it_sends_the_language_shown_now_on_every_request_and_its_retry", async () => {
+    const session = signedInSession()
+    let language = "pl"
+    const api = fakeApi({
+      "/api/me": meFor("fresh-jwt"),
+      "/api/auth/refresh": () => json({ token: "fresh-jwt" }),
+      "/api/auth/password-reset": () => new Response(null, { status: 202 }),
+    })
+    const client = createApiClient({ baseUrl: BASE, session, language: () => language, fetch: api.fetch })
+
+    await unwrap(client.GET("/api/me"))
+    language = "en"
+    await client.POST("/api/auth/password-reset", { body: { email: "eve@example.com", app: "admin" } })
+
+    expect(api.calls.map((call) => [call.path, call.language])).toEqual([
+      ["/api/me", "pl"],
+      ["/api/auth/refresh", null],
+      ["/api/me", "pl"],
+      ["/api/auth/password-reset", "en"],
+    ])
+  })
+
+  it("test_it_sends_no_language_when_the_app_gives_none", async () => {
+    const api = fakeApi({ "/api/me": meFor("expired-jwt") })
+    const client = createApiClient({ baseUrl: BASE, session: signedInSession(), fetch: api.fetch })
+
+    await unwrap(client.GET("/api/me"))
+
+    expect(api.calls[0]?.language).toBeNull()
   })
 
   it("test_it_never_refreshes_without_a_token", async () => {

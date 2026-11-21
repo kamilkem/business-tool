@@ -1,0 +1,8 @@
+{
+  "addMember": {
+    "language": {
+      "label": "Język",
+      "description": "Język e-maila z zaproszeniem i nowej osoby, dopóki sama go nie wybierze. Osoby, które mają już konto, zachowują swój."
+    }
+  }
+}

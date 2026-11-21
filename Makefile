@@ -79,6 +79,9 @@ types: ## Regenerate the TypeScript API client from OpenAPI
 test-frontend: ## Run the frontend unit tests (vitest)
 	$(PNPM) test
 
+translations-frontend: ## Check every frontend catalog has every English key, plural form and placeholder (ADR 0028; part of test-frontend)
+	$(PNPM) test:catalogs
+
 ## —— Quality ————————————————————————————————————————————————————
 adr-check: ## Check ADR numbering, statuses and index (adr/)
 	.github/scripts/check-adr-hygiene.sh

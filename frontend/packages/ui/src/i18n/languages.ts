@@ -8,6 +8,15 @@ export type Language = (typeof LANGUAGES)[number]
 
 export const SOURCE_LANGUAGE: Language = "en"
 
+/**
+ * Each language in its own name, as a language picker lists them: a person who cannot read the
+ * current language still finds their own. Not translated, so not in a catalog.
+ */
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  en: "English",
+  pl: "Polski",
+}
+
 export function isLanguage(value: unknown): value is Language {
   return typeof value === "string" && (LANGUAGES as readonly string[]).includes(value)
 }

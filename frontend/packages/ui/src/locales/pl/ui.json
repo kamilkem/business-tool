@@ -8,5 +8,9 @@
     "tooManyAttemptsMinutes_other": "Zbyt wiele prób. Odczekaj {{count}} minuty i spróbuj ponownie.",
     "serverError": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie za chwilę.",
     "noConnection": "Nie udało się połączyć z serwerem. Sprawdź połączenie i spróbuj ponownie."
+  },
+  "language": {
+    "label": "Język",
+    "description": "Język obu aplikacji. Daty i liczby są zapisywane zgodnie z nim."
   }
 }
