@@ -198,6 +198,7 @@
     },
     "time_tracking": {
       "not_clocked_in": "Nie masz rozpoczętej zmiany. Najpierw ją rozpocznij.",
+      "open_shift_cannot_be_deleted": "Ta zmiana wciąż trwa: można ją usunąć dopiero po jej zakończeniu.",
       "shift_already_closed": "Ta zmiana już się zakończyła.",
       "shift_already_open": "{{user}} ma już rozpoczętą zmianę. Najpierw trzeba ją zakończyć.",
       "shift_already_open_self": "Masz już rozpoczętą zmianę. Najpierw ją zakończ.",
@@ -212,6 +213,7 @@
         "of": "Zmiana nie może się kończyć {{endedAt}}, skoro zaczęła się {{startedAt}}.",
         "requested": "Zmiana nie może się kończyć {{endedAt}}, jeśli zaczyna się {{startedAt}}."
       },
+      "shift_has_pending_change_request": "Do tej zmiany jest oczekujący wniosek o zmianę. Zatwierdź go lub odrzuć przed usunięciem zmiany.",
       "shift_in_the_future": "Zmiana nie może zaczynać się ani kończyć w przyszłości: {{time}} to później niż teraz ({{now}}).",
       "shift_not_found": {
         "current_of": "Nie masz rozpoczętej zmiany.",

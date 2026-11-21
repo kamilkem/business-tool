@@ -188,6 +188,7 @@
     },
     "time_tracking": {
       "not_clocked_in": "You are not clocked in. Clock in first.",
+      "open_shift_cannot_be_deleted": "This shift is still open: it can be deleted once it has ended.",
       "shift_already_closed": "This shift has already ended.",
       "shift_already_open": "{{user}} is already clocked in. Clock out first.",
       "shift_already_open_self": "You are already clocked in. Clock out first.",
@@ -202,6 +203,7 @@
         "of": "The shift cannot end at {{endedAt}}: it started at {{startedAt}}.",
         "requested": "A shift cannot end at {{endedAt}} if it starts at {{startedAt}}."
       },
+      "shift_has_pending_change_request": "This shift has a pending change request. Approve or reject it before deleting the shift.",
       "shift_in_the_future": "A shift cannot start or end in the future: {{time}} is after now ({{now}}).",
       "shift_not_found": {
         "current_of": "You are not clocked in: there is no current shift.",

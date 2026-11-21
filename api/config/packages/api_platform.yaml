@@ -70,6 +70,8 @@ api_platform:
         App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException: 422
         App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException: 422
         App\TimeTracking\Domain\Exception\ShiftPeriodLockedException: 409
+        App\TimeTracking\Domain\Exception\OpenShiftCannotBeDeletedException: 409
+        App\TimeTracking\Domain\Exception\ShiftHasPendingChangeRequestException: 409
         App\Income\Domain\Exception\IncomeManagementForbiddenException: 403
         App\Income\Domain\Exception\InvalidRegisterNameException: 422
         App\Income\Domain\Exception\RegisterNameTakenException: 409

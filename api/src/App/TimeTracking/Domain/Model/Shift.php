@@ -7,11 +7,13 @@ namespace App\TimeTracking\Domain\Model;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
+use App\TimeTracking\Domain\Exception\OpenShiftCannotBeDeletedException;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyClosedException;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
+use App\TimeTracking\Domain\Exception\ShiftHasPendingChangeRequestException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
 use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
@@ -38,6 +40,11 @@ use Symfony\Component\Uid\Uuid;
  * Once a period is locked (an approved payroll month, ADR 0027 §8), the shifts that started in it no
  * longer change: record() and correct() check the start dates against ShiftPeriodLocks. Clock-in and
  * clock-out are not checked (see ShiftPeriodLocks).
+ *
+ * Owners and managers also delete a shift (assertCanBeDeleted(), then the repository's remove()):
+ * a hard delete, as if it had never been worked. Nothing that still counts refers to it: a locked
+ * period's shifts are never deleted, a draft payroll run that counted it is refused at approval until
+ * it is regenerated (ADR 0027 §7), and decided change requests keep only its id.
  *
  * The person is referenced by id (User is another module's aggregate); their membership is never
  * deleted, only deactivated (ADR 0014), so the id stays meaningful.
@@ -201,6 +208,40 @@ class Shift implements TenantAwareInterface
         $this->endedAt = $endedAt;
         $this->note = $note;
         $this->markCorrected($actorId, $now);
+    }
+
+    /**
+     * An owner or manager deletes the shift (#28); the handler then removes it from the repository.
+     * A running shift is not deleted (it would clock the person out), nor one in a locked period
+     * (ADR 0027 §8), nor one with a pending change request about it (it is decided first).
+     *
+     * @param list<ShiftChangeRequest> $pendingRequests the pending requests about this shift
+     *                                                  (ShiftChangeRequestRepositoryInterface::findPendingAboutShift())
+     *
+     * @throws ShiftChangeForbiddenException         when the actor is not an owner or manager
+     * @throws OpenShiftCannotBeDeletedException     when the shift has not ended
+     * @throws ShiftPeriodLockedException            when it starts on a locked business date
+     * @throws ShiftHasPendingChangeRequestException when a change request about it is pending
+     */
+    public function assertCanBeDeleted(Uuid $actorId, MembershipRole $actorRole, ShiftPeriodLocks $locks, array $pendingRequests): void
+    {
+        self::assertCanManageShifts($actorId, $actorRole);
+
+        if ($this->isOpen()) {
+            throw OpenShiftCannotBeDeletedException::of($this->id->toRfc4122());
+        }
+
+        $locks->assertUnlocked($this->startedAt);
+
+        foreach ($pendingRequests as $request) {
+            $shiftId = $request->getShiftId();
+            if (null === $shiftId || !$shiftId->equals($this->id) || ShiftChangeRequestStatus::Pending !== $request->getStatus()) {
+                // Only reachable through a bug in the caller.
+                throw new \LogicException('The requests passed to assertCanBeDeleted() must be pending requests about this shift.');
+            }
+
+            throw ShiftHasPendingChangeRequestException::of($this->id->toRfc4122(), $request->getId()->toRfc4122());
+        }
     }
 
     /**
