@@ -53,7 +53,7 @@ final readonly class AddMemberProcessor implements ProcessorInterface
         $userId = $user?->id;
         if (null === $userId) {
             $userId = Uuid::v7()->toRfc4122();
-            $this->commandBus->handle(new CreateInvitedUserCommand($userId, $data->email, $data->firstName, $data->lastName));
+            $this->commandBus->handle(new CreateInvitedUserCommand($userId, $data->email, $data->firstName, $data->lastName, $data->language?->value));
         }
 
         $this->commandBus->handle(new AddMemberCommand($organizationId, $actorId, $userId, $data->role->value));

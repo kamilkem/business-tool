@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\User\Application;
 
 use App\Organization\Domain\Model\MembershipRole;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryMembershipRepository;
@@ -35,10 +36,25 @@ final class GetMeHandlerTest extends TestCase
         );
 
         self::assertSame('jane@example.com', $view->email);
+        self::assertNull($view->language);
         self::assertSame(
             [['Big Bar', 'employee', 'Europe/Warsaw', 'PLN'], ['Corner Pub', 'owner', 'Europe/Warsaw', 'PLN']],
             array_map(static fn ($m): array => [$m->organizationName, $m->role, $m->organizationTimezone, $m->organizationCurrency], $view->memberships),
         );
+    }
+
+    public function test_it_returns_the_users_language(): void
+    {
+        $users = new InMemoryUserRepository();
+        $user = UserMother::any();
+        $user->changeLanguage(Language::Polish);
+        $users->add($user);
+
+        $view = (new GetMeHandler($users, new InMemoryMembershipRepository(new InMemoryOrganizationRepository())))(
+            new GetMeQuery($user->getId()->toRfc4122()),
+        );
+
+        self::assertSame('pl', $view->language);
     }
 
     public function test_it_refuses_an_unknown_user(): void

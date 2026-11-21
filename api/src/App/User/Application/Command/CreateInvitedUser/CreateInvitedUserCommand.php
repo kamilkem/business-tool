@@ -17,6 +17,8 @@ final readonly class CreateInvitedUserCommand implements CommandInterface
         public string $email,
         public string $firstName,
         public string $lastName,
+        /** A Language code chosen by the inviter (ADR 0028 §6); null leaves it unset. */
+        public ?string $language = null,
     ) {
     }
 }

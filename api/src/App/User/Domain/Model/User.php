@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\User\Domain\Model;
 
+use App\Shared\Domain\Language\Language;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -37,6 +38,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private string $firstName = '',
         #[ORM\Column(length: 100)]
         private string $lastName = '',
+        /** The UI language they chose (ADR 0028); null until they choose, then the apps follow the browser. */
+        #[ORM\Column(length: 8, nullable: true, enumType: Language::class)]
+        private ?Language $language = null,
     ) {
         $this->email = self::normalizeEmail($email);
         $this->createdAt = $createdAt;
@@ -99,6 +103,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLastName(): string
     {
         return $this->lastName;
+    }
+
+    public function getLanguage(): ?Language
+    {
+        return $this->language;
+    }
+
+    /** Null goes back to "never chosen": the apps then use the browser's language (ADR 0028 §2). */
+    public function changeLanguage(?Language $language): void
+    {
+        $this->language = $language;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

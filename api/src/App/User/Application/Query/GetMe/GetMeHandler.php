@@ -40,6 +40,7 @@ final readonly class GetMeHandler implements QueryHandlerInterface
             $user->getEmail(),
             $user->getFirstName(),
             $user->getLastName(),
+            $user->getLanguage()?->value,
             $memberships,
         );
     }

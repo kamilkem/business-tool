@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\User\Application;
 
+use App\Shared\Domain\Language\Language;
 use App\Tests\Fixtures\UserMother;
 use App\User\Application\Command\CreateInvitedUser\CreateInvitedUserCommand;
 use App\User\Application\Command\CreateInvitedUser\CreateInvitedUserHandler;
@@ -30,6 +31,17 @@ final class CreateInvitedUserHandlerTest extends TestCase
         self::assertSame(['eve@example.com', 'Eve', 'Nowak'], [$user->getEmail(), $user->getFirstName(), $user->getLastName()]);
         self::assertFalse($user->hasPassword());
         self::assertEquals(new \DateTimeImmutable(self::NOW), $user->getCreatedAt());
+        self::assertNull($user->getLanguage());
+    }
+
+    public function test_it_gives_the_user_the_language_the_inviter_chose(): void
+    {
+        $users = new InMemoryUserRepository();
+        $id = Uuid::v7();
+
+        (new CreateInvitedUserHandler($users, new MockClock(self::NOW)))(new CreateInvitedUserCommand($id->toRfc4122(), 'eve@example.com', 'Eve', 'Nowak', 'pl'));
+
+        self::assertSame(Language::Polish, $users->findById($id)?->getLanguage());
     }
 
     public function test_it_refuses_an_email_that_already_has_a_user(): void

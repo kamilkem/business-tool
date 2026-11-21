@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\User\Application\Command\CreateInvitedUser;
 
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Domain\Language\Language;
 use App\User\Domain\Exception\EmailAlreadyRegisteredException;
 use App\User\Domain\Model\User;
 use App\User\Domain\Repository\UserRepositoryInterface;
@@ -32,6 +33,7 @@ final readonly class CreateInvitedUserHandler implements CommandHandlerInterface
             $this->clock->now(),
             trim($command->firstName),
             trim($command->lastName),
+            null === $command->language ? null : Language::from($command->language),
         ));
     }
 }
