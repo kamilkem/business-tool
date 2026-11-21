@@ -1,0 +1,12 @@
+{
+  "requestError": {
+    "tooManyAttempts": "Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.",
+    "tooManyAttemptsMinute": "Zbyt wiele prób. Odczekaj minutę i spróbuj ponownie.",
+    "tooManyAttemptsMinutes_one": "Zbyt wiele prób. Odczekaj {{count}} minutę i spróbuj ponownie.",
+    "tooManyAttemptsMinutes_few": "Zbyt wiele prób. Odczekaj {{count}} minuty i spróbuj ponownie.",
+    "tooManyAttemptsMinutes_many": "Zbyt wiele prób. Odczekaj {{count}} minut i spróbuj ponownie.",
+    "tooManyAttemptsMinutes_other": "Zbyt wiele prób. Odczekaj {{count}} minuty i spróbuj ponownie.",
+    "serverError": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie za chwilę.",
+    "noConnection": "Nie udało się połączyć z serwerem. Sprawdź połączenie i spróbuj ponownie."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "requestError": {
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "tooManyAttemptsMinute": "Too many attempts. Wait a minute and try again.",
+    "tooManyAttemptsMinutes_one": "Too many attempts. Wait {{count}} minute and try again.",
+    "tooManyAttemptsMinutes_other": "Too many attempts. Wait {{count}} minutes and try again.",
+    "serverError": "Something went wrong on our side. Try again in a moment.",
+    "noConnection": "Could not reach the server. Check your connection and try again."
+  }
+}

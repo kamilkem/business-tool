@@ -26,7 +26,7 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0016](0016-clock-in-on-own-phone-server-time.md) | Employees clock in on their own phones with their own account; the server's clock sets the time | Accepted |
 | [0017](0017-business-dates-and-periods-as-value-objects.md) | Business dates and periods are value objects converted to UTC ranges with an explicit time zone | Accepted |
 | [0018](0018-frontend-unit-tests-with-vitest.md) | Frontend unit tests run with Vitest, in a browser time zone that is not the organization's | Accepted |
-| [0019](0019-frontend-dates-in-the-organizations-time-zone.md) | The frontend shows dates and times in the organization's time zone, with `Intl` and no date library | Accepted |
+| [0019](0019-frontend-dates-in-the-organizations-time-zone.md) | The frontend shows dates and times in the organization's time zone, with `Intl` and no date library | Accepted (point 4 superseded by [0028](0028-ui-language-per-user-with-i18next.md)) |
 | [0020](0020-rotating-refresh-tokens-in-httponly-cookie.md) | Sessions outlast a shift: rotating refresh tokens in an HttpOnly cookie, revoked on sign-out and password change | Accepted |
 | [0021](0021-admin-for-owners-and-managers.md) | The admin is for owners and managers of the selected organization; employees use the time clock | Accepted |
 | [0022](0022-income-daily-report-per-register.md) | Income is one entry per register and business date: gross amounts per payment method, and a VAT breakdown chosen by the organization's country | Accepted |
@@ -35,3 +35,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0025](0025-background-jobs-scheduler-and-job-bus.md) | Background and scheduled jobs: Symfony Scheduler and a job bus on a PostgreSQL `jobs` queue, run by a second worker | Accepted |
 | [0026](0026-per-organization-secrets-encrypted-with-app-keyring.md) | Per-organization secrets are encrypted in the database with libsodium under an application keyring, in their own module, and never leave it through the API | Accepted |
 | [0027](0027-payroll-v1-hourly-gross-monthly-runs.md) | Payroll v1 is hourly pay for a calendar month, gross only: a run is generated from ended shifts, approved by an owner, and locks its shifts | Accepted |
+| [0028](0028-ui-language-per-user-with-i18next.md) | The UI speaks English and Polish: each user picks a language, i18next catalogs in the frontend, error codes from the API, e-mails in the recipient's language | Accepted |

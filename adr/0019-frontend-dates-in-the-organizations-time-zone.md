@@ -1,6 +1,6 @@
 # 0019. The frontend shows dates and times in the organization's time zone, with `Intl` and no date library
 
-Status: Accepted
+Status: Accepted (point 4 superseded by [0028](0028-ui-language-per-user-with-i18next.md))
 
 Date: 2026-11-11
 

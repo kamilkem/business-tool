@@ -25,7 +25,7 @@ export function useOrganizationTimeZone(): string {
 /** Date and time formatting in the selected organization's time zone and the current locale (`useLocale()`). */
 export function useDateTimeFormat(): DateTimeFormat {
   const timeZone = useOrganizationTimeZone()
-  // No <LocaleContext> yet means the browser's locale, which `Intl` picks for `undefined` (#21).
+  // No <LocaleContext> yet means the browser's locale, which `Intl` picks for `undefined` (ADR 0028 §7).
   const locale = use(LocaleContext) ?? undefined
   return useMemo(() => createDateTimeFormat(timeZone, locale), [timeZone, locale])
 }
