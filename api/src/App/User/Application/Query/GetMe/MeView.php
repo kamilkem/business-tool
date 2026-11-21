@@ -12,6 +12,8 @@ final readonly class MeView
         public string $email,
         public string $firstName,
         public string $lastName,
+        /** A Language code; null when the user has never chosen one (ADR 0028 §2). */
+        public ?string $language,
         public array $memberships,
     ) {
     }

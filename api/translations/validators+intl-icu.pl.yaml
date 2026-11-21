@@ -1,0 +1,14 @@
+# Polish for our own constraint messages (ADR 0028 §5), keyed by their English text, in ICU
+# MessageFormat: a `{{ limit }}` parameter is `{limit}` here. Symfony's built-in constraints bring
+# their own Polish. ValidatorTranslationsTest fails when a message in src/ has no entry.
+'A missing shift needs its end.': 'Brakująca zmiana musi mieć godzinę zakończenia.'
+'Each VAT rate may appear only once.': 'Każda stawka VAT może wystąpić tylko raz.'
+'Each payment method may appear only once.': 'Każda forma płatności może wystąpić tylko raz.'
+'Filter either by a category or by uncategorized expenses, not both.': 'Filtruj według kategorii albo wydatków bez kategorii, nie obu naraz.'
+'Give both roundingUnit and roundingDirection, or neither.': 'Podaj roundingUnit i roundingDirection razem albo żadnego z nich.'
+'The VAT may not exceed the gross amount.': 'VAT nie może przekraczać kwoty brutto.'
+'The current password is wrong.': 'Obecne hasło jest nieprawidłowe.'
+'The last date must not be before the first date.': 'Data końcowa nie może być wcześniejsza niż początkowa.'
+'The period must not be longer than {{ limit }} days.': 'Okres nie może być dłuższy niż {limit, plural, one {# dzień} other {# dni}}.'
+'This is not a month (YYYY-MM).': 'To nie jest miesiąc (RRRR-MM).'
+'This value is not a valid date-time with a time zone offset, e.g. 2026-11-12T16:00:00+01:00.': 'Ta wartość nie jest prawidłową datą i godziną z przesunięciem strefy czasowej, np. 2026-11-12T16:00:00+01:00.'

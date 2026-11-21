@@ -7,6 +7,7 @@ namespace App\Tests\Api\Organization;
 use App\Organization\Domain\Model\Membership;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Factory\UserFactory;
@@ -169,6 +170,58 @@ final class MemberApiTest extends ApiTestCase
         self::assertSame(2, self::userCount());
     }
 
+    public function test_it_gives_a_new_user_the_language_the_inviter_chose(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com',
+            'firstName' => 'Eve',
+            'lastName' => 'Nowak',
+            'role' => 'employee',
+            'language' => 'pl',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(Language::Polish, self::userByEmail('eve@example.com')?->getLanguage());
+    }
+
+    public function test_it_leaves_a_new_users_language_unset_when_none_is_given(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com',
+            'firstName' => 'Eve',
+            'lastName' => 'Nowak',
+            'role' => 'employee',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        $user = self::userByEmail('eve@example.com');
+        self::assertNotNull($user);
+        self::assertNull($user->getLanguage());
+    }
+
+    public function test_it_keeps_an_existing_users_own_language(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $existing = UserFactory::createOne(['email' => 'max@example.com']);
+        $existing->changeLanguage(Language::English);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'max@example.com',
+            'firstName' => 'Max',
+            'lastName' => 'Adamski',
+            'role' => 'employee',
+            'language' => 'pl',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(Language::English, self::userByEmail('max@example.com')?->getLanguage());
+    }
+
     public function test_it_refuses_a_person_who_is_already_a_member(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
@@ -196,6 +249,7 @@ final class MemberApiTest extends ApiTestCase
         yield 'too long last name' => [['lastName' => str_repeat('a', 101)] + $valid, 'lastName'];
         yield 'missing role' => [array_diff_key($valid, ['role' => true]), 'role'];
         yield 'unknown role' => [['role' => 'admin'] + $valid, 'role'];
+        yield 'unknown language' => [['language' => 'de'] + $valid, 'language'];
     }
 
     /** @param array<string, mixed> $payload */

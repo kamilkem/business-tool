@@ -1,0 +1,13 @@
+# UI languages (ADR 0028): English is the source and the fallback. A request's locale comes from its
+# `Accept-Language` header, matched against the enabled locales, else English; the validator
+# translates 422 violations into it. Symfony ships Polish for its built-in constraints; our own
+# constraint messages are in `translations/validators+intl-icu.<language>.yaml`, keyed by their
+# English text. Adding a language: add it here and in App\Shared\Domain\Language.
+framework:
+    default_locale: en
+    enabled_locales: [en, pl]
+    set_locale_from_accept_language: true
+    set_content_language_from_locale: true
+    translator:
+        default_path: '%kernel.project_dir%/translations'
+        fallbacks: [en]

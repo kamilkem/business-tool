@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\User\Domain;
 
+use App\Shared\Domain\Language\Language;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +33,31 @@ final class UserTest extends TestCase
         $user = new User(Uuid::v7(), 'eve@example.com', self::createdAt());
 
         self::assertEquals(self::createdAt(), $user->getCreatedAt());
+    }
+
+    public function test_it_has_no_language_until_one_is_chosen(): void
+    {
+        $user = new User(Uuid::v7(), 'eve@example.com', self::createdAt());
+
+        self::assertNull($user->getLanguage());
+    }
+
+    public function test_it_can_be_created_with_a_language(): void
+    {
+        $user = new User(Uuid::v7(), 'eve@example.com', self::createdAt(), 'Eve', 'Nowak', Language::Polish);
+
+        self::assertSame(Language::Polish, $user->getLanguage());
+    }
+
+    public function test_it_changes_its_language_and_goes_back_to_none(): void
+    {
+        $user = new User(Uuid::v7(), 'eve@example.com', self::createdAt());
+
+        $user->changeLanguage(Language::Polish);
+        self::assertSame(Language::Polish, $user->getLanguage());
+
+        $user->changeLanguage(null);
+        self::assertNull($user->getLanguage());
     }
 
     private static function createdAt(): \DateTimeImmutable

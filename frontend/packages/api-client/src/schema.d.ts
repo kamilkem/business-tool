@@ -389,7 +389,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Updates the Me resource.
+         * @description Updates the Me resource.
+         */
+        patch: operations["api_me_patch"];
         trace?: never;
     };
     "/api/members": {
@@ -2040,7 +2044,20 @@ export interface components {
             email: string;
             firstName: string;
             lastName: string;
+            /**
+             * @description The UI language the user chose; null when they never chose one, and the apps use the browser's (ADR 0028).
+             * @enum {string|null}
+             */
+            language: "en" | "pl" | null;
             memberships: components["schemas"]["MeMembership"][];
+        };
+        /** @description The signed-in user and the organizations they can access. */
+        "Me.UpdateMeInput.jsonMergePatch": {
+            /**
+             * @description `en` or `pl`; null goes back to the browser's language (ADR 0028 §2).
+             * @enum {string|null}
+             */
+            language?: "en" | "pl" | null;
         };
         /** @description The signed-in user and the organizations they can access. */
         "Me.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
@@ -2048,6 +2065,11 @@ export interface components {
             email: string;
             firstName: string;
             lastName: string;
+            /**
+             * @description The UI language the user chose; null when they never chose one, and the apps use the browser's (ADR 0028).
+             * @enum {string|null}
+             */
+            language: "en" | "pl" | null;
             memberships: components["schemas"]["MeMembership.jsonld"][];
         };
         MeMembership: {
@@ -2122,6 +2144,13 @@ export interface components {
              * @enum {string}
              */
             role: "owner" | "manager" | "employee";
+            /**
+             * @description The language of the invitation e-mail and the new user's UI language (ADR 0028 §6). Used
+             *     only when the e-mail has no account yet; an existing user keeps their own. Null leaves it
+             *     unset, and the apps then use the browser's.
+             * @enum {string|null}
+             */
+            language?: "en" | "pl" | null;
         };
         /**
          * @description People with access to the organization selected by the X-Organization-Id header. Only owners
@@ -4982,6 +5011,65 @@ export interface operations {
                     "application/ld+json": components["schemas"]["Error.jsonld"];
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The updated Me resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["Me.UpdateMeInput.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description Me resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Me.jsonld"];
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
                 };
             };
         };
