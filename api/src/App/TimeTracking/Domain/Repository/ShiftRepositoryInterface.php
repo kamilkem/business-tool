@@ -51,4 +51,7 @@ interface ShiftRepositoryInterface
 
     /** Persists changes made to an already managed shift. */
     public function save(Shift $shift): void;
+
+    /** Deletes the shift for good (after Shift::assertCanBeDeleted()). */
+    public function remove(Shift $shift): void;
 }

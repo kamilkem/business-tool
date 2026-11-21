@@ -18,6 +18,8 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
 
     public int $saveCallCount = 0;
 
+    public int $removeCallCount = 0;
+
     /**
      * Makes findOpenByUser() miss open shifts, as a request does when a concurrent clock-in has not
      * committed yet; add() still refuses a second open shift, like the partial unique index.
@@ -75,6 +77,12 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
     {
         ++$this->saveCallCount;
         $this->byId[$shift->getId()->toRfc4122()] = $shift;
+    }
+
+    public function remove(Shift $shift): void
+    {
+        ++$this->removeCallCount;
+        unset($this->byId[$shift->getId()->toRfc4122()]);
     }
 
     /** @return list<Shift> */

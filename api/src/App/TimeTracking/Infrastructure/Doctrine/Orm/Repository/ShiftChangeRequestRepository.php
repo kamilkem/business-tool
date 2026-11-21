@@ -43,6 +43,20 @@ final class ShiftChangeRequestRepository extends ServiceEntityRepository impleme
         return $qb->getQuery()->getResult();
     }
 
+    public function findPendingAboutShift(Uuid $shiftId): array
+    {
+        /** @var list<ShiftChangeRequest> */
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.shiftId = :shiftId')
+            ->andWhere('r.status = :status')
+            ->setParameter('shiftId', $shiftId, UuidType::NAME)
+            ->setParameter('status', ShiftChangeRequestStatus::Pending->value)
+            ->orderBy('r.submittedAt', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function add(ShiftChangeRequest $request): void
     {
         $this->getEntityManager()->persist($request);

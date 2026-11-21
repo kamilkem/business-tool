@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\TimeTracking;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
@@ -17,6 +18,7 @@ use Ui\Http\TimeTracking\Processor\AddShiftProcessor;
 use Ui\Http\TimeTracking\Processor\ClockInProcessor;
 use Ui\Http\TimeTracking\Processor\ClockOutProcessor;
 use Ui\Http\TimeTracking\Processor\CorrectShiftProcessor;
+use Ui\Http\TimeTracking\Processor\DeleteShiftProcessor;
 use Ui\Http\TimeTracking\Provider\CorrectShiftInputProvider;
 use Ui\Http\TimeTracking\Provider\CurrentShiftProvider;
 
@@ -25,7 +27,7 @@ use Ui\Http\TimeTracking\Provider\CurrentShiftProvider;
  * clocks in and out for themselves only, on their own phone (ADR 0016); the server's clock sets the
  * times, so those requests carry no body. There is no location check. Owners and managers enter
  * missing shifts and correct shifts' times and notes for anyone (ADR 0016 §5); the shift keeps who
- * did it last and when.
+ * did it last and when, and delete shifts for good.
  */
 #[ApiResource(
     shortName: 'Shift',
@@ -105,6 +107,23 @@ use Ui\Http\TimeTracking\Provider\CurrentShiftProvider;
             input: CorrectShiftInput::class,
             provider: CorrectShiftInputProvider::class,
             processor: CorrectShiftProcessor::class,
+        ),
+        new Delete(
+            uriTemplate: '/shifts/{id}',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Deletes a shift.',
+                description: 'Owners and managers only (403 otherwise), for anyone\'s shift, their own included; a shift that is not the selected organization\'s is a 404. The shift is removed and no trace is kept. Refused with a 409 while the shift is still open (the person clocks out, or it is given an end, first), when it starts in a period locked by an approved payroll run, or while a change request about it is pending (decide it first).',
+                responses: [
+                    '204' => new Response('The shift was deleted.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The shift is not one of the selected organization\'s.'),
+                    '409' => new Response('The shift is still open, is in a locked period, or has a pending change request.'),
+                ],
+            ),
+            read: false,
+            processor: DeleteShiftProcessor::class,
         ),
     ],
 )]

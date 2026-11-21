@@ -21,6 +21,13 @@ interface ShiftChangeRequestRepositoryInterface
      */
     public function findAll(?ShiftChangeRequestStatus $status = null, ?Uuid $userId = null): array;
 
+    /**
+     * The pending requests for new times of this shift (kind new_times), oldest first.
+     *
+     * @return list<ShiftChangeRequest>
+     */
+    public function findPendingAboutShift(Uuid $shiftId): array;
+
     public function add(ShiftChangeRequest $request): void;
 
     /** Persists changes made to an already managed request. */

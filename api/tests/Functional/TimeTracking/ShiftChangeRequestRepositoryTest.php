@@ -107,6 +107,36 @@ final class ShiftChangeRequestRepositoryTest extends KernelTestCase
         self::assertSame([], $this->requests->findAll());
     }
 
+    public function test_it_finds_the_pending_requests_about_a_shift_oldest_first(): void
+    {
+        [$a, $b] = OrganizationFactory::createMany(2);
+        $this->switchTo($a);
+        $userId = Uuid::v7();
+        $shift = Shift::clockIn(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-12 16:00:00'), null);
+        $otherShift = Shift::clockIn(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-11 16:00:00'), null);
+        $newer = $this->requestNewStart($userId, $shift, '2026-11-13 09:00:00');
+        $older = $this->requestNewStart($userId, $shift, '2026-11-13 08:00:00');
+        $rejected = $this->requestNewStart($userId, $shift, '2026-11-13 07:00:00');
+        $rejected->reject(Uuid::v7(), MembershipRole::Manager, null, new \DateTimeImmutable(self::NOW));
+        $this->requests->save($rejected);
+        $this->requestNewStart($userId, $otherShift, '2026-11-13 08:00:00');
+        $this->add($userId, '2026-11-13 08:00:00');
+        $this->entityManager->clear();
+
+        self::assertSame(self::ids([$older, $newer]), self::ids($this->requests->findPendingAboutShift($shift->getId())));
+
+        $this->switchTo($b);
+        self::assertSame([], $this->requests->findPendingAboutShift($shift->getId()));
+    }
+
+    private function requestNewStart(Uuid $userId, Shift $shift, string $submittedAt): ShiftChangeRequest
+    {
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $userId, $shift, $shift->getStartedAt()->modify('-30 minutes'), null, 'Clocked in late', new \DateTimeImmutable($submittedAt), ShiftPeriodLocks::none());
+        $this->requests->add($request);
+
+        return $request;
+    }
+
     private function add(Uuid $userId, string $submittedAt): ShiftChangeRequest
     {
         $request = ShiftChangeRequest::forMissingShift(Uuid::v7(), $userId, new \DateTimeImmutable('2026-11-10 08:00:00'), new \DateTimeImmutable('2026-11-10 16:00:00'), 'My phone was dead', new \DateTimeImmutable($submittedAt), ShiftPeriodLocks::none());
