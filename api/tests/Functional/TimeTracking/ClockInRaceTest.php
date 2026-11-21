@@ -97,6 +97,11 @@ final class ClockInRaceTest extends KernelTestCase
             {
                 $this->inner->save($shift);
             }
+
+            public function remove(Shift $shift): void
+            {
+                $this->inner->remove($shift);
+            }
         };
     }
 }

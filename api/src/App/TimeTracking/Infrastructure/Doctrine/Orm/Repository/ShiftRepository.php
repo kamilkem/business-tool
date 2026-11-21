@@ -101,4 +101,10 @@ final class ShiftRepository extends ServiceEntityRepository implements ShiftRepo
     {
         $this->getEntityManager()->flush();
     }
+
+    public function remove(Shift $shift): void
+    {
+        $this->getEntityManager()->remove($shift);
+        $this->getEntityManager()->flush();
+    }
 }

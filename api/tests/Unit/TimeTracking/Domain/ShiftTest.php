@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Unit\TimeTracking\Domain;
 
 use App\Organization\Domain\Model\MembershipRole;
+use App\TimeTracking\Domain\Exception\OpenShiftCannotBeDeletedException;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyClosedException;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
 use App\TimeTracking\Domain\Exception\ShiftCannotBeReopenedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
+use App\TimeTracking\Domain\Exception\ShiftHasPendingChangeRequestException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
 use App\TimeTracking\Domain\Model\Shift;
+use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftSource;
 use App\Tests\Fixtures\LockedShiftPeriodMother;
@@ -460,6 +463,70 @@ final class ShiftTest extends TestCase
         $shift->correct(new \DateTimeImmutable('2026-10-30 16:00:00'), new \DateTimeImmutable('2026-10-30 23:00:00'), null, $this->managerId, MembershipRole::Owner, [], new \DateTimeImmutable(self::NOW), LockedShiftPeriodMother::octoberLockedIn());
 
         self::assertSame($correctedAt, $shift->getCorrectedAt());
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_lets_an_owner_or_manager_delete_an_ended_shift(MembershipRole $role): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        $this->closedShift()->assertCanBeDeleted($this->managerId, $role, ShiftPeriodLocks::none(), []);
+    }
+
+    public function test_it_refuses_to_let_an_employee_delete_a_shift_even_their_own(): void
+    {
+        $this->expectException(ShiftChangeForbiddenException::class);
+
+        $this->closedShift()->assertCanBeDeleted($this->userId, MembershipRole::Employee, ShiftPeriodLocks::none(), []);
+    }
+
+    public function test_it_refuses_to_delete_an_open_shift(): void
+    {
+        $this->expectException(OpenShiftCannotBeDeletedException::class);
+
+        $this->openShift()->assertCanBeDeleted($this->managerId, MembershipRole::Manager, ShiftPeriodLocks::none(), []);
+    }
+
+    public function test_it_refuses_to_delete_a_shift_of_a_locked_month(): void
+    {
+        $shift = $this->recordedShift('2026-10-31 19:00:00', '2026-11-01 02:00:00');
+
+        $this->expectException(ShiftPeriodLockedException::class);
+
+        $shift->assertCanBeDeleted($this->managerId, MembershipRole::Owner, LockedShiftPeriodMother::octoberLockedIn(), []);
+    }
+
+    public function test_it_deletes_a_shift_of_the_month_after_a_locked_one(): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        // 2026-10-31 23:30 UTC is November 1 in Warsaw: not in the locked October.
+        $this->recordedShift('2026-10-31 23:30:00', '2026-11-01 06:00:00')
+            ->assertCanBeDeleted($this->managerId, MembershipRole::Manager, LockedShiftPeriodMother::octoberLockedIn(), []);
+    }
+
+    public function test_it_refuses_to_delete_a_shift_with_a_pending_change_request(): void
+    {
+        $shift = $this->closedShift();
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), 'Left later', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
+
+        try {
+            $shift->assertCanBeDeleted($this->managerId, MembershipRole::Manager, ShiftPeriodLocks::none(), [$request]);
+            self::fail('Expected ShiftHasPendingChangeRequestException.');
+        } catch (ShiftHasPendingChangeRequestException $e) {
+            self::assertSame(['shiftId' => $shift->getId()->toRfc4122(), 'requestId' => $request->getId()->toRfc4122()], $e->errorParameters());
+        }
+    }
+
+    public function test_it_refuses_requests_that_are_not_pending_requests_about_the_shift(): void
+    {
+        $shift = $this->closedShift();
+        $request = ShiftChangeRequest::forShift(Uuid::v7(), $this->userId, $shift, new \DateTimeImmutable(self::START), new \DateTimeImmutable('2026-11-12 01:00:00'), 'Left later', new \DateTimeImmutable(self::NOW), ShiftPeriodLocks::none());
+        $request->reject($this->managerId, MembershipRole::Manager, null, new \DateTimeImmutable(self::NOW));
+
+        $this->expectException(\LogicException::class);
+
+        $shift->assertCanBeDeleted($this->managerId, MembershipRole::Manager, ShiftPeriodLocks::none(), [$request]);
     }
 
     private function recordInOrganizationWithOctoberLocked(string $start, string $end): Shift

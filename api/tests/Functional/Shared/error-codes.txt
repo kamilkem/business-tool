@@ -123,6 +123,7 @@ time.invalid_business_period.ends_before_it_starts
 time.invalid_business_period.not_a_month
 time.invalid_business_period.not_a_month_string
 time_tracking.not_clocked_in
+time_tracking.open_shift_cannot_be_deleted
 time_tracking.shift_already_closed
 time_tracking.shift_already_open
 time_tracking.shift_cannot_be_reopened
@@ -134,6 +135,7 @@ time_tracking.shift_change_request_not_found
 time_tracking.shift_change_request_note_required
 time_tracking.shift_end_not_after_start.of
 time_tracking.shift_end_not_after_start.requested
+time_tracking.shift_has_pending_change_request
 time_tracking.shift_in_the_future
 time_tracking.shift_not_found.current_of
 time_tracking.shift_not_found.with_id

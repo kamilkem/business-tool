@@ -12,7 +12,7 @@ use App\TimeTracking\Domain\Exception\ShiftPeriodLockedException;
  * (ADR 0027 §8): entering a shift (Shift::record()), correcting one (Shift::correct(), old and new
  * start), and submitting a shift change request about one (ShiftChangeRequest). Approving a request
  * goes through Shift::record() or Shift::correct(), so it is refused the same way and the request
- * stays pending. Deleting a shift (#28) has to call assertUnlocked() with the shift's start too.
+ * stays pending. Deleting a shift (Shift::assertCanBeDeleted()) is checked by its start too.
  *
  * Clocking in and out are not checked: a period is locked only once it is over and has no open
  * shifts (ADR 0027 §7), so the server's now is never in it.

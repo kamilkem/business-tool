@@ -247,6 +247,21 @@ final class ShiftRepositoryTest extends KernelTestCase
         self::assertSame([], $this->shifts->findByIds([]));
     }
 
+    public function test_it_removes_a_shift_and_keeps_the_others(): void
+    {
+        $this->switchTo(OrganizationFactory::createOne());
+        $userId = Uuid::v7();
+        $removed = $this->add($userId, '2026-11-11 08:00:00', '2026-11-11 16:00:00');
+        $kept = $this->add($userId, self::START, self::END);
+
+        $shift = $this->shifts->findById(Uuid::fromString($removed)) ?? self::fail('Shift not stored.');
+        $this->shifts->remove($shift);
+        $this->entityManager->clear();
+
+        self::assertNull($this->shifts->findById(Uuid::fromString($removed)));
+        self::assertNotNull($this->shifts->findById(Uuid::fromString($kept)));
+    }
+
     /** @return string the shift's id */
     private function add(Uuid $userId, string $startedAt, ?string $endedAt): string
     {
