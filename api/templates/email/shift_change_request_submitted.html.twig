@@ -2,16 +2,18 @@
    (#84). Context: firstName, requesterName, organizationName, kind ("missing_shift" | "new_times"),
    startedAt, endedAt (null: the shift stays open), shiftStartedAt, shiftEndedAt (the shift's times
    now, for new times), note, timeZone, link. Times are already formatted in the organization's time
-   zone. Rendered by the queue worker (adr/0012). #}
-<p>Hello {{ firstName }},</p>
+   zone and the recipient's language. Rendered by the queue worker (adr/0012) in the recipient's
+   language (ADR 0028 §6): texts in translations/email+intl-icu.*. #}
+{% trans_default_domain 'email' %}
+<p>{{ 'common.hello_name'|trans({firstName: firstName}) }}</p>
 {% if kind == 'missing_shift' %}
-<p>{{ requesterName }} asks you to enter a shift they worked but did not clock in <strong>{{ organizationName }}</strong>:</p>
-<p>{{ startedAt }} to {{ endedAt }}</p>
+<p>{{ 'shift_change_request_submitted.missing_shift'|trans({requesterName: requesterName, organizationName: organizationName}) }}</p>
+<p>{{ 'common.time_range'|trans({startedAt: startedAt, endedAt: endedAt ?? 'common.still_open'|trans}) }}</p>
 {% else %}
-<p>{{ requesterName }} asks you to change the times of one of their shifts in <strong>{{ organizationName }}</strong>:</p>
-<p>Now: {{ shiftStartedAt ?? 'unknown' }} to {{ shiftEndedAt ?? 'still open' }}<br>
-Asked for: {{ startedAt }} to {{ endedAt ?? 'still open' }}</p>
+<p>{{ 'shift_change_request_submitted.new_times'|trans({requesterName: requesterName, organizationName: organizationName}) }}</p>
+<p>{{ 'shift_change_request_submitted.now'|trans({range: 'common.time_range'|trans({startedAt: shiftStartedAt ?? 'common.unknown'|trans, endedAt: shiftEndedAt ?? 'common.still_open'|trans})}) }}<br>
+{{ 'shift_change_request_submitted.asked_for'|trans({range: 'common.time_range'|trans({startedAt: startedAt, endedAt: endedAt ?? 'common.still_open'|trans})}) }}</p>
 {% endif %}
-<p>Times are in {{ timeZone }}. Their note: <em>{{ note }}</em></p>
-<p>Approve or reject the request in the admin panel:</p>
-<p><a href="{{ link }}">Open the admin panel</a></p>
+<p>{{ 'shift_change_request_submitted.times_in'|trans({timeZone: timeZone}) }} {{ 'shift_change_request_submitted.note'|trans }} <em>{{ note }}</em></p>
+<p>{{ 'shift_change_request_submitted.decide_prompt'|trans }}</p>
+<p><a href="{{ link }}">{{ 'shift_change_request_submitted.link'|trans }}</a></p>

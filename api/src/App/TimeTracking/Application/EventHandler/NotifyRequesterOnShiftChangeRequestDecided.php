@@ -15,6 +15,7 @@ use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Mail\TransactionalEmail;
 use App\Shared\Application\Mail\TransactionalMailerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Language\Language;
 use App\Shared\Domain\Event\EventHandlerInterface;
 use App\TimeTracking\Domain\Event\ShiftChangeRequestDecided;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestNotFoundException;
@@ -60,12 +61,14 @@ final readonly class NotifyRequesterOnShiftChangeRequestDecided implements Event
         $decider ??= throw MemberNotFoundException::of($event->decidedById, $event->organizationId);
 
         $approved = ShiftChangeRequestStatus::Approved === $request->getStatus();
+        $locale = TransactionalEmail::localeOf(null === $requester->language ? null : Language::from($requester->language));
 
         $this->mailer->send(new TransactionalEmail(
             to: $requester->email,
-            subject: $approved ? 'Your shift change request was approved' : 'Your shift change request was rejected',
+            locale: $locale,
+            subject: $approved ? 'shift_change_request_decided.subject_approved' : 'shift_change_request_decided.subject_rejected',
             template: 'email/shift_change_request_decided.html.twig',
-            context: ShiftChangeRequestEmail::context($request, null, $organization->timezone) + [
+            context: ShiftChangeRequestEmail::context($request, null, $organization->timezone, $locale) + [
                 'firstName' => $requester->firstName,
                 'organizationName' => $organization->name,
                 'approved' => $approved,

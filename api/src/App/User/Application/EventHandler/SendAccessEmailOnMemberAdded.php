@@ -67,7 +67,8 @@ final readonly class SendAccessEmailOnMemberAdded implements EventHandlerInterfa
 
         $this->mailer->send(new TransactionalEmail(
             to: $user->getEmail(),
-            subject: \sprintf('You now have access to %s', $organization->name),
+            locale: TransactionalEmail::localeOf($user->getLanguage()),
+            subject: 'added_to_organization.subject',
             template: 'email/added_to_organization.html.twig',
             context: [
                 'firstName' => $user->getFirstName(),
@@ -75,6 +76,7 @@ final readonly class SendAccessEmailOnMemberAdded implements EventHandlerInterfa
                 'addedByName' => trim($addedBy->getFirstName().' '.$addedBy->getLastName()),
                 'link' => $this->links->signIn(AppLinks::appFor(MembershipRole::from($event->role))),
             ],
+            subjectParameters: ['organizationName' => $organization->name],
         ));
     }
 }

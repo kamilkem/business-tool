@@ -6,6 +6,7 @@ namespace App\Tests\Unit\User\Application;
 
 use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Mail\TransactionalEmail;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Unit\Shared\Application\RecordingMailer;
 use App\User\Application\Command\RequestPasswordReset\RequestPasswordResetCommand;
 use App\User\Application\Command\RequestPasswordReset\RequestPasswordResetHandler;
@@ -54,6 +55,8 @@ final class RequestPasswordResetHandlerTest extends TestCase
 
         $email = $this->onlyEmail();
         self::assertSame('max@example.com', $email->to);
+        self::assertSame('en', $email->locale);
+        self::assertSame('password_reset.subject', $email->subject);
         self::assertSame('email/password_reset.html.twig', $email->template);
         self::assertSame('Max', $email->context['firstName']);
         self::assertSame(60, $email->context['validForMinutes']);
@@ -83,6 +86,15 @@ final class RequestPasswordResetHandlerTest extends TestCase
         $this->handle('  Max@Example.COM ', 'admin');
 
         self::assertSame('max@example.com', $this->onlyEmail()->to);
+    }
+
+    public function test_it_writes_the_email_in_the_users_language(): void
+    {
+        $this->user->changeLanguage(Language::Polish);
+
+        $this->handle('max@example.com', 'admin');
+
+        self::assertSame('pl', $this->onlyEmail()->locale);
     }
 
     public function test_it_does_nothing_for_an_unknown_email(): void

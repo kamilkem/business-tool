@@ -7,6 +7,7 @@ namespace App\Tests\Unit\TimeTracking\Application;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Mail\TransactionalEmail;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Shared\Application\RecordingCommandBus;
@@ -59,7 +60,9 @@ final class ShiftChangeRequestEventHandlersTest extends ShiftChangeRequestTestCa
         self::assertSame(['olivia@example.com', 'mark@example.com'], array_map(static fn (TransactionalEmail $email): string => $email->to, $this->mailer->emails));
         $email = $this->mailer->emails[1];
         $requesterName = trim($this->employee->getFirstName().' '.$this->employee->getLastName());
-        self::assertSame($requesterName.' asks for a shift change', $email->subject);
+        self::assertSame('en', $email->locale);
+        self::assertSame('shift_change_request_submitted.subject', $email->subject);
+        self::assertSame(['requesterName' => $requesterName], $email->subjectParameters);
         self::assertSame('email/shift_change_request_submitted.html.twig', $email->template);
         self::assertSame([
             'firstName' => $this->manager->getFirstName(),
@@ -74,6 +77,18 @@ final class ShiftChangeRequestEventHandlersTest extends ShiftChangeRequestTestCa
             'requesterName' => $requesterName,
             'link' => 'https://admin.example.com/',
         ], $email->context);
+    }
+
+    public function test_it_writes_to_each_manager_in_their_own_language_times_included(): void
+    {
+        $this->manager->changeLanguage(Language::Polish);
+        $request = $this->missingShiftRequest($this->employee, '2026-11-12 16:00:00', '2026-11-12 23:30:00');
+
+        $this->submitted($request, $this->employee);
+
+        [$toOwner, $toManager] = $this->mailer->emails;
+        self::assertSame(['en', 'Thu 12 Nov 2026, 17:00'], [$toOwner->locale, $toOwner->context['startedAt']]);
+        self::assertSame(['pl', 'czw. 12 lis 2026, 17:00'], [$toManager->locale, $toManager->context['startedAt']]);
     }
 
     public function test_it_does_not_tell_a_manager_about_their_own_request_nor_deactivated_managers(): void
@@ -100,7 +115,8 @@ final class ShiftChangeRequestEventHandlersTest extends ShiftChangeRequestTestCa
         self::assertCount(1, $this->mailer->emails);
         $email = $this->mailer->emails[0];
         self::assertSame('eve@example.com', $email->to);
-        self::assertSame('Your shift change request was approved', $email->subject);
+        self::assertSame('en', $email->locale);
+        self::assertSame('shift_change_request_decided.subject_approved', $email->subject);
         self::assertSame('email/shift_change_request_decided.html.twig', $email->template);
         self::assertTrue($email->context['approved']);
         self::assertSame('Thu 12 Nov 2026, 17:00', $email->context['startedAt']);
@@ -120,9 +136,21 @@ final class ShiftChangeRequestEventHandlersTest extends ShiftChangeRequestTestCa
         self::assertCount(1, $this->mailer->emails);
         $email = $this->mailer->emails[0];
         self::assertSame('eve@example.com', $email->to);
-        self::assertSame('Your shift change request was rejected', $email->subject);
+        self::assertSame('shift_change_request_decided.subject_rejected', $email->subject);
         self::assertFalse($email->context['approved']);
         self::assertSame('You were off that day', $email->context['rejectionReason']);
+    }
+
+    public function test_it_tells_the_requester_in_their_own_language(): void
+    {
+        $this->employee->changeLanguage(Language::Polish);
+        $request = $this->missingShiftRequest($this->employee, '2026-11-12 16:00:00', '2026-11-12 23:30:00');
+        $request->approve($this->manager->getId(), MembershipRole::Manager, Uuid::v7(), new \DateTimeImmutable(self::NOW));
+
+        $this->decided($request, $this->manager);
+
+        $email = $this->mailer->emails[0];
+        self::assertSame(['pl', 'czw. 12 lis 2026, 17:00', 'pt. 13 lis 2026, 00:30'], [$email->locale, $email->context['startedAt'], $email->context['endedAt']]);
     }
 
     public function test_it_links_a_manager_to_the_admin_panel_when_their_own_request_is_decided(): void

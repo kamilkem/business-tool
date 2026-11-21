@@ -1,18 +1,20 @@
 {# To the requester when their shift change request is approved or rejected (#84). Context:
    firstName, organizationName, approved (bool), deciderName, kind ("missing_shift" | "new_times"),
    startedAt, endedAt (null: the shift stays open), note, rejectionReason (or null), timeZone, link.
-   Times are already formatted in the organization's time zone. Rendered by the queue worker
-   (adr/0012). #}
-<p>Hello {{ firstName }},</p>
+   Times are already formatted in the organization's time zone and the recipient's language. Rendered
+   by the queue worker (adr/0012) in the recipient's language (ADR 0028 §6): texts in
+   translations/email+intl-icu.*. #}
+{% trans_default_domain 'email' %}
+<p>{{ 'common.hello_name'|trans({firstName: firstName}) }}</p>
 {% if approved %}
-<p>{{ deciderName }} approved your shift change request in <strong>{{ organizationName }}</strong>.
-{% if kind == 'missing_shift' %}The shift was added{% else %}Your shift now has these times{% endif %}:</p>
+<p>{{ 'shift_change_request_decided.approved'|trans({deciderName: deciderName, organizationName: organizationName}) }}
+{% if kind == 'missing_shift' %}{{ 'shift_change_request_decided.shift_added'|trans }}{% else %}{{ 'shift_change_request_decided.new_times'|trans }}{% endif %}</p>
 {% else %}
-<p>{{ deciderName }} rejected your shift change request in <strong>{{ organizationName }}</strong>, and your shifts stay as they were. You asked for:</p>
+<p>{{ 'shift_change_request_decided.rejected'|trans({deciderName: deciderName, organizationName: organizationName}) }}</p>
 {% endif %}
-<p>{{ startedAt }} to {{ endedAt ?? 'still open' }} ({{ timeZone }})</p>
+<p>{{ 'common.time_range'|trans({startedAt: startedAt, endedAt: endedAt ?? 'common.still_open'|trans}) }} ({{ timeZone }})</p>
 {% if not approved and rejectionReason %}
-<p>Reason: <em>{{ rejectionReason }}</em></p>
+<p>{{ 'shift_change_request_decided.reason'|trans }} <em>{{ rejectionReason }}</em></p>
 {% endif %}
-<p>Your note: <em>{{ note }}</em></p>
-<p><a href="{{ link }}">See your shifts</a></p>
+<p>{{ 'shift_change_request_decided.note'|trans }} <em>{{ note }}</em></p>
+<p><a href="{{ link }}">{{ 'shift_change_request_decided.link'|trans }}</a></p>

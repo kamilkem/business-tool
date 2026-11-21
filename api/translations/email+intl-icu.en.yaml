@@ -1,0 +1,57 @@
+# Transactional e-mails (ADR 0028 §6), English: the source and the fallback. ICU MessageFormat.
+# Keys are named by e-mail; every key exists in every language (EmailTranslationsTest,
+# `make translations-check`). Parameters are escaped by Twig: no HTML in these texts.
+common:
+    hello: 'Hello,'
+    hello_name: 'Hello {firstName},'
+    time_range: '{startedAt} to {endedAt}'
+    still_open: 'still open'
+    unknown: 'unknown'
+
+invitation:
+    subject: 'You are invited to {organizationName}'
+    intro: '{inviterName} invited you to join {organizationName} in Business Tool.'
+    set_password_prompt: 'To get started, set your password:'
+    set_password_link: 'Set your password'
+    expiry: 'The link works once and expires in {validForDays, plural, one {# day} other {# days}}. If it has expired, ask {inviterName} to send a new one.'
+    not_expected: 'If you were not expecting this invitation, you can ignore this e-mail.'
+
+added_to_organization:
+    subject: 'You now have access to {organizationName}'
+    intro: '{addedByName} added you to {organizationName} in Business Tool.'
+    sign_in_prompt: 'Sign in with your existing password to start:'
+    sign_in_link: 'Sign in'
+
+password_reset:
+    subject: 'Reset your Business Tool password'
+    intro: 'Someone asked to reset the password for your Business Tool account. To choose a new password:'
+    link: 'Set a new password'
+    expiry: 'The link works once and expires in {validForMinutes, plural, one {# minute} other {# minutes}}. If it has expired, ask for a new one on the sign-in page.'
+    not_you: 'If you did not ask for this, you can ignore this e-mail: your password stays the same.'
+
+password_changed:
+    subject: 'Your Business Tool password was changed'
+    body: 'The password for your Business Tool account was just changed. You were signed out on your other devices; sign in there with the new password.'
+    not_you: 'If you did not change it, someone else may have access to your account. Reset your password right away with "Forgot password?" on the sign-in page, and tell your manager.'
+
+shift_change_request_submitted:
+    subject: '{requesterName} asks for a shift change'
+    missing_shift: '{requesterName} asks you to enter a shift they worked but did not clock in {organizationName}:'
+    new_times: '{requesterName} asks you to change the times of one of their shifts in {organizationName}:'
+    now: 'Now: {range}'
+    asked_for: 'Asked for: {range}'
+    times_in: 'Times are in {timeZone}.'
+    note: 'Their note:'
+    decide_prompt: 'Approve or reject the request in the admin panel:'
+    link: 'Open the admin panel'
+
+shift_change_request_decided:
+    subject_approved: 'Your shift change request was approved'
+    subject_rejected: 'Your shift change request was rejected'
+    approved: '{deciderName} approved your shift change request in {organizationName}.'
+    shift_added: 'The shift was added:'
+    new_times: 'Your shift now has these times:'
+    rejected: '{deciderName} rejected your shift change request in {organizationName}, and your shifts stay as they were. You asked for:'
+    reason: 'Reason:'
+    note: 'Your note:'
+    link: 'See your shifts'

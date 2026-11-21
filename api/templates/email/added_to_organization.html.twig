@@ -1,7 +1,8 @@
 {# Notification for a person who already has an account and was added to another organization
    (ADR 0013). Context: firstName, organizationName, addedByName, link. Rendered by the queue
-   worker (adr/0012). #}
-<p>Hello {{ firstName }},</p>
-<p>{{ addedByName }} added you to <strong>{{ organizationName }}</strong> in Business Tool.</p>
-<p>Sign in with your existing password to start:</p>
-<p><a href="{{ link }}">Sign in</a></p>
+   worker (adr/0012) in the recipient's language (ADR 0028 §6): texts in translations/email+intl-icu.*. #}
+{% trans_default_domain 'email' %}
+<p>{{ 'common.hello_name'|trans({firstName: firstName}) }}</p>
+<p>{{ 'added_to_organization.intro'|trans({addedByName: addedByName, organizationName: organizationName}) }}</p>
+<p>{{ 'added_to_organization.sign_in_prompt'|trans }}</p>
+<p><a href="{{ link }}">{{ 'added_to_organization.sign_in_link'|trans }}</a></p>

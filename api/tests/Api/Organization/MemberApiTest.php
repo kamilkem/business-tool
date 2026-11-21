@@ -389,6 +389,54 @@ final class MemberApiTest extends ApiTestCase
         self::assertTrue(self::userByEmail('eve@example.com')?->hasPassword());
     }
 
+    public function test_it_writes_the_invitation_in_the_language_chosen_for_the_invitee(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com', 'firstName' => 'Eve', 'lastName' => 'Nowak', 'role' => 'employee', 'language' => 'pl',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        $email = self::queuedEmail();
+        self::assertEmailSubjectContains($email, 'Zaproszenie do '.$organization->getName());
+        self::assertEmailHtmlBodyContains($email, 'Cześć Eve,');
+        self::assertEmailHtmlBodyContains($email, $owner->getFirstName().' '.$owner->getLastName().' zaprasza Cię do');
+        self::assertEmailHtmlBodyContains($email, 'wygasa za 7 dni');
+        self::assertEmailHtmlBodyNotContains($email, 'Hello');
+    }
+
+    public function test_it_writes_the_invitation_in_the_inviters_language_when_none_is_chosen(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $owner->changeLanguage(Language::Polish);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'eve@example.com', 'firstName' => 'Eve', 'lastName' => 'Nowak', 'role' => 'employee',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertEmailSubjectContains(self::queuedEmail(), 'Zaproszenie do '.$organization->getName());
+    }
+
+    public function test_it_notifies_an_existing_user_in_their_own_language(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $existing = UserFactory::createOne(['email' => 'max@example.com', 'firstName' => 'Max']);
+        $existing->changeLanguage(Language::Polish);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        static::clientFor($owner, $organization)->request('POST', '/api/members', ['json' => [
+            'email' => 'max@example.com', 'firstName' => 'Max', 'lastName' => 'Adamski', 'role' => 'employee', 'language' => 'en',
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        $email = self::queuedEmail();
+        self::assertEmailSubjectContains($email, 'Masz teraz dostęp do '.$organization->getName());
+        self::assertEmailHtmlBodyContains($email, 'Zaloguj się');
+    }
+
     public function test_it_links_an_invited_manager_to_the_admin_panel(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);

@@ -53,7 +53,8 @@ final readonly class RequestPasswordResetHandler implements CommandHandlerInterf
         $lifetime = PasswordTokenPurpose::PasswordReset->lifetime();
         $this->mailer->send(new TransactionalEmail(
             to: $user->getEmail(),
-            subject: 'Reset your Business Tool password',
+            locale: TransactionalEmail::localeOf($user->getLanguage()),
+            subject: 'password_reset.subject',
             template: 'email/password_reset.html.twig',
             context: [
                 'firstName' => $user->getFirstName(),

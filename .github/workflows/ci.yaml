@@ -110,6 +110,11 @@ jobs:
             -   name: Lint the service container
                 run: bin/console lint:container
 
+            -   name: Check translations (catalogs valid, no e-mail text missing in a language; ADR 0028 §6)
+                run: |
+                    bin/console lint:translations
+                    for locale in en pl; do bin/console debug:translation "$locale" --domain=email --only-missing; done
+
             -   name: Warm up the dev cache (container XML for PHPStan)
                 run: bin/console cache:warmup --quiet
 
