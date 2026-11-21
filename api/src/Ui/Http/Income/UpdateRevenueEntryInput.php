@@ -38,7 +38,7 @@ final class UpdateRevenueEntryInput
     public static function fromView(RevenueEntryView $view): self
     {
         $input = new self();
-        $input->payments = array_map(static fn (RevenuePaymentLineView $line): PaymentLineInput => PaymentLineInput::of($line->method, $line->amount), $view->payments);
+        $input->payments = array_map(static fn (RevenuePaymentLineView $line): PaymentLineInput => PaymentLineInput::of($line->paymentMethodId, $line->amount), $view->payments);
         $input->vatLines = array_map(static fn (RevenueVatLineView $line): VatLineInput => VatLineInput::of($line->rate, $line->gross, $line->vat), $view->vatLines);
         $input->note = $view->note;
 

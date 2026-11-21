@@ -15,11 +15,11 @@ use App\Income\Domain\Exception\RegisterNotFoundException;
 use App\Income\Domain\Exception\RevenueEntryAlreadyExistsException;
 use App\Income\Domain\Exception\RevenueEntryInTheFutureException;
 use App\Income\Domain\Model\PaymentAmount;
-use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\VatAmount;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Tests\Fixtures\OrganizationMother;
+use App\Tests\Fixtures\PaymentMethodMother;
 use App\Tests\Fixtures\UserMother;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -32,14 +32,14 @@ final class RecordRevenueEntryHandlerTest extends IncomeHandlerTestCase
 {
     public function test_it_records_an_entry_with_the_organizations_currency_and_vat_rates(): void
     {
-        $entryId = $this->handle($this->manager, '2026-11-12', [['method' => 'card', 'amount' => 250_000], ['method' => 'cash', 'amount' => 120_050]], [['rate' => '23', 'gross' => 370_050, 'vat' => 69_197]], 'Busy');
+        $entryId = $this->handle($this->manager, '2026-11-12', [self::line($this->card, 250_000), self::line($this->cash, 120_050)], [['rate' => '23', 'gross' => 370_050, 'vat' => 69_197]], 'Busy');
 
         $entry = $this->entries->findById(Uuid::fromString($entryId));
         self::assertNotNull($entry);
         self::assertSame($this->bar, $entry->getRegister());
         self::assertSame('2026-11-12', $entry->getBusinessDate()->toString());
         self::assertSame('PLN', $entry->getCurrency());
-        self::assertEquals([new PaymentAmount(PaymentMethod::Cash, 120_050), new PaymentAmount(PaymentMethod::Card, 250_000)], $entry->getPaymentLines());
+        self::assertEquals([new PaymentAmount($this->cash, 120_050), new PaymentAmount($this->card, 250_000)], $entry->getPaymentLines());
         self::assertEquals([new VatAmount('23', 370_050, 69_197)], $entry->getVatLines());
         self::assertSame('Busy', $entry->getNote());
         self::assertTrue($this->manager->getId()->equals($entry->getCreatedBy()));
@@ -112,11 +112,33 @@ final class RecordRevenueEntryHandlerTest extends IncomeHandlerTestCase
         $this->handle($this->owner, '2026-11-12');
     }
 
-    public function test_it_refuses_an_unknown_payment_method(): void
+    public function test_it_refuses_a_payment_method_that_is_not_the_organizations(): void
     {
-        $this->expectException(InvalidPaymentLinesException::class);
+        $elsewhere = PaymentMethodMother::named('BLIK');
 
-        $this->handle($this->owner, '2026-11-12', [['method' => 'blik', 'amount' => 100]]);
+        try {
+            $this->handle($this->owner, '2026-11-12', [self::line($elsewhere, 100)]);
+            self::fail('A method of another organization was accepted.');
+        } catch (InvalidPaymentLinesException $e) {
+            self::assertSame('income.invalid_payment_lines.unknown_method', $e->errorCode());
+        }
+
+        $this->expectException(InvalidPaymentLinesException::class);
+        $this->handle($this->owner, '2026-11-12', [['paymentMethodId' => 'blik', 'amount' => 100]]);
+    }
+
+    public function test_it_refuses_a_deactivated_payment_method(): void
+    {
+        $this->voucher->deactivate($this->owner->getId(), MembershipRole::Owner, $this->clock->now());
+
+        try {
+            $this->handle($this->owner, '2026-11-12', [self::line($this->cash, 100), self::line($this->voucher, 50)]);
+            self::fail('A deactivated method was accepted.');
+        } catch (InvalidPaymentLinesException $e) {
+            self::assertSame('income.invalid_payment_lines.method_deactivated', $e->errorCode());
+            self::assertSame(['paymentMethodId' => $this->voucher->getId()->toRfc4122(), 'name' => 'Voucher'], $e->errorParameters());
+        }
+        self::assertSame([], $this->entries->all());
     }
 
     public function test_it_refuses_vat_lines_in_a_country_without_rates(): void
@@ -134,22 +156,22 @@ final class RecordRevenueEntryHandlerTest extends IncomeHandlerTestCase
     }
 
     /**
-     * @param list<array{method: string, amount: int}>        $payments
-     * @param list<array{rate: string, gross: int, vat: int}> $vatLines
+     * @param ?list<array{paymentMethodId: string, amount: int}> $payments one cash line when null
+     * @param list<array{rate: string, gross: int, vat: int}>           $vatLines
      *
      * @return string the new entry's id
      */
-    private function handle(User $actor, string $businessDate, array $payments = [['method' => 'cash', 'amount' => 100]], array $vatLines = [], ?string $note = null, ?string $registerId = null): string
+    private function handle(User $actor, string $businessDate, ?array $payments = null, array $vatLines = [], ?string $note = null, ?string $registerId = null): string
     {
         $entryId = Uuid::v7()->toRfc4122();
-        $handler = new RecordRevenueEntryHandler($this->entries, $this->registers, $this->queryBus, $this->clock);
+        $handler = new RecordRevenueEntryHandler($this->entries, $this->paymentMethods, $this->registers, $this->queryBus, $this->clock);
         $handler(new RecordRevenueEntryCommand(
             $this->organizationId(),
             $actor->getId()->toRfc4122(),
             $entryId,
             $registerId ?? $this->bar->getId()->toRfc4122(),
             $businessDate,
-            $payments,
+            $payments ?? [self::line($this->cash, 100)],
             $vatLines,
             $note,
         ));

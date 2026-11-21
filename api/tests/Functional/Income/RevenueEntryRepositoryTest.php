@@ -12,6 +12,7 @@ use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\RevenuePaymentLine;
 use App\Income\Domain\Model\RevenueVatLine;
 use App\Income\Domain\Model\VatAmount;
+use App\Income\Domain\Repository\PaymentMethodRepositoryInterface;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
 use App\Income\Infrastructure\Doctrine\Orm\Repository\RevenueEntryRepository;
@@ -46,6 +47,8 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
     private TenantContextInterface $tenantContext;
     private RegisterRepositoryInterface $registers;
     private RevenueEntryRepositoryInterface $entries;
+    /** @var array<string, PaymentMethod> the current organization's, by name */
+    private array $methods = [];
 
     protected function setUp(): void
     {
@@ -68,7 +71,7 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         self::assertSame('2026-11-11', $found->getBusinessDate()->toString());
         self::assertSame('PLN', $found->getCurrency());
         self::assertSame('Bar', $found->getRegister()->getName());
-        self::assertEquals([$this->cash(120_050), $this->card(250_000)], $found->getPaymentLines());
+        self::assertSame([['Cash', 120_050], ['Card', 250_000]], self::lines($found));
         self::assertEquals([new VatAmount('23', 270_050, 50_497), new VatAmount('zw', 1_000, 0)], $found->getVatLines());
         self::assertSame(370_050, $found->getTotal());
         self::assertSame('Busy', $found->getNote());
@@ -110,13 +113,13 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         $this->entries->add($entry);
 
         // Card stays, cash goes and voucher comes; 23 stays, 8 goes and zw comes.
-        $entry->change([$this->card(250), new PaymentAmount(PaymentMethod::Voucher, 50)], [new VatAmount('23', 250, 47), new VatAmount('zw', 10, 0)], null, 'PL', Uuid::v7(), MembershipRole::Manager, new \DateTimeImmutable('2026-11-12 09:00:00'));
+        $entry->change([$this->card(250), $this->voucher(50)], [new VatAmount('23', 250, 47), new VatAmount('zw', 10, 0)], null, 'PL', Uuid::v7(), MembershipRole::Manager, new \DateTimeImmutable('2026-11-12 09:00:00'));
         $this->entries->save($entry);
         $this->entityManager->clear();
 
         $found = $this->entries->findById($entry->getId());
         self::assertNotNull($found);
-        self::assertEquals([$this->card(250), new PaymentAmount(PaymentMethod::Voucher, 50)], $found->getPaymentLines());
+        self::assertSame([['Card', 250], ['Voucher', 50]], self::lines($found));
         self::assertEquals([new VatAmount('23', 250, 47), new VatAmount('zw', 10, 0)], $found->getVatLines());
         self::assertEquals(new \DateTimeImmutable('2026-11-12 09:00:00'), $found->getUpdatedAt());
     }
@@ -160,7 +163,7 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         $this->switchToNewOrganization();
         $bar = $this->addRegister('Bar');
         $kitchen = $this->addRegister('Kitchen');
-        $this->entries->add($this->record($bar, '2026-11-01', [$this->cash(100), $this->card(200), new PaymentAmount(PaymentMethod::Voucher, 50)], [new VatAmount('23', 246, 46), new VatAmount('8', 54, 4)]));
+        $this->entries->add($this->record($bar, '2026-11-01', [$this->cash(100), $this->card(200), $this->voucher(50)], [new VatAmount('23', 246, 46), new VatAmount('8', 54, 4)]));
         $this->entries->add($this->record($kitchen, '2026-11-01', [$this->card(70)]));
         $this->entityManager->clear();
 
@@ -193,6 +196,7 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
     {
         $organization = OrganizationFactory::createOne();
         $this->tenantContext->switchTo($organization);
+        $this->methods = [];
 
         return $organization;
     }
@@ -233,13 +237,35 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         return (int) $this->entityManager->createQuery(\sprintf('SELECT COUNT(IDENTITY(l.revenueEntry)) FROM %s l', $class))->getSingleScalarResult();
     }
 
+    /** @return list<array{string, int}> the lines as (method name, amount), in their order */
+    private static function lines(RevenueEntry $entry): array
+    {
+        return array_map(static fn (PaymentAmount $line): array => [$line->method->getName(), $line->amount], $entry->getPaymentLines());
+    }
+
     private function cash(int $amount): PaymentAmount
     {
-        return new PaymentAmount(PaymentMethod::Cash, $amount);
+        return new PaymentAmount($this->method('Cash', 0), $amount);
     }
 
     private function card(int $amount): PaymentAmount
     {
-        return new PaymentAmount(PaymentMethod::Card, $amount);
+        return new PaymentAmount($this->method('Card', 1), $amount);
+    }
+
+    private function voucher(int $amount): PaymentAmount
+    {
+        return new PaymentAmount($this->method('Voucher', 3), $amount);
+    }
+
+    /** The current organization's method with the name, stored on first use. */
+    private function method(string $name, int $position): PaymentMethod
+    {
+        if (!isset($this->methods[$name])) {
+            $this->methods[$name] = PaymentMethod::create(Uuid::v7(), $name, null, $position, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-01'));
+            self::getContainer()->get(PaymentMethodRepositoryInterface::class)->add($this->methods[$name]);
+        }
+
+        return $this->methods[$name];
     }
 }

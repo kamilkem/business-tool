@@ -36,10 +36,10 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
         $kitchen = self::addRegister($organization, 'Kitchen');
         $bar = self::addRegister($organization, 'Bar');
         self::mockTime(self::NOW);
-        $kitchenFirst = self::record($actor, $organization, $kitchen, '2026-11-01', [['method' => 'card', 'amount' => 700]]);
-        $barSecond = self::record($actor, $organization, $bar, '2026-11-02', [['method' => 'cash', 'amount' => 100]]);
-        $barFirst = self::record($actor, $organization, $bar, '2026-11-01', [['method' => 'cash', 'amount' => 200]], [['rate' => '23', 'gross' => 200, 'vat' => 37]]);
-        self::record($actor, $organization, $bar, '2026-10-31', [['method' => 'cash', 'amount' => 1]]);
+        $kitchenFirst = self::record($actor, $organization, $kitchen, '2026-11-01', [self::pay($organization, 'Card', 700)]);
+        $barSecond = self::record($actor, $organization, $bar, '2026-11-02', [self::pay($organization, 'Cash', 100)]);
+        $barFirst = self::record($actor, $organization, $bar, '2026-11-01', [self::pay($organization, 'Cash', 200)], [['rate' => '23', 'gross' => 200, 'vat' => 37]]);
+        self::record($actor, $organization, $bar, '2026-10-31', [self::pay($organization, 'Cash', 1)]);
         self::deactivateRegister($organization, $kitchen);
 
         $response = self::list($actor, $organization, ['from' => '2026-11-01', 'to' => '2026-11-30']);
@@ -54,8 +54,8 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
         $bar = self::addRegister($organization, 'Bar');
         $kitchen = self::addRegister($organization, 'Kitchen');
         self::mockTime(self::NOW);
-        self::record($owner, $organization, $bar, '2026-11-01', [['method' => 'cash', 'amount' => 100]]);
-        $kitchenEntry = self::record($owner, $organization, $kitchen, '2026-11-01', [['method' => 'cash', 'amount' => 100]]);
+        self::record($owner, $organization, $bar, '2026-11-01', [self::pay($organization, 'Cash', 100)]);
+        $kitchenEntry = self::record($owner, $organization, $kitchen, '2026-11-01', [self::pay($organization, 'Cash', 100)]);
 
         $response = self::list($owner, $organization, ['from' => '2026-11-01', 'to' => '2026-11-30', 'registerId' => $kitchen->getId()->toRfc4122()]);
 
@@ -82,10 +82,10 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
         $bar = self::addRegister($organization, 'Bar');
         $kitchen = self::addRegister($organization, 'Kitchen');
         self::mockTime(self::NOW);
-        self::record($actor, $organization, $bar, '2026-11-01', [['method' => 'cash', 'amount' => 10_000], ['method' => 'card', 'amount' => 20_000]], [['rate' => '23', 'gross' => 24_600, 'vat' => 4_600], ['rate' => 'zw', 'gross' => 1_000, 'vat' => 0]]);
-        self::record($actor, $organization, $kitchen, '2026-11-01', [['method' => 'card', 'amount' => 10_800]], [['rate' => '8', 'gross' => 10_800, 'vat' => 800]]);
-        self::record($actor, $organization, $bar, '2026-11-13', [['method' => 'transfer', 'amount' => 5_000]]);
-        self::record($actor, $organization, $bar, '2026-10-31', [['method' => 'cash', 'amount' => 99_999]]);
+        self::record($actor, $organization, $bar, '2026-11-01', [self::pay($organization, 'Cash', 10_000), self::pay($organization, 'Card', 20_000)], [['rate' => '23', 'gross' => 24_600, 'vat' => 4_600], ['rate' => 'zw', 'gross' => 1_000, 'vat' => 0]]);
+        self::record($actor, $organization, $kitchen, '2026-11-01', [self::pay($organization, 'Card', 10_800)], [['rate' => '8', 'gross' => 10_800, 'vat' => 800]]);
+        self::record($actor, $organization, $bar, '2026-11-13', [self::pay($organization, 'Transfer', 5_000)]);
+        self::record($actor, $organization, $bar, '2026-10-31', [self::pay($organization, 'Cash', 99_999)]);
 
         $response = self::summary($actor, $organization, ['from' => '2026-11-01', 'to' => '2026-11-30']);
 
@@ -100,7 +100,7 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
                 'currency' => 'PLN',
                 'total' => 45_800,
                 'entryCount' => 3,
-                'payments' => [['method' => 'cash', 'amount' => 10_000], ['method' => 'card', 'amount' => 30_800], ['method' => 'transfer', 'amount' => 5_000]],
+                'payments' => [self::paid($organization, 'Cash', 10_000), self::paid($organization, 'Card', 30_800), self::paid($organization, 'Transfer', 5_000)],
                 'vatLines' => [
                     ['rate' => '23', 'gross' => 24_600, 'vat' => 4_600, 'net' => 20_000],
                     ['rate' => '8', 'gross' => 10_800, 'vat' => 800, 'net' => 10_000],
@@ -216,8 +216,8 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
         $bar = self::addRegister($here, 'Bar');
         $barElsewhere = self::addRegister($elsewhere, 'Bar');
         self::mockTime(self::NOW);
-        $mine = self::record($owner, $here, $bar, '2026-11-01', [['method' => 'cash', 'amount' => 100]]);
-        self::record($ownerElsewhere, $elsewhere, $barElsewhere, '2026-11-01', [['method' => 'cash', 'amount' => 5_000]], [['rate' => '23', 'gross' => 5_000, 'vat' => 935]]);
+        $mine = self::record($owner, $here, $bar, '2026-11-01', [self::pay($here, 'Cash', 100)]);
+        self::record($ownerElsewhere, $elsewhere, $barElsewhere, '2026-11-01', [self::pay($elsewhere, 'Cash', 5_000)], [['rate' => '23', 'gross' => 5_000, 'vat' => 935]]);
 
         self::assertSame([$mine], self::list($owner, $here, ['from' => '2026-11-01', 'to' => '2026-11-30'])->toArray());
         $summary = self::summary($owner, $here, ['from' => '2026-11-01', 'to' => '2026-11-30'])->toArray();
@@ -232,8 +232,8 @@ final class RevenueListAndSummaryApiTest extends IncomeApiTestCase
     /**
      * Records an entry through the API and returns it as GET /revenue-entries/{id} shows it.
      *
-     * @param list<array{method: string, amount: int}>        $payments
-     * @param list<array{rate: string, gross: int, vat: int}> $vatLines
+     * @param list<array{paymentMethodId: string, amount: int}> $payments
+     * @param list<array{rate: string, gross: int, vat: int}>          $vatLines
      *
      * @return array<string, mixed>
      */

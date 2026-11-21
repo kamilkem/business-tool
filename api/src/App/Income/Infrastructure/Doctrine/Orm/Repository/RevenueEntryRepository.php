@@ -6,6 +6,7 @@ namespace App\Income\Infrastructure\Doctrine\Orm\Repository;
 
 use App\Income\Domain\Exception\RevenueEntryAlreadyExistsException;
 use App\Income\Domain\Model\RevenueEntry;
+use App\Income\Domain\Model\RevenuePaymentLine;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Domain\Time\BusinessPeriod;
@@ -47,8 +48,9 @@ final class RevenueEntryRepository extends ServiceEntityRepository implements Re
         $qb = $this->createQueryBuilder('e')
             ->join('e.register', 'r')
             ->leftJoin('e.paymentLines', 'p')
+            ->leftJoin('p.paymentMethod', 'm')
             ->leftJoin('e.vatLines', 'v')
-            ->addSelect('r', 'p', 'v')
+            ->addSelect('r', 'p', 'm', 'v')
             ->where('e.businessDate >= :first')
             ->andWhere('e.businessDate <= :last')
             ->setParameter('first', $period->first, BusinessDateType::NAME)
@@ -62,6 +64,32 @@ final class RevenueEntryRepository extends ServiceEntityRepository implements Re
 
         /** @var list<RevenueEntry> */
         return $qb->getQuery()->getResult();
+    }
+
+    public function usesPaymentMethod(Uuid $paymentMethodId): bool
+    {
+        $found = $this->getEntityManager()->createQueryBuilder()
+            ->select('1')
+            ->from(RevenuePaymentLine::class, 'l')
+            ->where('IDENTITY(l.paymentMethod) = :paymentMethodId')
+            ->setParameter('paymentMethodId', $paymentMethodId, UuidType::NAME)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return null !== $found;
+    }
+
+    public function usedPaymentMethodIds(): array
+    {
+        /** @var list<array{id: Uuid|string}> $rows */
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('DISTINCT IDENTITY(l.paymentMethod) AS id')
+            ->from(RevenuePaymentLine::class, 'l')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): string => $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : Uuid::fromString($row['id'])->toRfc4122(), $rows);
     }
 
     public function add(RevenueEntry $entry): void

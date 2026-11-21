@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Income\Application\Query\GetRevenueEntry;
 
-use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\VatAmount;
 
@@ -15,7 +14,7 @@ use App\Income\Domain\Model\VatAmount;
 final readonly class RevenueEntryView
 {
     /**
-     * @param list<RevenuePaymentLineView> $payments in the order of PaymentMethod::cases()
+     * @param list<RevenuePaymentLineView> $payments in the organization's order of methods
      * @param list<RevenueVatLineView>     $vatLines highest rate first, exempt last
      */
     public function __construct(
@@ -47,7 +46,7 @@ final readonly class RevenueEntryView
             $entry->getRegister()->getName(),
             $entry->getBusinessDate()->toString(),
             $entry->getCurrency(),
-            array_map(static fn (PaymentAmount $line): RevenuePaymentLineView => new RevenuePaymentLineView($line->method->value, $line->amount), $entry->getPaymentLines()),
+            array_map(RevenuePaymentLineView::of(...), $entry->getPaymentLines()),
             array_map(static fn (VatAmount $line): RevenueVatLineView => new RevenueVatLineView($line->rate, $line->gross, $line->vat, $line->net()), $vatLines),
             $entry->getTotal(),
             array_sum(array_map(static fn (VatAmount $line): int => $line->gross, $vatLines)),

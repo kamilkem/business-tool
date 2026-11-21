@@ -1,6 +1,6 @@
 # 0022. Income is one entry per register and business date: gross amounts per payment method, and a VAT breakdown chosen by the organization's country
 
-Status: Accepted
+Status: Accepted (point 4 superseded by [0030](0030-payment-methods-per-organization.md))
 
 Date: 2026-11-12
 

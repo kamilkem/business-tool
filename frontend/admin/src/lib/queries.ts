@@ -64,6 +64,17 @@ export const registersQuery = (organizationId: string, includeDeactivated: boole
   })
 
 /**
+ * Payment methods of the organization, all of them: active ones in its order, then the deactivated
+ * ones (ADR 0030). The payment methods page shows both; the entry form offers the active ones and
+ * keeps a deactivated one only on an entry that has it.
+ */
+export const paymentMethodsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["payment-methods", organizationId],
+    queryFn: () => unwrap(api.GET("/api/payment-methods", { params: { query: { includeDeactivated: true } } })),
+  })
+
+/**
  * Expense categories of the organization: active ones by name, then (with includeArchived) the
  * archived ones. Forms that pick a category for an expense need the active ones only.
  */
@@ -125,6 +136,8 @@ export function invalidateRevenue(queryClient: QueryClient, organizationId: stri
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ["revenue-entries", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["revenue-summary", organizationId] }),
+    // Whether a payment method is used (and so can be deleted) follows the entries.
+    queryClient.invalidateQueries({ queryKey: ["payment-methods", organizationId] }),
   ])
 }
 

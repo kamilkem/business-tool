@@ -27,7 +27,7 @@ final readonly class RecordRevenueEntryInput
         #[Assert\NotBlank]
         #[Assert\Date]
         public string $businessDate,
-        /** At least one line, each payment method once; zero amounts are allowed. */
+        /** At least one line, each of the organization's payment methods once; zero amounts are allowed. A deactivated method is refused (422) unless the entry already has a line for it. */
         #[Assert\Count(min: 1)]
         #[Assert\Unique(normalizer: [PaymentLineInput::class, 'methodOf'], message: 'Each payment method may appear only once.')]
         #[Assert\Valid]

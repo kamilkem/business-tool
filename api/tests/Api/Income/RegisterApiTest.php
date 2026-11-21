@@ -386,7 +386,7 @@ final class RegisterApiTest extends IncomeApiTestCase
         return static::clientFor($user, $organization)->request('POST', '/api/revenue-entries', ['json' => [
             'registerId' => $registerId,
             'businessDate' => $businessDate,
-            'payments' => [['method' => 'cash', 'amount' => 10_000]],
+            'payments' => [self::pay($organization, 'Cash', 10_000)],
         ]]);
     }
 

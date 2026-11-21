@@ -13,6 +13,7 @@ use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Income\Domain\Model\PaymentAmount;
+use App\Income\Domain\Model\DefaultPaymentMethods;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\Register;
 use App\Income\Domain\Model\RevenueEntry;
@@ -48,7 +49,8 @@ use Symfony\Component\Uid\Uuid;
  *
  * "Demo Bar" has the registers "Bar" and "Kitchen" with an entry for each of the last 31 days
  * (the kitchen is closed on Mondays), and a deactivated register "Terrace". Both organizations
- * have the default expense categories of their country, as a new organization gets them.
+ * have the default expense categories and payment methods of their country, as a new organization
+ * gets them; "Demo Bar" also has a "BLIK" payment method, used on some days.
  *
  * "Demo Bar" (NIP 526-025-09-95) has a KSeF connection with a dev-only token whose last import
  * succeeded, and purchase invoices of this month and the last two: imported from KSeF (with their
@@ -94,6 +96,8 @@ final class AppFixtures extends Fixture
         $manager->flush();
 
         $this->income($manager, $bar, $owner->getId(), $now);
+        $manager->flush();
+        $this->paymentMethods($manager, $cafe, $mixed->getId(), $now);
         $manager->flush();
 
         $barCategories = $this->expenseCategories($manager, $bar, $owner->getId(), $now);
@@ -147,6 +151,26 @@ final class AppFixtures extends Fixture
                 }
             }
         }
+    }
+
+    /**
+     * The defaults of the organization's country (ADR 0030), as AddDefaultPaymentMethodsOnOrganizationCreated
+     * adds them, then the extra names.
+     *
+     * @param list<string> $extra
+     *
+     * @return list<PaymentMethod> cash, card, transfer, voucher, then the extra ones
+     */
+    private function paymentMethods(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now, array $extra = []): array
+    {
+        $this->tenantContext->switchTo($organization);
+        $methods = [];
+        foreach ([...DefaultPaymentMethods::forCountry($organization->getCountryCode()), ...$extra] as $position => $name) {
+            $methods[] = $method = PaymentMethod::create(Uuid::v7(), $name, null, $position, $ownerId, MembershipRole::Owner, $now);
+            $manager->persist($method);
+        }
+
+        return $methods;
     }
 
     /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */
@@ -319,6 +343,7 @@ final class AppFixtures extends Fixture
             $manager->persist($registers[$name]);
         }
         $registers['Terrace']->deactivate($ownerId, MembershipRole::Owner, $now);
+        [$cashMethod, $cardMethod, $transferMethod, $voucherMethod, $blikMethod] = $this->paymentMethods($manager, $organization, $ownerId, $now, ['BLIK']);
 
         $today = BusinessDate::containing($now, new \DateTimeZone($organization->getTimezone()));
         mt_srand(41);
@@ -333,14 +358,18 @@ final class AppFixtures extends Fixture
             $card = mt_rand(2000, 6000) * 100 * $scale;
             $transfer = 0 === $day % 9 ? mt_rand(5, 20) * 10000 : 0;
             $voucher = 0 === $day % 4 ? mt_rand(1, 3) * 5000 : 0;
-            $payments = [new PaymentAmount(PaymentMethod::Cash, $cash), new PaymentAmount(PaymentMethod::Card, $card)];
+            $blik = $day <= 14 ? mt_rand(2, 8) * 1000 * $scale : 0;
+            $payments = [new PaymentAmount($cashMethod, $cash), new PaymentAmount($cardMethod, $card)];
             if ($transfer > 0) {
-                $payments[] = new PaymentAmount(PaymentMethod::Transfer, $transfer);
+                $payments[] = new PaymentAmount($transferMethod, $transfer);
             }
             if ($voucher > 0) {
-                $payments[] = new PaymentAmount(PaymentMethod::Voucher, $voucher);
+                $payments[] = new PaymentAmount($voucherMethod, $voucher);
             }
-            $fiscal = $cash + $card + $voucher;
+            if ($blik > 0) {
+                $payments[] = new PaymentAmount($blikMethod, $blik);
+            }
+            $fiscal = $cash + $card + $voucher + $blik;
             $vat = 0 === $day % 10 ? [] : [
                 self::vatLine('23', (int) round($fiscal * 0.7), 23),
                 self::vatLine('8', (int) round($fiscal * 0.25), 8),
@@ -351,7 +380,7 @@ final class AppFixtures extends Fixture
             if (!$isMonday) {
                 $kitchenCash = mt_rand(300, 1200) * 100 * $scale;
                 $kitchenCard = mt_rand(800, 2500) * 100 * $scale;
-                $kitchen = [new PaymentAmount(PaymentMethod::Cash, $kitchenCash), new PaymentAmount(PaymentMethod::Card, $kitchenCard)];
+                $kitchen = [new PaymentAmount($cashMethod, $kitchenCash), new PaymentAmount($cardMethod, $kitchenCard)];
                 $manager->persist($this->entry($organization, $registers['Kitchen'], $date, $kitchen, [self::vatLine('8', $kitchenCash + $kitchenCard, 8)], null, $ownerId, $today, $now));
             }
         }

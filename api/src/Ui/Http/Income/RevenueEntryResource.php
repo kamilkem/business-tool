@@ -13,11 +13,9 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
-use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueEntryView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
 use App\Income\Application\Query\ListRevenueEntries\ListRevenueEntriesQuery;
-use App\Income\Domain\Model\PaymentMethod;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Income\Processor\DeleteRevenueEntryProcessor;
 use Ui\Http\Income\Processor\RecordRevenueEntryProcessor;
@@ -85,7 +83,7 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             uriTemplate: '/revenue-entries',
             openapi: new Operation(
                 summary: "Records a register's daily report for a business date.",
-                description: 'Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization\'s (404) and active (422); the business date may not be after today in the organization\'s time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization\'s.',
+                description: 'Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization\'s (404) and active (422); the business date may not be after today in the organization\'s time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422); the methods are the organization\'s (GET /payment-methods, 422 otherwise) and active (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization\'s.',
                 responses: [
                     '201' => new Response('The recorded entry.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
@@ -104,7 +102,7 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: "Corrects an entry's payment lines, VAT lines and note.",
-                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing.',
+                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The entry is not one of the selected organization\'s.'),
@@ -147,7 +145,7 @@ final readonly class RevenueEntryResource
         public string $businessDate,
         /** ISO 4217 code of the amounts: the organization's currency when the entry was recorded. */
         public string $currency,
-        /** One line per payment method used, in the order cash, card, transfer, voucher. */
+        /** One line per payment method used, in the organization's order, deactivated methods last. */
         public array $payments,
         /** The VAT breakdown as printed, highest rate first, exempt last; empty when not entered. */
         public array $vatLines,
@@ -176,7 +174,7 @@ final readonly class RevenueEntryResource
             businessDate: $view->businessDate,
             currency: $view->currency,
             payments: array_map(
-                static fn (RevenuePaymentLineView $line): RevenueEntryPayment => new RevenueEntryPayment(PaymentMethod::from($line->method), $line->amount),
+                RevenueEntryPayment::fromView(...),
                 $view->payments,
             ),
             vatLines: array_map(

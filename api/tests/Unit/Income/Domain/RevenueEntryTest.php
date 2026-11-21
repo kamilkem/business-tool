@@ -16,6 +16,7 @@ use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\VatAmount;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Shared\Domain\Time\BusinessDate;
+use App\Tests\Fixtures\PaymentMethodMother;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -116,14 +117,15 @@ final class RevenueEntryTest extends TestCase
     public static function invalidPayments(): iterable
     {
         yield 'no lines' => [[]];
-        yield 'negative amount' => [[new PaymentAmount(PaymentMethod::Cash, -1)]];
-        yield 'amount over the column' => [[new PaymentAmount(PaymentMethod::Cash, RevenueEntry::MAX_AMOUNT + 1)]];
-        yield 'method twice' => [[new PaymentAmount(PaymentMethod::Card, 100), new PaymentAmount(PaymentMethod::Card, 200)]];
+        yield 'negative amount' => [[new PaymentAmount(self::method('Cash'), -1)]];
+        yield 'amount over the column' => [[new PaymentAmount(self::method('Cash'), RevenueEntry::MAX_AMOUNT + 1)]];
+        yield 'method twice' => [[new PaymentAmount(self::method('Card'), 100), new PaymentAmount(self::method('Card'), 200)]];
+        yield 'deactivated method' => [[new PaymentAmount(PaymentMethodMother::deactivated('Meal vouchers'), 100)]];
     }
 
     public function test_it_accepts_every_payment_method_once_with_the_largest_amount(): void
     {
-        $payments = array_map(static fn (PaymentMethod $method): PaymentAmount => new PaymentAmount($method, RevenueEntry::MAX_AMOUNT), PaymentMethod::cases());
+        $payments = array_map(static fn (string $name): PaymentAmount => new PaymentAmount(self::method($name), RevenueEntry::MAX_AMOUNT), ['Cash', 'Card', 'Transfer', 'Voucher']);
 
         $entry = $this->record($payments, []);
 
@@ -185,7 +187,7 @@ final class RevenueEntryTest extends TestCase
         $later = new \DateTimeImmutable(self::LATER);
 
         $entry->change(
-            [$this->card(250), new PaymentAmount(PaymentMethod::Voucher, 50)],
+            [$this->card(250), new PaymentAmount(self::method('Voucher'), 50)],
             [new VatAmount('8', 300, 22)],
             'Voucher found',
             'PL',
@@ -194,7 +196,7 @@ final class RevenueEntryTest extends TestCase
             $later,
         );
 
-        self::assertEquals([$this->card(250), new PaymentAmount(PaymentMethod::Voucher, 50)], $entry->getPaymentLines());
+        self::assertEquals([$this->card(250), new PaymentAmount(self::method('Voucher'), 50)], $entry->getPaymentLines());
         self::assertEquals([new VatAmount('8', 300, 22)], $entry->getVatLines());
         self::assertSame(300, $entry->getTotal());
         self::assertSame('Voucher found', $entry->getNote());
@@ -230,6 +232,37 @@ final class RevenueEntryTest extends TestCase
         $this->expectException(IncomeManagementForbiddenException::class);
 
         $entry->change([$this->cash(150)], [], null, 'PL', Uuid::v7(), MembershipRole::Employee, new \DateTimeImmutable(self::LATER));
+    }
+
+    public function test_it_keeps_the_line_of_a_payment_method_deactivated_since_but_takes_no_new_one(): void
+    {
+        $meal = PaymentMethodMother::named('Meal vouchers', 4);
+        $delivery = PaymentMethodMother::named('Delivery', 5);
+        $entry = $this->record([$this->cash(100), new PaymentAmount($meal, 40)], []);
+        $meal->deactivate($this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+        $delivery->deactivate($this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+
+        $entry->change([$this->cash(100), new PaymentAmount($meal, 60)], [], null, 'PL', $this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+        self::assertSame(160, $entry->getTotal());
+
+        try {
+            $entry->change([$this->cash(100), new PaymentAmount($meal, 60), new PaymentAmount($delivery, 1)], [], null, 'PL', $this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+            self::fail('A new line of a deactivated method was accepted.');
+        } catch (InvalidPaymentLinesException $e) {
+            self::assertSame('income.invalid_payment_lines.method_deactivated', $e->errorCode());
+        }
+        self::assertSame(160, $entry->getTotal());
+    }
+
+    public function test_it_orders_the_lines_as_the_organization_orders_its_methods_with_deactivated_ones_last(): void
+    {
+        $first = PaymentMethodMother::named('BLIK', -1);
+        $last = PaymentMethodMother::named('Old terminal', -2);
+
+        $entry = $this->record([$this->card(1), new PaymentAmount($last, 4), $this->cash(2), new PaymentAmount($first, 3)], []);
+        $last->deactivate($this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+
+        self::assertEquals([new PaymentAmount($first, 3), $this->cash(2), $this->card(1), new PaymentAmount($last, 4)], $entry->getPaymentLines());
     }
 
     public function test_it_checks_the_lines_of_a_change(): void
@@ -275,13 +308,24 @@ final class RevenueEntryTest extends TestCase
         );
     }
 
+    /**
+     * The organization's methods, one object per name for the whole class (data providers run
+     * before setUp()), in the order cash, card, transfer, voucher.
+     */
+    private static function method(string $name): PaymentMethod
+    {
+        static $methods = [];
+
+        return $methods[$name] ??= PaymentMethodMother::named($name, (int) array_search($name, ['Cash', 'Card', 'Transfer', 'Voucher'], true));
+    }
+
     private function cash(int $amount): PaymentAmount
     {
-        return new PaymentAmount(PaymentMethod::Cash, $amount);
+        return new PaymentAmount(self::method('Cash'), $amount);
     }
 
     private function card(int $amount): PaymentAmount
     {
-        return new PaymentAmount(PaymentMethod::Card, $amount);
+        return new PaymentAmount(self::method('Card'), $amount);
     }
 }

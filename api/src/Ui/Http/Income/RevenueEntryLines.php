@@ -10,11 +10,11 @@ final class RevenueEntryLines
     /**
      * @param list<PaymentLineInput> $lines
      *
-     * @return list<array{method: string, amount: int}>
+     * @return list<array{paymentMethodId: string, amount: int}>
      */
     public static function payments(array $lines): array
     {
-        return array_map(static fn (PaymentLineInput $line): array => ['method' => $line->method, 'amount' => $line->amount], $lines);
+        return array_map(static fn (PaymentLineInput $line): array => ['paymentMethodId' => $line->paymentMethodId, 'amount' => $line->amount], $lines);
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Income\Domain\Exception\RevenueEntryAlreadyExistsException;
 use App\Income\Domain\Exception\RevenueEntryInTheFutureException;
 use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
+use App\Income\Domain\Repository\PaymentMethodRepositoryInterface;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Shared\Application\Command\CommandHandlerInterface;
@@ -32,6 +33,7 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
 {
     public function __construct(
         private RevenueEntryRepositoryInterface $entries,
+        private PaymentMethodRepositoryInterface $paymentMethods,
         private RegisterRepositoryInterface $registers,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
@@ -63,7 +65,7 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
             BusinessDate::fromString($command->businessDate),
             $actor->organization->currency,
             $actor->organization->countryCode,
-            RevenueLines::payments($command->payments),
+            RevenueLines::payments($command->payments, $this->paymentMethods),
             RevenueLines::vat($command->vatLines),
             $command->note,
             $actor->id,

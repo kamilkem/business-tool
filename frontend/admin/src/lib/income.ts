@@ -11,27 +11,19 @@ import type { MinorUnits } from "@business-tool/ui/lib/money"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { i18n } from "../i18n"
+import type { EntryFormMethod } from "./payment-methods"
 import type { Register } from "./registers"
 
 /*
  * Income (ADR 0022): one revenue entry per register and business date, with gross amounts per
- * payment method and an optional VAT breakdown by the organization's country.
+ * payment method of the organization (ADR 0030) and an optional VAT breakdown by its country.
  */
 
 export type RevenueEntry = components["schemas"]["RevenueEntry"]
 export type RevenueSummary = components["schemas"]["RevenueSummary"]
 export type VatRate = components["schemas"]["VatRate"]
-export type PaymentMethod = components["schemas"]["PaymentLineInput"]["method"]
 export type RecordRevenueEntryInput = components["schemas"]["RevenueEntry.RecordRevenueEntryInput"]
 export type UpdateRevenueEntryInput = components["schemas"]["RevenueEntry.UpdateRevenueEntryInput.jsonMergePatch"]
-
-/** The fixed payment methods of v1, in the API's order (ADR 0022 §4). */
-export const PAYMENT_METHODS: readonly PaymentMethod[] = ["cash", "card", "transfer", "voucher"]
-
-/** "Cash", "Card", …: a payment method as a label. */
-export function paymentMethodLabel(method: PaymentMethod): string {
-  return i18n.t(`income.paymentMethod.${method}`, { ns: "admin" })
-}
 
 /** The longest period GET /revenue-entries accepts. */
 export const REVENUE_ENTRIES_MAX_DAYS = 92
@@ -177,8 +169,8 @@ export interface VatLineValues {
 export interface EntryFormValues {
   registerId: string
   businessDate: BusinessDate
-  /** An empty field is null: the method is not used. */
-  payments: Record<PaymentMethod, MinorUnits | null>
+  /** By payment method id; an empty field (or none) is null: the method is not used. */
+  payments: Record<string, MinorUnits | null>
   /** By rate code; a rate with an empty gross amount is not on the report. */
   vatLines: Record<string, VatLineValues>
   note: string
@@ -186,22 +178,18 @@ export interface EntryFormValues {
 
 /**
  * Errors keyed by form field: `registerId`, `businessDate`, `note`, `payments` (the group),
- * `payment.<method>`, `vatLines` (the group), `vat.<rate>.gross`, `vat.<rate>.vat`, and `form` for
+ * `payment.<method id>`, `vatLines` (the group), `vat.<rate>.gross`, `vat.<rate>.vat`, and `form` for
  * anything that names no field.
  */
 export type EntryFormErrors = Record<string, string>
 
-function emptyPayments(): Record<PaymentMethod, MinorUnits | null> {
-  return { cash: null, card: null, transfer: null, voucher: null }
-}
-
 export function emptyEntryForm(registerId: string, businessDate: BusinessDate): EntryFormValues {
-  return { registerId, businessDate, payments: emptyPayments(), vatLines: {}, note: "" }
+  return { registerId, businessDate, payments: {}, vatLines: {}, note: "" }
 }
 
 export function entryFormFrom(entry: RevenueEntry): EntryFormValues {
-  const payments = emptyPayments()
-  for (const line of entry.payments) payments[line.method] = line.amount
+  const payments: Record<string, MinorUnits | null> = {}
+  for (const line of entry.payments) payments[line.paymentMethodId] = line.amount
   return {
     registerId: entry.registerId,
     businessDate: entry.businessDate,
@@ -211,9 +199,9 @@ export function entryFormFrom(entry: RevenueEntry): EntryFormValues {
   }
 }
 
-/** The payments total of the form, counting empty fields as nothing. */
-export function formPaymentsTotal(values: EntryFormValues): MinorUnits {
-  return PAYMENT_METHODS.reduce((sum, method) => sum + (values.payments[method] ?? 0), 0)
+/** The payments total of the form's rows, counting empty fields as nothing. */
+export function formPaymentsTotal(values: EntryFormValues, methods: readonly EntryFormMethod[]): MinorUnits {
+  return methods.reduce((sum, method) => sum + (values.payments[method.id] ?? 0), 0)
 }
 
 /** The VAT breakdown's gross total of the form, and whether it has any line. */
@@ -233,17 +221,23 @@ export type EntryLinesResult = { ok: true; lines: EntryLines } | { ok: false; er
 /**
  * Checks what the API would refuse anyway, so the form answers at once: at least one payment, a date
  * not after today, and a VAT amount for every rate that has a gross amount (0 for a rate without
- * VAT). The API checks again.
+ * VAT). The API checks again. The payment lines are the form's rows (`methods`) with an amount, in
+ * their order.
  */
-export function entryLines(values: EntryFormValues, rates: readonly VatRate[], today: BusinessDate): EntryLinesResult {
+export function entryLines(
+  values: EntryFormValues,
+  methods: readonly EntryFormMethod[],
+  rates: readonly VatRate[],
+  today: BusinessDate,
+): EntryLinesResult {
   const errors: EntryFormErrors = {}
   if (values.registerId === "") errors.registerId = i18n.t("income.error.register", { ns: "admin" })
   if (!isBusinessDate(values.businessDate)) errors.businessDate = i18n.t("income.error.businessDate", { ns: "admin" })
   else if (compareBusinessDates(values.businessDate, today) > 0) errors.businessDate = i18n.t("income.error.futureDate", { ns: "admin" })
 
-  const payments = PAYMENT_METHODS.flatMap((method) => {
-    const amount = values.payments[method]
-    return amount === null ? [] : [{ method, amount }]
+  const payments = methods.flatMap((method) => {
+    const amount = values.payments[method.id] ?? null
+    return amount === null ? [] : [{ paymentMethodId: method.id, amount }]
   })
   if (payments.length === 0) errors.payments = i18n.t("income.error.payments", { ns: "admin" })
 
@@ -266,11 +260,18 @@ export function entryLines(values: EntryFormValues, rates: readonly VatRate[], t
 /**
  * Turns a refused write into errors on the form's fields. A 422's violations name lines by index
  * (`payments[1].amount`, `vatLines[0].vat`), which `lines` (what was sent) maps back to a method or
- * a rate. Domain 422s (a future date, a deactivated register) come with a message only.
+ * a rate. Domain 422s (a future date, a deactivated register or payment method) come with a
+ * message only; one that names a payment method in its parameters goes to that method's field.
  */
 export function entryFormErrors(error: unknown, lines: EntryLines): EntryFormErrors {
   const violations = violationsOf(error)
-  if (Object.keys(violations).length === 0) return { form: requestErrorMessage(error) }
+  if (Object.keys(violations).length === 0) {
+    const methodId = error instanceof ApiError ? error.parameters.paymentMethodId : undefined
+    if (typeof methodId === "string" && lines.payments.some((line) => line.paymentMethodId === methodId)) {
+      return { [`payment.${methodId}`]: requestErrorMessage(error) }
+    }
+    return { form: requestErrorMessage(error) }
+  }
 
   const errors: EntryFormErrors = {}
   for (const [path, message] of Object.entries(violations)) {
@@ -283,8 +284,8 @@ export function entryFormErrors(error: unknown, lines: EntryLines): EntryFormErr
 function fieldOf(path: string, lines: EntryLines): string {
   const payment = /^payments\[(\d+)\](?:\.(\w+))?$/.exec(path)
   if (payment) {
-    const method = lines.payments[Number(payment[1])]?.method
-    return method ? `payment.${method}` : "payments"
+    const methodId = lines.payments[Number(payment[1])]?.paymentMethodId
+    return methodId ? `payment.${methodId}` : "payments"
   }
   const vat = /^vatLines\[(\d+)\](?:\.(\w+))?$/.exec(path)
   if (vat) {

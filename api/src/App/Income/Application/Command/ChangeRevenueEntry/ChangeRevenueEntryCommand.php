@@ -14,8 +14,8 @@ use App\Shared\Application\Command\CommandInterface;
 final readonly class ChangeRevenueEntryCommand implements CommandInterface
 {
     /**
-     * @param list<array{method: string, amount: int}>           $payments
-     * @param list<array{rate: string, gross: int, vat: int}> $vatLines an empty list removes the breakdown
+     * @param list<array{paymentMethodId: string, amount: int}> $payments
+     * @param list<array{rate: string, gross: int, vat: int}>          $vatLines an empty list removes the breakdown
      */
     public function __construct(
         public string $organizationId,

@@ -7,14 +7,12 @@ namespace App\Tests\Unit\Income\Application;
 use App\Income\Application\Query\GetRevenueEntry\GetRevenueEntryHandler;
 use App\Income\Application\Query\GetRevenueEntry\GetRevenueEntryQuery;
 use App\Income\Application\Query\GetRevenueEntry\RevenueEntryView;
-use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
 use App\Income\Application\Query\ListVatRates\ListVatRatesHandler;
 use App\Income\Application\Query\ListVatRates\ListVatRatesQuery;
 use App\Income\Application\Query\ListVatRates\VatRateView;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Model\PaymentAmount;
-use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\VatAmount;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Tests\Fixtures\OrganizationMother;
@@ -31,7 +29,7 @@ final class RevenueEntryQueriesTest extends IncomeHandlerTestCase
     {
         $entry = $this->recorded('2026-11-10');
         $entry->change(
-            [new PaymentAmount(PaymentMethod::Transfer, 50_000), new PaymentAmount(PaymentMethod::Cash, 120_000)],
+            [new PaymentAmount($this->transfer, 50_000), new PaymentAmount($this->cash, 120_000)],
             [new VatAmount('zw', 1_000, 0), new VatAmount('23', 100_000, 18_699), new VatAmount('8', 20_000, 1_481)],
             'Event',
             'PL',
@@ -48,7 +46,7 @@ final class RevenueEntryQueriesTest extends IncomeHandlerTestCase
             'Bar',
             '2026-11-10',
             'PLN',
-            [new RevenuePaymentLineView('cash', 120_000), new RevenuePaymentLineView('transfer', 50_000)],
+            [self::lineView($this->cash, 120_000), self::lineView($this->transfer, 50_000)],
             [new RevenueVatLineView('23', 100_000, 18_699, 81_301), new RevenueVatLineView('8', 20_000, 1_481, 18_519), new RevenueVatLineView('zw', 1_000, 0, 1_000)],
             170_000,
             121_000,

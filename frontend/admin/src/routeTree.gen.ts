@@ -22,6 +22,7 @@ import { Route as AppTimeRouteImport } from './routes/_app/time'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
+import { Route as AppIncomePaymentMethodsRouteImport } from './routes/_app/income/payment-methods'
 import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayrollRatesRouteImport } from './routes/_app/payroll/rates'
@@ -90,6 +91,11 @@ const AppIncomeIndexRoute = AppIncomeIndexRouteImport.update({
   path: '/income/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppIncomePaymentMethodsRoute = AppIncomePaymentMethodsRouteImport.update({
+  id: '/income/payment-methods',
+  path: '/income/payment-methods',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppIncomeRegistersRoute = AppIncomeRegistersRouteImport.update({
   id: '/income/registers',
   path: '/income/registers',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
+  '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
   '/expenses/': typeof AppExpensesIndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
+  '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
   '/expenses': typeof AppExpensesIndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
+  '/_app/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
   '/_app/payroll/rates': typeof AppPayrollRatesRoute
   '/_app/expenses/': typeof AppExpensesIndexRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/time'
     | '/expenses/categories'
+    | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
     | '/expenses/'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/time'
     | '/'
     | '/expenses/categories'
+    | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
     | '/expenses'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/_app/time'
     | '/_app/'
     | '/_app/expenses/categories'
+    | '/_app/income/payment-methods'
     | '/_app/income/registers'
     | '/_app/payroll/rates'
     | '/_app/expenses/'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncomeIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/income/payment-methods': {
+      id: '/_app/income/payment-methods'
+      path: '/income/payment-methods'
+      fullPath: '/income/payment-methods'
+      preLoaderRoute: typeof AppIncomePaymentMethodsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/income/registers': {
       id: '/_app/income/registers'
       path: '/income/registers'
@@ -346,6 +365,7 @@ interface AppRouteChildren {
   AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
+  AppIncomePaymentMethodsRoute: typeof AppIncomePaymentMethodsRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
   AppPayrollRatesRoute: typeof AppPayrollRatesRoute
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
@@ -361,6 +381,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
+  AppIncomePaymentMethodsRoute: AppIncomePaymentMethodsRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,
   AppPayrollRatesRoute: AppPayrollRatesRoute,
   AppExpensesIndexRoute: AppExpensesIndexRoute,

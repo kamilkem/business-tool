@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Income\Application;
 
+use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\Register;
@@ -18,6 +19,7 @@ use App\Organization\Domain\Model\Organization;
 use App\Shared\Application\Query\QueryInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Tests\Fixtures\OrganizationMother;
+use App\Tests\Fixtures\PaymentMethodMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
@@ -27,8 +29,8 @@ use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * An organization in Poland (Europe/Warsaw, PLN) with an owner, a manager, an employee and a register
- * "Bar"; the Organization module answers through its real queries over an in-memory repository.
+ * An organization in Poland (Europe/Warsaw, PLN) with an owner, a manager, an employee, a register
+ * "Bar" and the payment methods Cash, Card, Transfer and Voucher; the Organization module answers through its real queries over an in-memory repository.
  * NOW is late evening UTC, already the next business date in Warsaw.
  */
 abstract class IncomeHandlerTestCase extends TestCase
@@ -40,6 +42,11 @@ abstract class IncomeHandlerTestCase extends TestCase
     protected InMemoryOrganizationRepository $organizations;
     protected InMemoryRegisterRepository $registers;
     protected InMemoryRevenueEntryRepository $entries;
+    protected InMemoryPaymentMethodRepository $paymentMethods;
+    protected PaymentMethod $cash;
+    protected PaymentMethod $card;
+    protected PaymentMethod $transfer;
+    protected PaymentMethod $voucher;
     protected StubQueryBus $queryBus;
     protected Organization $organization;
     protected User $owner;
@@ -63,6 +70,11 @@ abstract class IncomeHandlerTestCase extends TestCase
         $this->organizations->add($this->organization);
         $this->bar = Register::create(Uuid::v7(), 'Bar', null, $this->owner->getId(), MembershipRole::Owner, $joined);
         $this->registers->add($this->bar);
+        $this->paymentMethods = new InMemoryPaymentMethodRepository();
+        foreach (['cash' => 'Cash', 'card' => 'Card', 'transfer' => 'Transfer', 'voucher' => 'Voucher'] as $property => $name) {
+            $this->{$property} = PaymentMethodMother::named($name, $this->paymentMethods->nextPosition());
+            $this->paymentMethods->add($this->{$property});
+        }
 
         $organizations = $this->organizations;
         $this->queryBus = new StubQueryBus(static fn (QueryInterface $query): mixed => match (true) {
@@ -77,6 +89,21 @@ abstract class IncomeHandlerTestCase extends TestCase
         return $this->organization->getId()->toRfc4122();
     }
 
+    /**
+     * A payment line as commands carry it.
+     *
+     * @return array{paymentMethodId: string, amount: int}
+     */
+    protected static function line(PaymentMethod $method, int $amount): array
+    {
+        return ['paymentMethodId' => $method->getId()->toRfc4122(), 'amount' => $amount];
+    }
+
+    protected static function lineView(PaymentMethod $method, int $amount): RevenuePaymentLineView
+    {
+        return new RevenuePaymentLineView($method->getId()->toRfc4122(), $method->getName(), $amount);
+    }
+
     /** An entry of the register "Bar" recorded by the owner. */
     protected function recorded(string $businessDate, int $cash = 100_000): RevenueEntry
     {
@@ -86,7 +113,7 @@ abstract class IncomeHandlerTestCase extends TestCase
             BusinessDate::fromString($businessDate),
             'PLN',
             'PL',
-            [new PaymentAmount(PaymentMethod::Cash, $cash)],
+            [new PaymentAmount($this->cash, $cash)],
             [new VatAmount('23', $cash, (int) round($cash * 23 / 123))],
             null,
             $this->owner->getId(),
