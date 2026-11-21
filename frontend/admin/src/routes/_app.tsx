@@ -8,6 +8,7 @@ import { languageForUser, showLanguage } from "@business-tool/ui/i18n/current-la
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { LimitedLayout } from "@/components/limited-layout"
+import { PageContainer } from "@/components/page-container"
 import { can } from "@/lib/access"
 import { meQuery } from "@/lib/queries"
 
@@ -65,7 +66,9 @@ function AppLayout() {
               <span className="text-sm font-medium">{membership.organization.name}</span>
             </header>
             <main className="flex-1 p-4 md:p-6">
-              <Outlet />
+              <PageContainer>
+                <Outlet />
+              </PageContainer>
             </main>
           </SidebarInset>
         </SidebarProvider>

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { KsefConnectionCard } from "@/components/ksef-connection-card"
+import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { can, requireCapability } from "@/lib/access"
 import { ksefAvailableIn } from "@/lib/ksef"
@@ -73,14 +74,14 @@ function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>{t("settings.title")}</CardTitle>
           <CardDescription>{t("settings.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit}>
+          <form onSubmit={onSubmit} className={FORM_WIDTH}>
             <fieldset disabled={save.isPending}>
               <FieldGroup>
                 <Field>

@@ -23,6 +23,7 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 import { cn } from "@business-tool/ui/lib/utils"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { type Membership, can } from "@/lib/access"
 import { type KsefConnection, ksefErrorLabel, ksefState } from "@/lib/ksef"
@@ -98,7 +99,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
         <CardTitle>KSeF</CardTitle>
         <CardDescription>{t("ksef.card.description")}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent className={cn("flex flex-col gap-6", FORM_WIDTH)}>
         {loadError ? (
           <p className="text-destructive text-sm">{requestErrorMessage(loadError)}</p>
         ) : isPending ? (
