@@ -22,6 +22,7 @@ import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 import { cn } from "@business-tool/ui/lib/utils"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { ExpenseCategorySelect } from "@/components/expense-category-select"
 import { api } from "@/lib/api"
@@ -226,7 +227,7 @@ function ManualExpenseActions({
       toast.success("Expense deleted", { description: expense.sellerName })
       await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
     },
-    onError: (error) => toast.error("Could not delete the expense", { description: error.message }),
+    onError: (error) => toast.error("Could not delete the expense", { description: requestErrorMessage(error) }),
   })
 
   return (
@@ -289,7 +290,7 @@ function DocumentDownload({ expense }: { expense: Expense }) {
       // Some browsers read the URL after click() returns.
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (error) {
-      toast.error("Could not download the document", { description: error instanceof Error ? error.message : undefined })
+      toast.error("Could not download the document", { description: requestErrorMessage(error) })
     } finally {
       setBusy(false)
     }

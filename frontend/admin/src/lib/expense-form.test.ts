@@ -220,9 +220,14 @@ describe("expenseFormErrors", () => {
   })
 
   it("test_it_shows_a_refusal_without_violations_on_the_form", () => {
-    expect(expenseFormErrors(new ApiError(422, { detail: "The VAT rate 7 does not exist in PL." }), sent)).toEqual({
-      form: "The VAT rate 7 does not exist in PL.",
+    const unknownRate = new ApiError(422, {
+      detail: "English detail.",
+      code: "expenses.invalid_purchase_invoice.unknown_vat_rate",
+      parameters: { rate: "7", countryCode: "PL" },
     })
-    expect(expenseFormErrors(new Error("Network down"), sent)).toEqual({ form: "Network down" })
+    expect(expenseFormErrors(unknownRate, sent)).toEqual({ form: "7 is not a VAT rate in this country." })
+    expect(expenseFormErrors(new Error("Network down"), sent)).toEqual({
+      form: "Could not reach the server. Check your connection and try again.",
+    })
   })
 })

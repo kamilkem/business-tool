@@ -1,6 +1,7 @@
-import { ApiError, type components, violationsOf } from "@business-tool/api-client"
+import { type components, violationsOf } from "@business-tool/api-client"
 import { type BusinessDate, isBusinessDate } from "@business-tool/ui/lib/date-time"
 import type { MinorUnits } from "@business-tool/ui/lib/money"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { type Expense, isCorrection } from "./expenses"
 import type { VatRate } from "./income"
@@ -255,11 +256,8 @@ const FIELDS = [
  * have, VAT at a 0% rate) and other statuses come with a message only.
  */
 export function expenseFormErrors(error: unknown, sent: Pick<ExpenseBody, "vatLines">): ExpenseFormErrors {
-  if (!(error instanceof ApiError)) {
-    return { form: error instanceof Error ? error.message : "Something went wrong. Try again." }
-  }
   const violations = violationsOf(error)
-  if (Object.keys(violations).length === 0) return { form: error.message }
+  if (Object.keys(violations).length === 0) return { form: requestErrorMessage(error) }
 
   const errors: ExpenseFormErrors = {}
   for (const [path, message] of Object.entries(violations)) {

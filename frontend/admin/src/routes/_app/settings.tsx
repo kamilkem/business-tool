@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@busi
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { KsefConnectionCard } from "@/components/ksef-connection-card"
 import { api } from "@/lib/api"
@@ -55,7 +56,7 @@ function SettingsPage() {
       await router.invalidate()
       toast.success("Settings saved")
     },
-    onError: (e) => setError(e.message),
+    onError: (e) => setError(requestErrorMessage(e)),
   })
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {

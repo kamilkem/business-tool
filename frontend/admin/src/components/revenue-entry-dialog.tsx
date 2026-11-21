@@ -40,6 +40,7 @@ import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useOrganizationCurrency } from "@business-tool/ui/hooks/use-organization-currency"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { type MinorUnits, type MoneyParseError, formatMoney, moneyErrorMessage } from "@business-tool/ui/lib/money"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
 import {
@@ -230,7 +231,7 @@ function EntryForm({
       toast.success(`Entry of ${entry.registerName}, ${format.businessDate(entry.businessDate)} deleted`)
       onDone()
     },
-    onError: (error) => setErrors({ form: error.message }),
+    onError: (error) => setErrors({ form: requestErrorMessage(error) }),
   })
 
   const openExisting = useMutation({
@@ -243,7 +244,7 @@ function EntryForm({
       if (existing) onTargetChange({ kind: "edit", entry: existing })
       else setErrors({ form: "That entry was deleted in the meantime. Try saving again." })
     },
-    onError: (error) => setErrors({ form: error.message }),
+    onError: (error) => setErrors({ form: requestErrorMessage(error) }),
   })
 
   const pending = record.isPending || update.isPending || remove.isPending

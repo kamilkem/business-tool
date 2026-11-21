@@ -12,7 +12,7 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 
 import { type DecisionTarget, ShiftChangeRequestDialog } from "@/components/shift-change-request-dialog"
 import { requireCapability } from "@/lib/access"
-import { fullName, isActive } from "@/lib/members"
+import { isActive, memberNames } from "@/lib/members"
 import { membersQuery, shiftChangeRequestsQuery } from "@/lib/queries"
 import {
   type RequestsFilter,
@@ -65,7 +65,7 @@ function ShiftRequests({ organizationId }: { organizationId: string }) {
   const { data: requests } = useSuspenseQuery(shiftChangeRequestsQuery(organizationId, filter))
   const [dialog, setDialog] = useState<DecisionTarget | null>(null)
 
-  const names = Object.fromEntries(members.map((m) => [m.userId, m.userId === me.id ? "You" : fullName(m)]))
+  const names = memberNames(members)
   const nameOf: NameOf = (id) => (id === me.id ? "you" : (names[id] ?? "a former member"))
   const deactivated = new Set(members.filter((m) => !isActive(m)).map((m) => m.userId))
 

@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@business-tool/ui/components/table"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { IncomeNav } from "@/components/income-nav"
 import { RegisterDialog } from "@/components/register-dialog"
@@ -89,7 +90,7 @@ function RegistersPage() {
       toast.success(`${saved.name} deactivated`)
     },
     onError: async (error) => {
-      toast.error("Could not deactivate the register", { description: error.message })
+      toast.error("Could not deactivate the register", { description: requestErrorMessage(error) })
       await queryClient.invalidateQueries({ queryKey: ["registers", organizationId] })
     },
   })

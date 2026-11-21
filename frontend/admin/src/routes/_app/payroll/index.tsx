@@ -61,7 +61,7 @@ import { PayrollGenerateDialog } from "@/components/payroll-generate-dialog"
 import { PayrollNav } from "@/components/payroll-nav"
 import { api } from "@/lib/api"
 import { can, requireCapability } from "@/lib/access"
-import type { Member } from "@/lib/members"
+import { type Member, memberNames } from "@/lib/members"
 import {
   type ExportKind,
   PAYMENT_METHOD_LABELS,
@@ -77,7 +77,6 @@ import {
   minutesOf,
   monthKey,
   paycheckRows,
-  payrollErrorMessage,
   payrollMonth,
   previousMonth,
   roundingLabel,
@@ -268,8 +267,8 @@ function RunView({
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const [refused, setRefused] = useState<{ title: string; message: string } | null>(null)
 
-  const names = Object.fromEntries(members.map((m) => [m.userId, `${m.firstName} ${m.lastName}`.trim()]))
-  const explain = (error: unknown) => payrollErrorMessage(requestErrorMessage(error), names)
+  const names = memberNames(members)
+  const explain = (error: unknown) => requestErrorMessage(error, { names })
 
   const action = useMutation({
     mutationFn: async (kind: ConfirmKind) => {

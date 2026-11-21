@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@business-tool/ui/components/table"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { ExpenseCategoryDialog } from "@/components/expense-category-dialog"
 import { ExpensesNav } from "@/components/expenses-nav"
@@ -84,7 +85,7 @@ function ExpenseCategoriesPage() {
       }
     },
     onError: async (error, { to }) => {
-      toast.error(`Could not ${to} the category`, { description: error.message })
+      toast.error(`Could not ${to} the category`, { description: requestErrorMessage(error) })
       await queryClient.invalidateQueries({ queryKey: ["expense-categories", organizationId] })
     },
   })

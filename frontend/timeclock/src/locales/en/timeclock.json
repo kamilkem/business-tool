@@ -27,8 +27,7 @@
     "password": "Password",
     "forgotPassword": "Forgot password?",
     "submit": "Sign in",
-    "submitting": "Signing in…",
-    "invalidCredentials": "The e-mail or password is wrong."
+    "submitting": "Signing in…"
   },
   "setPassword": {
     "title": "Set your password",

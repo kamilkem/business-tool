@@ -20,6 +20,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@bu
 import { Input } from "@business-tool/ui/components/input"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { cn } from "@business-tool/ui/lib/utils"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
 import { type Membership, can } from "@/lib/access"
@@ -58,7 +59,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
       if (data.status === "active" && !data.lastCheckError) toast.success("KSeF token saved and accepted")
       else toast.warning("KSeF token saved, but the check failed")
     },
-    onError: (e) => setError(violationsOf(e).token ?? e.message),
+    onError: (e) => setError(violationsOf(e).token ?? requestErrorMessage(e)),
   })
 
   const test = useMutation({
@@ -68,7 +69,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
       if (data.lastCheckError) toast.error(ksefErrorLabel(data.lastCheckError))
       else toast.success("KSeF accepted the token")
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(requestErrorMessage(e)),
   })
 
   const remove = useMutation({
@@ -77,7 +78,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
       await queryClient.invalidateQueries({ queryKey: query.queryKey })
       toast.success("KSeF token removed")
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(requestErrorMessage(e)),
   })
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -100,7 +101,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {loadError ? (
-          <p className="text-destructive text-sm">{loadError.message}</p>
+          <p className="text-destructive text-sm">{requestErrorMessage(loadError)}</p>
         ) : isPending ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : (

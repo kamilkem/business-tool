@@ -17,10 +17,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShiftMomentField } from "@business-tool/ui/components/shift-moment-field"
 import { Textarea } from "@business-tool/ui/components/textarea"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import type { Shift } from "@business-tool/ui/lib/shifts"
 
 import { api } from "@/lib/api"
-import { type Member, fullName, isActive } from "@/lib/members"
+import { type Member, fullName, isActive, memberNames } from "@/lib/members"
 import {
   type AddShiftInput,
   type CorrectShiftInput,
@@ -31,7 +32,6 @@ import {
   correctShiftBody,
   editShiftForm,
   emptyShiftForm,
-  readableShiftError,
   shiftFormFrom,
   suggestedEndDate,
 } from "@business-tool/ui/lib/shift-form"
@@ -99,7 +99,7 @@ function ShiftForm({
   const [fieldErrors, setFieldErrors] = useState<ShiftFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
 
-  const names = Object.fromEntries(members.map((m) => [m.userId, m.userId === actorId ? "You" : fullName(m)]))
+  const names = memberNames(members)
   const people = [...members].sort(
     (a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName),
   )
@@ -128,7 +128,7 @@ function ShiftForm({
     const violations = violationsOf(error) as ShiftFormErrors
     setFieldErrors(violations)
     const has422Violations = error instanceof ApiError && error.status === 422 && Object.keys(violations).length > 0
-    setFormError(has422Violations ? null : readableShiftError(error.message, format, names))
+    setFormError(has422Violations ? null : requestErrorMessage(error, { names, selfId: actorId, format }))
   }
 
   const add = useMutation({

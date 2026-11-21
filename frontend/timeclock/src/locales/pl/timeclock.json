@@ -29,8 +29,7 @@
     "password": "Hasło",
     "forgotPassword": "Nie pamiętasz hasła?",
     "submit": "Zaloguj się",
-    "submitting": "Logowanie…",
-    "invalidCredentials": "Nieprawidłowy e-mail lub hasło."
+    "submitting": "Logowanie…"
   },
   "setPassword": {
     "title": "Ustaw hasło",

@@ -238,10 +238,14 @@ describe("entry form", () => {
   })
 
   it("test_it_shows_a_domain_refusal_without_violations_under_the_form", () => {
-    const error = new ApiError(422, { detail: "The business date 2026-11-13 is after today (2026-11-12)." })
+    const error = new ApiError(422, {
+      detail: "The business date 2026-11-13 is after today (2026-11-12).",
+      code: "income.revenue_entry_in_the_future",
+      parameters: { businessDate: "2026-11-13", today: "2026-11-12" },
+    })
 
     expect(entryFormErrors(error, { payments: [], vatLines: [] })).toEqual({
-      form: "The business date 2026-11-13 is after today (2026-11-12).",
+      form: "13 Nov 2026 is after today (12 Nov 2026).",
     })
   })
 })

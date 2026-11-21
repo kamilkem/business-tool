@@ -8,6 +8,7 @@ import { AuthScreen } from "@business-tool/ui/components/auth-screen"
 import { Button } from "@business-tool/ui/components/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
+import { signInErrorMessage } from "@business-tool/ui/lib/request-error"
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string; passwordSet?: boolean } => ({
@@ -39,7 +40,7 @@ function LoginPage() {
       session.signIn(token)
       await navigate({ href: safeRedirectPath(redirectTo) })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Login failed")
+      setError(signInErrorMessage(e))
     } finally {
       setPending(false)
     }

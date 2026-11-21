@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { ApiError, login, safeRedirectPath } from "@business-tool/api-client"
+import { login, safeRedirectPath } from "@business-tool/api-client"
 import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { CircleCheckIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -9,7 +9,7 @@ import { AuthScreen } from "@business-tool/ui/components/auth-screen"
 import { Button } from "@business-tool/ui/components/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
-import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
+import { signInErrorMessage } from "@business-tool/ui/lib/request-error"
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string; passwordSet?: boolean } => ({
@@ -42,7 +42,7 @@ function LoginPage() {
       session.signIn(token)
       await navigate({ href: safeRedirectPath(redirectTo) })
     } catch (e) {
-      setError(e instanceof ApiError && e.status === 401 ? t("login.invalidCredentials") : requestErrorMessage(e))
+      setError(signInErrorMessage(e))
     } finally {
       setPending(false)
     }

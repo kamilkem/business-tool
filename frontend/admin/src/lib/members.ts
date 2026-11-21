@@ -53,14 +53,7 @@ export function fullName(member: Pick<Member, "firstName" | "lastName">): string
   return `${member.firstName} ${member.lastName}`.trim()
 }
 
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-
-/**
- * API error details name people and the organization by id (`User "0190…" may not …`).
- * Swap the ids for names the reader knows; `names` maps user ids to a name or "You".
- */
-export function readableError(message: string, names: Record<string, string>): string {
-  return message
-    .replace(new RegExp(`User "(${UUID})"`, "g"), (_, id: string) => names[id] ?? "This person")
-    .replace(new RegExp(`(O|o)rganization "${UUID}"`, "g"), (_, o: string) => (o === "O" ? "This" : "this") + " organization")
+/** User ids to full names, for the people an API error names (`requestErrorMessage(error, { names })`). */
+export function memberNames(members: readonly Pick<Member, "userId" | "firstName" | "lastName">[]): Record<string, string> {
+  return Object.fromEntries(members.map((member) => [member.userId, fullName(member)]))
 }

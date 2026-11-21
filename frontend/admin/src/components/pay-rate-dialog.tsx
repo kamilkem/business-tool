@@ -20,7 +20,7 @@ import { useOrganizationCurrency } from "@business-tool/ui/hooks/use-organizatio
 import { type MinorUnits, formatMoney, moneyErrorMessage } from "@business-tool/ui/lib/money"
 
 import { api } from "@/lib/api"
-import { type Member, fullName } from "@/lib/members"
+import { type Member, fullName, memberNames } from "@/lib/members"
 import {
   type DayRate,
   type FormErrors,
@@ -105,7 +105,13 @@ function PayRateForm({ organizationId, target, onClose }: { organizationId: stri
       await Promise.all([invalidatePayRates(queryClient, organizationId), invalidatePayrollRuns(queryClient, organizationId)])
     },
     onError: (error) =>
-      setErrors(apiFormErrors(error, { effectiveFrom: "date", date: "date", amount: "amount", userId: "form" })),
+      setErrors(
+        apiFormErrors(
+          error,
+          { effectiveFrom: "date", date: "date", amount: "amount", userId: "form" },
+          { names: memberNames([target.member]) },
+        ),
+      ),
   })
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {

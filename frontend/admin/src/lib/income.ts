@@ -8,6 +8,7 @@ import {
   periodError,
 } from "@business-tool/ui/lib/date-time"
 import type { MinorUnits } from "@business-tool/ui/lib/money"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import type { Register } from "./registers"
 
@@ -269,11 +270,8 @@ export function entryLines(values: EntryFormValues, rates: readonly VatRate[], t
  * a rate. Domain 422s (a future date, a deactivated register) come with a message only.
  */
 export function entryFormErrors(error: unknown, lines: EntryLines): EntryFormErrors {
-  if (!(error instanceof ApiError)) {
-    return { form: error instanceof Error ? error.message : "Something went wrong. Try again." }
-  }
   const violations = violationsOf(error)
-  if (Object.keys(violations).length === 0) return { form: error.message }
+  if (Object.keys(violations).length === 0) return { form: requestErrorMessage(error) }
 
   const errors: EntryFormErrors = {}
   for (const [path, message] of Object.entries(violations)) {

@@ -19,7 +19,6 @@ import {
   lockedPeriods,
   paycheckRows,
   paymentFormErrors,
-  payrollErrorMessage,
   payrollMonth,
   rateFormErrors,
   ratesByMember,
@@ -301,7 +300,8 @@ describe("forms", () => {
       ],
     })
     expect(apiFormErrors(violation, { effectiveFrom: "date" })).toEqual({ date: "This is not a date.", form: "Odd." })
-    expect(apiFormErrors(new ApiError(409, { detail: "The date is locked." }))).toEqual({ form: "The date is locked." })
+    const locked = new ApiError(409, { detail: "English detail.", code: "time_tracking.shift_period_locked", parameters: { date: "2026-10-31" } })
+    expect(apiFormErrors(locked)).toEqual({ form: "The shifts of 31 Oct 2026 are locked: that period has been settled." })
   })
 
   it("test_it_replaces_or_removes_one_field_error", () => {
@@ -310,17 +310,16 @@ describe("forms", () => {
   })
 })
 
-describe("payrollErrorMessage", () => {
-  it("test_it_names_the_run_and_people_instead_of_their_ids", () => {
-    expect(
-      payrollErrorMessage(
-        'Payroll run "01a1fafb-ebac-7edd-8077-345173ce565c" has 1 paycheck(s) marked paid: undo the marks first.',
-        {},
-      ),
-    ).toBe("This run has 1 paycheck(s) marked paid: undo the marks first.")
-    expect(payrollErrorMessage('User "01a1fafb-ebac-7edd-8077-345173ce565c" has no rate.', { "01a1fafb-ebac-7edd-8077-345173ce565c": "Max" })).toBe(
-      "Max has no rate.",
-    )
+describe("apiFormErrors with a code", () => {
+  it("test_it_names_the_person_a_refusal_is_about", () => {
+    const error = new ApiError(409, {
+      detail: "English detail.",
+      code: "payroll.pay_rate_date_taken.day_rate",
+      parameters: { userId: "01a1fafb-ebac-7edd-8077-345173ce565c", date: "2026-11-03" },
+    })
+    expect(apiFormErrors(error, {}, { names: { "01a1fafb-ebac-7edd-8077-345173ce565c": "Max Doe" } })).toEqual({
+      form: "Max Doe already has a day rate on 3 Nov 2026.",
+    })
   })
 })
 

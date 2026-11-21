@@ -1,4 +1,5 @@
 import { ApiError, type components, violationsOf } from "@business-tool/api-client"
+import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 /*
  * Registers (ADR 0022 §2): tills with their own fiscal printer. Deactivated, never deleted,
@@ -57,8 +58,8 @@ export function registerFormErrors(error: unknown, name: string, registers: read
     const result: RegisterFormErrors = {}
     if (nameError) result.name = nameError
     // A 422 that names no field (or another one) still needs to be seen.
-    if (rest || !nameError) result.form = rest || error.message
+    if (rest || !nameError) result.form = rest || requestErrorMessage(error)
     return result
   }
-  return { form: error instanceof Error ? error.message : "Something went wrong. Try again." }
+  return { form: requestErrorMessage(error) }
 }
