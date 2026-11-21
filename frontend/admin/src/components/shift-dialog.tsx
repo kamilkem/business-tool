@@ -2,8 +2,19 @@ import { useState, type FormEvent } from "react"
 import { ApiError, unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
+import { Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@business-tool/ui/components/alert-dialog"
 import { Button } from "@business-tool/ui/components/button"
 import {
   Dialog,
@@ -18,8 +29,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShiftMomentField } from "@business-tool/ui/components/shift-moment-field"
 import { Textarea } from "@business-tool/ui/components/textarea"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { formatDuration } from "@business-tool/ui/lib/date-time"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
-import type { Shift } from "@business-tool/ui/lib/shifts"
+import { type Shift, canBeDeleted } from "@business-tool/ui/lib/shifts"
 
 import { api } from "@/lib/api"
 import { type Member, fullName, isActive, memberNames } from "@/lib/members"
@@ -100,6 +112,7 @@ function ShiftForm({
   )
   const [fieldErrors, setFieldErrors] = useState<ShiftFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const names = memberNames(members)
   const people = [...members].sort(
@@ -165,7 +178,23 @@ function ShiftForm({
     onError,
   })
 
-  const pending = add.isPending || correct.isPending
+  const remove = useMutation({
+    mutationFn: (shift: Shift) => unwrap(api.DELETE("/api/shifts/{id}", { params: { path: { id: shift.id } } })),
+    onSuccess: async (_, shift) => {
+      setConfirmDelete(false)
+      onDone()
+      toast.success(t("shiftDialog.toast.deleted", { name: fullName(shift), date: format.businessDate(shift.date) }))
+      await Promise.all([
+        invalidateShifts(),
+        // Decided requests about the shift keep its id, but no longer its times.
+        queryClient.invalidateQueries({ queryKey: ["shift-change-requests", organizationId] }),
+      ])
+    },
+    // Shown in the confirmation (a running, locked or requested shift: 409); the list was probably out of date.
+    onError: async () => invalidateShifts(),
+  })
+
+  const pending = add.isPending || correct.isPending || remove.isPending
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -266,11 +295,65 @@ function ShiftForm({
           )}
         </FieldGroup>
       </fieldset>
-      <DialogFooter>
+      <DialogFooter className="sm:justify-between">
+        {editing && canBeDeleted(editing) ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-destructive"
+            disabled={pending}
+            onClick={() => {
+              remove.reset()
+              setConfirmDelete(true)
+            }}
+          >
+            <Trash2Icon />
+            {t("common.delete")}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button type="submit" disabled={pending}>
-          {pending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("time.addShift")}
+          {add.isPending || correct.isPending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("time.addShift")}
         </Button>
       </DialogFooter>
+
+      {editing && canBeDeleted(editing) && (
+        <AlertDialog open={confirmDelete} onOpenChange={(open) => !remove.isPending && setConfirmDelete(open)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("shiftDialog.delete.title")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("shiftDialog.delete.description", {
+                  name: fullName(editing),
+                  date: format.businessDate(editing.date),
+                  start: format.time(editing.startedAt),
+                  end: format.time(editing.endedAt as string),
+                  duration: formatDuration(editing.durationMinutes ?? 0),
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {remove.error && (
+              <p role="alert" className="text-sm text-destructive">
+                {requestErrorMessage(remove.error, { names, selfId: actorId, format })}
+              </p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={remove.isPending}>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={remove.isPending || remove.isError}
+                onClick={(event) => {
+                  event.preventDefault()
+                  remove.mutate(editing)
+                }}
+              >
+                {remove.isPending ? t("common.deleting") : t("common.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </form>
   )
 }

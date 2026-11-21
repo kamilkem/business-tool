@@ -952,10 +952,15 @@
     "keepOpen": "Leave empty to keep the shift open.",
     "nextDay": "The next day: the clock-out is not after the clock-in.",
     "notePlaceholder": "Optional, e.g. why the shift was entered or changed",
+    "delete": {
+      "title": "Delete this shift?",
+      "description": "{{name}}, {{date}}, {{start}}–{{end}} ({{duration}}). The shift is deleted for good: this cannot be undone."
+    },
     "toast": {
       "added": "Shift added for {{name}} on {{date}}",
       "ended": "{{name}} clocked out at {{time}}",
-      "updated": "Shift of {{name}} updated"
+      "updated": "Shift of {{name}} updated",
+      "deleted": "Shift of {{name}} on {{date}} deleted"
     }
   },
   "settings": {

@@ -63,6 +63,27 @@ describe("requestErrorMessage", () => {
     )
   })
 
+  test("test_it_explains_why_a_shift_cannot_be_deleted", async () => {
+    const SHIFT = "0193a1b2-1111-7000-8000-000000000001"
+    const open = problem(409, "time_tracking.open_shift_cannot_be_deleted", { shiftId: SHIFT })
+    const locked = problem(409, "time_tracking.shift_period_locked", { date: "2026-10-14" })
+    const pending = problem(409, "time_tracking.shift_has_pending_change_request", {
+      shiftId: SHIFT,
+      requestId: "0193a1b2-2222-7000-8000-000000000001",
+    })
+    expect(requestErrorMessage(open)).toBe("This shift is still open: it can be deleted once it has ended.")
+    expect(requestErrorMessage(locked)).toBe("The shifts of 14 Oct 2026 are locked: that period has been settled.")
+    expect(requestErrorMessage(pending)).toBe(
+      "This shift has a pending change request. Approve or reject it before deleting the shift.",
+    )
+    await i18n.changeLanguage("pl")
+    expect(requestErrorMessage(open)).toBe("Ta zmiana wciąż trwa: można ją usunąć dopiero po jej zakończeniu.")
+    expect(requestErrorMessage(locked)).toBe("Zmiany z dnia 14 paź 2026 są zablokowane: ten okres został już rozliczony.")
+    expect(requestErrorMessage(pending)).toBe(
+      "Do tej zmiany jest oczekujący wniosek o zmianę. Zatwierdź go lub odrzuć przed usunięciem zmiany.",
+    )
+  })
+
   test("test_it_says_you_for_the_signed_in_user", () => {
     const error = problem(409, "time_tracking.shift_already_open", { userId: ANNA })
     expect(requestErrorMessage(error, { selfId: ANNA })).toBe("You are already clocked in. Clock out first.")
