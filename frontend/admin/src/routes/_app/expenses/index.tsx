@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { PlusIcon, SearchIcon, XIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -84,6 +85,7 @@ function ExpensesPage() {
   const { active: activeCategories } = splitCategories(categories)
   const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
   const [formTarget, setFormTarget] = useState<ExpenseTarget | null>(null)
+  const { t } = useTranslation("admin")
 
   // The drawer keeps its own copy: an expense that leaves a filtered list stays open.
   const [selected, setSelected] = useState<Expense | null>(null)
@@ -112,10 +114,9 @@ function ExpensesPage() {
         <div className="flex flex-col gap-3">
           <ExpensesNav />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("expenses.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              Purchase invoices by issue date{showKsef ? ", imported from KSeF or entered by hand" : ""}. Click one
-              for its details.
+              {showKsef ? t("expenses.descriptionKsef") : t("expenses.description")}
             </p>
           </div>
         </div>
@@ -123,7 +124,7 @@ function ExpensesPage() {
           <PeriodPicker value={period} onChange={setPeriod} maxDays={EXPENSES_MAX_DAYS} />
           <Button onClick={() => setFormTarget({ kind: "add" })}>
             <PlusIcon />
-            Add expense
+            {t("expenses.add")}
           </Button>
         </div>
       </div>
@@ -139,8 +140,8 @@ function ExpensesPage() {
           {list.items.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
               {hasFilters(search)
-                ? "No expenses match the filters in this period."
-                : `No expenses ${isWholeMonth(period) ? "in" : "for"} ${format.period(period)}.`}
+                ? t("expenses.noneMatching")
+                : t("expenses.none", { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) })}
             </p>
           ) : (
             <ExpensesTable
@@ -191,6 +192,7 @@ function Filters({
   categories: readonly ExpenseCategory[]
   onChange: (next: Partial<ExpensesSearch>) => void
 }) {
+  const { t } = useTranslation("admin")
   const { active, archived } = splitCategories(categories)
   const [seller, setSeller] = useState(search.seller ?? "")
 
@@ -218,7 +220,7 @@ function Filters({
         aria-pressed={search.uncategorized === true}
         onClick={() => onChange({ uncategorized: search.uncategorized ? undefined : true, categoryId: undefined })}
       >
-        Uncategorized
+        {t("expenses.uncategorized")}
       </Button>
       <Select
         value={search.categoryId ?? ALL}
@@ -226,11 +228,11 @@ function Filters({
           onChange({ categoryId: value === ALL ? undefined : value, uncategorized: undefined })
         }
       >
-        <SelectTrigger size="sm" aria-label="Category" className="w-48">
+        <SelectTrigger size="sm" aria-label={t("expenses.category")} className="w-48">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All categories</SelectItem>
+          <SelectItem value={ALL}>{t("expenses.allCategories")}</SelectItem>
           {active.length > 0 && <SelectSeparator />}
           {active.map((category) => (
             <SelectItem key={category.id} value={category.id}>
@@ -241,7 +243,7 @@ function Filters({
           {archived.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               {category.name}
-              <span className="text-muted-foreground"> (archived)</span>
+              <span className="text-muted-foreground"> {t("expenses.archived")}</span>
             </SelectItem>
           ))}
         </SelectContent>
@@ -250,8 +252,8 @@ function Filters({
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          aria-label="Seller"
-          placeholder="Seller name or tax ID"
+          aria-label={t("expenses.seller")}
+          placeholder={t("expenses.sellerPlaceholder")}
           className="h-8 pl-8"
           value={seller}
           onChange={(event) => setSeller(event.target.value)}
@@ -267,7 +269,7 @@ function Filters({
           }}
         >
           <XIcon />
-          Clear filters
+          {t("expenses.clearFilters")}
         </Button>
       )}
     </div>
@@ -287,6 +289,7 @@ function Totals({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -296,8 +299,8 @@ function Totals({
           <Card key={total.currency} size="sm">
             <CardHeader>
               <CardTitle className="font-normal text-muted-foreground">
-                {totals.length > 1 ? `Gross in ${total.currency}` : "Gross"}
-                {filtered ? ", filtered" : ""}
+                {totals.length > 1 ? t("expenses.totals.grossIn", { currency: total.currency }) : t("expenses.totals.gross")}
+                {filtered ? t("expenses.totals.filtered") : ""}
               </CardTitle>
               <p className={cn("text-2xl font-semibold tabular-nums", total.grossTotal < 0 && "text-destructive")}>
                 {money(total.grossTotal)}
@@ -305,11 +308,14 @@ function Totals({
             </CardHeader>
             <CardContent className="flex flex-col gap-0.5 text-sm text-muted-foreground">
               <span className="tabular-nums">
-                Net {money(total.netTotal)} · VAT {money(total.vatTotal)}
+                {t("expenses.totals.netVat", { net: money(total.netTotal), vat: money(total.vatTotal) })}
               </span>
               <span>
-                {total.invoiceCount} {total.invoiceCount === 1 ? "expense" : "expenses"}{" "}
-                {isWholeMonth(period) ? "in" : "for"} {format.period(period)}
+                {t("expenses.totals.count", {
+                  count: total.invoiceCount,
+                  context: isWholeMonth(period) ? "month" : undefined,
+                  period: format.period(period),
+                })}
               </span>
             </CardContent>
           </Card>
@@ -336,16 +342,17 @@ function ExpensesTable({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="pl-6">Issued</TableHead>
-          <TableHead>Seller</TableHead>
-          <TableHead>Invoice</TableHead>
-          <TableHead>Category</TableHead>
-          <TableHead className="pr-6 text-right">Gross</TableHead>
+          <TableHead className="pl-6">{t("expenses.column.issued")}</TableHead>
+          <TableHead>{t("expenses.seller")}</TableHead>
+          <TableHead>{t("expenses.column.invoice")}</TableHead>
+          <TableHead>{t("expenses.category")}</TableHead>
+          <TableHead className="pr-6 text-right">{t("expenses.totals.gross")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -367,13 +374,13 @@ function ExpensesTable({
                 >
                   {expense.sellerName}
                 </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{expense.sellerTaxId ?? "No tax ID"}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{expense.sellerTaxId ?? t("expenses.noTaxId")}</span>
               </TableCell>
               <TableCell>
                 <div className="flex flex-col items-start gap-1">
                   <span className="tabular-nums">{expense.invoiceNumber ?? "—"}</span>
                   <span className="flex gap-1">
-                    <Badge variant="secondary">{expense.source === "manual" ? "Manual" : sourceLabel(expense.source)}</Badge>
+                    <Badge variant="secondary">{expense.source === "manual" ? t("expenses.source.manualShort") : sourceLabel(expense.source)}</Badge>
                     {correction && <Badge variant="destructive">{kindLabel(expense.kind)}</Badge>}
                   </span>
                 </div>

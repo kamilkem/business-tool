@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -45,6 +46,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
   const { data: connection, isPending, error: loadError } = useQuery(query)
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const mayManageToken = can(membership.role, "ksefToken")
   const [token, setToken] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -56,8 +58,8 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
       setToken("")
       setError(null)
       queryClient.setQueryData(query.queryKey, data)
-      if (data.status === "active" && !data.lastCheckError) toast.success("KSeF token saved and accepted")
-      else toast.warning("KSeF token saved, but the check failed")
+      if (data.status === "active" && !data.lastCheckError) toast.success(t("ksef.card.savedAccepted"))
+      else toast.warning(t("ksef.card.savedCheckFailed"))
     },
     onError: (e) => setError(violationsOf(e).token ?? requestErrorMessage(e)),
   })
@@ -67,7 +69,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
     onSuccess: (data) => {
       queryClient.setQueryData(query.queryKey, data)
       if (data.lastCheckError) toast.error(ksefErrorLabel(data.lastCheckError))
-      else toast.success("KSeF accepted the token")
+      else toast.success(t("ksef.card.accepted"))
     },
     onError: (e) => toast.error(requestErrorMessage(e)),
   })
@@ -76,7 +78,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
     mutationFn: () => unwrap(api.DELETE("/api/ksef-connection/token")),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: query.queryKey })
-      toast.success("KSeF token removed")
+      toast.success(t("ksef.card.removed"))
     },
     onError: (e) => toast.error(requestErrorMessage(e)),
   })
@@ -94,23 +96,20 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
     <Card id="ksef" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>KSeF</CardTitle>
-        <CardDescription>
-          Purchase invoices are imported from KSeF with a KSeF token generated for the organization's NIP with the
-          InvoiceRead permission only.
-        </CardDescription>
+        <CardDescription>{t("ksef.card.description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {loadError ? (
           <p className="text-destructive text-sm">{requestErrorMessage(loadError)}</p>
         ) : isPending ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
+          <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
         ) : (
           <KsefStatus connection={connection ?? null} state={state} format={format} />
         )}
 
         {connection?.tokenSet && (
           <Button variant="outline" className="self-start" disabled={busy} onClick={() => test.mutate()}>
-            {test.isPending ? "Testing…" : "Test connection"}
+            {test.isPending ? t("ksef.card.testing") : t("ksef.card.test")}
           </Button>
         )}
 
@@ -119,7 +118,7 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
             <fieldset disabled={busy}>
               <FieldGroup>
                 <Field data-invalid={error ? true : undefined}>
-                  <FieldLabel htmlFor="ksef-token">{connection?.tokenSet ? "Replace the KSeF token" : "KSeF token"}</FieldLabel>
+                  <FieldLabel htmlFor="ksef-token">{connection?.tokenSet ? t("ksef.card.replaceToken") : t("ksef.card.token")}</FieldLabel>
                   <Input
                     id="ksef-token"
                     name="ksef-token"
@@ -130,18 +129,16 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
                     onChange={(e) => setToken(e.target.value)}
                     aria-invalid={error ? true : undefined}
                   />
-                  <FieldDescription>
-                    Stored encrypted and never shown again. Saving checks it against KSeF right away.
-                  </FieldDescription>
+                  <FieldDescription>{t("ksef.card.tokenDescription")}</FieldDescription>
                   {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit" disabled={token.trim() === ""}>
-                    {save.isPending ? "Saving and checking…" : "Save and check"}
+                    {save.isPending ? t("ksef.card.saving") : t("ksef.card.save")}
                   </Button>
                   {connection?.tokenSet && (
                     <Button type="button" variant="destructive" onClick={() => setConfirmRemove(true)}>
-                      Remove token
+                      {t("ksef.card.removeToken")}
                     </Button>
                   )}
                 </div>
@@ -153,15 +150,13 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
         <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove the KSeF token?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Purchase invoices stop being imported until a new token is saved. Invoices already imported stay.
-              </AlertDialogDescription>
+              <AlertDialogTitle>{t("ksef.card.removeTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("ksef.card.removeDescription")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={() => remove.mutate()}>
-                Remove
+                {t("ksef.card.remove")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -180,30 +175,32 @@ function KsefStatus({
   state: ReturnType<typeof ksefState>
   format: ReturnType<typeof useDateTimeFormat>
 }) {
+  const { t } = useTranslation("admin")
   return (
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex items-center gap-2">
         <Badge variant={state.tone === "error" ? "destructive" : state.tone === "muted" ? "secondary" : "default"} className={cn(toneClass[state.tone])}>
           {state.label}
         </Badge>
-        {connection?.nip && <span className="text-muted-foreground">NIP {connection.nip}</span>}
+        {connection?.nip && <span className="text-muted-foreground">{t("ksef.card.nip", { nip: connection.nip })}</span>}
       </div>
       {state.hint && <p className="text-muted-foreground">{state.hint}</p>}
       {connection?.tokenSet && (
         <dl className="text-muted-foreground grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           {connection.tokenSetAt && (
             <>
-              <dt>Token saved</dt>
+              <dt>{t("ksef.card.tokenSaved")}</dt>
               <dd>{format.dateTime(connection.tokenSetAt)}</dd>
             </>
           )}
-          <dt>Last accepted by KSeF</dt>
-          <dd>{connection.verifiedAt ? format.dateTime(connection.verifiedAt) : "Not yet"}</dd>
+          <dt>{t("ksef.card.lastAccepted")}</dt>
+          <dd>{connection.verifiedAt ? format.dateTime(connection.verifiedAt) : t("ksef.card.notYet")}</dd>
           {connection.lastCheckedAt && connection.lastCheckError && (
             <>
-              <dt>Last check failed</dt>
+              <dt>{t("ksef.card.lastCheckFailed")}</dt>
               <dd>
-                {format.dateTime(connection.lastCheckedAt)}: {connection.lastCheckErrorMessage ?? ksefErrorLabel(connection.lastCheckError)}
+                {/* The code in words; the API's message is English, for developers (ADR 0028 §5). */}
+                {format.dateTime(connection.lastCheckedAt)}: {ksefErrorLabel(connection.lastCheckError)}
               </dd>
             </>
           )}

@@ -1,5 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { cn } from "@business-tool/ui/lib/utils"
+import { useTranslation } from "react-i18next"
 
 import type { ExpenseCategory } from "@/lib/expense-categories"
 import { type Expense, categoryOptions } from "@/lib/expenses"
@@ -24,6 +25,7 @@ export function ExpenseCategorySelect({
   onChange: (categoryId: string | null) => void
   className?: string
 }) {
+  const { t } = useTranslation("admin")
   const options = categoryOptions(activeCategories, expense)
   const label = expense.invoiceNumber ? `${expense.sellerName}, ${expense.invoiceNumber}` : expense.sellerName
 
@@ -38,19 +40,19 @@ export function ExpenseCategorySelect({
     >
       <SelectTrigger
         size="sm"
-        aria-label={`Category of ${label}`}
+        aria-label={t("expenses.categoryOf", { expense: label })}
         className={cn("w-44 max-w-full", !expense.categoryId && "border-dashed text-muted-foreground", className)}
         onClick={(event) => event.stopPropagation()}
       >
         <SelectValue />
       </SelectTrigger>
       <SelectContent onClick={(event) => event.stopPropagation()}>
-        <SelectItem value={NONE}>Uncategorized</SelectItem>
+        <SelectItem value={NONE}>{t("expenses.uncategorized")}</SelectItem>
         {options.length > 0 && <SelectSeparator />}
         {options.map((option) => (
           <SelectItem key={option.id} value={option.id} disabled={option.archived}>
             {option.name}
-            {option.archived && <span className="text-muted-foreground"> (archived)</span>}
+            {option.archived && <span className="text-muted-foreground"> {t("expenses.archived")}</span>}
           </SelectItem>
         ))}
       </SelectContent>

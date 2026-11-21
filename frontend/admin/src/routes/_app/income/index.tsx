@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { PlusIcon, TriangleAlertIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -28,11 +29,11 @@ import {
   type IncomeGrid,
   type IncomeSearch,
   type MoneyTotal,
-  PAYMENT_METHOD_LABELS,
   REVENUE_ENTRIES_MAX_DAYS,
   type RevenueEntry,
   type RevenueSummary,
   incomeGrid,
+  paymentMethodLabel,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
@@ -90,6 +91,7 @@ function IncomePage() {
   const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
   const [dialog, setDialog] = useState<RevenueEntryTarget | null>(null)
+  const { t } = useTranslation("admin")
 
   const grid = incomeGrid(entries, registers, period, format.today())
 
@@ -101,9 +103,9 @@ function IncomePage() {
   }
 
   const nameOf = (userId: string) => {
-    if (userId === me.id) return "you"
+    if (userId === me.id) return null
     const member = members.find((m) => m.userId === userId)
-    return member ? fullName(member) : "a former member"
+    return member ? fullName(member) : t("time.formerMember")
   }
 
   const noRegister = activeRegisters.length === 0
@@ -114,17 +116,15 @@ function IncomePage() {
         <div className="flex flex-col gap-3">
           <IncomeNav />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Income</h1>
-            <p className="text-sm text-muted-foreground">
-              Each register's daily report, by the day it covers. Click an amount to correct it.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("income.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("income.description")}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodPicker value={period} onChange={setPeriod} maxDays={REVENUE_ENTRIES_MAX_DAYS} />
           <Button disabled={noRegister} onClick={() => setDialog({ kind: "add" })}>
             <PlusIcon />
-            Add entry
+            {t("income.addEntry")}
           </Button>
         </div>
       </div>
@@ -132,14 +132,11 @@ function IncomePage() {
       {noRegister && (
         <Alert>
           <TriangleAlertIcon />
-          <AlertTitle>Add a register first</AlertTitle>
-          <AlertDescription>
-            Income is entered per register, one daily report each. Add the tills with their own fiscal printer, then
-            come back to enter what they took.
-          </AlertDescription>
+          <AlertTitle>{t("income.noRegister.title")}</AlertTitle>
+          <AlertDescription>{t("income.noRegister.description")}</AlertDescription>
           <AlertAction>
             <Button size="sm" asChild>
-              <Link to="/income/registers">Add a register</Link>
+              <Link to="/income/registers">{t("income.noRegister.action")}</Link>
             </Button>
           </AlertAction>
         </Alert>
@@ -166,10 +163,6 @@ function IncomePage() {
   )
 }
 
-function periodName(period: BusinessPeriod, formatted: string): string {
-  return isWholeMonth(period) ? `in ${formatted}` : `for ${formatted}`
-}
-
 function DaysCard({
   grid,
   period,
@@ -181,18 +174,19 @@ function DaysCard({
 }) {
   const format = useDateTimeFormat()
   const money = useMoneyTotalFormat()
+  const { t } = useTranslation("admin")
   const missing = grid.rows.filter((row) => row.total.length === 0).length
 
   return (
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
-        <CardTitle>Days</CardTitle>
+        <CardTitle>{t("income.days.title")}</CardTitle>
         <CardDescription>
           {grid.rows.length === 0
-            ? `No days to enter ${periodName(period, format.period(period))} yet.`
+            ? t("income.days.none", { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) })
             : missing === 0
-              ? "Every day so far has at least one entry."
-              : `${missing} ${missing === 1 ? "day has" : "days have"} no entry yet. An empty cell adds that register's day.`}
+              ? t("income.days.allEntered")
+              : t("income.days.missing", { count: missing })}
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
@@ -200,14 +194,14 @@ function DaysCard({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Day</TableHead>
+                <TableHead className="pl-6">{t("income.days.day")}</TableHead>
                 {grid.columns.map((column) => (
                   <TableHead key={column.registerId} className="text-right">
                     {column.name}
-                    {!column.active && <span className="font-normal text-muted-foreground"> (deactivated)</span>}
+                    {!column.active && <span className="font-normal text-muted-foreground"> {t("income.deactivated")}</span>}
                   </TableHead>
                 ))}
-                <TableHead className="pr-6 text-right">Total</TableHead>
+                <TableHead className="pr-6 text-right">{t("income.total")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -228,7 +222,7 @@ function DaysCard({
                             variant="ghost"
                             size="sm"
                             className="text-muted-foreground/60 hover:text-foreground"
-                            aria-label={`Add ${column.name}, ${format.businessDate(row.date)}`}
+                            aria-label={t("income.days.add", { register: column.name, date: format.businessDate(row.date) })}
                             onClick={() => onOpen({ kind: "add", registerId: column.registerId, businessDate: row.date })}
                           >
                             <PlusIcon />
@@ -243,7 +237,7 @@ function DaysCard({
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="pl-6">Total</TableCell>
+                <TableCell className="pl-6">{t("income.total")}</TableCell>
                 {grid.columnTotals.map((total, index) => (
                   <TableCell key={grid.columns[index]?.registerId ?? index} className="text-right tabular-nums">
                     {money(total)}
@@ -262,6 +256,7 @@ function DaysCard({
 function EntryCell({ entry, onOpen }: { entry: RevenueEntry; onOpen: () => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const money = (minor: MinorUnits) => formatMoney(minor, entry.currency, locale)
   const difference = vatDifference(entry.paymentsTotal, entry.vatGrossTotal, entry.vatLines.length > 0)
 
@@ -270,13 +265,13 @@ function EntryCell({ entry, onOpen }: { entry: RevenueEntry; onOpen: () => void 
       variant="ghost"
       size="sm"
       className="tabular-nums"
-      aria-label={`${entry.registerName}, ${format.businessDate(entry.businessDate)}: ${money(entry.paymentsTotal)}. Edit`}
+      aria-label={t("income.days.edit", { register: entry.registerName, date: format.businessDate(entry.businessDate), amount: money(entry.paymentsTotal) })}
       onClick={onOpen}
     >
       {difference !== null && (
         <span
           className="size-1.5 rounded-full bg-amber-500"
-          title={`The VAT breakdown differs from the payments by ${money(Math.abs(difference))}`}
+          title={t("income.days.vatDiffers", { amount: money(Math.abs(difference)) })}
         />
       )}
       {money(entry.paymentsTotal)}
@@ -295,6 +290,7 @@ function SummaryCards({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const several = summary.currencies.length > 1
   // An empty period has one item with zeros, in the organization's currency.
   const currencies = summary.currencies.filter((item) => item.entryCount > 0 || !several)
@@ -309,29 +305,34 @@ function SummaryCards({
             <Card className="gap-0 pb-0">
               <CardHeader className="pb-4">
                 <CardTitle>
-                  Payments{several && ` in ${item.currency}`}: <span className="tabular-nums">{money(item.total)}</span>
+                  {several ? t("income.summary.paymentsIn", { currency: item.currency }) : t("income.summary.payments")}:{" "}
+                  <span className="tabular-nums">{money(item.total)}</span>
                 </CardTitle>
                 <CardDescription>
-                  {item.entryCount} {item.entryCount === 1 ? "entry" : "entries"}{" "}
-                  {periodName(period, format.period(period))}
-                  {grid.rows.length > 0 && `, ${summary.daysWithEntries} of ${grid.rows.length} days entered`}.
+                  {t("income.summary.entries", {
+                    count: item.entryCount,
+                    context: isWholeMonth(period) ? "month" : undefined,
+                    period: format.period(period),
+                  })}
+                  {grid.rows.length > 0 &&
+                    ` ${t("income.summary.daysEntered", { entered: summary.daysWithEntries, count: grid.rows.length })}`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0">
                 {item.payments.length === 0 ? (
-                  <p className="border-t px-6 py-6 text-sm text-muted-foreground">Nothing entered yet.</p>
+                  <p className="border-t px-6 py-6 text-sm text-muted-foreground">{t("income.summary.nothing")}</p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="pl-6">Method</TableHead>
-                        <TableHead className="pr-6 text-right">Amount</TableHead>
+                        <TableHead className="pl-6">{t("income.summary.method")}</TableHead>
+                        <TableHead className="pr-6 text-right">{t("income.summary.amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {item.payments.map((line) => (
                         <TableRow key={line.method}>
-                          <TableCell className="pl-6">{PAYMENT_METHOD_LABELS[line.method]}</TableCell>
+                          <TableCell className="pl-6">{paymentMethodLabel(line.method)}</TableCell>
                           <TableCell className="pr-6 text-right tabular-nums">{money(line.amount)}</TableCell>
                         </TableRow>
                       ))}
@@ -343,11 +344,11 @@ function SummaryCards({
 
             <Card className="gap-0 pb-0">
               <CardHeader className="pb-4">
-                <CardTitle>VAT</CardTitle>
+                <CardTitle>{t("income.vat.title")}</CardTitle>
                 <CardDescription>
                   {item.vatLines.length === 0
-                    ? "No entry has a VAT breakdown."
-                    : `VAT ${money(item.vatTotal)} in a gross ${money(item.vatGrossTotal)}, from the daily reports.`}
+                    ? t("income.vat.none")
+                    : t("income.vat.description", { vat: money(item.vatTotal), gross: money(item.vatGrossTotal) })}
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0">
@@ -355,10 +356,10 @@ function SummaryCards({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="pl-6">Rate</TableHead>
-                        <TableHead className="text-right">Gross</TableHead>
-                        <TableHead className="text-right">VAT</TableHead>
-                        <TableHead className="pr-6 text-right">Net</TableHead>
+                        <TableHead className="pl-6">{t("income.vat.rate")}</TableHead>
+                        <TableHead className="text-right">{t("income.vat.gross")}</TableHead>
+                        <TableHead className="text-right">{t("income.vat.vat")}</TableHead>
+                        <TableHead className="pr-6 text-right">{t("income.vat.net")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -376,8 +377,7 @@ function SummaryCards({
                 {difference !== null && (
                   <p className="flex items-start gap-2 border-t px-6 py-3 text-sm text-muted-foreground">
                     <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                    The VAT gross is {money(Math.abs(difference))} {difference > 0 ? "more" : "less"} than the payments.
-                    Allowed: e.g. invoiced transfers aren't on the fiscal reports.
+                    {t(difference > 0 ? "income.vat.grossMore" : "income.vat.grossLess", { amount: money(Math.abs(difference)) })}
                   </p>
                 )}
               </CardContent>

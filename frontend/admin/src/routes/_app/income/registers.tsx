@@ -3,6 +3,7 @@ import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { ArchiveIcon, ChevronRightIcon, MoreHorizontalIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -56,6 +57,7 @@ function RegistersPage() {
   const { membership } = Route.useRouteContext()
   const organizationId = membership.organization.id
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const listKey = registersQuery(organizationId, true).queryKey
   const { data: registers } = useSuspenseQuery(registersQuery(organizationId, true))
   const { active, deactivated } = splitRegisters(registers)
@@ -87,10 +89,10 @@ function RegistersPage() {
     onSuccess: async (saved) => {
       queryClient.setQueryData(listKey, (list) => (list ? withRegister(list, saved) : list))
       await queryClient.invalidateQueries({ queryKey: registersQuery(organizationId, false).queryKey })
-      toast.success(`${saved.name} deactivated`)
+      toast.success(t("registers.toast.deactivated", { name: saved.name }))
     },
     onError: async (error) => {
-      toast.error("Could not deactivate the register", { description: requestErrorMessage(error) })
+      toast.error(t("registers.error.deactivate"), { description: requestErrorMessage(error) })
       await queryClient.invalidateQueries({ queryKey: ["registers", organizationId] })
     },
   })
@@ -101,15 +103,13 @@ function RegistersPage() {
         <div className="flex flex-col gap-3">
           <IncomeNav />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Registers</h1>
-            <p className="text-sm text-muted-foreground">
-              Tills with their own fiscal printer. Income is entered per register, one daily report each.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("registers.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("registers.description")}</p>
           </div>
         </div>
         <Button onClick={openAdd}>
           <PlusIcon />
-          Add register
+          {t("registers.add")}
         </Button>
       </div>
 
@@ -117,7 +117,7 @@ function RegistersPage() {
         <CardContent className="px-0">
           {active.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No active registers. Add one before entering income.
+              {t("registers.noneActive")}
             </p>
           ) : (
             <RegistersTable
@@ -135,13 +135,11 @@ function RegistersPage() {
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="group self-start px-2 text-muted-foreground">
               <ChevronRightIcon className="transition-transform group-data-[state=open]:rotate-90" />
-              Deactivated registers ({deactivated.length})
+              {t("registers.deactivatedCount", { count: deactivated.length })}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="flex flex-col gap-3">
-            <p className="px-2 text-sm text-muted-foreground">
-              They take no new entries. Their entries stay on the Income page, under their names.
-            </p>
+            <p className="px-2 text-sm text-muted-foreground">{t("registers.deactivatedDescription")}</p>
             <Card className="py-0">
               <CardContent className="px-0">
                 <RegistersTable registers={deactivated} busyId={null} onRename={openRename} />
@@ -161,21 +159,18 @@ function RegistersPage() {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate {deactivating?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              It takes no new entries from now on. Its existing entries stay on the Income page, and you can still
-              correct them. Registers can't be reactivated, and the name stays taken.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("registers.confirm.title", { name: deactivating?.name ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("registers.confirm.description")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 if (deactivating) deactivate.mutate(deactivating)
               }}
             >
-              Deactivate
+              {t("registers.deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -194,15 +189,16 @@ interface RegistersTableProps {
 
 function RegistersTable({ registers, busyId, onRename, onDeactivate }: RegistersTableProps) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-1/2 pl-4">Name</TableHead>
-          <TableHead>{onDeactivate ? "Added" : "Deactivated"}</TableHead>
+          <TableHead className="w-1/2 pl-4">{t("registers.dialog.name")}</TableHead>
+          <TableHead>{onDeactivate ? t("registers.added") : t("registers.deactivatedOn")}</TableHead>
           <TableHead className="pr-4">
-            <span className="sr-only">Actions</span>
+            <span className="sr-only">{t("common.actions")}</span>
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -218,7 +214,7 @@ function RegistersTable({ registers, busyId, onRename, onDeactivate }: Registers
                     variant="ghost"
                     size="icon-sm"
                     disabled={busyId === register.id}
-                    aria-label={`Actions for ${register.name}`}
+                    aria-label={t("team.actionsFor", { name: register.name })}
                   >
                     <MoreHorizontalIcon />
                   </Button>
@@ -226,12 +222,12 @@ function RegistersTable({ registers, busyId, onRename, onDeactivate }: Registers
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onSelect={() => onRename(register)}>
                     <PencilIcon />
-                    Rename
+                    {t("registers.rename")}
                   </DropdownMenuItem>
                   {onDeactivate && (
                     <DropdownMenuItem variant="destructive" onSelect={() => onDeactivate(register)}>
                       <ArchiveIcon />
-                      Deactivate
+                      {t("registers.deactivate")}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>

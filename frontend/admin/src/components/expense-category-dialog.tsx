@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -35,6 +36,7 @@ interface ExpenseCategoryDialogProps {
 /** Adds an expense category, or renames one (active or archived). */
 export function ExpenseCategoryDialog({ organizationId, open, onOpenChange, category }: ExpenseCategoryDialogProps) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const [errors, setErrors] = useState<CategoryFormErrors>({})
   const listKey = expenseCategoriesQuery(organizationId, true).queryKey
   const renaming = category ?? null
@@ -54,7 +56,7 @@ export function ExpenseCategoryDialog({ organizationId, open, onOpenChange, cate
       queryClient.setQueryData(listKey, (list) => (list ? withCategory(list, saved) : list))
       // The active-only list (category pickers) is out of date too.
       await queryClient.invalidateQueries({ queryKey: expenseCategoriesQuery(organizationId, false).queryKey })
-      toast.success(renaming ? `Category renamed to ${saved.name}` : `Category ${saved.name} added`)
+      toast.success(renaming ? t("categories.toast.renamed", { name: saved.name }) : t("categories.toast.added", { name: saved.name }))
       close()
     },
     onError: (error, name) => setErrors(categoryFormErrors(error, name, queryClient.getQueryData(listKey) ?? [])),
@@ -77,17 +79,15 @@ export function ExpenseCategoryDialog({ organizationId, open, onOpenChange, cate
         {/* A new key per category, so the field starts from that category's name. */}
         <form key={renaming?.id ?? "new"} onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>{renaming ? `Rename ${renaming.name}` : "Add category"}</DialogTitle>
+            <DialogTitle>{renaming ? t("registers.dialog.renameTitle", { name: renaming.name }) : t("categories.add")}</DialogTitle>
             <DialogDescription>
-              {renaming
-                ? "Expenses in this category, past ones included, show the new name."
-                : "What an expense was for, such as rent or drinks. You sort purchase invoices into categories."}
+              {renaming ? t("categories.dialog.renameDescription") : t("categories.dialog.addDescription")}
             </DialogDescription>
           </DialogHeader>
           <fieldset disabled={save.isPending} className="py-4">
             <FieldGroup>
               <Field data-invalid={errors.name ? true : undefined}>
-                <FieldLabel htmlFor="expense-category-name">Name</FieldLabel>
+                <FieldLabel htmlFor="expense-category-name">{t("registers.dialog.name")}</FieldLabel>
                 <Input
                   id="expense-category-name"
                   name="name"
@@ -100,7 +100,7 @@ export function ExpenseCategoryDialog({ organizationId, open, onOpenChange, cate
                 {errors.name ? (
                   <FieldError>{errors.name}</FieldError>
                 ) : (
-                  <FieldDescription>Up to 64 characters, different from your other categories.</FieldDescription>
+                  <FieldDescription>{t("categories.dialog.nameDescription", { count: 64 })}</FieldDescription>
                 )}
               </Field>
               {errors.form && (
@@ -112,7 +112,7 @@ export function ExpenseCategoryDialog({ organizationId, open, onOpenChange, cate
           </fieldset>
           <DialogFooter>
             <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : renaming ? "Rename" : "Add category"}
+              {save.isPending ? t("common.saving", { ns: "ui" }) : renaming ? t("registers.rename") : t("categories.add")}
             </Button>
           </DialogFooter>
         </form>

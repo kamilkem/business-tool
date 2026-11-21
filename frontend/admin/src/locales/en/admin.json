@@ -1,8 +1,931 @@
 {
+  "app": {
+    "name": "Business Tool"
+  },
+  "common": {
+    "backToSignIn": "Back to sign in",
+    "cancel": "Cancel",
+    "actions": "Actions",
+    "save": "Save",
+    "nothingChanged": "Nothing changed",
+    "saveChanges": "Save changes",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "loading": "Loading…"
+  },
+  "login": {
+    "description": "Sign in to the admin panel",
+    "passwordSet": "Your password is set. Sign in with it.",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "submit": "Sign in",
+    "submitting": "Signing in…"
+  },
+  "setPassword": {
+    "title": "Set your password",
+    "description": "Choose the password you'll use to sign in to the admin panel."
+  },
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "description": "Enter the e-mail you sign in with and we'll send you a link to set a new password."
+  },
+  "account": {
+    "account": "Account",
+    "signOut": "Sign out",
+    "organizations": "Organizations",
+    "startPage": "Start page",
+    "title": "Account",
+    "changePassword": "Change password",
+    "changePasswordDescription": "You stay signed in here; your other devices and apps are signed out."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "team": "Team",
+    "shiftRequests": "Shift requests",
+    "shiftRequestsPending_one": "Shift requests ({{count}} pending)",
+    "shiftRequestsPending_other": "Shift requests ({{count}} pending)",
+    "pending_one": "{{count}} pending",
+    "pending_other": "{{count}} pending",
+    "modules": "Modules",
+    "soon": "Soon",
+    "settings": "Organization settings",
+    "expenses": "Expenses",
+    "income": "Income",
+    "payroll": "Payroll"
+  },
+  "modules": {
+    "expenses": {
+      "title": "Expenses",
+      "description": "Purchase invoices pulled from KSeF and sorted into categories."
+    },
+    "income": {
+      "title": "Income",
+      "description": "Daily revenue entered by hand, per payment method."
+    },
+    "payroll": {
+      "title": "Payroll",
+      "description": "Paychecks calculated from logged hours and rates."
+    },
+    "time": {
+      "title": "Time tracking",
+      "description": "Shifts clocked in the timeclock app."
+    }
+  },
+  "dashboard": {
+    "hello": "Hello, {{name}}",
+    "description": "Modules will light up here as they are built.",
+    "open": "Open",
+    "comingSoon": "Coming soon"
+  },
+  "useTimeclock": {
+    "noOrganizationTitle": "No organization yet",
+    "noOrganizationDescription": "You don't belong to any organization. When a business adds you, you'll get an e-mail invitation.",
+    "title": "Use the timeclock",
+    "description": "You're an employee of {{organization}}. The admin is for owners and managers; clock in, see your shifts and ask for changes in the timeclock app.",
+    "open": "Open the timeclock",
+    "otherOrganizations": "Your other organizations",
+    "otherOrganizationsDescription": "You can use the admin for these.",
+    "switchTo": "Switch to {{organization}}"
+  },
+  "role": {
+    "owner": "Owner",
+    "manager": "Manager",
+    "employee": "Employee"
+  },
+  "ksef": {
+    "state": {
+      "notConnected": "Not connected",
+      "tokenRejected": "Token rejected",
+      "checkFailed": "Connected, last check failed",
+      "notChecked": "Token saved, not checked yet",
+      "connected": "Connected"
+    },
+    "hint": {
+      "notConnected": "An owner saves a KSeF token to import purchase invoices.",
+      "tokenUnreadable": "The saved token can no longer be read. An owner has to save it again.",
+      "tokenRejected": "KSeF refused the token. An owner has to generate a new one in KSeF and save it.",
+      "notChecked": "Test the connection to check it."
+    },
+    "error": {
+      "credentials_rejected": "KSeF refused the token.",
+      "token_unreadable": "The saved token can no longer be read.",
+      "rate_limited": "KSeF asked us to slow down. Try again later.",
+      "unavailable": "KSeF could not be reached. Try again later.",
+      "request_failed": "KSeF answered in an unexpected way.",
+      "invoice_unreadable": "Some invoices could not be read and were skipped."
+    },
+    "card": {
+      "description": "Purchase invoices are imported from KSeF with a KSeF token generated for the organization's NIP with the InvoiceRead permission only.",
+      "savedAccepted": "KSeF token saved and accepted",
+      "savedCheckFailed": "KSeF token saved, but the check failed",
+      "accepted": "KSeF accepted the token",
+      "removed": "KSeF token removed",
+      "testing": "Testing…",
+      "test": "Test connection",
+      "replaceToken": "Replace the KSeF token",
+      "token": "KSeF token",
+      "tokenDescription": "Stored encrypted and never shown again. Saving checks it against KSeF right away.",
+      "saving": "Saving and checking…",
+      "save": "Save and check",
+      "removeToken": "Remove token",
+      "removeTitle": "Remove the KSeF token?",
+      "removeDescription": "Purchase invoices stop being imported until a new token is saved. Invoices already imported stay.",
+      "remove": "Remove",
+      "nip": "NIP {{nip}}",
+      "tokenSaved": "Token saved",
+      "lastAccepted": "Last accepted by KSeF",
+      "notYet": "Not yet",
+      "lastCheckFailed": "Last check failed"
+    },
+    "import": {
+      "started": "Import started",
+      "startedDescription": "New invoices show up here when it finishes.",
+      "tooSoon": "An import was requested less than 15 minutes ago",
+      "failed": "Could not start the import",
+      "title": "KSeF import",
+      "starting": "Starting…",
+      "now": "Import now",
+      "importing": "Importing invoices from KSeF…",
+      "never": "Purchase invoices are imported from KSeF every night. Nothing was imported yet.",
+      "imported_one": "{{count}} imported",
+      "imported_other": "{{count}} imported",
+      "skipped_one": "{{count}} skipped",
+      "skipped_other": "{{count}} skipped",
+      "lastRun": "Imported every night. Last run {{when}}: {{counts}}.",
+      "lastRunLabel": "Last run",
+      "lastSuccess": "Last success",
+      "lastError": "Last error",
+      "waitRateLimited": "KSeF asked us to slow down. Available again at {{time}}.",
+      "waitRecent": "Requested recently. Available again at {{time}}.",
+      "import": "Import",
+      "noToken": "Stopped: no KSeF token is saved.",
+      "saveInSettings": "Save one in Settings",
+      "ownerSaves": "An owner saves one in Settings."
+    },
+    "rejected": {
+      "title": "KSeF import stopped: the token was rejected",
+      "upTo": "Invoices up to {{when}} are here.",
+      "askOwner": "Ask an owner to save a new token in Settings.",
+      "openSettings": "Open KSeF settings"
+    }
+  },
+  "registers": {
+    "error": {
+      "nameTakenByDeactivated": "A deactivated register is already named “{{name}}”. Deactivated registers keep their names, so pick another one.",
+      "nameTaken": "A register named “{{name}}” already exists.",
+      "deactivate": "Could not deactivate the register"
+    },
+    "title": "Registers",
+    "description": "Tills with their own fiscal printer. Income is entered per register, one daily report each.",
+    "add": "Add register",
+    "rename": "Rename",
+    "deactivate": "Deactivate",
+    "added": "Added",
+    "deactivatedOn": "Deactivated",
+    "noneActive": "No active registers. Add one before entering income.",
+    "deactivatedCount_one": "Deactivated registers ({{count}})",
+    "deactivatedCount_other": "Deactivated registers ({{count}})",
+    "deactivatedDescription": "They take no new entries. Their entries stay on the Income page, under their names.",
+    "confirm": {
+      "title": "Deactivate {{name}}?",
+      "description": "It takes no new entries from now on. Its existing entries stay on the Income page, and you can still correct them. Registers can't be reactivated, and the name stays taken."
+    },
+    "toast": {
+      "added": "Register {{name}} added",
+      "renamed": "Register renamed to {{name}}",
+      "deactivated": "{{name}} deactivated"
+    },
+    "dialog": {
+      "renameTitle": "Rename {{name}}",
+      "renameDescription": "Its revenue entries, past ones included, show the new name.",
+      "addDescription": "A till with its own fiscal printer. You enter one daily report per register.",
+      "name": "Name",
+      "nameDescription_one": "Up to {{count}} character, different from your other registers.",
+      "nameDescription_other": "Up to {{count}} characters, different from your other registers."
+    }
+  },
+  "categories": {
+    "error": {
+      "nameTakenByArchived": "An archived category is already named “{{name}}”. Restore it, or pick another name.",
+      "nameTaken": "A category named “{{name}}” already exists.",
+      "archive": "Could not archive the category",
+      "restore": "Could not restore the category"
+    },
+    "title": "Expense categories",
+    "description": "What expenses are for, such as rent or drinks. Purchase invoices are sorted into them.",
+    "add": "Add category",
+    "noneActive": "No active categories. Add one, or restore an archived one.",
+    "archivedCount_one": "Archived categories ({{count}})",
+    "archivedCount_other": "Archived categories ({{count}})",
+    "archivedDescription": "They are not offered for new expenses. Expenses that have one keep it. Restore one to use it again.",
+    "added": "Added",
+    "archivedOn": "Archived",
+    "restore": "Restore",
+    "archive": "Archive",
+    "toast": {
+      "added": "Category {{name}} added",
+      "renamed": "Category renamed to {{name}}",
+      "archived": "{{name}} archived",
+      "archivedDescription": "It is no longer offered for new expenses.",
+      "undo": "Undo",
+      "restored": "{{name}} restored"
+    },
+    "dialog": {
+      "renameDescription": "Expenses in this category, past ones included, show the new name.",
+      "addDescription": "What an expense was for, such as rent or drinks. You sort purchase invoices into categories.",
+      "nameDescription_one": "Up to {{count}} character, different from your other categories.",
+      "nameDescription_other": "Up to {{count}} characters, different from your other categories."
+    }
+  },
+  "shiftRequests": {
+    "filter": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "all": "All"
+    },
+    "openRange": "{{start}} – open",
+    "change": {
+      "missingShift": "Enters a shift that was not clocked",
+      "both": "Changes the clock-in and the clock-out",
+      "clockIn": "Changes the clock-in",
+      "keepsOpen": "Keeps the shift open",
+      "endsOpen": "Ends the open shift",
+      "clockOut": "Changes the clock-out"
+    },
+    "title": "Shift change requests",
+    "description": "People ask for a shift they forgot to clock, or for new times. Times in {{timeZone}}.",
+    "status": "Status",
+    "decision": "Decision",
+    "cardTitle": {
+      "pending": "Pending requests",
+      "approved": "Approved requests",
+      "rejected": "Rejected requests",
+      "all": "All requests"
+    },
+    "cardDescription": "Newest first. Approving gives the shift the requested times; the shift rules (no overlap, nothing in the future) are checked then.",
+    "empty": {
+      "pending": "No requests are waiting for a decision.",
+      "approved": "No approved requests yet.",
+      "rejected": "No rejected requests yet.",
+      "all": "Nobody has asked for a shift change yet."
+    },
+    "now": "Now",
+    "requested": "Requested",
+    "noShift": "No shift",
+    "asked": "Asked {{when}}",
+    "missingShift": "Missing shift",
+    "reject": "Reject",
+    "approve": "Approve",
+    "rejectFor": "Reject {{name}}'s request for {{day}}",
+    "approveFor": "Approve {{name}}'s request for {{day}}",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "decidedBy": "by {{name}}, {{when}}",
+    "decidedByYou": "by you, {{when}}",
+    "quoted": "“{{text}}”",
+    "toast": {
+      "rejected": "Request of {{name}} rejected"
+    },
+    "dialog": {
+      "approveTitle": "Approve {{name}}'s request?",
+      "rejectTitle": "Reject {{name}}'s request?",
+      "approveMissing": "The shift is entered for {{name}}, marked as entered by you.",
+      "approveNewTimes": "The shift gets the requested times, marked as corrected by you.",
+      "reject": "The shift stays as it is. {{name}} is told by e-mail.",
+      "noteFrom": "Note from {{name}}, {{when}}",
+      "reason": "Reason (optional)",
+      "reasonPlaceholder": "e.g. The rota says you left at 02:00.",
+      "reasonTooLong_one": "Keep the reason under {{count}} character.",
+      "reasonTooLong_other": "Keep the reason under {{count}} characters.",
+      "reasonInEmail": "Included in the e-mail to {{name}}.",
+      "approveFailed": "Could not approve",
+      "rejectFailed": "Could not reject",
+      "stillPending": "The request is still pending. Fix the other shift on the Time page, or reject the request."
+    }
+  },
+  "expenses": {
+    "nav": {
+      "invoices": "Invoices",
+      "categories": "Categories"
+    },
+    "source": {
+      "manual": "Entered by hand",
+      "manualShort": "Manual"
+    },
+    "kind": {
+      "regular": "Invoice",
+      "correction": "Correction",
+      "advance": "Advance invoice",
+      "settlement": "Settlement invoice",
+      "simplified": "Simplified invoice",
+      "advance_correction": "Advance correction",
+      "settlement_correction": "Settlement correction"
+    },
+    "archivedCategory": "Archived category",
+    "categorized": "Categorized as {{category}}",
+    "categoryCleared": "Category cleared",
+    "categorizeFailed": "Could not change the category",
+    "categoryOf": "Category of {{expense}}",
+    "uncategorized": "Uncategorized",
+    "archived": "(archived)",
+    "title": "Expenses",
+    "description": "Purchase invoices by issue date. Click one for its details.",
+    "descriptionKsef": "Purchase invoices by issue date, imported from KSeF or entered by hand. Click one for its details.",
+    "add": "Add expense",
+    "noneMatching": "No expenses match the filters in this period.",
+    "none": "No expenses for {{period}}.",
+    "none_month": "No expenses in {{period}}.",
+    "category": "Category",
+    "allCategories": "All categories",
+    "seller": "Seller",
+    "sellerPlaceholder": "Seller name or tax ID",
+    "clearFilters": "Clear filters",
+    "noTaxId": "No tax ID",
+    "column": {
+      "issued": "Issued",
+      "invoice": "Invoice"
+    },
+    "totals": {
+      "gross": "Gross",
+      "grossIn": "Gross in {{currency}}",
+      "filtered": ", filtered",
+      "netVat": "Net {{net}} · VAT {{vat}}",
+      "count_one": "{{count}} expense for {{period}}",
+      "count_other": "{{count}} expenses for {{period}}",
+      "count_month_one": "{{count}} expense in {{period}}",
+      "count_month_other": "{{count}} expenses in {{period}}"
+    },
+    "sheet": {
+      "issued": "{{number}}, issued {{date}}",
+      "noNumber": "No invoice number",
+      "importedFrom": "Imported from {{source}}: only the category can be changed.",
+      "sellerTaxId": "Seller tax ID",
+      "issueDate": "Issue date",
+      "kind": "Kind",
+      "corrects": "Corrects",
+      "vatSettledIn": "(VAT settled in {{currency}})",
+      "source": "Source",
+      "ksefNumber": "KSeF number",
+      "sourceId": "Source id",
+      "entered": "Entered",
+      "imported": "Imported",
+      "noVat": "The invoice has no VAT breakdown.",
+      "vatIn": "VAT in {{currency}}",
+      "document": "Original document",
+      "noDocumentManual": "Entered by hand, without a document.",
+      "noDocument": "No document is stored.",
+      "deleted": "Expense deleted",
+      "deleteFailed": "Could not delete the expense",
+      "edit": "Edit",
+      "deleteTitle": "Delete the expense from {{seller}}?",
+      "deleteDescription": "{{amount}} leaves the period's totals. A deleted expense can't be restored; you can enter it again.",
+      "downloadFailed": "Could not download the document",
+      "downloading": "Downloading…",
+      "download": "Download XML"
+    }
+  },
+  "expenseForm": {
+    "error": {
+      "sellerName": "Enter the seller's name.",
+      "issueDate": "Choose the date on the document.",
+      "currency": "Enter a three-letter currency code, e.g. EUR.",
+      "negative": "Only a correction has negative amounts.",
+      "grossTotal": "Enter the gross total.",
+      "vatTotal": "Enter the VAT total. Enter 0 for a document without VAT.",
+      "net": "Enter the net amount.",
+      "vat": "Enter the VAT, as printed.",
+      "vatInTaxCurrency": "Enter the VAT in {{currency}}."
+    },
+    "added": "Expense added",
+    "updated": "Expense updated",
+    "editTitle": "Edit {{seller}}",
+    "enteredOn": "Entered by hand, {{when}}.",
+    "addDescription": "A receipt or an invoice that is not in KSeF, with the amounts as printed.",
+    "sellerPlaceholder": "e.g. Makro Cash & Carry",
+    "optional": "Optional",
+    "number": "Invoice or receipt number",
+    "foreign": "VAT is settled in {{currency}}: the breakdown asks for both.",
+    "totals": "Totals",
+    "totalsDescription": "As printed. Net is gross minus VAT.",
+    "totalsDescriptionCorrection": "As printed; a correction may be negative. Net is gross minus VAT.",
+    "breakdownDescription": "Net and VAT per rate, as printed. Leave a rate empty if it isn't on the document.",
+    "breakdownSums": "Breakdown: net <amount>{{net}}</amount>, VAT <amount>{{vat}}</amount>, gross <amount>{{gross}}</amount>",
+    "mismatch": "The breakdown doesn't add up to the totals. That's allowed if the document rounds differently.",
+    "totalsEmpty": "The totals are empty.",
+    "useBreakdown": "Use the breakdown's totals",
+    "netAt": "Net at {{rate}}",
+    "vatInAt": "VAT in {{currency}} at {{rate}}"
+  },
+  "income": {
+    "nav": {
+      "dailyEntries": "Daily entries",
+      "registers": "Registers"
+    },
+    "paymentMethod": {
+      "cash": "Cash",
+      "card": "Card",
+      "transfer": "Transfer",
+      "voucher": "Voucher"
+    },
+    "error": {
+      "register": "Choose a register.",
+      "businessDate": "Choose the day the daily report covers.",
+      "futureDate": "The day can't be after today.",
+      "payments": "Enter at least one amount. Enter 0 for a register that sold nothing.",
+      "gross": "Enter the gross amount.",
+      "vat": "Enter the VAT, as printed.",
+      "vatAboveGross": "The VAT can't be more than the gross amount."
+    },
+    "title": "Income",
+    "description": "Each register's daily report, by the day it covers. Click an amount to correct it.",
+    "addEntry": "Add entry",
+    "deactivated": "(deactivated)",
+    "total": "Total",
+    "noRegister": {
+      "title": "Add a register first",
+      "description": "Income is entered per register, one daily report each. Add the tills with their own fiscal printer, then come back to enter what they took.",
+      "action": "Add a register"
+    },
+    "days": {
+      "title": "Days",
+      "none": "No days to enter for {{period}} yet.",
+      "none_month": "No days to enter in {{period}} yet.",
+      "allEntered": "Every day so far has at least one entry.",
+      "missing_one": "{{count}} day has no entry yet. An empty cell adds that register's day.",
+      "missing_other": "{{count}} days have no entry yet. An empty cell adds that register's day.",
+      "day": "Day",
+      "add": "Add {{register}}, {{date}}",
+      "edit": "{{register}}, {{date}}: {{amount}}. Edit",
+      "vatDiffers": "The VAT breakdown differs from the payments by {{amount}}"
+    },
+    "summary": {
+      "payments": "Payments",
+      "paymentsIn": "Payments in {{currency}}",
+      "entries_one": "{{count}} entry for {{period}}.",
+      "entries_other": "{{count}} entries for {{period}}.",
+      "entries_month_one": "{{count}} entry in {{period}}.",
+      "entries_month_other": "{{count}} entries in {{period}}.",
+      "daysEntered_one": "{{entered}} of {{count}} day entered.",
+      "daysEntered_other": "{{entered}} of {{count}} days entered.",
+      "nothing": "Nothing entered yet.",
+      "method": "Method",
+      "amount": "Amount"
+    },
+    "vat": {
+      "title": "VAT",
+      "none": "No entry has a VAT breakdown.",
+      "description": "VAT {{vat}} in a gross {{gross}}, from the daily reports.",
+      "rate": "Rate",
+      "gross": "Gross",
+      "vat": "VAT",
+      "net": "Net",
+      "grossMore": "The VAT gross is {{amount}} more than the payments. Allowed: e.g. invoiced transfers aren't on the fiscal reports.",
+      "grossLess": "The VAT gross is {{amount}} less than the payments. Allowed: e.g. invoiced transfers aren't on the fiscal reports."
+    },
+    "entry": {
+      "addTitle": "Add income entry",
+      "addDescription": "One register's daily report: what it took per payment method, and the VAT breakdown if you have it.",
+      "createdBy": "Entered by {{name}}, {{when}}",
+      "createdByYou": "Entered by you, {{when}}",
+      "updatedBy": "last changed by {{name}}, {{when}}",
+      "updatedByYou": "last changed by you, {{when}}",
+      "fixed": "The register and the day don't change: delete the entry and add it again.",
+      "thisRegister": "This register",
+      "register": "Register",
+      "chooseRegister": "Choose a register",
+      "duplicate": "{{register}} already has an entry for {{date}}.",
+      "openExisting": "Open that entry",
+      "deletedMeanwhile": "That entry was deleted in the meantime. Try saving again.",
+      "paymentsDescription": "Gross amounts. Leave a method empty if it wasn't used; 0 is fine.",
+      "vatBreakdown": "VAT breakdown (optional)",
+      "vatBreakdownDescription": "As printed on the register's daily report. You can also add it later.",
+      "grossTotal": "Gross total",
+      "vatMore": "The VAT breakdown is {{amount}} more than the payments. That's allowed, e.g. for a transfer that isn't on the fiscal report.",
+      "vatLess": "The VAT breakdown is {{amount}} less than the payments. That's allowed, e.g. for a transfer that isn't on the fiscal report.",
+      "notePlaceholder": "Optional, e.g. an invoiced event paid by transfer",
+      "grossAt": "Gross at {{rate}}",
+      "vatAt": "VAT at {{rate}}",
+      "noVat": "No VAT",
+      "deleteTitle": "Delete the entry of {{register}}, {{date}}?",
+      "deleteDescription": "{{amount}} leaves the month's totals. A deleted entry can't be restored; you can enter the day again.",
+      "toast": {
+        "added": "Entry added for {{register}}, {{date}}",
+        "updated": "Entry of {{register}}, {{date}} updated",
+        "deleted": "Entry of {{register}}, {{date}} deleted"
+      }
+    }
+  },
+  "payroll": {
+    "nav": {
+      "paychecks": "Paychecks",
+      "rates": "Rates"
+    },
+    "state": {
+      "none": "Not generated",
+      "draft": "Draft",
+      "approved": "Approved",
+      "partlyPaid": "Partly paid",
+      "paid": "Paid"
+    },
+    "rounding": {
+      "unit": {
+        "none": "Exact time",
+        "minutes15": "15 minutes",
+        "minutes30": "30 minutes",
+        "hour": "1 hour"
+      },
+      "direction": {
+        "nearest": "To the nearest",
+        "up": "Up",
+        "down": "Down"
+      },
+      "summary": {
+        "nearest": {
+          "minutes15": "Each shift to the nearest 15 minutes",
+          "minutes30": "Each shift to the nearest 30 minutes",
+          "hour": "Each shift to the nearest 1 hour"
+        },
+        "up": {
+          "minutes15": "Each shift rounded up to 15 minutes",
+          "minutes30": "Each shift rounded up to 30 minutes",
+          "hour": "Each shift rounded up to 1 hour"
+        },
+        "down": {
+          "minutes15": "Each shift rounded down to 15 minutes",
+          "minutes30": "Each shift rounded down to 30 minutes",
+          "hour": "Each shift rounded down to 1 hour"
+        }
+      }
+    },
+    "blocker": {
+      "monthNotOver": "The month isn't over yet: this draft is a preview.",
+      "openShifts_one": "{{count}} shift is still open. End it on the Time page, then regenerate.",
+      "openShifts_other": "{{count}} shifts are still open. End them on the Time page, then regenerate.",
+      "pendingRequests_one": "{{count}} shift change request is waiting for a decision. Decide it, then regenerate.",
+      "pendingRequests_other": "{{count}} shift change requests are waiting for a decision. Decide them, then regenerate.",
+      "linesWithoutRate_one": "{{count}} shift has no rate. Set the rate, then regenerate.",
+      "linesWithoutRate_other": "{{count}} shifts have no rate. Set the rate, then regenerate.",
+      "negativeTotals_one": "{{count}} paycheck has a negative total. Move part of the deduction to a later month.",
+      "negativeTotals_other": "{{count}} paychecks have a negative total. Move part of the deduction to a later month.",
+      "noPaychecks": "The run has no paychecks."
+    },
+    "formerMember": "Former member",
+    "paymentMethod": {
+      "cash": "Cash",
+      "transfer": "Transfer"
+    },
+    "error": {
+      "date": "Choose a date.",
+      "rateAmount": "Enter the gross amount per hour.",
+      "rateNotPositive": "The rate must be more than zero.",
+      "person": "Choose a person.",
+      "labelMissing": "Say what it is for, e.g. “Bonus” or “Advance paid 10 Oct”.",
+      "labelTooLong_one": "Up to {{count}} character.",
+      "labelTooLong_other": "Up to {{count}} characters.",
+      "adjustmentAmount": "Enter an amount: positive adds to the pay, negative takes off.",
+      "adjustmentZero": "The amount can't be zero.",
+      "paidOn": "Choose the day it was paid.",
+      "futureDate": "The day can't be after today.",
+      "method": "Choose how it was paid."
+    },
+    "title": "Payroll",
+    "description": "Gross pay for a month from the ended shifts and each person's rate. Your accountant does the rest.",
+    "month": "Month",
+    "approve": "Approve",
+    "reopen": "Reopen",
+    "deleteDraft": "Delete draft",
+    "notReady": "Not ready to approve",
+    "setRates": "Set rates",
+    "ready": "Ready to approve",
+    "readyOwner": "Review the paychecks, then approve. Approving locks the month's shifts and rates.",
+    "readyManager": "Review the paychecks. An owner approves the run, which locks the month's shifts and rates.",
+    "withoutRate_one": "{{count}} without rate",
+    "withoutRate_other": "{{count}} without rate",
+    "noRun": {
+      "thisMonth": "This month isn't over. A draft now is a preview: it can be approved once the month has ended.",
+      "pastMonth": "Generate a draft from the month's ended shifts and the rates, review it, then an owner approves it."
+    },
+    "run": {
+      "generatedBy": "Generated by {{name}} on {{when}}.",
+      "generatedByYou": "Generated by you on {{when}}.",
+      "approvedBy": "Approved by {{name}} on {{when}}.",
+      "approvedByYou": "Approved by you on {{when}}.",
+      "locked": "The month's shifts and rates are locked.",
+      "grossPaychecks_one": "gross, {{count}} paycheck",
+      "grossPaychecks_other": "gross, {{count}} paychecks",
+      "paidCount_one": ", {{count}} paid",
+      "paidCount_other": ", {{count}} paid"
+    },
+    "toast": {
+      "approve": "{{period}} approved: its shifts are locked",
+      "reopen": "{{period}} reopened as a draft: its shifts are unlocked",
+      "delete": "Draft of {{period}} deleted"
+    },
+    "refused": {
+      "approve": "Not approved",
+      "reopen": "Not reopened",
+      "delete": "Not deleted"
+    },
+    "confirm": {
+      "approveTitle": "Approve {{period}}?",
+      "reopenTitle": "Reopen {{period}}?",
+      "deleteTitle": "Delete the draft of {{period}}?",
+      "approveDescription_one": "{{amount}} gross in {{count}} paycheck. The month's shifts and rates are locked until the run is reopened.",
+      "approveDescription_other": "{{amount}} gross in {{count}} paychecks. The month's shifts and rates are locked until the run is reopened.",
+      "reopenDescription": "The run goes back to a draft and the month's shifts and rates are unlocked. It has to be approved again.",
+      "deleteDescription": "Its paychecks and adjustments are deleted. You can generate the month again."
+    },
+    "paychecks": {
+      "title": "Paychecks",
+      "draft": "Click a person to see their shifts and adjustments.",
+      "markEach": "Mark each paycheck paid once the money has left.",
+      "ownerMarks": "An owner marks paychecks paid.",
+      "shifts": "Shifts",
+      "paidTime": "Paid time",
+      "payForHours": "Pay for hours",
+      "adjustments": "Adjustments",
+      "total": "Total",
+      "payment": "Payment"
+    },
+    "lines": {
+      "shift": "Shift",
+      "length": "Length",
+      "paid": "Paid",
+      "rate": "Rate per hour",
+      "amount": "Amount",
+      "roundedMore": "Pay for hours is rounded once from the exact time, so it is {{amount}} more than the sum of the shift amounts.",
+      "roundedLess": "Pay for hours is rounded once from the exact time, so it is {{amount}} less than the sum of the shift amounts."
+    },
+    "export": {
+      "paychecks": "Paychecks CSV",
+      "shifts": "Shifts CSV",
+      "failed": "Could not download the file"
+    },
+    "runs": {
+      "title": "All months",
+      "state": "State"
+    },
+    "generate": {
+      "generated": "Draft generated",
+      "regenerated": "Draft regenerated",
+      "generateTitle": "Generate payroll: {{period}}",
+      "regenerateTitle": "Regenerate payroll: {{period}}",
+      "generateDescription": "One paycheck per person with ended shifts this month, one line per shift, at each shift's rate.",
+      "regenerateDescription": "Rebuilds the paychecks from the current shifts and rates. Adjustments stay.",
+      "unit": "Round each shift to",
+      "direction": "Direction",
+      "exact": "Shifts are paid to the second.",
+      "nearest": "To the nearest rounds a half up.",
+      "working": "Working…",
+      "regenerate": "Regenerate",
+      "generate": "Generate draft"
+    },
+    "payment": {
+      "toast": "{{name}}: marked paid",
+      "title": "Mark paid: {{name}}",
+      "description": "{{amount}} gross for {{period}}. Once a paycheck is marked paid, the run can't be reopened.",
+      "paidOn": "Paid on",
+      "method": "Method",
+      "choose": "Choose how it was paid",
+      "submit": "Mark paid",
+      "undone": "{{name}}: no longer marked paid",
+      "undoFailed": "Could not undo the paid mark",
+      "undo": "Undo paid: {{name}}",
+      "unpaid": "Unpaid",
+      "paidOnDate": "Paid on {{date}}, marked on {{marked}}.",
+      "paidBy": {
+        "cash": "Paid on {{date}} by cash, marked on {{marked}}.",
+        "transfer": "Paid on {{date}} by transfer, marked on {{marked}}."
+      }
+    },
+    "adjustment": {
+      "saved": "Adjustment saved",
+      "added": "Adjustment added",
+      "removed": "Adjustment removed",
+      "removeFailed": "Could not remove the adjustment",
+      "addTitle": "Add adjustment",
+      "changeTitle": "Change adjustment",
+      "description": "A bonus adds to the month's pay; an advance already paid takes off it. Adjustments stay when the run is regenerated.",
+      "person": "Person",
+      "label": "What for",
+      "labelPlaceholder": "Bonus, Advance paid 10 Oct…",
+      "amount": "Amount",
+      "amountDescription": "Gross. Use a minus for a deduction, e.g. −200.",
+      "add": "Add",
+      "none": "No bonus or deduction.",
+      "change": "Change {{label}}",
+      "remove": "Remove {{label}}"
+    },
+    "rate": {
+      "toast": {
+        "hourlyAdded": "Hourly rate added",
+        "hourlySaved": "Hourly rate saved",
+        "dayAdded": "Day rate added",
+        "daySaved": "Day rate saved",
+        "description": "{{name}}: {{amount}} per hour. Regenerate drafts to use it."
+      },
+      "title": {
+        "hourlyNew": "Set hourly rate: {{name}}",
+        "hourlyChange": "Change hourly rate: {{name}}",
+        "dayNew": "Add day rate: {{name}}",
+        "dayChange": "Change day rate: {{name}}"
+      },
+      "hourlyDescription": "The usual gross rate per hour from a date until the next rate. Earlier shifts keep the earlier rate.",
+      "dayDescription": "A different gross rate per hour for the shifts that start on one date, such as New Year's Eve.",
+      "from": "From",
+      "date": "Date",
+      "lockedDates": "Dates in an approved payroll month can't change.",
+      "amount": "Gross per hour",
+      "setRate": "Set rate",
+      "addDayRate": "Add day rate"
+    },
+    "rates": {
+      "title": "Rates",
+      "description": "Gross pay per hour. A raise is a new rate from a date; earlier shifts keep the earlier rate. A day rate replaces it for the shifts that start on one date.",
+      "people": "People",
+      "everyoneHasRate": "Everyone has a rate today. Click a person to see their history and day rates.",
+      "withoutRate_one": "{{count}} person has no rate today: their shifts can't be paid until one is set.",
+      "withoutRate_other": "{{count}} people have no rate today: their shifts can't be paid until one is set.",
+      "rateToday": "Rate today",
+      "since": "Since",
+      "noRate": "No rate",
+      "upcoming": "{{amount}} from {{date}}",
+      "ratesOf": "Rates of {{name}}",
+      "newRateFromDate": "New rate from a date",
+      "setHourlyRate": "Set hourly rate",
+      "deleted": {
+        "hourly": "Hourly rate deleted",
+        "day": "Day rate deleted"
+      },
+      "deleteFailed": "Could not delete the rate",
+      "deleteHourlyTitle": "Delete this hourly rate?",
+      "deleteDayTitle": "Delete this day rate?",
+      "deleteDayDescription": "{{name}}'s shifts on {{date}} go back to the hourly rate.",
+      "deleteHourlyDescription": "{{name}}'s shifts from {{date}} go back to the previous rate, or to none.",
+      "hourlyRates": "Hourly rates",
+      "newRate": "New rate",
+      "noHourlyRate": "No hourly rate yet.",
+      "fromDate": "From {{date}}",
+      "changeHourly": "Change hourly rate from {{date}}",
+      "dayRates": "Day rates",
+      "dayRate": "Day rate",
+      "noDayRate": "No day rate.",
+      "changeDay": "Change day rate on {{date}}",
+      "lockedTitle": "In an approved payroll month: reopen the run to change it",
+      "locked": "Locked by an approved payroll month",
+      "change": "Change"
+    }
+  },
+  "team": {
+    "title": "Team",
+    "description": "People with access to this organization.",
+    "descriptionManager": "People with access to this organization. Managers manage employees only.",
+    "showDeactivated": "Show deactivated",
+    "column": {
+      "name": "Name",
+      "role": "Role",
+      "status": "Status",
+      "joined": "Joined"
+    },
+    "status": {
+      "active": "Active",
+      "pending": "Invitation pending",
+      "deactivated": "Deactivated"
+    },
+    "you": "You",
+    "actionsFor": "Actions for {{name}}",
+    "resendInvitation": "Resend invitation",
+    "reactivate": "Reactivate",
+    "deactivate": "Deactivate",
+    "lastOwner": "The organization needs at least one active owner.",
+    "toast": {
+      "roleChanged": {
+        "owner": "{{name}} is now owner",
+        "manager": "{{name}} is now manager",
+        "employee": "{{name}} is now employee"
+      },
+      "invitationResent": "Invitation sent again to {{email}}",
+      "deactivated": "{{name}} no longer has access",
+      "reactivated": "{{name}} has access again"
+    },
+    "error": {
+      "changeRole": "Could not change the role",
+      "resendInvitation": "Could not resend the invitation",
+      "deactivate": "Could not deactivate the member",
+      "reactivate": "Could not reactivate the member"
+    },
+    "confirm": {
+      "changeRole": "Change role",
+      "deactivateSelfTitle": "Deactivate yourself?",
+      "deactivateTitle": "Deactivate {{name}}?",
+      "deactivateSelfDescription": "You will lose access to this organization right away. Another owner can reactivate you.",
+      "deactivateDescription": "They lose access to this organization right away, and a pending invitation stops working. Their history stays, and you can reactivate them later.",
+      "ownRoleTitle": {
+        "owner": "Change your own role to owner?",
+        "manager": "Change your own role to manager?",
+        "employee": "Change your own role to employee?"
+      },
+      "ownRoleEmployee": "Employees can't manage the team or the organization settings. Only another owner can give you your role back.",
+      "ownRoleDescription": "Only another owner can give you your role back."
+    }
+  },
   "addMember": {
+    "title": "Add member",
+    "adding": "Adding…",
+    "description": "New people get an e-mail with a link to set their password. People who already have an account keep their own name and password.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "role": "Role",
+    "managersAddEmployees": "Managers add employees only.",
     "language": {
       "label": "Language",
       "description": "Of the invitation e-mail, and the new person's language until they choose one. People who already have an account keep theirs."
+    },
+    "toast": {
+      "invited": "Invitation sent to {{email}}",
+      "added": {
+        "owner": "{{name}} added as owner",
+        "manager": "{{name}} added as manager",
+        "employee": "{{name}} added as employee"
+      }
+    },
+    "error": {
+      "alreadyMember": "{{name}} ({{email}}) is already a member of this organization.",
+      "deactivatedMember": "{{name}} ({{email}}) is a deactivated member. Show deactivated members and reactivate them instead."
     }
+  },
+  "time": {
+    "title": "Time tracking",
+    "description": "Shifts by the day they started on. Times in {{timeZone}}.",
+    "employee": "Employee",
+    "everyone": "Everyone",
+    "deactivated": "(deactivated)",
+    "addShift": "Add shift",
+    "formerMember": "a former member",
+    "totals": {
+      "title": "Totals per employee",
+      "description": "Time worked for {{period}}. An open shift counts once it is clocked out.",
+      "description_month": "Time worked in {{period}}. An open shift counts once it is clocked out.",
+      "none": "Nobody worked a shift in this period.",
+      "shifts": "Shifts",
+      "worked": "Worked",
+      "open_one": "({{count}} open)",
+      "open_other": "({{count}} open)"
+    },
+    "shifts": {
+      "title": "Shifts",
+      "description": "Newest first. Open shifts are highlighted; end a forgotten one with End shift.",
+      "none": "No shifts for {{period}}.",
+      "none_month": "No shifts in {{period}}.",
+      "date": "Date",
+      "clockIn": "Clock-in",
+      "clockOut": "Clock-out",
+      "duration": "Duration",
+      "note": "Note",
+      "open": "Open",
+      "soFar": "{{duration}} so far",
+      "endShift": "End shift",
+      "edit": "Edit the shift of {{name}} on {{date}}",
+      "enteredBy": "Entered by {{name}}, {{when}}",
+      "enteredByYou": "Entered by you, {{when}}",
+      "correctedBy": "Corrected by {{name}}, {{when}}",
+      "correctedByYou": "Corrected by you, {{when}}"
+    }
+  },
+  "shiftDialog": {
+    "addTitle": "Add shift",
+    "editTitle": "Edit shift",
+    "endTitle": "End or edit open shift",
+    "addDescription": "A shift someone forgot to clock. It is marked as entered by you.",
+    "editDescription": "{{name}}, {{date}}. The shift keeps who changed it and when.",
+    "endDescription": "{{name}} is still clocked in. Enter the clock-out to end the shift, or leave it empty to keep it open.",
+    "timesIn": "Times in {{timeZone}}.",
+    "choosePerson": "Choose a person",
+    "keepOpen": "Leave empty to keep the shift open.",
+    "nextDay": "The next day: the clock-out is not after the clock-in.",
+    "notePlaceholder": "Optional, e.g. why the shift was entered or changed",
+    "toast": {
+      "added": "Shift added for {{name}} on {{date}}",
+      "ended": "{{name}} clocked out at {{time}}",
+      "updated": "Shift of {{name}} updated"
+    }
+  },
+  "settings": {
+    "title": "Organization settings",
+    "description": "Used across all modules: invoices, payroll and reports.",
+    "saved": "Settings saved",
+    "name": "Business name",
+    "taxId": "Tax ID (NIP)",
+    "taxIdDescription": "Needed to fetch purchase invoices from KSeF.",
+    "country": "Country",
+    "currency": "Currency",
+    "timeZone": "Time zone",
+    "csvExports": "CSV exports",
+    "csvSeparator": {
+      "semicolon": "Semicolon ; with a decimal comma (1234,56)",
+      "comma": "Comma , with a decimal point (1234.56)"
+    },
+    "csvDescription": "Pick what your spreadsheet expects, e.g. for the payroll export. Excel in Polish or German uses semicolons."
   }
 }

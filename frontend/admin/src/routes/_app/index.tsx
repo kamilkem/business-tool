@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
@@ -20,12 +21,13 @@ function StartPage() {
 
 function Dashboard() {
   const { me, membership } = Route.useRouteContext()
+  const { t } = useTranslation("admin")
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Hello, {me.firstName || me.email}</h1>
-        <p className="text-sm text-muted-foreground">Modules will light up here as they are built.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.hello", { name: me.firstName || me.email })}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard.description")}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {modulesFor(membership?.role).map((module) => (
@@ -33,16 +35,16 @@ function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <module.icon className="size-4 text-muted-foreground" />
-                {module.title}
+                {t(`modules.${module.key}.title`)}
               </CardTitle>
-              <CardDescription>{module.description}</CardDescription>
+              <CardDescription>{t(`modules.${module.key}.description`)}</CardDescription>
               <CardAction>
                 {module.to ? (
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={module.to}>Open</Link>
+                    <Link to={module.to}>{t("dashboard.open")}</Link>
                   </Button>
                 ) : (
-                  <Badge variant="secondary">Coming soon</Badge>
+                  <Badge variant="secondary">{t("dashboard.comingSoon")}</Badge>
                 )}
               </CardAction>
             </CardHeader>

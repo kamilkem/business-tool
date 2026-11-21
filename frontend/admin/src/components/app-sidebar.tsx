@@ -11,6 +11,7 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import {
@@ -42,6 +43,7 @@ import { shiftChangeRequestsQuery } from "@/lib/queries"
 import { useAccountActions } from "@/lib/use-account-actions"
 
 export function AppSidebar() {
+  const { t } = useTranslation("admin")
   const { me, membership } = useRouteContext({ from: "/_app" })
   const { switchOrganization, signOut } = useAccountActions()
   const memberships = me.memberships
@@ -66,7 +68,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-56">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Organizations</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">{t("account.organizations")}</DropdownMenuLabel>
                 {memberships.map((m) => (
                   <DropdownMenuItem key={m.id} onSelect={() => switchOrganization(m.organization.id)}>
                     <span className="flex-1 truncate">{m.organization.name}</span>
@@ -84,19 +86,19 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Dashboard">
+              <SidebarMenuButton asChild tooltip={t("nav.dashboard")}>
                 <Link to="/" activeOptions={{ exact: true }} activeProps={{ "data-active": true }}>
                   <LayoutDashboardIcon />
-                  <span>Dashboard</span>
+                  <span>{t("nav.dashboard")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             {can(role, "team") && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Team">
+                <SidebarMenuButton asChild tooltip={t("nav.team")}>
                   <Link to="/team" activeProps={{ "data-active": true }}>
                     <UsersIcon />
-                    <span>Team</span>
+                    <span>{t("nav.team")}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -107,25 +109,25 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Modules</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.modules")}</SidebarGroupLabel>
           <SidebarMenu>
             {modulesFor(role).map((module) => (
               <SidebarMenuItem key={module.key}>
                 {module.to ? (
-                  <SidebarMenuButton asChild tooltip={module.title}>
+                  <SidebarMenuButton asChild tooltip={t(`modules.${module.key}.title`)}>
                     <Link to={module.to} activeProps={{ "data-active": true }}>
                       <module.icon />
-                      <span>{module.title}</span>
+                      <span>{t(`modules.${module.key}.title`)}</span>
                     </Link>
                   </SidebarMenuButton>
                 ) : (
                   <>
-                    <SidebarMenuButton disabled tooltip={module.title}>
+                    <SidebarMenuButton disabled tooltip={t(`modules.${module.key}.title`)}>
                       <module.icon />
-                      <span>{module.title}</span>
+                      <span>{t(`modules.${module.key}.title`)}</span>
                     </SidebarMenuButton>
                     <SidebarMenuBadge>
-                      <Badge variant="outline" className="text-[10px]">Soon</Badge>
+                      <Badge variant="outline" className="text-[10px]">{t("nav.soon")}</Badge>
                     </SidebarMenuBadge>
                   </>
                 )}
@@ -139,10 +141,10 @@ export function AppSidebar() {
         <SidebarMenu>
           {can(role, "settings") && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Settings">
+              <SidebarMenuButton asChild tooltip={t("nav.settings")}>
                 <Link to="/settings" activeProps={{ "data-active": true }}>
                   <SettingsIcon />
-                  <span>Organization settings</span>
+                  <span>{t("nav.settings")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -168,13 +170,13 @@ export function AppSidebar() {
                 <DropdownMenuItem asChild>
                   <Link to="/account">
                     <KeyRoundIcon />
-                    Account
+                    {t("account.account")}
                   </Link>
                 </DropdownMenuItem>
                 <LanguageMenu />
                 <DropdownMenuItem onSelect={signOut}>
                   <LogOutIcon />
-                  Sign out
+                  {t("account.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -190,17 +192,18 @@ function ShiftRequestsLink({ organizationId }: { organizationId: string }) {
   // Shares the cache with the page's pending list. Polled, so a request sent meanwhile shows up.
   const { data: pending } = useQuery({ ...shiftChangeRequestsQuery(organizationId, "pending"), refetchInterval: 60_000 })
   const count = pending?.length ?? 0
+  const { t } = useTranslation("admin")
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild tooltip={count > 0 ? `Shift requests (${count} pending)` : "Shift requests"}>
+      <SidebarMenuButton asChild tooltip={count > 0 ? t("nav.shiftRequestsPending", { count }) : t("nav.shiftRequests")}>
         <Link to="/shift-requests" activeProps={{ "data-active": true }}>
           <InboxIcon />
-          <span>Shift requests</span>
+          <span>{t("nav.shiftRequests")}</span>
         </Link>
       </SidebarMenuButton>
       {count > 0 && (
-        <SidebarMenuBadge aria-label={`${count} pending`} className="bg-primary text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-active/menu-button:text-primary-foreground">
+        <SidebarMenuBadge aria-label={t("nav.pending", { count })} className="bg-primary text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-active/menu-button:text-primary-foreground">
           {count}
         </SidebarMenuBadge>
       )}

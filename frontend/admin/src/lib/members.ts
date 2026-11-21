@@ -1,16 +1,13 @@
 import type { components } from "@business-tool/api-client"
 
+import { i18n } from "../i18n"
+
 export type Member = components["schemas"]["Member"]
 export type Role = Member["role"]
 
-export const roles: { value: Role; label: string }[] = [
-  { value: "owner", label: "Owner" },
-  { value: "manager", label: "Manager" },
-  { value: "employee", label: "Employee" },
-]
-
+/** "Owner", "Manager", "Employee": a role as a label (a menu item, a table cell). */
 export function roleLabel(role: Role): string {
-  return roles.find((r) => r.value === role)?.label ?? role
+  return i18n.t(`role.${role}`, { ns: "admin" })
 }
 
 /*

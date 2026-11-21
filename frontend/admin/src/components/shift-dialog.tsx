@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { ApiError, unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -84,6 +85,7 @@ function ShiftForm({
 }: Omit<ShiftDialogProps, "target" | "onClose"> & { target: ShiftDialogTarget; onDone: () => void }) {
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const timeZone = format.timeZone
   const editing = target.kind === "edit" ? target.shift : null
   const wasOpen = editing !== null && editing.endedAt === null
@@ -105,7 +107,7 @@ function ShiftForm({
   )
   const personName = (userId: string) => {
     const member = members.find((m) => m.userId === userId)
-    return member ? fullName(member) : "this person"
+    return member ? fullName(member) : t("requestError.someone", { ns: "ui" })
   }
 
   function update(next: Partial<ShiftFormValues>, endDateTouched = false) {
@@ -135,7 +137,7 @@ function ShiftForm({
     mutationFn: (body: AddShiftInput) => unwrap(api.POST("/api/shifts", { body })),
     onSuccess: async (shift) => {
       await invalidateShifts()
-      toast.success(`Shift added for ${personName(shift.userId)} on ${format.date(shift.startedAt)}`)
+      toast.success(t("shiftDialog.toast.added", { name: personName(shift.userId), date: format.date(shift.startedAt) }))
       onDone()
     },
     onError,
@@ -155,8 +157,8 @@ function ShiftForm({
       const ended = wasOpen && shift.endedAt !== null && body.endedAt !== undefined
       toast.success(
         ended
-          ? `${personName(shift.userId)} clocked out at ${format.time(shift.endedAt as string)}`
-          : `Shift of ${personName(shift.userId)} updated`,
+          ? t("shiftDialog.toast.ended", { name: personName(shift.userId), time: format.time(shift.endedAt as string) })
+          : t("shiftDialog.toast.updated", { name: personName(shift.userId) }),
       )
       onDone()
     },
@@ -180,7 +182,7 @@ function ShiftForm({
     const result = correctShiftBody(initial, values, timeZone, format)
     if (!result.ok) return setFieldErrors(result.errors)
     if (Object.keys(result.body).length === 0) {
-      toast.info("Nothing changed")
+      toast.info(t("common.nothingChanged"))
       onDone()
       return
     }
@@ -190,30 +192,30 @@ function ShiftForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{editing ? (wasOpen ? "End or edit open shift" : "Edit shift") : "Add shift"}</DialogTitle>
+        <DialogTitle>{editing ? (wasOpen ? t("shiftDialog.endTitle") : t("shiftDialog.editTitle")) : t("shiftDialog.addTitle")}</DialogTitle>
         <DialogDescription>
           {editing
             ? wasOpen
-              ? `${fullName(editing)} is still clocked in. Enter the clock-out to end the shift, or leave it empty to keep it open.`
-              : `${fullName(editing)}, ${format.businessDate(editing.date)}. The shift keeps who changed it and when.`
-            : "A shift someone forgot to clock. It is marked as entered by you."}{" "}
-          Times in {timeZone.replaceAll("_", " ")}.
+              ? t("shiftDialog.endDescription", { name: fullName(editing) })
+              : t("shiftDialog.editDescription", { name: fullName(editing), date: format.businessDate(editing.date) })
+            : t("shiftDialog.addDescription")}{" "}
+          {t("shiftDialog.timesIn", { timeZone: timeZone.replaceAll("_", " ") })}
         </DialogDescription>
       </DialogHeader>
       <fieldset disabled={pending} className="py-4">
         <FieldGroup>
           {!editing && (
             <Field data-invalid={fieldErrors.userId ? true : undefined}>
-              <FieldLabel htmlFor="shift-user">Employee</FieldLabel>
+              <FieldLabel htmlFor="shift-user">{t("time.employee")}</FieldLabel>
               <Select value={values.userId} onValueChange={(userId) => update({ userId })}>
                 <SelectTrigger id="shift-user" className="w-full" aria-invalid={fieldErrors.userId ? true : undefined}>
-                  <SelectValue placeholder="Choose a person" />
+                  <SelectValue placeholder={t("shiftDialog.choosePerson")} />
                 </SelectTrigger>
                 <SelectContent>
                   {people.map((member) => (
                     <SelectItem key={member.userId} value={member.userId}>
                       {fullName(member)}
-                      {!isActive(member) && <span className="text-muted-foreground"> (deactivated)</span>}
+                      {!isActive(member) && <span className="text-muted-foreground"> {t("time.deactivated")}</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -222,7 +224,7 @@ function ShiftForm({
             </Field>
           )}
           <ShiftMomentField
-            label="Clock-in"
+            label={t("time.shifts.clockIn")}
             name="start"
             value={values.start}
             error={fieldErrors.startedAt}
@@ -230,28 +232,28 @@ function ShiftForm({
             onChange={(start) => update({ start })}
           />
           <ShiftMomentField
-            label="Clock-out"
+            label={t("time.shifts.clockOut")}
             name="end"
             value={values.end}
             error={fieldErrors.endedAt}
             timeZone={timeZone}
             description={
               wasOpen
-                ? "Leave empty to keep the shift open."
+                ? t("shiftDialog.keepOpen")
                 : !endDateSet && values.end.date !== values.start.date && values.end.date !== ""
-                  ? "The next day: the clock-out is not after the clock-in."
+                  ? t("shiftDialog.nextDay")
                   : undefined
             }
             autoFocus={wasOpen}
             onChange={(end, dateChanged) => update({ end }, dateChanged)}
           />
           <Field data-invalid={fieldErrors.note ? true : undefined}>
-            <FieldLabel htmlFor="shift-note">Note</FieldLabel>
+            <FieldLabel htmlFor="shift-note">{t("time.shifts.note")}</FieldLabel>
             <Textarea
               id="shift-note"
               value={values.note}
               maxLength={NOTE_MAX_LENGTH}
-              placeholder="Optional, e.g. why the shift was entered or changed"
+              placeholder={t("shiftDialog.notePlaceholder")}
               aria-invalid={fieldErrors.note ? true : undefined}
               onChange={(e) => update({ note: e.target.value })}
             />
@@ -266,7 +268,7 @@ function ShiftForm({
       </fieldset>
       <DialogFooter>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : editing ? "Save" : "Add shift"}
+          {pending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("time.addShift")}
         </Button>
       </DialogFooter>
     </form>

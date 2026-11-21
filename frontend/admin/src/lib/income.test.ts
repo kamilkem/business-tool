@@ -1,8 +1,10 @@
 import { ApiError } from "@business-tool/api-client"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import {
   type EntryFormValues,
+  PAYMENT_METHODS,
   type RevenueEntry,
   type VatRate,
   emptyEntryForm,
@@ -12,6 +14,7 @@ import {
   formPaymentsTotal,
   formVatGross,
   incomeGrid,
+  paymentMethodLabel,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
@@ -263,5 +266,26 @@ describe("vatRateLabel", () => {
   it("test_it_labels_numeric_rates_as_percentages_and_keeps_other_codes", () => {
     expect(vatRateLabel("23")).toBe("23%")
     expect(vatRateLabel("zw")).toBe("zw")
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_names_payment_methods_and_explains_errors_in_polish", () => {
+    expect(PAYMENT_METHODS.map(paymentMethodLabel)).toEqual(["Gotówka", "Karta", "Przelew", "Bon"])
+    expect(entryLines(emptyEntryForm("", "2026-11-13"), PL_RATES, "2026-11-12")).toEqual({
+      ok: false,
+      errors: {
+        registerId: "Wybierz kasę.",
+        businessDate: "Ten dzień nie może być późniejszy niż dzisiaj.",
+        payments: "Podaj co najmniej jedną kwotę. Dla kasy bez sprzedaży wpisz 0.",
+      },
+    })
   })
 })

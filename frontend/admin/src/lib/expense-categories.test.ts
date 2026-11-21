@@ -1,6 +1,7 @@
 import { ApiError } from "@business-tool/api-client"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import { type ExpenseCategory, categoryFormErrors, splitCategories, withCategory } from "./expense-categories"
 
 function category(name: string, archived = false, id = `category-${name}`): ExpenseCategory {
@@ -105,5 +106,25 @@ describe("categoryFormErrors", () => {
     expect(categoryFormErrors(new TypeError("Failed to fetch"), "Food", categories)).toEqual({
       form: "Could not reach the server. Check your connection and try again.",
     })
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_explains_a_taken_name_in_polish", () => {
+    const conflict = new ApiError(409, { detail: "Conflict" })
+
+    expect(categoryFormErrors(conflict, " Food ", [category("Food")])).toEqual({
+      name: "Kategoria o nazwie „Food” już istnieje.",
+    })
+    expect(categoryFormErrors(conflict, "Old", [category("Old", true)]).name).toBe(
+      "Zarchiwizowana kategoria ma już nazwę „Old”. Przywróć ją albo wybierz inną nazwę.",
+    )
   })
 })

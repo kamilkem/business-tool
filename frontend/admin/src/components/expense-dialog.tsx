@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { TriangleAlertIcon } from "lucide-react"
+import { Trans, useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -97,6 +98,7 @@ function ExpenseForm({
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const organizationCurrency = useOrganizationCurrency()
   const editing = target.kind === "edit" ? target.expense : null
 
@@ -161,7 +163,7 @@ function ExpenseForm({
 
   const enter = useMutation({
     mutationFn: (body: ExpenseBody) => unwrap(api.POST("/api/expenses", { body })),
-    onSuccess: (expense) => saved(expense, "Expense added"),
+    onSuccess: (expense) => saved(expense, t("expenseForm.added")),
     onError: (error, body) => setErrors(expenseFormErrors(error, body)),
   })
 
@@ -175,7 +177,7 @@ function ExpenseForm({
           headers: { "Content-Type": "application/merge-patch+json" },
         }),
       ),
-    onSuccess: (expense) => saved(expense, "Expense updated"),
+    onSuccess: (expense) => saved(expense, t("expenseForm.updated")),
     onError: (error, { body }) => setErrors(expenseFormErrors(error, body)),
   })
 
@@ -205,11 +207,11 @@ function ExpenseForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{editing ? `Edit ${editing.sellerName}` : "Add expense"}</DialogTitle>
+        <DialogTitle>{editing ? t("expenseForm.editTitle", { seller: editing.sellerName }) : t("expenses.add")}</DialogTitle>
         <DialogDescription>
           {editing
-            ? `Entered by hand, ${format.dateTime(editing.createdAt)}.`
-            : "A receipt or an invoice that is not in KSeF, with the amounts as printed."}
+            ? t("expenseForm.enteredOn", { when: format.dateTime(editing.createdAt) })
+            : t("expenseForm.addDescription")}
         </DialogDescription>
       </DialogHeader>
 
@@ -217,43 +219,43 @@ function ExpenseForm({
         <FieldGroup>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field data-invalid={textError("sellerName") ? true : undefined} className="sm:col-span-2">
-              <FieldLabel htmlFor="expense-seller">Seller</FieldLabel>
+              <FieldLabel htmlFor="expense-seller">{t("expenses.seller")}</FieldLabel>
               <Input
                 id="expense-seller"
                 value={values.sellerName}
                 maxLength={SELLER_NAME_MAX_LENGTH}
-                placeholder="e.g. Makro Cash & Carry"
+                placeholder={t("expenseForm.sellerPlaceholder")}
                 aria-invalid={textError("sellerName") ? true : undefined}
                 onChange={(e) => set("sellerName", e.target.value)}
               />
               {textError("sellerName") && <FieldError>{textError("sellerName")}</FieldError>}
             </Field>
             <Field data-invalid={textError("sellerTaxId") ? true : undefined}>
-              <FieldLabel htmlFor="expense-tax-id">Seller tax ID</FieldLabel>
+              <FieldLabel htmlFor="expense-tax-id">{t("expenses.sheet.sellerTaxId")}</FieldLabel>
               <Input
                 id="expense-tax-id"
                 value={values.sellerTaxId}
                 maxLength={SELLER_TAX_ID_MAX_LENGTH}
-                placeholder="Optional"
+                placeholder={t("expenseForm.optional")}
                 aria-invalid={textError("sellerTaxId") ? true : undefined}
                 onChange={(e) => set("sellerTaxId", e.target.value)}
               />
               {textError("sellerTaxId") && <FieldError>{textError("sellerTaxId")}</FieldError>}
             </Field>
             <Field data-invalid={textError("invoiceNumber") ? true : undefined}>
-              <FieldLabel htmlFor="expense-number">Invoice or receipt number</FieldLabel>
+              <FieldLabel htmlFor="expense-number">{t("expenseForm.number")}</FieldLabel>
               <Input
                 id="expense-number"
                 value={values.invoiceNumber}
                 maxLength={INVOICE_NUMBER_MAX_LENGTH}
-                placeholder="Optional"
+                placeholder={t("expenseForm.optional")}
                 aria-invalid={textError("invoiceNumber") ? true : undefined}
                 onChange={(e) => set("invoiceNumber", e.target.value)}
               />
               {textError("invoiceNumber") && <FieldError>{textError("invoiceNumber")}</FieldError>}
             </Field>
             <Field data-invalid={textError("issueDate") ? true : undefined}>
-              <FieldLabel htmlFor="expense-date">Issue date</FieldLabel>
+              <FieldLabel htmlFor="expense-date">{t("expenses.sheet.issueDate")}</FieldLabel>
               <Input
                 id="expense-date"
                 type="date"
@@ -264,7 +266,7 @@ function ExpenseForm({
               {textError("issueDate") && <FieldError>{textError("issueDate")}</FieldError>}
             </Field>
             <Field data-invalid={textError("kind") ? true : undefined}>
-              <FieldLabel htmlFor="expense-kind">Kind</FieldLabel>
+              <FieldLabel htmlFor="expense-kind">{t("expenses.sheet.kind")}</FieldLabel>
               <Select value={values.kind} onValueChange={(kind) => set("kind", kind as ExpenseKind, "grossTotal", "vatTotal")}>
                 <SelectTrigger id="expense-kind" className="w-full" aria-invalid={textError("kind") ? true : undefined}>
                   <SelectValue />
@@ -280,7 +282,7 @@ function ExpenseForm({
               {textError("kind") && <FieldError>{textError("kind")}</FieldError>}
             </Field>
             <Field data-invalid={textError("currency") ? true : undefined}>
-              <FieldLabel htmlFor="expense-currency">Currency</FieldLabel>
+              <FieldLabel htmlFor="expense-currency">{t("settings.currency")}</FieldLabel>
               <Input
                 id="expense-currency"
                 value={values.currency}
@@ -291,12 +293,12 @@ function ExpenseForm({
                 onChange={(e) => set("currency", e.target.value.toUpperCase())}
               />
               {foreign ? (
-                <FieldDescription>VAT is settled in {organizationCurrency}: the breakdown asks for both.</FieldDescription>
+                <FieldDescription>{t("expenseForm.foreign", { currency: organizationCurrency })}</FieldDescription>
               ) : null}
               {textError("currency") && <FieldError>{textError("currency")}</FieldError>}
             </Field>
             <Field data-invalid={textError("categoryId") ? true : undefined}>
-              <FieldLabel htmlFor="expense-category">Category</FieldLabel>
+              <FieldLabel htmlFor="expense-category">{t("expenses.category")}</FieldLabel>
               <Select
                 value={values.categoryId ?? NONE}
                 onValueChange={(value) => set("categoryId", value === NONE ? null : value)}
@@ -305,12 +307,12 @@ function ExpenseForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Uncategorized</SelectItem>
+                  <SelectItem value={NONE}>{t("expenses.uncategorized")}</SelectItem>
                   {categories.length > 0 && <SelectSeparator />}
                   {categories.map((option) => (
                     <SelectItem key={option.id} value={option.id} disabled={option.archived}>
                       {option.name}
-                      {option.archived && <span className="text-muted-foreground"> (archived)</span>}
+                      {option.archived && <span className="text-muted-foreground"> {t("expenses.archived")}</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -320,13 +322,13 @@ function ExpenseForm({
           </div>
 
           <FieldSet>
-            <FieldLegend variant="label">Totals</FieldLegend>
+            <FieldLegend variant="label">{t("expenseForm.totals")}</FieldLegend>
             <FieldDescription>
-              As printed{negative ? "; a correction may be negative" : ""}. Net is gross minus VAT.
+              {negative ? t("expenseForm.totalsDescriptionCorrection") : t("expenseForm.totalsDescription")}
             </FieldDescription>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field data-invalid={errorOf("grossTotal") ? true : undefined}>
-                <FieldLabel htmlFor="expense-gross">Gross</FieldLabel>
+                <FieldLabel htmlFor="expense-gross">{t("income.vat.gross")}</FieldLabel>
                 <MoneyInput
                   id="expense-gross"
                   currency={currency}
@@ -338,7 +340,7 @@ function ExpenseForm({
                 {errorOf("grossTotal") && <FieldError>{errorOf("grossTotal")}</FieldError>}
               </Field>
               <Field data-invalid={errorOf("vatTotal") ? true : undefined}>
-                <FieldLabel htmlFor="expense-vat">VAT</FieldLabel>
+                <FieldLabel htmlFor="expense-vat">{t("income.vat.vat")}</FieldLabel>
                 <MoneyInput
                   id="expense-vat"
                   currency={currency}
@@ -350,7 +352,7 @@ function ExpenseForm({
                 {errorOf("vatTotal") && <FieldError>{errorOf("vatTotal")}</FieldError>}
               </Field>
               <div className="flex flex-col gap-3">
-                <span className="text-sm font-medium">Net</span>
+                <span className="text-sm font-medium">{t("income.vat.net")}</span>
                 <span className="flex h-9 items-center text-sm tabular-nums" data-testid="expense-net">
                   {net === null ? "—" : money(net)}
                 </span>
@@ -360,8 +362,8 @@ function ExpenseForm({
 
           {vatRates.length > 0 && (
             <FieldSet>
-              <FieldLegend variant="label">VAT breakdown (optional)</FieldLegend>
-              <FieldDescription>Net and VAT per rate, as printed. Leave a rate empty if it isn't on the document.</FieldDescription>
+              <FieldLegend variant="label">{t("income.entry.vatBreakdown")}</FieldLegend>
+              <FieldDescription>{t("expenseForm.breakdownDescription")}</FieldDescription>
               <div
                 className={
                   foreign
@@ -370,9 +372,9 @@ function ExpenseForm({
                 }
               >
                 <span />
-                <span className="text-xs font-medium text-muted-foreground">Net</span>
-                <span className="text-xs font-medium text-muted-foreground">VAT</span>
-                {foreign && <span className="text-xs font-medium text-muted-foreground">VAT in {organizationCurrency}</span>}
+                <span className="text-xs font-medium text-muted-foreground">{t("income.vat.net")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("income.vat.vat")}</span>
+                {foreign && <span className="text-xs font-medium text-muted-foreground">{t("expenses.sheet.vatIn", { currency: organizationCurrency })}</span>}
                 {vatRates.map((rate) => (
                   <VatRow
                     key={rate.code}
@@ -390,9 +392,12 @@ function ExpenseForm({
               {textError("vatLines") && <FieldError>{textError("vatLines")}</FieldError>}
               {sums && (
                 <p className="text-sm">
-                  Breakdown: net <span className="font-medium tabular-nums">{money(sums.net)}</span>, VAT{" "}
-                  <span className="font-medium tabular-nums">{money(sums.vat)}</span>, gross{" "}
-                  <span className="font-medium tabular-nums">{money(sums.gross)}</span>
+                  <Trans
+                    t={t}
+                    i18nKey="expenseForm.breakdownSums"
+                    values={{ net: money(sums.net), vat: money(sums.vat), gross: money(sums.gross) }}
+                    components={{ amount: <span className="font-medium tabular-nums" /> }}
+                  />
                 </p>
               )}
               {sums && (mismatch || values.grossTotal === null || values.vatTotal === null) && (
@@ -402,9 +407,7 @@ function ExpenseForm({
                 >
                   <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
                   <span className="flex-1">
-                    {mismatch
-                      ? "The breakdown doesn't add up to the totals. That's allowed if the document rounds differently."
-                      : "The totals are empty."}
+                    {mismatch ? t("expenseForm.mismatch") : t("expenseForm.totalsEmpty")}
                   </span>
                   <Button
                     type="button"
@@ -415,7 +418,7 @@ function ExpenseForm({
                       clearErrors("grossTotal", "vatTotal")
                     }}
                   >
-                    Use the breakdown's totals
+                    {t("expenseForm.useBreakdown")}
                   </Button>
                 </div>
               )}
@@ -432,10 +435,10 @@ function ExpenseForm({
 
       <DialogFooter>
         <Button type="button" variant="outline" disabled={pending} onClick={onDone}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : editing ? "Save" : "Add expense"}
+          {pending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("expenses.add")}
         </Button>
       </DialogFooter>
     </form>
@@ -461,6 +464,7 @@ function VatRow({
   errorOf: (part: keyof ExpenseVatLineValues) => string | undefined
   onChange: (part: keyof ExpenseVatLineValues, amount: MinorUnits | null, error: MoneyParseError | null) => void
 }) {
+  const { t } = useTranslation("admin")
   const label = vatRateLabel(rate.code)
   // A rate without VAT (0%, exempt) always has 0 VAT; the API refuses anything else.
   const zero = (value: MinorUnits | null) => (rate.zeroVat ? (line.net === null ? null : 0) : value)
@@ -473,7 +477,7 @@ function VatRow({
         allowNegative={negative}
         value={value}
         disabled={disabled}
-        placeholder={disabled ? "No VAT" : undefined}
+        placeholder={disabled ? t("income.entry.noVat") : undefined}
         aria-invalid={errorOf(part) ? true : undefined}
         onValueChange={(amount, error) => onChange(part, amount, error)}
       />
@@ -484,9 +488,9 @@ function VatRow({
   return (
     <>
       <span className="pt-2 text-sm font-medium tabular-nums">{label}</span>
-      {cell("net", `Net at ${label}`, currency, line.net)}
-      {cell("vat", `VAT at ${label}`, currency, zero(line.vat), rate.zeroVat)}
-      {foreign && cell("vatInTaxCurrency", `VAT in ${taxCurrency} at ${label}`, taxCurrency, zero(line.vatInTaxCurrency), rate.zeroVat)}
+      {cell("net", t("expenseForm.netAt", { rate: label }), currency, line.net)}
+      {cell("vat", t("income.entry.vatAt", { rate: label }), currency, zero(line.vat), rate.zeroVat)}
+      {foreign && cell("vatInTaxCurrency", t("expenseForm.vatInAt", { currency: taxCurrency, rate: label }), taxCurrency, zero(line.vatInTaxCurrency), rate.zeroVat)}
     </>
   )
 }

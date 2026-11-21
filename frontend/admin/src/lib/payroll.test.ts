@@ -1,6 +1,7 @@
 import { ApiError } from "@business-tool/api-client"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import type { Member } from "./members"
 import {
   type DayRate,
@@ -25,6 +26,7 @@ import {
   roundingLabel,
   runOfMonth,
   runState,
+  runStateLabel,
   validatePayrollSearch,
   withFieldError,
 } from "./payroll"
@@ -327,5 +329,44 @@ describe("exportFileName", () => {
   it("test_it_names_the_file_as_the_api_does", () => {
     expect(exportFileName("2026-10", "paychecks")).toBe("payroll-2026-10-paychecks.csv")
     expect(exportFileName("2026-10", "shifts")).toBe("payroll-2026-10-shifts.csv")
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_counts_each_blocker_with_the_polish_plural_forms", () => {
+    const blockers = (n: number) =>
+      approvalBlockers(run({ openShifts: n, pendingChangeRequests: n, linesWithoutRate: n }), "2026-11-20")
+
+    expect(blockers(1)).toEqual([
+      "1 zmiana jest nadal otwarta. Zakończ ją na stronie Czas pracy i wygeneruj listę ponownie.",
+      "1 prośba o zmianę czeka na decyzję. Rozpatrz ją i wygeneruj listę ponownie.",
+      "1 zmiana nie ma stawki. Ustaw stawkę i wygeneruj listę ponownie.",
+    ])
+    expect(blockers(3)[0]).toBe("3 zmiany są nadal otwarte. Zakończ je na stronie Czas pracy i wygeneruj listę ponownie.")
+    expect(blockers(5)[1]).toBe("5 próśb o zmianę czeka na decyzję. Rozpatrz je i wygeneruj listę ponownie.")
+    expect(blockers(22)[2]).toBe("22 zmiany nie mają stawki. Ustaw stawkę i wygeneruj listę ponownie.")
+  })
+
+  it("test_it_declines_the_rounding_length_after_each_direction", () => {
+    expect(roundingLabel("none", "up")).toBe("Dokładny czas")
+    expect(roundingLabel("15", "nearest")).toBe("Każda zmiana zaokrąglona do najbliższych 15 minut")
+    expect(roundingLabel("60", "nearest")).toBe("Każda zmiana zaokrąglona do najbliższej pełnej godziny")
+    expect(roundingLabel("60", "down")).toBe("Każda zmiana zaokrąglona w dół do pełnej godziny")
+  })
+
+  it("test_it_names_the_run_states_and_a_former_member", () => {
+    expect(runStateLabel("partlyPaid")).toBe("Częściowo wypłacona")
+    expect(paycheckRows(run(), [])[0]?.name).toBe("Osoba spoza zespołu")
+  })
+
+  it("test_it_counts_the_label_limit_in_polish", () => {
+    expect(adjustmentFormErrors({ userId: "eve", label: "x".repeat(101), amount: 100 }).label).toBe("Najwyżej 100 znaków.")
   })
 })

@@ -17,6 +17,7 @@ import {
   TriangleAlertIcon,
   Undo2Icon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -64,12 +65,10 @@ import { can, requireCapability } from "@/lib/access"
 import { type Member, memberNames } from "@/lib/members"
 import {
   type ExportKind,
-  PAYMENT_METHOD_LABELS,
   type PaycheckRow,
   type PayrollRun,
   type PayrollRunSummary,
   type PayrollSearch,
-  RUN_STATE_LABELS,
   type RunState,
   approvalBlockers,
   exportFileName,
@@ -79,7 +78,9 @@ import {
   paycheckRows,
   payrollMonth,
   previousMonth,
+  paymentMethodLabel,
   roundingLabel,
+  runStateLabel,
   runOfMonth,
   runState,
   validatePayrollSearch,
@@ -108,6 +109,9 @@ export const Route = createFileRoute("/_app/payroll/")({
   component: PayrollPage,
 })
 
+/** Who generated or approved a run: a name, "—" for nobody, or null for the signed-in user. */
+type NameOf = (userId: string | null) => string | null
+
 const STATE_BADGE: Record<RunState, "default" | "secondary" | "outline" | "destructive"> = {
   none: "outline",
   draft: "secondary",
@@ -121,7 +125,7 @@ function StateBadge({ state, paid, of }: { state: RunState; paid?: number; of?: 
     <Badge variant={STATE_BADGE[state]} className={state === "paid" ? "border-emerald-600 text-emerald-700 dark:text-emerald-400" : undefined}>
       {state === "paid" && <CheckCircle2Icon />}
       {state === "approved" || state === "partlyPaid" ? <LockIcon /> : null}
-      {RUN_STATE_LABELS[state]}
+      {runStateLabel(state)}
       {state === "partlyPaid" && paid !== undefined && of !== undefined && ` ${paid}/${of}`}
     </Badge>
   )
@@ -136,6 +140,7 @@ function PayrollPage() {
   const thisMonth = format.thisMonth()
   const period = payrollMonth(search.month, thisMonth)
   const isThisMonth = period.from === thisMonth.from
+  const { t } = useTranslation("admin")
 
   const { data: runs } = useSuspenseQuery(payrollRunsQuery(organizationId))
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
@@ -147,11 +152,11 @@ function PayrollPage() {
     void navigate({ search: { month: isDefault ? undefined : monthKey(next) } })
   }
 
-  const nameOf = (userId: string | null) => {
+  const nameOf: NameOf = (userId) => {
     if (userId === null) return "—"
-    if (userId === me.id) return "you"
+    if (userId === me.id) return null
     const member = members.find((m) => m.userId === userId)
-    return member ? `${member.firstName} ${member.lastName}`.trim() : "a former member"
+    return member ? `${member.firstName} ${member.lastName}`.trim() : t("time.formerMember")
   }
 
   return (
@@ -160,14 +165,12 @@ function PayrollPage() {
         <div className="flex flex-col gap-3">
           <PayrollNav />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Payroll</h1>
-            <p className="text-sm text-muted-foreground">
-              Gross pay for a month from the ended shifts and each person's rate. Your accountant does the rest.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("payroll.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("payroll.description")}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1" role="group" aria-label="Month">
-          <Button variant="outline" size="icon" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label="Previous month">
+        <div className="flex items-center gap-1" role="group" aria-label={t("payroll.month")}>
+          <Button variant="outline" size="icon" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label={t("period.previousMonth", { ns: "ui" })}>
             <ChevronLeftIcon />
           </Button>
           <div className="min-w-36 text-center text-sm font-medium tabular-nums" aria-live="polite">
@@ -178,7 +181,7 @@ function PayrollPage() {
             size="icon"
             onClick={() => showMonth(shiftPeriod(period, 1))}
             disabled={isThisMonth}
-            aria-label="Next month"
+            aria-label={t("period.nextMonth", { ns: "ui" })}
           >
             <ChevronRightIcon />
           </Button>
@@ -205,6 +208,7 @@ function PayrollPage() {
 
 function NoRun({ organizationId, period, isThisMonth }: { organizationId: string; period: BusinessPeriod; isThisMonth: boolean }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const [open, setOpen] = useState(false)
 
   return (
@@ -214,14 +218,12 @@ function NoRun({ organizationId, period, isThisMonth }: { organizationId: string
           {format.period(period)} <StateBadge state="none" />
         </CardTitle>
         <CardDescription>
-          {isThisMonth
-            ? "This month isn't over. A draft now is a preview: it can be approved once the month has ended."
-            : "Generate a draft from the month's ended shifts and the rates, review it, then an owner approves it."}
+          {isThisMonth ? t("payroll.noRun.thisMonth") : t("payroll.noRun.pastMonth")}
         </CardDescription>
         <CardAction>
           <Button onClick={() => setOpen(true)}>
             <PlusIcon />
-            Generate draft
+            {t("payroll.generate.generate")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -243,9 +245,10 @@ function RunView({
   runId: string
   members: Member[]
   canApprove: boolean
-  nameOf: (userId: string | null) => string
+  nameOf: NameOf
 }) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const format = useDateTimeFormat()
   const locale = useLocale()
   const { data: run } = useSuspenseQuery(payrollRunQuery(organizationId, runId))
@@ -282,20 +285,14 @@ function RunView({
       closeConfirm()
       setRefused(null)
       if (saved) queryClient.setQueryData(payrollRunQuery(organizationId, run.id).queryKey, saved)
-      toast.success(
-        kind === "approve"
-          ? `${format.period(period)} approved: its shifts are locked`
-          : kind === "reopen"
-            ? `${format.period(period)} reopened as a draft: its shifts are unlocked`
-            : `Draft of ${format.period(period)} deleted`,
-      )
+      toast.success(t(`payroll.toast.${kind}`, { period: format.period(period) }))
       if (kind === "delete") queryClient.removeQueries({ queryKey: payrollRunQuery(organizationId, run.id).queryKey })
       await invalidatePayrollRuns(queryClient, organizationId)
     },
     onError: (error, kind) => {
       closeConfirm()
       setRefused({
-        title: kind === "approve" ? "Not approved" : kind === "reopen" ? "Not reopened" : "Not deleted",
+        title: t(`payroll.refused.${kind}`),
         message: explain(error),
       })
     },
@@ -305,10 +302,10 @@ function RunView({
     mutationFn: (adjustmentId: string) =>
       unwrap(api.DELETE("/api/payroll-runs/{id}/adjustments/{adjustmentId}", { params: { path: { id: run.id, adjustmentId } } })),
     onSuccess: async () => {
-      toast.success("Adjustment removed")
+      toast.success(t("payroll.adjustment.removed"))
       await invalidatePayrollRuns(queryClient, organizationId)
     },
-    onError: (error) => toast.error("Could not remove the adjustment", { description: explain(error) }),
+    onError: (error) => toast.error(t("payroll.adjustment.removeFailed"), { description: explain(error) }),
   })
 
   const undoPaid = useMutation({
@@ -319,10 +316,10 @@ function RunView({
         }),
       ),
     onSuccess: async (_, row) => {
-      toast.success(`${row.name}: no longer marked paid`)
+      toast.success(t("payroll.payment.undone", { name: row.name }))
       await invalidatePayrollRuns(queryClient, organizationId)
     },
-    onError: (error) => toast.error("Could not undo the paid mark", { description: explain(error) }),
+    onError: (error) => toast.error(t("payroll.payment.undoFailed"), { description: explain(error) }),
   })
 
   function toggle(id: string) {
@@ -335,6 +332,10 @@ function RunView({
   }
 
   const totalSeconds = run.paychecks.reduce((sum, p) => sum + p.paidSeconds, 0)
+  const by = (key: "generatedBy" | "approvedBy", userId: string | null, when: string) => {
+    const name = nameOf(userId)
+    return name === null ? t(`payroll.run.${key}You`, { when }) : t(`payroll.run.${key}`, { name, when })
+  }
   const columns = 7
 
   return (
@@ -347,21 +348,20 @@ function RunView({
           </CardTitle>
           <CardDescription className="flex flex-col gap-0.5">
             <span>
-              {roundingLabel(run.roundingUnit, run.roundingDirection)}. Generated by {nameOf(run.generatedBy)} on{" "}
-              {format.dateTime(run.generatedAt)}.
+              {roundingLabel(run.roundingUnit, run.roundingDirection)}.{" "}
+              {by("generatedBy", run.generatedBy, format.dateTime(run.generatedAt))}
             </span>
             {run.approvedAt && (
               <span>
-                Approved by {nameOf(run.approvedBy)} on {format.dateTime(run.approvedAt)}. The month's shifts and rates are
-                locked.
+                {by("approvedBy", run.approvedBy, format.dateTime(run.approvedAt))} {t("payroll.run.locked")}
               </span>
             )}
           </CardDescription>
           <CardAction className="text-right">
             <div className="text-2xl font-semibold tabular-nums">{money(run.total)}</div>
             <div className="text-xs text-muted-foreground">
-              gross, {run.paychecks.length} {run.paychecks.length === 1 ? "paycheck" : "paychecks"}
-              {!draft && `, ${run.paidPaychecks} paid`}
+              {t("payroll.run.grossPaychecks", { count: run.paychecks.length })}
+              {!draft && t("payroll.run.paidCount", { count: run.paidPaychecks })}
             </div>
           </CardAction>
         </CardHeader>
@@ -371,26 +371,26 @@ function RunView({
               {canApprove && (
                 <Button onClick={() => ask("approve")} disabled={action.isPending}>
                   <LockIcon />
-                  Approve
+                  {t("payroll.approve")}
                 </Button>
               )}
               <Button variant="outline" onClick={() => setGenerate(true)}>
                 <RefreshCwIcon />
-                Regenerate
+                {t("payroll.generate.regenerate")}
               </Button>
               <Button variant="outline" onClick={() => setAdjustment({})}>
                 <PlusIcon />
-                Add adjustment
+                {t("payroll.adjustment.addTitle")}
               </Button>
               <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => ask("delete")}>
                 <Trash2Icon />
-                Delete draft
+                {t("payroll.deleteDraft")}
               </Button>
             </>
           ) : (
             <>
-              <ExportButton run={run} kind="paychecks" label="Paychecks CSV" />
-              <ExportButton run={run} kind="shifts" label="Shifts CSV" />
+              <ExportButton run={run} kind="paychecks" label={t("payroll.export.paychecks")} />
+              <ExportButton run={run} kind="shifts" label={t("payroll.export.shifts")} />
               {canApprove && (
                 <Button
                   variant="ghost"
@@ -398,7 +398,7 @@ function RunView({
                   disabled={action.isPending}
                 >
                   <Undo2Icon />
-                  Reopen
+                  {t("payroll.reopen")}
                 </Button>
               )}
             </>
@@ -418,7 +418,7 @@ function RunView({
         (blockers.length > 0 ? (
           <Alert>
             <TriangleAlertIcon className="text-amber-500" />
-            <AlertTitle>Not ready to approve</AlertTitle>
+            <AlertTitle>{t("payroll.notReady")}</AlertTitle>
             <AlertDescription>
               <ul className="list-disc pl-4">
                 {blockers.map((blocker) => (
@@ -427,7 +427,7 @@ function RunView({
               </ul>
               {run.linesWithoutRate > 0 && (
                 <Button asChild variant="link" className="h-auto p-0">
-                  <Link to="/payroll/rates">Set rates</Link>
+                  <Link to="/payroll/rates">{t("payroll.setRates")}</Link>
                 </Button>
               )}
             </AlertDescription>
@@ -435,37 +435,35 @@ function RunView({
         ) : (
           <Alert>
             <CheckCircle2Icon className="text-emerald-600" />
-            <AlertTitle>Ready to approve</AlertTitle>
+            <AlertTitle>{t("payroll.ready")}</AlertTitle>
             <AlertDescription>
-              {canApprove
-                ? "Review the paychecks, then approve. Approving locks the month's shifts and rates."
-                : "Review the paychecks. An owner approves the run, which locks the month's shifts and rates."}
+              {canApprove ? t("payroll.readyOwner") : t("payroll.readyManager")}
             </AlertDescription>
           </Alert>
         ))}
 
       <Card className="gap-0 pb-0">
         <CardHeader className="pb-4">
-          <CardTitle>Paychecks</CardTitle>
+          <CardTitle>{t("payroll.paychecks.title")}</CardTitle>
           <CardDescription>
             {draft
-              ? "Click a person to see their shifts and adjustments."
+              ? t("payroll.paychecks.draft")
               : canApprove
-                ? "Mark each paycheck paid once the money has left."
-                : "An owner marks paychecks paid."}
+                ? t("payroll.paychecks.markEach")
+                : t("payroll.paychecks.ownerMarks")}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Person</TableHead>
-                <TableHead className="text-right">Shifts</TableHead>
-                <TableHead className="text-right">Paid time</TableHead>
-                <TableHead className="text-right">Pay for hours</TableHead>
-                <TableHead className="text-right">Adjustments</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="pr-6">{draft ? "" : "Payment"}</TableHead>
+                <TableHead className="pl-6">{t("payroll.adjustment.person")}</TableHead>
+                <TableHead className="text-right">{t("payroll.paychecks.shifts")}</TableHead>
+                <TableHead className="text-right">{t("payroll.paychecks.paidTime")}</TableHead>
+                <TableHead className="text-right">{t("payroll.paychecks.payForHours")}</TableHead>
+                <TableHead className="text-right">{t("payroll.paychecks.adjustments")}</TableHead>
+                <TableHead className="text-right">{t("payroll.paychecks.total")}</TableHead>
+                <TableHead className="pr-6">{draft ? "" : t("payroll.paychecks.payment")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -484,12 +482,12 @@ function RunView({
                         >
                           <ChevronDownIcon className={`size-4 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
                           {row.name}
-                          {row.deactivated && <span className="font-normal text-muted-foreground">(deactivated)</span>}
+                          {row.deactivated && <span className="font-normal text-muted-foreground">{t("time.deactivated")}</span>}
                         </button>
                         {paycheck.linesWithoutRate > 0 && (
                           <Badge variant="destructive" className="mt-1 ml-5.5">
                             <TriangleAlertIcon />
-                            {paycheck.linesWithoutRate} without rate
+                            {t("payroll.withoutRate", { count: paycheck.linesWithoutRate })}
                           </Badge>
                         )}
                       </TableCell>
@@ -534,7 +532,7 @@ function RunView({
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="pl-6">Total</TableCell>
+                <TableCell className="pl-6">{t("payroll.paychecks.total")}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {run.paychecks.reduce((sum, p) => sum + p.lines.length, 0)}
                 </TableCell>
@@ -573,22 +571,16 @@ function RunView({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {shown === "approve"
-                ? `Approve ${format.period(period)}?`
-                : shown === "reopen"
-                  ? `Reopen ${format.period(period)}?`
-                  : `Delete the draft of ${format.period(period)}?`}
+              {t(`payroll.confirm.${shown}Title`, { period: format.period(period) })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {shown === "approve"
-                ? `${money(run.total)} gross in ${run.paychecks.length} paychecks. The month's shifts and rates are locked until the run is reopened.`
-                : shown === "reopen"
-                  ? "The run goes back to a draft and the month's shifts and rates are unlocked. It has to be approved again."
-                  : "Its paychecks and adjustments are deleted. You can generate the month again."}
+                ? t("payroll.confirm.approveDescription", { count: run.paychecks.length, amount: money(run.total) })
+                : t(`payroll.confirm.${shown}Description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className={shown === "delete" ? "bg-destructive text-white hover:bg-destructive/90" : undefined}
               disabled={action.isPending}
@@ -597,7 +589,7 @@ function RunView({
                 action.mutate(confirm.kind)
               }}
             >
-              {shown === "approve" ? "Approve" : shown === "reopen" ? "Reopen" : "Delete draft"}
+              {shown === "approve" ? t("payroll.approve") : shown === "reopen" ? t("payroll.reopen") : t("payroll.deleteDraft")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -620,6 +612,7 @@ function PaymentCell({
   onUndo: () => void
 }) {
   const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
   const { paycheck } = row
   if (paycheck.paidOn) {
     return (
@@ -627,20 +620,20 @@ function PaymentCell({
         <Badge variant="outline" className="border-emerald-600 text-emerald-700 dark:text-emerald-400">
           <CheckCircle2Icon />
           {format.businessDate(paycheck.paidOn, { day: "numeric", month: "short" })}
-          {paycheck.paymentMethod && ` · ${PAYMENT_METHOD_LABELS[paycheck.paymentMethod]}`}
+          {paycheck.paymentMethod && ` · ${paymentMethodLabel(paycheck.paymentMethod)}`}
         </Badge>
         {canPay && (
-          <Button variant="ghost" size="icon" className="size-7" onClick={onUndo} disabled={busy} aria-label={`Undo paid: ${row.name}`}>
+          <Button variant="ghost" size="icon" className="size-7" onClick={onUndo} disabled={busy} aria-label={t("payroll.payment.undo", { name: row.name })}>
             <Undo2Icon />
           </Button>
         )}
       </div>
     )
   }
-  if (!canPay) return <span className="text-sm text-muted-foreground">Unpaid</span>
+  if (!canPay) return <span className="text-sm text-muted-foreground">{t("payroll.payment.unpaid")}</span>
   return (
     <Button size="sm" variant="outline" onClick={onPay}>
-      Mark paid
+      {t("payroll.payment.submit")}
     </Button>
   )
 }
@@ -662,6 +655,7 @@ function PaycheckDetails({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const money = (minor: MinorUnits) => formatMoney(minor, run.currency, locale)
   const { paycheck } = row
   const draft = run.status === "draft"
@@ -674,11 +668,11 @@ function PaycheckDetails({
         <Table className="rounded-md border bg-background">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-4">Shift</TableHead>
-              <TableHead className="text-right">Length</TableHead>
-              {rounded && <TableHead className="text-right">Paid</TableHead>}
-              <TableHead className="text-right">Rate per hour</TableHead>
-              <TableHead className="pr-4 text-right">Amount</TableHead>
+              <TableHead className="pl-4">{t("payroll.lines.shift")}</TableHead>
+              <TableHead className="text-right">{t("payroll.lines.length")}</TableHead>
+              {rounded && <TableHead className="text-right">{t("payroll.lines.paid")}</TableHead>}
+              <TableHead className="text-right">{t("payroll.lines.rate")}</TableHead>
+              <TableHead className="pr-4 text-right">{t("payroll.lines.amount")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -693,13 +687,13 @@ function PaycheckDetails({
                   {line.rate === null ? (
                     <span className="inline-flex items-center gap-1 font-medium">
                       <TriangleAlertIcon className="size-3.5" />
-                      No rate
+                      {t("payroll.rates.noRate")}
                     </span>
                   ) : (
                     <>
                       {line.rateKind === "day" && (
                         <Badge variant="secondary" className="mr-1.5">
-                          Day rate
+                          {t("payroll.rates.dayRate")}
                         </Badge>
                       )}
                       {money(line.rate)}
@@ -714,23 +708,24 @@ function PaycheckDetails({
       )}
       {sumOfLines !== paycheck.payForHours && paycheck.linesWithoutRate === 0 && (
         <p className="text-xs text-muted-foreground">
-          Pay for hours is rounded once from the exact time, so it is {money(Math.abs(paycheck.payForHours - sumOfLines))}{" "}
-          {paycheck.payForHours > sumOfLines ? "more" : "less"} than the sum of the shift amounts.
+          {t(paycheck.payForHours > sumOfLines ? "payroll.lines.roundedMore" : "payroll.lines.roundedLess", {
+            amount: money(Math.abs(paycheck.payForHours - sumOfLines)),
+          })}
         </p>
       )}
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Adjustments</h3>
+          <h3 className="text-sm font-medium">{t("payroll.paychecks.adjustments")}</h3>
           {draft && (
             <Button size="sm" variant="outline" onClick={onAddAdjustment}>
               <PlusIcon />
-              Add
+              {t("payroll.adjustment.add")}
             </Button>
           )}
         </div>
         {paycheck.adjustments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No bonus or deduction.</p>
+          <p className="text-sm text-muted-foreground">{t("payroll.adjustment.none")}</p>
         ) : (
           <ul className="divide-y rounded-md border bg-background">
             {paycheck.adjustments.map((adjustment) => (
@@ -746,7 +741,7 @@ function PaycheckDetails({
                       variant="ghost"
                       size="icon"
                       className="size-7"
-                      aria-label={`Change ${adjustment.label}`}
+                      aria-label={t("payroll.adjustment.change", { label: adjustment.label })}
                       onClick={() => onEditAdjustment(adjustment)}
                     >
                       <PencilIcon />
@@ -755,7 +750,7 @@ function PaycheckDetails({
                       variant="ghost"
                       size="icon"
                       className="size-7 text-destructive hover:text-destructive"
-                      aria-label={`Remove ${adjustment.label}`}
+                      aria-label={t("payroll.adjustment.remove", { label: adjustment.label })}
                       disabled={removing}
                       onClick={() => onRemoveAdjustment(adjustment.id)}
                     >
@@ -771,9 +766,10 @@ function PaycheckDetails({
 
       {paycheck.paidOn && paycheck.paidMarkedAt && (
         <p className="text-xs text-muted-foreground">
-          Paid on {format.businessDate(paycheck.paidOn)}
-          {paycheck.paymentMethod && ` by ${PAYMENT_METHOD_LABELS[paycheck.paymentMethod].toLowerCase()}`}, marked on{" "}
-          {format.dateTime(paycheck.paidMarkedAt)}.
+          {t(paycheck.paymentMethod ? `payroll.payment.paidBy.${paycheck.paymentMethod}` : "payroll.payment.paidOnDate", {
+            date: format.businessDate(paycheck.paidOn),
+            marked: format.dateTime(paycheck.paidMarkedAt),
+          })}
         </p>
       )}
     </div>
@@ -782,6 +778,7 @@ function PaycheckDetails({
 
 /** Downloads the accountant's CSV of an approved run (ADR 0027 §12). */
 function ExportButton({ run, kind, label }: { run: PayrollRun; kind: ExportKind; label: string }) {
+  const { t } = useTranslation("admin")
   const [busy, setBusy] = useState(false)
 
   async function download() {
@@ -800,7 +797,7 @@ function ExportButton({ run, kind, label }: { run: PayrollRun; kind: ExportKind;
       link.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      toast.error("Could not download the file", { description: requestErrorMessage(error) })
+      toast.error(t("payroll.export.failed"), { description: requestErrorMessage(error) })
     } finally {
       setBusy(false)
     }
@@ -825,20 +822,21 @@ function RunsCard({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
 
   return (
     <Card className="gap-0 pb-0">
       <CardHeader className="pb-4">
-        <CardTitle>All months</CardTitle>
+        <CardTitle>{t("payroll.runs.title")}</CardTitle>
       </CardHeader>
       <CardContent className="px-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-6">Month</TableHead>
-              <TableHead>State</TableHead>
-              <TableHead className="text-right">Paychecks</TableHead>
-              <TableHead className="pr-6 text-right">Total</TableHead>
+              <TableHead className="pl-6">{t("payroll.month")}</TableHead>
+              <TableHead>{t("payroll.runs.state")}</TableHead>
+              <TableHead className="text-right">{t("payroll.nav.paychecks")}</TableHead>
+              <TableHead className="pr-6 text-right">{t("payroll.paychecks.total")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -857,7 +855,7 @@ function RunsCard({
                       <StateBadge state={runState(run)} paid={run.paidPaychecks} of={run.paychecks} />
                       {run.linesWithoutRate > 0 && (
                         <Badge variant="destructive" className="ml-1.5">
-                          {run.linesWithoutRate} without rate
+                          {t("payroll.withoutRate", { count: run.linesWithoutRate })}
                         </Badge>
                       )}
                     </TableCell>

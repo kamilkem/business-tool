@@ -1,6 +1,7 @@
 import { unwrap } from "@business-tool/api-client"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { api } from "./api"
@@ -13,6 +14,7 @@ import { type Expense, type ExpenseList, withExpense } from "./expenses"
  */
 export function useCategorizeExpense(organizationId: string, onSaved?: (expense: Expense) => void) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   return useMutation({
     mutationFn: ({ expense, categoryId }: { expense: Expense; categoryId: string | null }) =>
       unwrap(
@@ -27,13 +29,13 @@ export function useCategorizeExpense(organizationId: string, onSaved?: (expense:
         list ? withExpense(list, saved) : list,
       )
       onSaved?.(saved)
-      toast.success(saved.categoryName ? `Categorized as ${saved.categoryName}` : "Category cleared", {
+      toast.success(saved.categoryName ? t("expenses.categorized", { category: saved.categoryName }) : t("expenses.categoryCleared"), {
         description: saved.invoiceNumber ? `${saved.sellerName}, ${saved.invoiceNumber}` : saved.sellerName,
       })
       await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
     },
     onError: async (error) => {
-      toast.error("Could not change the category", { description: requestErrorMessage(error) })
+      toast.error(t("expenses.categorizeFailed"), { description: requestErrorMessage(error) })
       // An archived or removed category: the pickers get the current list.
       await queryClient.invalidateQueries({ queryKey: ["expense-categories", organizationId] })
     },

@@ -3,6 +3,7 @@ import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { ChevronDownIcon, LockIcon, MoreHorizontalIcon, PlusIcon, TriangleAlertIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
@@ -83,6 +84,7 @@ function RatesPage() {
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const today = format.today()
 
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
@@ -105,12 +107,12 @@ function RatesPage() {
         : unwrap(api.DELETE("/api/day-rates/{id}", { params: { path: { id: target.rate.id } } })),
     onSuccess: async (_, target) => {
       setRemoval(null)
-      toast.success(`${target.kind === "hourly" ? "Hourly rate" : "Day rate"} deleted`, { description: target.name })
+      toast.success(t(`payroll.rates.deleted.${target.kind}`), { description: target.name })
       await Promise.all([invalidatePayRates(queryClient, organizationId), invalidatePayrollRuns(queryClient, organizationId)])
     },
     onError: (error) => {
       setRemoval(null)
-      toast.error("Could not delete the rate", { description: requestErrorMessage(error, { names }) })
+      toast.error(t("payroll.rates.deleteFailed"), { description: requestErrorMessage(error, { names }) })
     },
   })
 
@@ -130,33 +132,30 @@ function RatesPage() {
       <div className="flex flex-col gap-3">
         <PayrollNav />
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Rates</h1>
-          <p className="text-sm text-muted-foreground">
-            Gross pay per hour. A raise is a new rate from a date; earlier shifts keep the earlier rate. A day rate replaces
-            it for the shifts that start on one date.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("payroll.rates.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("payroll.rates.description")}</p>
         </div>
       </div>
 
       <Card className="gap-0 pb-0">
         <CardHeader className="pb-4">
-          <CardTitle>People</CardTitle>
+          <CardTitle>{t("payroll.rates.people")}</CardTitle>
           <CardDescription>
             {withoutRate.length === 0
-              ? "Everyone has a rate today. Click a person to see their history and day rates."
-              : `${withoutRate.length} ${withoutRate.length === 1 ? "person has" : "people have"} no rate today: their shifts can't be paid until one is set.`}
+              ? t("payroll.rates.everyoneHasRate")
+              : t("payroll.rates.withoutRate", { count: withoutRate.length })}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Person</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="text-right">Rate today</TableHead>
-                <TableHead>Since</TableHead>
+                <TableHead className="pl-6">{t("payroll.adjustment.person")}</TableHead>
+                <TableHead>{t("team.column.role")}</TableHead>
+                <TableHead className="text-right">{t("payroll.rates.rateToday")}</TableHead>
+                <TableHead>{t("payroll.rates.since")}</TableHead>
                 <TableHead className="pr-6 text-right">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("common.actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -179,7 +178,7 @@ function RatesPage() {
                         >
                           <ChevronDownIcon className={`size-4 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
                           {name}
-                          {member.deactivatedAt !== null && <span className="font-normal text-muted-foreground">(deactivated)</span>}
+                          {member.deactivatedAt !== null && <span className="font-normal text-muted-foreground">{t("time.deactivated")}</span>}
                         </button>
                       </TableCell>
                       <TableCell>{roleLabel(member.role)}</TableCell>
@@ -189,7 +188,7 @@ function RatesPage() {
                         ) : (
                           <Badge variant="destructive">
                             <TriangleAlertIcon />
-                            No rate
+                            {t("payroll.rates.noRate")}
                           </Badge>
                         )}
                       </TableCell>
@@ -197,22 +196,25 @@ function RatesPage() {
                         {current ? format.businessDate(current.effectiveFrom) : "—"}
                         {upcoming && (
                           <span className="block text-xs">
-                            {formatMoney(upcoming.amount, upcoming.currency, locale)} from {format.businessDate(upcoming.effectiveFrom)}
+                            {t("payroll.rates.upcoming", {
+                              amount: formatMoney(upcoming.amount, upcoming.currency, locale),
+                              date: format.businessDate(upcoming.effectiveFrom),
+                            })}
                           </span>
                         )}
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Rates of ${name}`}>
+                            <Button variant="ghost" size="icon" aria-label={t("payroll.rates.ratesOf", { name })}>
                               <MoreHorizontalIcon />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => setDialog({ kind: "hourly", member })}>
-                              {current ? "New rate from a date" : "Set hourly rate"}
+                              {current ? t("payroll.rates.newRateFromDate") : t("payroll.rates.setHourlyRate")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setDialog({ kind: "day", member })}>Add day rate</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setDialog({ kind: "day", member })}>{t("payroll.rate.addDayRate")}</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -243,17 +245,17 @@ function RatesPage() {
       <AlertDialog open={removal !== null} onOpenChange={(open) => !open && setRemoval(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this {removal?.kind === "day" ? "day rate" : "hourly rate"}?</AlertDialogTitle>
+            <AlertDialogTitle>{removal?.kind === "day" ? t("payroll.rates.deleteDayTitle") : t("payroll.rates.deleteHourlyTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               {removal?.kind === "day"
-                ? `${removal.name}'s shifts on ${format.businessDate(removal.rate.date)} go back to the hourly rate.`
+                ? t("payroll.rates.deleteDayDescription", { name: removal.name, date: format.businessDate(removal.rate.date) })
                 : removal
-                  ? `${removal.name}'s shifts from ${format.businessDate(removal.rate.effectiveFrom)} go back to the previous rate, or to none.`
+                  ? t("payroll.rates.deleteHourlyDescription", { name: removal.name, date: format.businessDate(removal.rate.effectiveFrom) })
                   : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               disabled={remove.isPending}
@@ -262,7 +264,7 @@ function RatesPage() {
                 if (removal) remove.mutate(removal)
               }}
             >
-              Delete
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -286,6 +288,7 @@ function History({
 }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
+  const { t } = useTranslation("admin")
   const { member } = entry
   const name = fullName(member)
 
@@ -293,14 +296,14 @@ function History({
     <div className="grid gap-4 pt-2 md:grid-cols-2">
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Hourly rates</h3>
+          <h3 className="text-sm font-medium">{t("payroll.rates.hourlyRates")}</h3>
           <Button size="sm" variant="outline" onClick={() => onAdd("hourly")}>
             <PlusIcon />
-            New rate
+            {t("payroll.rates.newRate")}
           </Button>
         </div>
         {entry.hourly.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hourly rate yet.</p>
+          <p className="text-sm text-muted-foreground">{t("payroll.rates.noHourlyRate")}</p>
         ) : (
           <ul className="divide-y rounded-md border bg-background">
             {entry.hourly.map((rate) => (
@@ -309,11 +312,11 @@ function History({
                 when={
                   rate.effectiveTo
                     ? `${format.businessDate(rate.effectiveFrom)} – ${format.businessDate(rate.effectiveTo)}`
-                    : `From ${format.businessDate(rate.effectiveFrom)}`
+                    : t("payroll.rates.fromDate", { date: format.businessDate(rate.effectiveFrom) })
                 }
                 amount={formatMoney(rate.amount, rate.currency, locale)}
                 locked={isHourlyRateLocked(rate, locked)}
-                label={`hourly rate from ${format.businessDate(rate.effectiveFrom)}`}
+                label={t("payroll.rates.changeHourly", { date: format.businessDate(rate.effectiveFrom) })}
                 onEdit={() => onEdit({ kind: "hourly", member, rate })}
                 onRemove={() => onRemove({ kind: "hourly", rate, name })}
               />
@@ -323,14 +326,14 @@ function History({
       </section>
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Day rates</h3>
+          <h3 className="text-sm font-medium">{t("payroll.rates.dayRates")}</h3>
           <Button size="sm" variant="outline" onClick={() => onAdd("day")}>
             <PlusIcon />
-            Day rate
+            {t("payroll.rates.dayRate")}
           </Button>
         </div>
         {entry.day.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No day rate.</p>
+          <p className="text-sm text-muted-foreground">{t("payroll.rates.noDayRate")}</p>
         ) : (
           <ul className="divide-y rounded-md border bg-background">
             {entry.day.map((rate) => (
@@ -339,7 +342,7 @@ function History({
                 when={format.businessDate(rate.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
                 amount={formatMoney(rate.amount, rate.currency, locale)}
                 locked={isDayRateLocked(rate, locked)}
-                label={`day rate on ${format.businessDate(rate.date)}`}
+                label={t("payroll.rates.changeDay", { date: format.businessDate(rate.date) })}
                 onEdit={() => onEdit({ kind: "day", member, rate })}
                 onRemove={() => onRemove({ kind: "day", rate, name })}
               />
@@ -362,29 +365,31 @@ function RateItem({
   when: string
   amount: string
   locked: boolean
+  /** The menu button's accessible name: "Change hourly rate from 1 Oct 2026". */
   label: string
   onEdit: () => void
   onRemove: () => void
 }) {
+  const { t } = useTranslation("admin")
   return (
     <li className="flex items-center gap-2 px-4 py-2 text-sm">
       <span className="flex-1 tabular-nums">{when}</span>
       <span className="tabular-nums">{amount}</span>
       {locked ? (
-        <span className="flex size-8 items-center justify-center text-muted-foreground" title="In an approved payroll month: reopen the run to change it">
-          <LockIcon className="size-4" aria-label="Locked by an approved payroll month" />
+        <span className="flex size-8 items-center justify-center text-muted-foreground" title={t("payroll.rates.lockedTitle")}>
+          <LockIcon className="size-4" aria-label={t("payroll.rates.locked")} />
         </span>
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" aria-label={`Change ${label}`}>
+            <Button variant="ghost" size="icon" className="size-8" aria-label={label}>
               <MoreHorizontalIcon />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onEdit}>Change</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onEdit}>{t("payroll.rates.change")}</DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={onRemove}>
-              Delete
+              {t("common.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

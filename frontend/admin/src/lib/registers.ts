@@ -1,6 +1,8 @@
 import { ApiError, type components, violationsOf } from "@business-tool/api-client"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
+
 /*
  * Registers (ADR 0022 §2): tills with their own fiscal printer. Deactivated, never deleted,
  * because their revenue entries stay on the Income page.
@@ -48,8 +50,8 @@ export function registerFormErrors(error: unknown, name: string, registers: read
     const existing = registers.find((r) => r.name === written)
     return {
       name: existing && !existing.active
-        ? `A deactivated register is already named “${written}”. Deactivated registers keep their names, so pick another one.`
-        : `A register named “${written}” already exists.`,
+        ? i18n.t("registers.error.nameTakenByDeactivated", { ns: "admin", name: written })
+        : i18n.t("registers.error.nameTaken", { ns: "admin", name: written }),
     }
   }
   if (error instanceof ApiError && error.status === 422) {

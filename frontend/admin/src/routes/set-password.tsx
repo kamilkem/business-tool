@@ -1,5 +1,6 @@
 import { forgetLinkToken, takeLinkToken } from "@business-tool/api-client"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
 import { AuthScreen } from "@business-tool/ui/components/auth-screen"
 import { SetPasswordForm } from "@business-tool/ui/components/set-password-form"
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/set-password")({
 function SetPasswordPage() {
   const { linkToken, session, queryClient } = Route.useRouteContext()
   const navigate = useNavigate()
+  const { t } = useTranslation("admin")
 
   async function onPasswordSet() {
     forgetLinkToken()
@@ -29,11 +31,11 @@ function SetPasswordPage() {
 
   return (
     <AuthScreen
-      title="Set your password"
-      description="Choose the password you'll use to sign in to the admin panel."
+      title={t("setPassword.title")}
+      description={t("setPassword.description")}
       footer={
         <Link to="/login" className="underline-offset-4 hover:underline">
-          Back to sign in
+          {t("common.backToSignIn")}
         </Link>
       }
     >
@@ -41,11 +43,7 @@ function SetPasswordPage() {
         api={api}
         token={linkToken}
         onPasswordSet={onPasswordSet}
-        requestNewLink={
-          <Link to="/forgot-password" className="text-foreground">
-            request a new link
-          </Link>
-        }
+        requestNewLink={<Link to="/forgot-password" className="text-foreground" />}
       />
     </AuthScreen>
   )

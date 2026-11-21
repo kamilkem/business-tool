@@ -1,5 +1,7 @@
 import type { components } from "@business-tool/api-client"
 
+import { i18n } from "../i18n"
+
 export type KsefConnection = components["schemas"]["KsefConnection"]
 
 /** KSeF exists only for organizations in Poland (ADR 0002 §3, ADR 0023 §3). */
@@ -17,42 +19,37 @@ export type KsefState = {
 /** How the connection reads in the admin. Null means no token was ever saved. */
 export function ksefState(connection: KsefConnection | null): KsefState {
   if (!connection || connection.status === "disabled") {
-    return { label: "Not connected", tone: "muted", hint: "An owner saves a KSeF token to import purchase invoices." }
+    return { label: i18n.t("ksef.state.notConnected", { ns: "admin" }), tone: "muted", hint: i18n.t("ksef.hint.notConnected", { ns: "admin" }) }
   }
   if (connection.status === "credentials_rejected") {
     return {
-      label: "Token rejected",
+      label: i18n.t("ksef.state.tokenRejected", { ns: "admin" }),
       tone: "error",
       hint:
         connection.lastCheckError === "token_unreadable"
-          ? "The saved token can no longer be read. An owner has to save it again."
-          : "KSeF refused the token. An owner has to generate a new one in KSeF and save it.",
+          ? i18n.t("ksef.hint.tokenUnreadable", { ns: "admin" })
+          : i18n.t("ksef.hint.tokenRejected", { ns: "admin" }),
     }
   }
   if (connection.lastCheckError) {
-    return { label: "Connected, last check failed", tone: "warning", hint: ksefErrorLabel(connection.lastCheckError) }
+    return { label: i18n.t("ksef.state.checkFailed", { ns: "admin" }), tone: "warning", hint: ksefErrorLabel(connection.lastCheckError) }
   }
   if (!connection.verifiedAt) {
-    return { label: "Token saved, not checked yet", tone: "warning", hint: "Test the connection to check it." }
+    return { label: i18n.t("ksef.state.notChecked", { ns: "admin" }), tone: "warning", hint: i18n.t("ksef.hint.notChecked", { ns: "admin" }) }
   }
-  return { label: "Connected", tone: "ok", hint: null }
+  return { label: i18n.t("ksef.state.connected", { ns: "admin" }), tone: "ok", hint: null }
 }
 
 /** A failed check or import, in words. */
 export function ksefErrorLabel(code: string): string {
   switch (code) {
     case "credentials_rejected":
-      return "KSeF refused the token."
     case "token_unreadable":
-      return "The saved token can no longer be read."
     case "rate_limited":
-      return "KSeF asked us to slow down. Try again later."
     case "unavailable":
-      return "KSeF could not be reached. Try again later."
     case "request_failed":
-      return "KSeF answered in an unexpected way."
     case "invoice_unreadable":
-      return "Some invoices could not be read and were skipped."
+      return i18n.t(`ksef.error.${code}`, { ns: "admin" })
     default:
       return code
   }

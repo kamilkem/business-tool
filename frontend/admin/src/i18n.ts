@@ -7,3 +7,6 @@ import pl from "./locales/pl/admin.json"
 // anything renders, so `useTranslation("admin")` always finds it.
 i18n.addResourceBundle("en", "admin", en)
 i18n.addResourceBundle("pl", "admin", pl)
+
+/** The instance with this app's namespace added: helpers outside React (and their tests) import it from here. */
+export { i18n }

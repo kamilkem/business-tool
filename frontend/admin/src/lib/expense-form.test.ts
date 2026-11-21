@@ -1,6 +1,7 @@
 import { ApiError } from "@business-tool/api-client"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import {
   type ExpenseFormValues,
   breakdownMismatch,
@@ -228,6 +229,28 @@ describe("expenseFormErrors", () => {
     expect(expenseFormErrors(unknownRate, sent)).toEqual({ form: "7 is not a VAT rate in this country." })
     expect(expenseFormErrors(new Error("Network down"), sent)).toEqual({
       form: "Could not reach the server. Check your connection and try again.",
+    })
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_explains_what_is_missing_in_polish", () => {
+    const result = expenseBody(form({ sellerName: " ", currency: "zł", grossTotal: null }), RATES, "PLN")
+
+    expect(result).toEqual({
+      ok: false,
+      errors: {
+        sellerName: "Podaj nazwę sprzedawcy.",
+        currency: "Podaj trzyliterowy kod waluty, np. EUR.",
+        grossTotal: "Podaj kwotę brutto.",
+      },
     })
   })
 })

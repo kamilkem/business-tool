@@ -1,6 +1,7 @@
 import { ApiError } from "@business-tool/api-client"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import { type Register, registerFormErrors, splitRegisters, withRegister } from "./registers"
 
 function register(name: string, active = true, id = `register-${name}`): Register {
@@ -95,5 +96,23 @@ describe("registerFormErrors", () => {
       form: "Something went wrong on our side. Try again in a moment.",
     })
     expect(registerFormErrors(new TypeError("Failed to fetch"), "Bar", registers)).toEqual({ form: "Could not reach the server. Check your connection and try again." })
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_explains_a_taken_name_in_polish", () => {
+    const conflict = new ApiError(409, { detail: "Conflict" })
+
+    expect(registerFormErrors(conflict, "Bar", [bar, kitchen, terrace])).toEqual({ name: "Kasa o nazwie „Bar” już istnieje." })
+    expect(registerFormErrors(conflict, "Terrace", [bar, kitchen, terrace]).name).toBe(
+      "Dezaktywowana kasa ma już nazwę „Terrace”. Dezaktywowane kasy zachowują nazwy, więc wybierz inną.",
+    )
   })
 })

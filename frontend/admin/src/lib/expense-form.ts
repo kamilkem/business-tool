@@ -3,6 +3,7 @@ import { type BusinessDate, isBusinessDate } from "@business-tool/ui/lib/date-ti
 import type { MinorUnits } from "@business-tool/ui/lib/money"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { i18n } from "../i18n"
 import { type Expense, isCorrection } from "./expenses"
 import type { VatRate } from "./income"
 
@@ -168,21 +169,21 @@ export function expenseBody(
 ): ExpenseBodyResult {
   const errors: ExpenseFormErrors = {}
   const sellerName = values.sellerName.trim()
-  if (sellerName === "") errors.sellerName = "Enter the seller's name."
-  if (!isBusinessDate(values.issueDate)) errors.issueDate = "Choose the date on the document."
+  if (sellerName === "") errors.sellerName = i18n.t("expenseForm.error.sellerName", { ns: "admin" })
+  if (!isBusinessDate(values.issueDate)) errors.issueDate = i18n.t("expenseForm.error.issueDate", { ns: "admin" })
 
   const currency = normalizeCurrency(values.currency)
-  if (!CURRENCY_CODE.test(currency)) errors.currency = "Enter a three-letter currency code, e.g. EUR."
+  if (!CURRENCY_CODE.test(currency)) errors.currency = i18n.t("expenseForm.error.currency", { ns: "admin" })
   const foreign = CURRENCY_CODE.test(currency) && currency !== organizationCurrency
 
   const negativeAllowed = isCorrection(values.kind)
   const checkAmount = (field: "grossTotal" | "vatTotal", missing: string) => {
     const amount = values[field]
     if (amount === null) errors[field] = missing
-    else if (amount < 0 && !negativeAllowed) errors[field] = "Only a correction has negative amounts."
+    else if (amount < 0 && !negativeAllowed) errors[field] = i18n.t("expenseForm.error.negative", { ns: "admin" })
   }
-  checkAmount("grossTotal", "Enter the gross total.")
-  checkAmount("vatTotal", "Enter the VAT total. Enter 0 for a document without VAT.")
+  checkAmount("grossTotal", i18n.t("expenseForm.error.grossTotal", { ns: "admin" }))
+  checkAmount("vatTotal", i18n.t("expenseForm.error.vatTotal", { ns: "admin" }))
 
   const vatLines: ExpenseVatLineInput[] = []
   for (const rate of rates) {
@@ -192,20 +193,20 @@ export function expenseBody(
     const vat = rate.zeroVat ? 0 : line.vat
     let valid = true
     if (line.net === null) {
-      errors[key("net")] = "Enter the net amount."
+      errors[key("net")] = i18n.t("expenseForm.error.net", { ns: "admin" })
       valid = false
     }
     if (vat === null) {
-      errors[key("vat")] = "Enter the VAT, as printed."
+      errors[key("vat")] = i18n.t("expenseForm.error.vat", { ns: "admin" })
       valid = false
     }
     const vatInTaxCurrency = !foreign ? null : rate.zeroVat ? 0 : line.vatInTaxCurrency
     if (foreign && vatInTaxCurrency === null) {
-      errors[key("vatInTaxCurrency")] = `Enter the VAT in ${organizationCurrency}.`
+      errors[key("vatInTaxCurrency")] = i18n.t("expenseForm.error.vatInTaxCurrency", { ns: "admin", currency: organizationCurrency })
       valid = false
     }
     if (!negativeAllowed && [line.net, vat, vatInTaxCurrency].some((amount) => amount !== null && amount < 0)) {
-      errors[key("net")] = "Only a correction has negative amounts."
+      errors[key("net")] = i18n.t("expenseForm.error.negative", { ns: "admin" })
       valid = false
     }
     if (valid && line.net !== null && vat !== null) {

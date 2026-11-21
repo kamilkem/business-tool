@@ -59,8 +59,8 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
     const existing = all.find((m) => m.email.toLowerCase() === email.trim().toLowerCase())
     if (!existing) return fallback
     return isActive(existing)
-      ? `${fullName(existing)} (${existing.email}) is already a member of this organization.`
-      : `${fullName(existing)} (${existing.email}) is a deactivated member. Show deactivated members and reactivate them instead.`
+      ? t("addMember.error.alreadyMember", { name: fullName(existing), email: existing.email })
+      : t("addMember.error.deactivatedMember", { name: fullName(existing), email: existing.email })
   }
 
   const add = useMutation({
@@ -69,8 +69,8 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
       await queryClient.invalidateQueries({ queryKey: ["members", organizationId] })
       toast.success(
         member.invitationPending
-          ? `Invitation sent to ${member.email}`
-          : `${fullName(member)} added as ${roleLabel(member.role).toLowerCase()}`,
+          ? t("addMember.toast.invited", { email: member.email })
+          : t(`addMember.toast.added.${member.role}`, { name: fullName(member) }),
       )
       setOpen(false)
       reset()
@@ -113,22 +113,19 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
       <DialogTrigger asChild>
         <Button>
           <UserPlusIcon />
-          Add member
+          {t("addMember.title")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Add member</DialogTitle>
-            <DialogDescription>
-              New people get an e-mail with a link to set their password. People who already have an account keep
-              their own name and password.
-            </DialogDescription>
+            <DialogTitle>{t("addMember.title")}</DialogTitle>
+            <DialogDescription>{t("addMember.description")}</DialogDescription>
           </DialogHeader>
           <fieldset disabled={add.isPending} className="py-4">
             <FieldGroup>
               <Field data-invalid={fieldErrors.email ? true : undefined}>
-                <FieldLabel htmlFor="member-email">E-mail</FieldLabel>
+                <FieldLabel htmlFor="member-email">{t("common.email", { ns: "ui" })}</FieldLabel>
                 <Input
                   id="member-email"
                   name="email"
@@ -141,7 +138,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={fieldErrors.firstName ? true : undefined}>
-                  <FieldLabel htmlFor="member-first-name">First name</FieldLabel>
+                  <FieldLabel htmlFor="member-first-name">{t("addMember.firstName")}</FieldLabel>
                   <Input
                     id="member-first-name"
                     name="firstName"
@@ -152,7 +149,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
                   {fieldErrors.firstName && <FieldError>{fieldErrors.firstName}</FieldError>}
                 </Field>
                 <Field data-invalid={fieldErrors.lastName ? true : undefined}>
-                  <FieldLabel htmlFor="member-last-name">Last name</FieldLabel>
+                  <FieldLabel htmlFor="member-last-name">{t("addMember.lastName")}</FieldLabel>
                   <Input
                     id="member-last-name"
                     name="lastName"
@@ -164,7 +161,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
                 </Field>
               </div>
               <Field data-invalid={fieldErrors.role ? true : undefined}>
-                <FieldLabel htmlFor="member-role">Role</FieldLabel>
+                <FieldLabel htmlFor="member-role">{t("addMember.role")}</FieldLabel>
                 <Select value={role} onValueChange={(value) => setRole(value as Role)} disabled={roles.length < 2}>
                   <SelectTrigger id="member-role" className="w-full">
                     <SelectValue />
@@ -177,7 +174,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
                     ))}
                   </SelectContent>
                 </Select>
-                {roles.length < 2 && <FieldDescription>Managers add employees only.</FieldDescription>}
+                {roles.length < 2 && <FieldDescription>{t("addMember.managersAddEmployees")}</FieldDescription>}
                 {fieldErrors.role && <FieldError>{fieldErrors.role}</FieldError>}
               </Field>
               <Field data-invalid={fieldErrors.language ? true : undefined}>
@@ -195,7 +192,7 @@ export function AddMemberDialog({ organizationId, actorId, actorRole }: AddMembe
           </fieldset>
           <DialogFooter>
             <Button type="submit" disabled={add.isPending}>
-              {add.isPending ? "Adding…" : "Add member"}
+              {add.isPending ? t("addMember.adding") : t("addMember.title")}
             </Button>
           </DialogFooter>
         </form>

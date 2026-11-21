@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@business-tool/ui/components/button"
@@ -71,6 +72,7 @@ function AdjustmentForm({
   onClose,
 }: Omit<PaycheckAdjustmentDialogProps, "target"> & { target: AdjustmentTarget }) {
   const queryClient = useQueryClient()
+  const { t } = useTranslation("admin")
   const editing = target.adjustment
   const [values, setValues] = useState<AdjustmentFormValues>({
     userId: target.userId ?? "",
@@ -96,7 +98,7 @@ function AdjustmentForm({
     },
     onSuccess: async (saved) => {
       queryClient.setQueryData(payrollRunQuery(organizationId, run.id).queryKey, saved)
-      toast.success(editing ? "Adjustment saved" : "Adjustment added")
+      toast.success(editing ? t("payroll.adjustment.saved") : t("payroll.adjustment.added"))
       onClose()
       await invalidatePayrollRuns(queryClient, organizationId)
     },
@@ -116,28 +118,25 @@ function AdjustmentForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
-        <DialogTitle>{editing ? "Change adjustment" : "Add adjustment"}</DialogTitle>
-        <DialogDescription>
-          A bonus adds to the month's pay; an advance already paid takes off it. Adjustments stay when the run is
-          regenerated.
-        </DialogDescription>
+        <DialogTitle>{editing ? t("payroll.adjustment.changeTitle") : t("payroll.adjustment.addTitle")}</DialogTitle>
+        <DialogDescription>{t("payroll.adjustment.description")}</DialogDescription>
       </DialogHeader>
       <fieldset disabled={save.isPending} className="py-4">
         <FieldGroup>
           <Field data-invalid={errors.userId ? true : undefined}>
-            <FieldLabel htmlFor="adjustment-person">Person</FieldLabel>
+            <FieldLabel htmlFor="adjustment-person">{t("payroll.adjustment.person")}</FieldLabel>
             {editing || target.userId ? (
-              <Input id="adjustment-person" value={person ? fullName(person) : "Former member"} readOnly disabled />
+              <Input id="adjustment-person" value={person ? fullName(person) : t("payroll.formerMember")} readOnly disabled />
             ) : (
               <Select value={values.userId} onValueChange={(userId) => setValues({ ...values, userId })}>
                 <SelectTrigger id="adjustment-person" className="w-full" aria-invalid={errors.userId ? true : undefined}>
-                  <SelectValue placeholder="Choose a person" />
+                  <SelectValue placeholder={t("shiftDialog.choosePerson")} />
                 </SelectTrigger>
                 <SelectContent>
                   {members.map((member) => (
                     <SelectItem key={member.userId} value={member.userId}>
                       {fullName(member)}
-                      {member.deactivatedAt !== null && " (deactivated)"}
+                      {member.deactivatedAt !== null && ` ${t("time.deactivated")}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -146,12 +145,12 @@ function AdjustmentForm({
             {errors.userId && <FieldError>{errors.userId}</FieldError>}
           </Field>
           <Field data-invalid={errors.label ? true : undefined}>
-            <FieldLabel htmlFor="adjustment-label">What for</FieldLabel>
+            <FieldLabel htmlFor="adjustment-label">{t("payroll.adjustment.label")}</FieldLabel>
             <Input
               id="adjustment-label"
               value={values.label}
               maxLength={ADJUSTMENT_LABEL_MAX_LENGTH}
-              placeholder="Bonus, Advance paid 10 Oct…"
+              placeholder={t("payroll.adjustment.labelPlaceholder")}
               autoComplete="off"
               onChange={(event) => setValues({ ...values, label: event.target.value })}
               aria-invalid={errors.label ? true : undefined}
@@ -159,7 +158,7 @@ function AdjustmentForm({
             {errors.label && <FieldError>{errors.label}</FieldError>}
           </Field>
           <Field data-invalid={errors.amount ? true : undefined}>
-            <FieldLabel htmlFor="adjustment-amount">Amount</FieldLabel>
+            <FieldLabel htmlFor="adjustment-amount">{t("payroll.adjustment.amount")}</FieldLabel>
             <MoneyInput
               id="adjustment-amount"
               currency={run.currency}
@@ -174,7 +173,7 @@ function AdjustmentForm({
             {errors.amount ? (
               <FieldError>{errors.amount}</FieldError>
             ) : (
-              <FieldDescription>Gross. Use a minus for a deduction, e.g. −200.</FieldDescription>
+              <FieldDescription>{t("payroll.adjustment.amountDescription")}</FieldDescription>
             )}
           </Field>
           {errors.form && (
@@ -186,7 +185,7 @@ function AdjustmentForm({
       </fieldset>
       <DialogFooter>
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : editing ? "Save" : "Add adjustment"}
+          {save.isPending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("payroll.adjustment.addTitle")}
         </Button>
       </DialogFooter>
     </form>

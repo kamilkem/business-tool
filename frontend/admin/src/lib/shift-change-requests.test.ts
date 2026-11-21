@@ -1,14 +1,17 @@
 import { ApiError } from "@business-tool/api-client"
 import { createDateTimeFormat } from "@business-tool/ui/lib/date-time"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import {
+  REQUEST_FILTERS,
   type ShiftChangeRequest,
   changeSummary,
   changedEnds,
   decisionError,
   filterOf,
   rejectBody,
+  requestsFilterLabel,
   timeRange,
   validateRequestsSearch,
 } from "./shift-change-requests"
@@ -179,5 +182,27 @@ describe("changeSummary", () => {
     expect(changeSummary(request({ startedAt: "2026-11-10T20:00:00Z", endedAt: null, shiftEndedAt: null }))).toBe(
       "Changes the clock-in",
     )
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_says_what_a_request_changes_in_polish", () => {
+    expect(changeSummary(request())).toBe("Zmienia zakończenie")
+    expect(changeSummary(request({ kind: "missing_shift", shiftStartedAt: null, shiftEndedAt: null }))).toBe(
+      "Dodaje zmianę, której nie odnotowano",
+    )
+  })
+
+  it("test_it_shows_an_open_shift_and_the_filters_in_polish", () => {
+    const pl = createDateTimeFormat("Europe/Warsaw", "pl-PL")
+    expect(timeRange("2026-11-10T21:00:00Z", null, pl, "2026-11-10")).toBe("22:00 – otwarta")
+    expect(REQUEST_FILTERS.map(requestsFilterLabel)).toEqual(["Oczekujące", "Zatwierdzone", "Odrzucone", "Wszystkie"])
   })
 })

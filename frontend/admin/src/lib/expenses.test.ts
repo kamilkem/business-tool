@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n"
 import type { ExpenseCategory } from "./expense-categories"
 import {
   type Expense,
@@ -13,6 +14,7 @@ import {
   isCorrection,
   isImportPending,
   kindLabel,
+  sourceLabel,
   validateExpensesSearch,
   visibleTotals,
   withExpense,
@@ -230,5 +232,27 @@ describe("isImportPending", () => {
     expect(isImportPending(connection({ lastImportRequestedAt: "2026-11-20T11:40:00Z" }), now)).toBe(false)
     expect(isImportPending(connection(), now)).toBe(false)
     expect(isImportPending(null, now)).toBe(false)
+  })
+})
+
+describe("in Polish", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("pl")
+  })
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_names_invoice_kinds_and_sources_in_polish", () => {
+    expect(kindLabel("advance_correction")).toBe("Korekta faktury zaliczkowej")
+    expect(kindLabel("unknown_kind")).toBe("unknown_kind")
+    expect(sourceLabel("manual")).toBe("Wpisany ręcznie")
+    expect(sourceLabel("ksef")).toBe("KSeF")
+  })
+
+  it("test_it_names_an_archived_category_without_a_name_in_polish", () => {
+    expect(categoryOptions([], { categoryId: "gone", categoryName: null })).toEqual([
+      { id: "gone", name: "Zarchiwizowana kategoria", archived: true },
+    ])
   })
 })
