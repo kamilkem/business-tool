@@ -25,6 +25,16 @@ interface RevenueEntryRepositoryInterface
      */
     public function findInPeriod(BusinessPeriod $period, ?Uuid $registerId = null): array;
 
+    /** Whether any entry of the organization has a line for the payment method. */
+    public function usesPaymentMethod(Uuid $paymentMethodId): bool;
+
+    /**
+     * The payment methods that entries of the organization have lines for.
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function usedPaymentMethodIds(): array;
+
     /**
      * @throws RevenueEntryAlreadyExistsException when the register already has an entry for the
      *                                            business date (the unique constraint caught it)

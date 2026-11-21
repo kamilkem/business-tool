@@ -14,8 +14,8 @@ use App\Shared\Application\Command\CommandInterface;
 final readonly class RecordRevenueEntryCommand implements CommandInterface
 {
     /**
-     * @param list<array{method: string, amount: int}>           $payments
-     * @param list<array{rate: string, gross: int, vat: int}> $vatLines
+     * @param list<array{paymentMethodId: string, amount: int}> $payments
+     * @param list<array{rate: string, gross: int, vat: int}>          $vatLines
      */
     public function __construct(
         public string $organizationId,

@@ -10,13 +10,15 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * One payment line of a RevenueEntry, created and changed only through the entry. The primary key
- * (entry, method) keeps each method once per entry. Tenant-aware like every business row, so a
- * query on lines alone is restricted to the current organization too.
+ * (entry, payment method) keeps each method once per entry. The foreign key to the method has no
+ * ON DELETE: a used method cannot be deleted (ADR 0030 §4). Tenant-aware like every business row,
+ * so a query on lines alone is restricted to the current organization too.
  *
  * @internal
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'revenue_entry_payment_line')]
+#[ORM\Index(name: 'revenue_entry_payment_line_payment_method', columns: ['payment_method_id'])]
 class RevenuePaymentLine implements TenantAwareInterface
 {
     use TenantAwareTrait;
@@ -27,8 +29,9 @@ class RevenuePaymentLine implements TenantAwareInterface
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private RevenueEntry $revenueEntry,
         #[ORM\Id]
-        #[ORM\Column(length: 16, enumType: PaymentMethod::class)]
-        private PaymentMethod $method,
+        #[ORM\ManyToOne]
+        #[ORM\JoinColumn(nullable: false)]
+        private PaymentMethod $paymentMethod,
         #[ORM\Column]
         private int $amount,
     ) {
@@ -39,13 +42,13 @@ class RevenuePaymentLine implements TenantAwareInterface
         $this->amount = $amount;
     }
 
-    public function getMethod(): PaymentMethod
+    public function getPaymentMethod(): PaymentMethod
     {
-        return $this->method;
+        return $this->paymentMethod;
     }
 
     public function toPaymentAmount(): PaymentAmount
     {
-        return new PaymentAmount($this->method, $this->amount);
+        return new PaymentAmount($this->paymentMethod, $this->amount);
     }
 }

@@ -269,6 +269,55 @@
       "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych kas."
     }
   },
+  "paymentMethods": {
+    "title": "Metody płatności",
+    "description": "Jak płacą Twoi klienci. Formularz wpisu i podsumowania pokazują je w tej kolejności.",
+    "add": "Dodaj metodę płatności",
+    "rename": "Zmień nazwę",
+    "deactivate": "Dezaktywuj",
+    "reactivate": "Aktywuj ponownie",
+    "delete": "Usuń",
+    "used": "Używana we wpisach",
+    "unused": "Jeszcze nieużywana",
+    "activeList": "Aktywne metody płatności",
+    "deactivatedList": "Dezaktywowane metody płatności",
+    "reorderHint": "Aby zmienić kolejność, przeciągnij metodę za uchwyt albo ustaw na nim fokus i użyj Spacji oraz strzałek.",
+    "noneActive": "Brak aktywnych metod płatności. Dodaj metodę lub aktywuj ponownie jedną z dezaktywowanych, zanim wpiszesz przychody.",
+    "deactivatedCount_one": "Dezaktywowane metody płatności ({{count}})",
+    "deactivatedCount_few": "Dezaktywowane metody płatności ({{count}})",
+    "deactivatedCount_many": "Dezaktywowane metody płatności ({{count}})",
+    "deactivatedCount_other": "Dezaktywowane metody płatności ({{count}})",
+    "deactivatedDescription": "Nie przyjmują nowych wpisów. Wpisy, które już ich używają, je zachowują. Aktywuj metodę ponownie, aby znów jej używać: trafi na koniec listy.",
+    "confirmDelete": {
+      "title": "Usunąć {{name}}?",
+      "description": "Żaden wpis jej nie używa, więc nic więcej się nie zmieni. Możesz ją później dodać ponownie."
+    },
+    "toast": {
+      "added": "Dodano metodę płatności {{name}}",
+      "renamed": "Nowa nazwa metody płatności: {{name}}",
+      "deactivated": "Metoda {{name}} dezaktywowana",
+      "reactivated": "Metoda {{name}} aktywowana ponownie",
+      "deleted": "Usunięto {{name}}"
+    },
+    "error": {
+      "nameTaken": "Metoda płatności o nazwie „{{name}}” już istnieje.",
+      "nameTakenByDeactivated": "Dezaktywowana metoda płatności ma już nazwę „{{name}}”. Aktywuj ją ponownie albo wybierz inną nazwę.",
+      "deactivate": "Nie udało się dezaktywować metody płatności",
+      "reactivate": "Nie udało się ponownie aktywować metody płatności",
+      "delete": "Nie udało się usunąć metody płatności",
+      "reorder": "Nie udało się zapisać nowej kolejności"
+    },
+    "dialog": {
+      "renameTitle": "Zmień nazwę: {{name}}",
+      "renameDescription": "Wpisy i podsumowania, także wcześniejsze, pokażą nową nazwę.",
+      "addDescription": "Na przykład bony żywieniowe, BLIK lub platforma dostaw. Trafi na koniec listy.",
+      "name": "Nazwa",
+      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych metod płatności.",
+      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych metod płatności.",
+      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych metod płatności.",
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych metod płatności."
+    }
+  },
   "categories": {
     "error": {
       "nameTakenByArchived": "Zarchiwizowana kategoria ma już nazwę „{{name}}”. Przywróć ją albo wybierz inną nazwę.",
@@ -495,13 +544,8 @@
   "income": {
     "nav": {
       "dailyEntries": "Wpisy dzienne",
-      "registers": "Kasy"
-    },
-    "paymentMethod": {
-      "cash": "Gotówka",
-      "card": "Karta",
-      "transfer": "Przelew",
-      "voucher": "Bon"
+      "registers": "Kasy",
+      "paymentMethods": "Metody płatności"
     },
     "error": {
       "register": "Wybierz kasę.",
@@ -596,7 +640,10 @@
         "added": "Dodano wpis: {{register}}, {{date}}",
         "updated": "Zaktualizowano wpis: {{register}}, {{date}}",
         "deleted": "Usunięto wpis: {{register}}, {{date}}"
-      }
+      },
+      "noPaymentMethods": "Organizacja nie ma aktywnej metody płatności.",
+      "managePaymentMethods": "Dodaj metodę lub aktywuj ją ponownie",
+      "deactivatedMethod": "Dezaktywowana: ten wpis ją zachowuje, ale nowe wpisy nie mogą jej używać."
     }
   },
   "payroll": {

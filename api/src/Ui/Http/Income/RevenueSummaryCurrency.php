@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Ui\Http\Income;
 
-use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
 use App\Income\Application\Query\GetRevenueSummary\RevenueCurrencySummaryView;
 use App\Income\Application\Query\GetRevenueSummary\RevenueRegisterTotalView;
-use App\Income\Domain\Model\PaymentMethod;
 
 /** The totals of a period's entries in one currency, in its minor units. */
 final readonly class RevenueSummaryCurrency
@@ -25,7 +23,7 @@ final readonly class RevenueSummaryCurrency
         public int $total,
         /** The number of entries in this currency. */
         public int $entryCount,
-        /** The sum per payment method used, in the order cash, card, transfer, voucher. */
+        /** The sum per payment method used, in the organization's order, deactivated methods last. */
         public array $payments,
         /** The sum per VAT rate used, highest rate first, exempt last; empty when no entry has a breakdown. */
         public array $vatLines,
@@ -45,7 +43,7 @@ final readonly class RevenueSummaryCurrency
             total: $view->total,
             entryCount: $view->entryCount,
             payments: array_map(
-                static fn (RevenuePaymentLineView $line): RevenueEntryPayment => new RevenueEntryPayment(PaymentMethod::from($line->method), $line->amount),
+                RevenueEntryPayment::fromView(...),
                 $view->payments,
             ),
             vatLines: array_map(

@@ -44,6 +44,23 @@ final class InMemoryRevenueEntryRepository implements RevenueEntryRepositoryInte
         ));
     }
 
+    public function usesPaymentMethod(Uuid $paymentMethodId): bool
+    {
+        return \in_array($paymentMethodId->toRfc4122(), $this->usedPaymentMethodIds(), true);
+    }
+
+    public function usedPaymentMethodIds(): array
+    {
+        $ids = [];
+        foreach ($this->byId as $entry) {
+            foreach ($entry->getPaymentLines() as $line) {
+                $ids[$line->method->getId()->toRfc4122()] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
     public function add(RevenueEntry $entry): void
     {
         if (null !== $this->findByRegisterAndDate($entry->getRegister()->getId(), $entry->getBusinessDate())) {

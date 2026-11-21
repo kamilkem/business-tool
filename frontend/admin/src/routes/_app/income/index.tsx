@@ -33,13 +33,12 @@ import {
   type RevenueEntry,
   type RevenueSummary,
   incomeGrid,
-  paymentMethodLabel,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
 } from "@/lib/income"
 import { fullName } from "@/lib/members"
-import { membersQuery, registersQuery, revenueEntriesQuery, revenueSummaryQuery, vatRatesQuery } from "@/lib/queries"
+import { membersQuery, paymentMethodsQuery, registersQuery, revenueEntriesQuery, revenueSummaryQuery, vatRatesQuery } from "@/lib/queries"
 
 /*
  * Income (ADR 0022): a month of daily reports, one per register and business date, with the
@@ -59,6 +58,7 @@ export const Route = createFileRoute("/_app/income/")({
       queryClient.ensureQueryData(registersQuery(organization.id, true)),
       queryClient.ensureQueryData(registersQuery(organization.id, false)),
       queryClient.ensureQueryData(vatRatesQuery(organization.id)),
+      queryClient.ensureQueryData(paymentMethodsQuery(organization.id)),
       queryClient.ensureQueryData(membersQuery(organization.id, true)),
     ])
   },
@@ -89,6 +89,7 @@ function IncomePage() {
   const { data: registers } = useSuspenseQuery(registersQuery(organizationId, true))
   const { data: activeRegisters } = useSuspenseQuery(registersQuery(organizationId, false))
   const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
+  const { data: paymentMethods } = useSuspenseQuery(paymentMethodsQuery(organizationId))
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
   const [dialog, setDialog] = useState<RevenueEntryTarget | null>(null)
   const { t } = useTranslation("admin")
@@ -153,6 +154,7 @@ function IncomePage() {
       <RevenueEntryDialog
         organizationId={organizationId}
         activeRegisters={activeRegisters}
+        paymentMethods={paymentMethods}
         vatRates={vatRates}
         nameOf={nameOf}
         target={dialog}
@@ -331,8 +333,8 @@ function SummaryCards({
                     </TableHeader>
                     <TableBody>
                       {item.payments.map((line) => (
-                        <TableRow key={line.method}>
-                          <TableCell className="pl-6">{paymentMethodLabel(line.method)}</TableCell>
+                        <TableRow key={line.paymentMethodId}>
+                          <TableCell className="pl-6">{line.paymentMethodName}</TableCell>
                           <TableCell className="pr-6 text-right tabular-nums">{money(line.amount)}</TableCell>
                         </TableRow>
                       ))}

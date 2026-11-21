@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Income\Application;
 
 use App\Income\Application\Query\GetRevenueEntry\RevenueEntryView;
-use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
 use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryHandler;
 use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryQuery;
@@ -18,7 +17,7 @@ use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\RegisterNotFoundException;
 use App\Income\Domain\Exception\RevenuePeriodTooLongException;
 use App\Income\Domain\Model\PaymentAmount;
-use App\Income\Domain\Model\PaymentMethod;
+use App\Income\Domain\Model\PaymentMethodOrder;
 use App\Income\Domain\Model\Register;
 use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\VatAmount;
@@ -61,7 +60,7 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
     public function test_it_lists_one_registers_entries(): void
     {
         $this->recorded('2026-11-01');
-        $kitchen = $this->record($this->kitchen, '2026-11-01', [new PaymentAmount(PaymentMethod::Card, 500)]);
+        $kitchen = $this->record($this->kitchen, '2026-11-01', [new PaymentAmount($this->card, 500)]);
 
         $views = $this->list($this->owner->getId()->toRfc4122(), '2026-11-01', '2026-11-30', $this->kitchen->getId()->toRfc4122());
 
@@ -108,10 +107,10 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
 
     public function test_it_sums_a_period_per_payment_method_vat_rate_and_register(): void
     {
-        $this->record($this->bar, '2026-11-01', [new PaymentAmount(PaymentMethod::Cash, 100_00), new PaymentAmount(PaymentMethod::Card, 200_00)], [new VatAmount('23', 246_00, 46_00), new VatAmount('zw', 10_00, 0)]);
-        $this->record($this->kitchen, '2026-11-01', [new PaymentAmount(PaymentMethod::Card, 108_00)], [new VatAmount('8', 108_00, 8_00)]);
-        $this->record($this->bar, '2026-11-02', [new PaymentAmount(PaymentMethod::Transfer, 50_00), new PaymentAmount(PaymentMethod::Cash, 0)]);
-        $this->record($this->bar, '2026-11-03', [new PaymentAmount(PaymentMethod::Cash, 1)], [new VatAmount('23', 123_00, 23_00), new VatAmount('8', 54_00, 4_00)]);
+        $this->record($this->bar, '2026-11-01', [new PaymentAmount($this->cash, 100_00), new PaymentAmount($this->card, 200_00)], [new VatAmount('23', 246_00, 46_00), new VatAmount('zw', 10_00, 0)]);
+        $this->record($this->kitchen, '2026-11-01', [new PaymentAmount($this->card, 108_00)], [new VatAmount('8', 108_00, 8_00)]);
+        $this->record($this->bar, '2026-11-02', [new PaymentAmount($this->transfer, 50_00), new PaymentAmount($this->cash, 0)]);
+        $this->record($this->bar, '2026-11-03', [new PaymentAmount($this->cash, 1)], [new VatAmount('23', 123_00, 23_00), new VatAmount('8', 54_00, 4_00)]);
         $this->recorded('2026-10-31');
 
         $summary = $this->summary($this->manager->getId()->toRfc4122(), '2026-11-01', '2026-11-30');
@@ -121,7 +120,7 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
                 'PLN',
                 458_01,
                 4,
-                [new RevenuePaymentLineView('cash', 100_01), new RevenuePaymentLineView('card', 308_00), new RevenuePaymentLineView('transfer', 50_00)],
+                [self::lineView($this->cash, 100_01), self::lineView($this->card, 308_00), self::lineView($this->transfer, 50_00)],
                 [new RevenueVatLineView('23', 369_00, 69_00, 300_00), new RevenueVatLineView('8', 162_00, 12_00, 150_00), new RevenueVatLineView('zw', 10_00, 0, 10_00)],
                 541_00,
                 81_00,
@@ -131,6 +130,24 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
                 ],
             ),
         ]), $summary);
+    }
+
+    public function test_it_sums_per_payment_method_in_the_organizations_order_with_current_names_and_deactivated_ones_last(): void
+    {
+        $this->record($this->bar, '2026-11-01', [new PaymentAmount($this->cash, 100), new PaymentAmount($this->card, 200), new PaymentAmount($this->voucher, 300)]);
+        PaymentMethodOrder::apply([$this->cash, $this->card, $this->transfer, $this->voucher], [
+            $this->voucher->getId()->toRfc4122(), $this->transfer->getId()->toRfc4122(), $this->card->getId()->toRfc4122(), $this->cash->getId()->toRfc4122(),
+        ], $this->owner->getId(), MembershipRole::Owner);
+        $this->card->rename('Card (terminal)', null, $this->owner->getId(), MembershipRole::Owner);
+        $this->voucher->deactivate($this->owner->getId(), MembershipRole::Owner, $this->clock->now());
+
+        $summary = $this->summary($this->owner->getId()->toRfc4122(), '2026-11-01', '2026-11-30');
+
+        self::assertEquals(
+            [self::lineView($this->card, 200), self::lineView($this->cash, 100), self::lineView($this->voucher, 300)],
+            $summary?->currencies[0]->payments,
+        );
+        self::assertSame('Card (terminal)', $summary?->currencies[0]->payments[0]->paymentMethodName);
     }
 
     public function test_it_gives_zero_totals_in_the_organizations_currency_for_a_period_without_entries(): void
@@ -144,9 +161,9 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
 
     public function test_it_keeps_the_totals_of_each_currency_apart_with_the_organizations_current_currency_first(): void
     {
-        $this->record($this->bar, '2026-11-01', [new PaymentAmount(PaymentMethod::Cash, 100)], currency: 'PLN');
-        $this->record($this->kitchen, '2026-11-01', [new PaymentAmount(PaymentMethod::Cash, 7)], currency: 'USD');
-        $this->record($this->bar, '2026-11-02', [new PaymentAmount(PaymentMethod::Card, 30)], currency: 'EUR');
+        $this->record($this->bar, '2026-11-01', [new PaymentAmount($this->cash, 100)], currency: 'PLN');
+        $this->record($this->kitchen, '2026-11-01', [new PaymentAmount($this->cash, 7)], currency: 'USD');
+        $this->record($this->bar, '2026-11-02', [new PaymentAmount($this->card, 30)], currency: 'EUR');
         $this->organization->changeSettings($this->owner->getId(), 'Bar', null, 'PL', 'USD', 'Europe/Warsaw');
 
         $summary = $this->summary($this->owner->getId()->toRfc4122(), '2026-11-01', '2026-11-30');

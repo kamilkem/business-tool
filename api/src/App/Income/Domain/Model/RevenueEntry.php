@@ -25,7 +25,8 @@ use Symfony\Component\Uid\Uuid;
  * - One entry per register and business date: the unique constraint below makes a second one a
  *   conflict (RevenueEntryRepositoryInterface::add()). The register and the date never change; a
  *   wrong one is deleted and entered again.
- * - Gross amounts per payment method, as lines (§4); the total is their sum, computed.
+ * - Gross amounts per payment method of the organization, as lines (§4, ADR 0030); the total is
+ *   their sum, computed.
  * - An optional VAT breakdown as printed, with the rates of the organization's country (§6). It does
  *   not have to match the payments.
  * - The currency is the organization's when the entry is recorded, and stays (§5).
@@ -137,7 +138,7 @@ class RevenueEntry implements TenantAwareInterface
         if ($businessDate->isAfter($today)) {
             throw RevenueEntryInTheFutureException::of($businessDate->toString(), $today->toString());
         }
-        self::assertValidPayments($payments);
+        self::assertValidPayments($payments, []);
         self::assertValidVat($vat, $countryCode);
 
         $entry = new self($id, $register, $businessDate, $currency, $actorId, $now);
@@ -150,8 +151,8 @@ class RevenueEntry implements TenantAwareInterface
 
     /**
      * Replaces the payment lines, the VAT lines and the note. The entry may belong to a deactivated
-     * register (ADR 0022 §2). A change records who made it and when; setting what the entry already
-     * has changes nothing.
+     * register (ADR 0022 §2), and keep lines of deactivated payment methods it already has (ADR 0030
+     * §4). A change records who made it and when; setting what the entry already has changes nothing.
      *
      * @param list<PaymentAmount> $payments
      * @param list<VatAmount>     $vat
@@ -164,7 +165,7 @@ class RevenueEntry implements TenantAwareInterface
     public function change(array $payments, array $vat, ?string $note, string $countryCode, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): void
     {
         IncomeAccess::assertCanManage($actorId, $actorRole);
-        self::assertValidPayments($payments);
+        self::assertValidPayments($payments, array_map(static fn (PaymentAmount $line): string => $line->method->getId()->toRfc4122(), $this->getPaymentLines()));
         self::assertValidVat($vat, $countryCode);
         $note = self::normalizeNote($note);
 
@@ -199,12 +200,11 @@ class RevenueEntry implements TenantAwareInterface
         return $this->currency;
     }
 
-    /** @return list<PaymentAmount> in the order of PaymentMethod::cases() */
+    /** @return list<PaymentAmount> in the organization's order of methods (PaymentMethod::compare()) */
     public function getPaymentLines(): array
     {
         $lines = array_map(static fn (RevenuePaymentLine $line): PaymentAmount => $line->toPaymentAmount(), $this->paymentLines->getValues());
-        $order = array_flip(array_map(static fn (PaymentMethod $method): string => $method->value, PaymentMethod::cases()));
-        usort($lines, static fn (PaymentAmount $a, PaymentAmount $b): int => $order[$a->method->value] <=> $order[$b->method->value]);
+        usort($lines, static fn (PaymentAmount $a, PaymentAmount $b): int => PaymentMethod::compare($a->method, $b->method));
 
         return $lines;
     }
@@ -259,21 +259,21 @@ class RevenueEntry implements TenantAwareInterface
     {
         $wanted = [];
         foreach ($payments as $payment) {
-            $wanted[$payment->method->value] = $payment->amount;
+            $wanted[$payment->method->getId()->toRfc4122()] = $payment;
         }
 
         foreach ($this->paymentLines as $line) {
-            $method = $line->getMethod()->value;
-            if (\array_key_exists($method, $wanted)) {
-                $line->changeAmount($wanted[$method]);
-                unset($wanted[$method]);
+            $methodId = $line->getPaymentMethod()->getId()->toRfc4122();
+            if (\array_key_exists($methodId, $wanted)) {
+                $line->changeAmount($wanted[$methodId]->amount);
+                unset($wanted[$methodId]);
             } else {
                 $this->paymentLines->removeElement($line);
             }
         }
 
-        foreach ($wanted as $method => $amount) {
-            $this->paymentLines->add(new RevenuePaymentLine($this, PaymentMethod::from($method), $amount));
+        foreach ($wanted as $payment) {
+            $this->paymentLines->add(new RevenuePaymentLine($this, $payment->method, $payment->amount));
         }
     }
 
@@ -306,10 +306,12 @@ class RevenueEntry implements TenantAwareInterface
 
     /**
      * @param list<PaymentAmount> $payments
+     * @param list<string>        $keptMethodIds the methods the entry already has lines for: they may
+     *                                           stay although deactivated meanwhile
      *
      * @throws InvalidPaymentLinesException
      */
-    private static function assertValidPayments(array $payments): void
+    private static function assertValidPayments(array $payments, array $keptMethodIds): void
     {
         if ([] === $payments) {
             throw InvalidPaymentLinesException::empty();
@@ -317,14 +319,18 @@ class RevenueEntry implements TenantAwareInterface
 
         $seen = [];
         foreach ($payments as $payment) {
-            $method = $payment->method->value;
-            if (isset($seen[$method])) {
-                throw InvalidPaymentLinesException::duplicateMethod($method);
+            $methodId = $payment->method->getId()->toRfc4122();
+            $name = $payment->method->getName();
+            if (isset($seen[$methodId])) {
+                throw InvalidPaymentLinesException::duplicateMethod($methodId, $name);
+            }
+            if (!$payment->method->isActive() && !\in_array($methodId, $keptMethodIds, true)) {
+                throw InvalidPaymentLinesException::methodDeactivated($methodId, $name);
             }
             if ($payment->amount < 0 || $payment->amount > self::MAX_AMOUNT) {
-                throw InvalidPaymentLinesException::amountOutOfRange($method, $payment->amount, self::MAX_AMOUNT);
+                throw InvalidPaymentLinesException::amountOutOfRange($methodId, $name, $payment->amount, self::MAX_AMOUNT);
             }
-            $seen[$method] = true;
+            $seen[$methodId] = true;
         }
     }
 
@@ -370,7 +376,7 @@ class RevenueEntry implements TenantAwareInterface
         $key = static function (array $lines): array {
             $byMethod = [];
             foreach ($lines as $line) {
-                $byMethod[$line->method->value] = $line->amount;
+                $byMethod[$line->method->getId()->toRfc4122()] = $line->amount;
             }
             ksort($byMethod);
 

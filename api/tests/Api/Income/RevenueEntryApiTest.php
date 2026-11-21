@@ -42,7 +42,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         $response = self::record($actor, $organization, [
             'registerId' => $register->getId()->toRfc4122(),
             'businessDate' => '2026-11-12',
-            'payments' => [['method' => 'card', 'amount' => 250_000], ['method' => 'cash', 'amount' => 120_050], ['method' => 'transfer', 'amount' => 0]],
+            'payments' => [self::pay($organization, 'Card', 250_000), self::pay($organization, 'Cash', 120_050), self::pay($organization, 'Transfer', 0)],
             'vatLines' => [['rate' => 'zw', 'gross' => 1_000, 'vat' => 0], ['rate' => '23', 'gross' => 300_000, 'vat' => 56_098]],
             'note' => '  Busy Thursday  ',
         ]);
@@ -56,7 +56,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
             'registerName' => 'Bar',
             'businessDate' => '2026-11-12',
             'currency' => 'PLN',
-            'payments' => [['method' => 'cash', 'amount' => 120_050], ['method' => 'card', 'amount' => 250_000], ['method' => 'transfer', 'amount' => 0]],
+            'payments' => [self::paid($organization, 'Cash', 120_050), self::paid($organization, 'Card', 250_000), self::paid($organization, 'Transfer', 0)],
             'vatLines' => [['rate' => '23', 'gross' => 300_000, 'vat' => 56_098, 'net' => 243_902], ['rate' => 'zw', 'gross' => 1_000, 'vat' => 0, 'net' => 1_000]],
             'paymentsTotal' => 370_050,
             'vatGrossTotal' => 301_000,
@@ -117,7 +117,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
     /** @return iterable<string, array{array<string, mixed>, string}> */
     public static function invalidNewEntries(): iterable
     {
-        $valid = ['registerId' => 'BAR', 'businessDate' => '2026-11-12', 'payments' => [['method' => 'cash', 'amount' => 100]]];
+        $valid = ['registerId' => 'BAR', 'businessDate' => '2026-11-12', 'payments' => [['paymentMethodId' => 'CASH', 'amount' => 100]]];
 
         yield 'no registerId' => [array_diff_key($valid, ['registerId' => true]), 'registerId'];
         yield 'registerId not a UUID' => [['registerId' => 'bar'] + $valid, 'registerId'];
@@ -127,13 +127,14 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         yield 'businessDate relative' => [['businessDate' => 'yesterday'] + $valid, 'businessDate'];
         yield 'no payments' => [array_diff_key($valid, ['payments' => true]), 'payments'];
         yield 'empty payments' => [['payments' => []] + $valid, 'payments'];
-        yield 'a method twice' => [['payments' => [['method' => 'cash', 'amount' => 1], ['method' => 'cash', 'amount' => 2]]] + $valid, 'payments'];
-        yield 'an unknown method' => [['payments' => [['method' => 'blik', 'amount' => 1]]] + $valid, 'payments[0].method'];
-        yield 'a negative amount' => [['payments' => [['method' => 'cash', 'amount' => -1]]] + $valid, 'payments[0].amount'];
-        yield 'an amount too large' => [['payments' => [['method' => 'cash', 'amount' => 2_147_483_648]]] + $valid, 'payments[0].amount'];
-        yield 'an amount with a fraction' => [['payments' => [['method' => 'cash', 'amount' => 10.5]]] + $valid, 'payments[0].amount'];
-        yield 'an amount as a string' => [['payments' => [['method' => 'cash', 'amount' => '100']]] + $valid, 'payments[0].amount'];
-        yield 'a line without an amount' => [['payments' => [['method' => 'cash']]] + $valid, 'payments[0].amount'];
+        yield 'a method twice' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => 1], ['paymentMethodId' => 'CASH', 'amount' => 2]]] + $valid, 'payments'];
+        yield 'a method id that is not a UUID' => [['payments' => [['paymentMethodId' => 'blik', 'amount' => 1]]] + $valid, 'payments[0].paymentMethodId'];
+        yield 'a line without a method' => [['payments' => [['amount' => 1]]] + $valid, 'payments[0].paymentMethodId'];
+        yield 'a negative amount' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => -1]]] + $valid, 'payments[0].amount'];
+        yield 'an amount too large' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => 2_147_483_648]]] + $valid, 'payments[0].amount'];
+        yield 'an amount with a fraction' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => 10.5]]] + $valid, 'payments[0].amount'];
+        yield 'an amount as a string' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => '100']]] + $valid, 'payments[0].amount'];
+        yield 'a line without an amount' => [['payments' => [['paymentMethodId' => 'CASH']]] + $valid, 'payments[0].amount'];
         yield 'a rate twice' => [['vatLines' => [['rate' => '23', 'gross' => 100, 'vat' => 19], ['rate' => '23', 'gross' => 1, 'vat' => 0]]] + $valid, 'vatLines'];
         yield 'a blank rate' => [['vatLines' => [['rate' => '', 'gross' => 100, 'vat' => 0]]] + $valid, 'vatLines[0].rate'];
         yield 'a negative gross' => [['vatLines' => [['rate' => '23', 'gross' => -1, 'vat' => 0]]] + $valid, 'vatLines[0].gross'];
@@ -154,6 +155,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         if ('BAR' === ($body['registerId'] ?? null)) {
             $body['registerId'] = $register->getId()->toRfc4122();
         }
+        $body = self::withPaymentMethods($organization, $body);
 
         $response = self::record($owner, $organization, $body);
 
@@ -197,6 +199,42 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         self::assertSame(['EUR', []], [$entry['currency'], $entry['vatLines']]);
     }
 
+    public function test_it_answers_422_for_a_payment_method_that_is_not_the_organizations(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
+        $register = self::addRegister($organization);
+        self::mockTime(self::NOW);
+
+        foreach ([self::paymentMethodId($elsewhere, 'Cash'), Uuid::v7()->toRfc4122()] as $methodId) {
+            $response = self::record($owner, $organization, ['payments' => [['paymentMethodId' => $methodId, 'amount' => 100]]] + self::body($register, '2026-11-12'));
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame(['income.invalid_payment_lines.unknown_method', ['paymentMethodId' => $methodId]], [$response->toArray(false)['code'], $response->toArray(false)['parameters']]);
+        }
+    }
+
+    public function test_it_takes_no_new_line_of_a_deactivated_payment_method_but_keeps_an_existing_one(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $register = self::addRegister($organization);
+        self::mockTime(self::NOW);
+        $id = self::record($owner, $organization, ['payments' => [self::pay($organization, 'Cash', 100), self::pay($organization, 'Voucher', 50)]] + self::body($register, '2026-11-11'))->toArray()['id'];
+        self::deactivatePaymentMethod($organization, 'Voucher');
+        self::deactivatePaymentMethod($organization, 'Transfer');
+
+        $response = self::record($owner, $organization, ['payments' => [self::pay($organization, 'Voucher', 50)]] + self::body($register, '2026-11-12'));
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('income.invalid_payment_lines.method_deactivated', $response->toArray(false)['code']);
+
+        $entry = self::correct($owner, $organization, $id, ['payments' => [self::pay($organization, 'Cash', 100), self::pay($organization, 'Voucher', 70)]])->toArray();
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([self::paid($organization, 'Cash', 100), self::paid($organization, 'Voucher', 70)], $entry['payments']);
+
+        self::correct($owner, $organization, $id, ['payments' => [self::pay($organization, 'Cash', 100), self::pay($organization, 'Transfer', 1)]]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(170, self::get($owner, $organization, $id)->toArray()['paymentsTotal']);
+    }
+
     public function test_it_answers_422_for_a_deactivated_register(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
@@ -229,7 +267,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         $register = self::addRegister($organization);
         self::mockTime('2026-11-12 21:00:00');
         $id = self::record($owner, $organization, [
-            'payments' => [['method' => 'cash', 'amount' => 1_000], ['method' => 'card', 'amount' => 2_000]],
+            'payments' => [self::pay($organization, 'Cash', 1_000), self::pay($organization, 'Card', 2_000)],
             'vatLines' => [['rate' => '23', 'gross' => 3_000, 'vat' => 561]],
             'note' => 'Draft',
         ] + self::body($register, '2026-11-12'))->toArray()['id'];
@@ -237,12 +275,12 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
 
         $entry = self::correct($manager, $organization, $id, ['note' => 'Counted again'])->toArray();
         self::assertResponseStatusCodeSame(200);
-        self::assertSame([[['method' => 'cash', 'amount' => 1_000], ['method' => 'card', 'amount' => 2_000]], 3_000, 3_000, 'Counted again', $manager->getId()->toRfc4122(), '2026-11-12T23:30:00+00:00'],
+        self::assertSame([[self::paid($organization, 'Cash', 1_000), self::paid($organization, 'Card', 2_000)], 3_000, 3_000, 'Counted again', $manager->getId()->toRfc4122(), '2026-11-12T23:30:00+00:00'],
             [$entry['payments'], $entry['paymentsTotal'], $entry['vatGrossTotal'], $entry['note'], $entry['updatedBy'], $entry['updatedAt']]);
 
-        $entry = self::correct($owner, $organization, $id, ['payments' => [['method' => 'voucher', 'amount' => 500]], 'vatLines' => null])->toArray();
+        $entry = self::correct($owner, $organization, $id, ['payments' => [self::pay($organization, 'Voucher', 500)], 'vatLines' => null])->toArray();
         self::assertResponseStatusCodeSame(200);
-        self::assertSame([[['method' => 'voucher', 'amount' => 500]], [], 500, 0, 0, 'Counted again', $owner->getId()->toRfc4122()],
+        self::assertSame([[self::paid($organization, 'Voucher', 500)], [], 500, 0, 0, 'Counted again', $owner->getId()->toRfc4122()],
             [$entry['payments'], $entry['vatLines'], $entry['paymentsTotal'], $entry['vatGrossTotal'], $entry['vatTotal'], $entry['note'], $entry['updatedBy']]);
 
         $entry = self::correct($owner, $organization, $id, ['vatLines' => [['rate' => '8', 'gross' => 500, 'vat' => 37]], 'note' => ''])->toArray();
@@ -270,7 +308,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         self::mockTime(self::NOW);
         $id = self::record($owner, $organization, self::body($register, '2026-11-12') + ['note' => 'Same'])->toArray()['id'];
 
-        $entry = self::correct($owner, $organization, $id, ['payments' => [['method' => 'cash', 'amount' => 10_000]], 'vatLines' => [], 'note' => 'Same'])->toArray();
+        $entry = self::correct($owner, $organization, $id, ['payments' => [self::pay($organization, 'Cash', 10_000)], 'vatLines' => [], 'note' => 'Same'])->toArray();
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame([null, null], [$entry['updatedBy'], $entry['updatedAt']]);
@@ -284,7 +322,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         $id = self::record($owner, $organization, self::body($register, '2026-11-12'))->toArray()['id'];
         self::deactivateRegister($organization, $register);
 
-        $entry = self::correct($owner, $organization, $id, ['payments' => [['method' => 'cash', 'amount' => 1]]])->toArray();
+        $entry = self::correct($owner, $organization, $id, ['payments' => [self::pay($organization, 'Cash', 1)]])->toArray();
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(1, $entry['paymentsTotal']);
@@ -295,9 +333,9 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
     {
         yield 'payments null' => [['payments' => null], 'payments'];
         yield 'empty payments' => [['payments' => []], 'payments'];
-        yield 'a method twice' => [['payments' => [['method' => 'card', 'amount' => 1], ['method' => 'card', 'amount' => 2]]], 'payments'];
-        yield 'an unknown method' => [['payments' => [['method' => 'meal', 'amount' => 1]]], 'payments[0].method'];
-        yield 'a negative amount' => [['payments' => [['method' => 'cash', 'amount' => -5]]], 'payments[0].amount'];
+        yield 'a method twice' => [['payments' => [['paymentMethodId' => 'CARD', 'amount' => 1], ['paymentMethodId' => 'CARD', 'amount' => 2]]], 'payments'];
+        yield 'a method id that is not a UUID' => [['payments' => [['paymentMethodId' => 'meal', 'amount' => 1]]], 'payments[0].paymentMethodId'];
+        yield 'a negative amount' => [['payments' => [['paymentMethodId' => 'CASH', 'amount' => -5]]], 'payments[0].amount'];
         yield 'a rate twice' => [['vatLines' => [['rate' => '5', 'gross' => 1, 'vat' => 0], ['rate' => '5', 'gross' => 2, 'vat' => 0]]], 'vatLines'];
         yield 'VAT above gross' => [['vatLines' => [['rate' => '5', 'gross' => 1, 'vat' => 2]]], 'vatLines[0].vat'];
         yield 'note too long' => [['note' => str_repeat('a', 1001)], 'note'];
@@ -312,7 +350,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         self::mockTime(self::NOW);
         $id = self::record($owner, $organization, self::body($register, '2026-11-12'))->toArray()['id'];
 
-        $response = self::correct($owner, $organization, $id, $body);
+        $response = self::correct($owner, $organization, $id, self::withPaymentMethods($organization, $body));
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame([$invalidField], array_values(array_unique(array_column($response->toArray(false)['violations'] ?? [], 'propertyPath'))));
@@ -441,7 +479,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         $employee = self::addMember($organization, MembershipRole::Employee);
         self::mockTime(self::NOW);
 
-        self::record($employee, $organization, ['registerId' => Uuid::v7()->toRfc4122(), 'businessDate' => '2026-11-12', 'payments' => [['method' => 'cash', 'amount' => 1]]]);
+        self::record($employee, $organization, ['registerId' => Uuid::v7()->toRfc4122(), 'businessDate' => '2026-11-12', 'payments' => [self::pay($organization, 'Cash', 1)]]);
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -471,9 +509,11 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
         return static::clientFor($user, $organization)->request('DELETE', '/api/revenue-entries/'.$id);
     }
 
-    /** @return array{registerId: string, businessDate: string, payments: list<array{method: string, amount: int}>} */
+    /** @return array{registerId: string, businessDate: string, payments: list<array{paymentMethodId: string, amount: int}>} */
     private static function body(Register $register, string $businessDate): array
     {
-        return ['registerId' => $register->getId()->toRfc4122(), 'businessDate' => $businessDate, 'payments' => [['method' => 'cash', 'amount' => 10_000]]];
+        $organization = $register->getOrganization() ?? throw new \LogicException('A stored register expected.');
+
+        return ['registerId' => $register->getId()->toRfc4122(), 'businessDate' => $businessDate, 'payments' => [self::pay($organization, 'Cash', 10_000)]];
     }
 }

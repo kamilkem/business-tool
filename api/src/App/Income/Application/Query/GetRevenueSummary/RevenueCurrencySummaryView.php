@@ -6,6 +6,7 @@ namespace App\Income\Application\Query\GetRevenueSummary;
 
 use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
+use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Model\VatRates;
@@ -17,7 +18,8 @@ use App\Income\Domain\Model\VatRates;
 final readonly class RevenueCurrencySummaryView
 {
     /**
-     * @param list<RevenuePaymentLineView>   $payments  per payment method used, in the order of PaymentMethod::cases()
+     * @param list<RevenuePaymentLineView>   $payments  per payment method used, in the organization's order
+     *                                                 (PaymentMethod::compare()), deactivated ones last
      * @param list<RevenueVatLineView>       $vatLines  per VAT rate used, highest rate first, exempt last
      * @param list<RevenueRegisterTotalView> $registers per register with entries, by name
      */
@@ -38,12 +40,14 @@ final readonly class RevenueCurrencySummaryView
     /** @param list<RevenueEntry> $entries entries in $currency */
     public static function of(string $currency, array $entries): self
     {
+        /** @var array<string, PaymentAmount> $byMethod */
         $byMethod = [];
         $byRate = [];
         $byRegister = [];
         foreach ($entries as $entry) {
             foreach ($entry->getPaymentLines() as $line) {
-                $byMethod[$line->method->value] = ($byMethod[$line->method->value] ?? 0) + $line->amount;
+                $methodId = $line->method->getId()->toRfc4122();
+                $byMethod[$methodId] = new PaymentAmount($line->method, ($byMethod[$methodId]->amount ?? 0) + $line->amount);
             }
             foreach ($entry->getVatLines() as $line) {
                 [$gross, $vat] = $byRate[$line->rate] ?? [0, 0];
@@ -55,12 +59,9 @@ final readonly class RevenueCurrencySummaryView
             $byRegister[$key] = new RevenueRegisterTotalView($key, $register->getName(), $total + $entry->getTotal(), $count + 1);
         }
 
-        $payments = [];
-        foreach (PaymentMethod::cases() as $method) {
-            if (isset($byMethod[$method->value])) {
-                $payments[] = new RevenuePaymentLineView($method->value, $byMethod[$method->value]);
-            }
-        }
+        $methodTotals = array_values($byMethod);
+        usort($methodTotals, static fn (PaymentAmount $a, PaymentAmount $b): int => PaymentMethod::compare($a->method, $b->method));
+        $payments = array_map(RevenuePaymentLineView::of(...), $methodTotals);
 
         $rates = array_map(strval(...), array_keys($byRate));
         usort($rates, VatRates::compare(...));

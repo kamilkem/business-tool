@@ -83,6 +83,11 @@ api_platform:
         App\Income\Domain\Exception\RegisterNotFoundException: 404
         App\Income\Domain\Exception\RevenueEntryNotFoundException: 404
         App\Income\Domain\Exception\RevenuePeriodTooLongException: 422
+        App\Income\Domain\Exception\InvalidPaymentMethodNameException: 422
+        App\Income\Domain\Exception\PaymentMethodNameTakenException: 409
+        App\Income\Domain\Exception\PaymentMethodNotFoundException: 404
+        App\Income\Domain\Exception\PaymentMethodInUseException: 409
+        App\Income\Domain\Exception\PaymentMethodOrderMismatchException: 409
         App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
         App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
         App\Expenses\Domain\Exception\ExpensesManagementForbiddenException: 403

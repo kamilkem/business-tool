@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { Trash2Icon, TriangleAlertIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -49,8 +50,6 @@ import {
   type EntryFormValues,
   type EntryLines,
   NOTE_MAX_LENGTH,
-  PAYMENT_METHODS,
-  type PaymentMethod,
   type RevenueEntry,
   type VatLineValues,
   type VatRate,
@@ -61,10 +60,10 @@ import {
   formPaymentsTotal,
   formVatGross,
   isDuplicateEntry,
-  paymentMethodLabel,
   vatDifference,
   vatRateLabel,
 } from "@/lib/income"
+import { type PaymentMethod, entryFormMethods } from "@/lib/payment-methods"
 import { invalidateRevenue, revenueEntriesQuery } from "@/lib/queries"
 import type { Register } from "@/lib/registers"
 
@@ -77,6 +76,11 @@ interface RevenueEntryDialogProps {
   organizationId: string
   /** The registers that take new entries (GET /registers): a deactivated one is refused (422). */
   activeRegisters: Register[]
+  /**
+   * The organization's payment methods, deactivated ones included (GET /payment-methods): the form
+   * offers the active ones in order, and keeps a deactivated one only on an entry that has it.
+   */
+  paymentMethods: PaymentMethod[]
   /** The rates of the organization's country; none hides the VAT breakdown. */
   vatRates: VatRate[]
   /** Who recorded or changed an entry: a name, or null for the signed-in user. */
@@ -109,6 +113,7 @@ export function RevenueEntryDialog({ target, onClose, ...props }: RevenueEntryDi
 function EntryForm({
   organizationId,
   activeRegisters,
+  paymentMethods,
   vatRates,
   nameOf,
   target,
@@ -125,6 +130,8 @@ function EntryForm({
   const currency = editing?.currency ?? organizationCurrency
   const money = (minor: MinorUnits) => formatMoney(minor, currency, locale)
   const today = format.today()
+  // Fixed while the form is open: a method deactivated meanwhile keeps its row (the API refuses it).
+  const [methods] = useState(() => entryFormMethods(paymentMethods, editing?.payments))
 
   const [values, setValues] = useState<EntryFormValues>(() => {
     if (editing) return entryFormFrom(editing)
@@ -163,10 +170,10 @@ function EntryForm({
     })
   }
 
-  function setPayment(method: PaymentMethod, amount: MinorUnits | null, error: MoneyParseError | null) {
-    setValues((prev) => ({ ...prev, payments: { ...prev.payments, [method]: amount } }))
-    setParseError(`payment.${method}`, error)
-    clearErrors(`payment.${method}`, "payments")
+  function setPayment(methodId: string, amount: MinorUnits | null, error: MoneyParseError | null) {
+    setValues((prev) => ({ ...prev, payments: { ...prev.payments, [methodId]: amount } }))
+    setParseError(`payment.${methodId}`, error)
+    clearErrors(`payment.${methodId}`, "payments")
   }
 
   function setVat(rate: string, part: keyof VatLineValues, amount: MinorUnits | null, error: MoneyParseError | null) {
@@ -256,7 +263,7 @@ function EntryForm({
     setDuplicate(false)
     if (Object.keys(parseErrors).length > 0) return
 
-    const result = entryLines(values, vatRates, today)
+    const result = entryLines(values, methods, vatRates, today)
     if (!result.ok) return setErrors(result.errors)
     setErrors({})
     if (editing) update.mutate({ id: editing.id, lines: result.lines })
@@ -269,7 +276,7 @@ function EntryForm({
     return parseError ? moneyErrorMessage(parseError, currency) : errors[field]
   }
 
-  const paymentsTotal = formPaymentsTotal(values)
+  const paymentsTotal = formPaymentsTotal(values, methods)
   const vatGross = formVatGross(values, vatRates)
   const difference = vatDifference(paymentsTotal, vatGross.total, vatGross.hasLines)
   const by = (userId: string, when: string, key: "createdBy" | "updatedBy") => {
@@ -368,24 +375,40 @@ function EntryForm({
           <FieldSet>
             <FieldLegend variant="label">{t("income.summary.payments")}</FieldLegend>
             <FieldDescription>{t("income.entry.paymentsDescription")}</FieldDescription>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {PAYMENT_METHODS.map((method) => {
-                const error = errorOf(`payment.${method}`)
-                return (
-                  <Field key={method} data-invalid={error ? true : undefined}>
-                    <FieldLabel htmlFor={`entry-payment-${method}`}>{paymentMethodLabel(method)}</FieldLabel>
-                    <MoneyInput
-                      id={`entry-payment-${method}`}
-                      currency={currency}
-                      value={values.payments[method]}
-                      aria-invalid={error ? true : undefined}
-                      onValueChange={(amount, parseError) => setPayment(method, amount, parseError)}
-                    />
-                    {error && <FieldError>{error}</FieldError>}
-                  </Field>
-                )
-              })}
-            </div>
+            {methods.length === 0 ? (
+              <div role="alert" className="flex items-start gap-2 rounded-md border px-3 py-2 text-sm">
+                <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                <span>
+                  {t("income.entry.noPaymentMethods")}{" "}
+                  <Link to="/income/payment-methods" className="font-medium underline underline-offset-4">
+                    {t("income.entry.managePaymentMethods")}
+                  </Link>
+                </span>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {methods.map((method) => {
+                  const error = errorOf(`payment.${method.id}`)
+                  return (
+                    <Field key={method.id} data-invalid={error ? true : undefined}>
+                      <FieldLabel htmlFor={`entry-payment-${method.id}`}>{method.name}</FieldLabel>
+                      <MoneyInput
+                        id={`entry-payment-${method.id}`}
+                        currency={currency}
+                        value={values.payments[method.id] ?? null}
+                        aria-invalid={error ? true : undefined}
+                        onValueChange={(amount, parseError) => setPayment(method.id, amount, parseError)}
+                      />
+                      {error ? (
+                        <FieldError>{error}</FieldError>
+                      ) : (
+                        !method.active && <FieldDescription>{t("income.entry.deactivatedMethod")}</FieldDescription>
+                      )}
+                    </Field>
+                  )
+                })}
+              </div>
+            )}
             {errors.payments && <FieldError>{errors.payments}</FieldError>}
             <p className="text-sm">
               {t("income.total")} <span className="font-medium tabular-nums">{money(paymentsTotal)}</span>

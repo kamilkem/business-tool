@@ -32,11 +32,13 @@
     },
     "income": {
       "invalid_payment_lines": {
-        "amount_out_of_range": "Kwota płatności jest poza dozwolonym zakresem.",
-        "duplicate_method": "Metoda płatności występuje więcej niż raz.",
+        "amount_out_of_range": "Kwota dla metody „{{name}}” jest poza dozwolonym zakresem.",
+        "duplicate_method": "Metoda płatności „{{name}}” występuje więcej niż raz.",
         "empty": "Dodaj co najmniej jedną płatność (kwota zero jest dozwolona).",
-        "unknown_method": "„{{method}}” nie jest metodą płatności."
+        "method_deactivated": "Metoda „{{name}}” jest dezaktywowana i nie można jej dodać do wpisu.",
+        "unknown_method": "Ta metoda płatności nie należy do organizacji. Odśwież stronę."
       },
+      "invalid_payment_method_name": "Nazwa metody płatności musi mieć od 1 do {{maxLength}} znaków.",
       "invalid_register_name": "Nazwa kasy musi mieć od 1 do {{maxLength}} znaków.",
       "invalid_vat_lines": {
         "duplicate_rate": "Stawka VAT {{rate}} występuje więcej niż raz.",
@@ -47,6 +49,10 @@
         "vat_out_of_range": "VAT dla stawki {{rate}} musi wynosić od zera do kwoty brutto."
       },
       "management_forbidden": "Przychodami mogą zarządzać tylko właściciele i menedżerowie.",
+      "payment_method_in_use": "Metoda „{{name}}” jest używana we wpisach przychodów, więc nie można jej usunąć. Zamiast tego ją dezaktywuj.",
+      "payment_method_name_taken": "Metoda płatności o nazwie „{{name}}” już istnieje.",
+      "payment_method_not_found": "Ta metoda płatności już nie istnieje. Odśwież stronę.",
+      "payment_method_order_mismatch": "Metody płatności zmieniły się w międzyczasie. Lista została odświeżona: spróbuj ponownie.",
       "register_deactivated": "Ta kasa jest wyłączona i nie przyjmuje nowych wpisów.",
       "register_name_taken": "Kasa o nazwie „{{name}}” już istnieje.",
       "register_not_found": "Ta kasa już nie istnieje. Odśwież stronę.",
@@ -363,5 +369,13 @@
       "sentDescription": "Jeśli adres <email>{{email}}</email> ma konto, wysłaliśmy na niego link do ustawienia nowego hasła. Link działa jeden raz i tylko przez krótki czas.",
       "nothingArrived": "Nic nie przyszło? Sprawdź folder spam albo <retry>spróbuj ponownie</retry>."
     }
+  },
+  "sortable": {
+    "handle": "Przenieś: {{name}}",
+    "instructions": "Aby podnieść element, naciśnij Spację lub Enter. Przesuń go strzałkami, a potem naciśnij Spację lub Enter, aby go upuścić, albo Escape, aby anulować.",
+    "pickedUp": "Podniesiono: {{name}}, pozycja {{position}} z {{count}}.",
+    "movedOver": "{{name}}: pozycja {{position}} z {{count}}.",
+    "dropped": "Upuszczono: {{name}}, pozycja {{position}} z {{count}}.",
+    "cancelled": "Anulowano przenoszenie: {{name}}."
   }
 }

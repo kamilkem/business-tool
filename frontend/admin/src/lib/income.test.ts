@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { i18n } from "../i18n"
 import {
   type EntryFormValues,
-  PAYMENT_METHODS,
   type RevenueEntry,
   type VatRate,
   emptyEntryForm,
@@ -14,12 +13,20 @@ import {
   formPaymentsTotal,
   formVatGross,
   incomeGrid,
-  paymentMethodLabel,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
 } from "./income"
+import type { EntryFormMethod } from "./payment-methods"
 import type { Register } from "./registers"
+
+/** The entry form's rows: the organization's methods in its order. */
+const METHODS: EntryFormMethod[] = [
+  { id: "m-cash", name: "Cash", active: true },
+  { id: "m-card", name: "Card", active: true },
+  { id: "m-transfer", name: "Transfer", active: true },
+  { id: "m-voucher", name: "Voucher", active: true },
+]
 
 function register(name: string, active = true): Register {
   return {
@@ -38,7 +45,7 @@ function entry(registerName: string, businessDate: string, paymentsTotal: number
     registerName,
     businessDate,
     currency,
-    payments: [{ method: "cash", amount: paymentsTotal }],
+    payments: [{ paymentMethodId: "m-cash", paymentMethodName: "Cash", amount: paymentsTotal }],
     vatLines: [],
     paymentsTotal,
     vatGrossTotal: 0,
@@ -143,27 +150,28 @@ describe("entry form", () => {
 
   it("test_it_sums_the_payments_and_the_vat_gross_of_the_form", () => {
     const values = filled({
-      payments: { cash: 100_00, card: 250_50, transfer: null, voucher: 0 },
+      payments: { "m-cash": 100_00, "m-card": 250_50, "m-transfer": null, "m-voucher": 0, "m-gone": 99 },
       vatLines: { "23": { gross: 300_00, vat: 56_10 }, "8": { gross: null, vat: null } },
     })
 
-    expect(formPaymentsTotal(values)).toBe(350_50)
+    // Only the form's rows count.
+    expect(formPaymentsTotal(values, METHODS)).toBe(350_50)
     expect(formVatGross(values, PL_RATES)).toEqual({ total: 300_00, hasLines: true })
     expect(formVatGross(filled({}), PL_RATES)).toEqual({ total: 0, hasLines: false })
   })
 
-  it("test_it_builds_the_lines_in_the_apis_order_with_zero_vat_for_exempt_rates", () => {
+  it("test_it_builds_the_lines_in_the_forms_order_with_zero_vat_for_exempt_rates", () => {
     const values = filled({
-      payments: { cash: null, card: 250_00, transfer: null, voucher: 0 },
+      payments: { "m-voucher": 0, "m-cash": null, "m-card": 250_00 },
       vatLines: { zw: { gross: 50_00, vat: null }, "23": { gross: 200_00, vat: 37_40 } },
     })
 
-    expect(entryLines(values, PL_RATES, "2026-11-12")).toEqual({
+    expect(entryLines(values, METHODS, PL_RATES, "2026-11-12")).toEqual({
       ok: true,
       lines: {
         payments: [
-          { method: "card", amount: 250_00 },
-          { method: "voucher", amount: 0 },
+          { paymentMethodId: "m-card", amount: 250_00 },
+          { paymentMethodId: "m-voucher", amount: 0 },
         ],
         vatLines: [
           { rate: "23", gross: 200_00, vat: 37_40 },
@@ -179,7 +187,7 @@ describe("entry form", () => {
       vatLines: { "23": { gross: 100_00, vat: null }, "8": { gross: 10_00, vat: 11_00 }, "5": { gross: null, vat: 5_00 } },
     })
 
-    const result = entryLines(values, PL_RATES, "2026-11-12")
+    const result = entryLines(values, METHODS, PL_RATES, "2026-11-12")
 
     expect(result).toEqual({
       ok: false,
@@ -197,8 +205,8 @@ describe("entry form", () => {
     const recorded: RevenueEntry = {
       ...entry("Bar", "2026-11-03", 300_00),
       payments: [
-        { method: "cash", amount: 100_00 },
-        { method: "card", amount: 200_00 },
+        { paymentMethodId: "m-cash", paymentMethodName: "Cash", amount: 100_00 },
+        { paymentMethodId: "m-card", paymentMethodName: "Card", amount: 200_00 },
       ],
       vatLines: [{ rate: "23", gross: 300_00, vat: 56_10, net: 243_90 }],
       note: "Event",
@@ -207,7 +215,7 @@ describe("entry form", () => {
     expect(entryFormFrom(recorded)).toEqual({
       registerId: "register-Bar",
       businessDate: "2026-11-03",
-      payments: { cash: 100_00, card: 200_00, transfer: null, voucher: null },
+      payments: { "m-cash": 100_00, "m-card": 200_00 },
       vatLines: { "23": { gross: 300_00, vat: 56_10 } },
       note: "Event",
     })
@@ -216,8 +224,8 @@ describe("entry form", () => {
   it("test_it_maps_the_apis_violations_back_to_the_methods_and_rates_sent", () => {
     const lines = {
       payments: [
-        { method: "card" as const, amount: 1 },
-        { method: "voucher" as const, amount: 2 },
+        { paymentMethodId: "m-card", amount: 1 },
+        { paymentMethodId: "m-voucher", amount: 2 },
       ],
       vatLines: [{ rate: "zw", gross: 1, vat: 0 }],
     }
@@ -232,7 +240,7 @@ describe("entry form", () => {
     })
 
     expect(entryFormErrors(error, lines)).toEqual({
-      "payment.voucher": "Too large.",
+      "payment.m-voucher": "Too large.",
       "vat.zw.vat": "Must be 0.",
       "vat.zw.gross": "Unknown rate.",
       note: "Too long.",
@@ -249,6 +257,22 @@ describe("entry form", () => {
 
     expect(entryFormErrors(error, { payments: [], vatLines: [] })).toEqual({
       form: "13 Nov 2026 is after today (12 Nov 2026).",
+    })
+  })
+
+  it("test_it_shows_a_refused_payment_method_on_its_field", () => {
+    const error = new ApiError(422, {
+      detail: "The payment method \"Voucher\" is deactivated and takes no new lines.",
+      code: "income.invalid_payment_lines.method_deactivated",
+      parameters: { paymentMethodId: "m-voucher", name: "Voucher" },
+    })
+    const lines = { payments: [{ paymentMethodId: "m-cash", amount: 1 }, { paymentMethodId: "m-voucher", amount: 2 }], vatLines: [] }
+
+    expect(entryFormErrors(error, lines)).toEqual({
+      "payment.m-voucher": "“Voucher” is deactivated and can't be added to an entry.",
+    })
+    expect(entryFormErrors(error, { payments: [], vatLines: [] })).toEqual({
+      form: "“Voucher” is deactivated and can't be added to an entry.",
     })
   })
 })
@@ -277,9 +301,8 @@ describe("in Polish", () => {
     await i18n.changeLanguage("en")
   })
 
-  it("test_it_names_payment_methods_and_explains_errors_in_polish", () => {
-    expect(PAYMENT_METHODS.map(paymentMethodLabel)).toEqual(["Gotówka", "Karta", "Przelew", "Bon"])
-    expect(entryLines(emptyEntryForm("", "2026-11-13"), PL_RATES, "2026-11-12")).toEqual({
+  it("test_it_explains_errors_in_polish", () => {
+    expect(entryLines(emptyEntryForm("", "2026-11-13"), METHODS, PL_RATES, "2026-11-12")).toEqual({
       ok: false,
       errors: {
         registerId: "Wybierz kasę.",

@@ -10,6 +10,7 @@ use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
 use App\Income\Domain\Exception\InvalidVatLinesException;
 use App\Income\Domain\Exception\RevenueEntryNotFoundException;
+use App\Income\Domain\Repository\PaymentMethodRepositoryInterface;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Shared\Application\Command\CommandHandlerInterface;
@@ -22,6 +23,7 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
 {
     public function __construct(
         private RevenueEntryRepositoryInterface $entries,
+        private PaymentMethodRepositoryInterface $paymentMethods,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
     ) {
@@ -42,7 +44,7 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
         $entry ??= throw RevenueEntryNotFoundException::withId($command->entryId);
 
         $entry->change(
-            RevenueLines::payments($command->payments),
+            RevenueLines::payments($command->payments, $this->paymentMethods),
             RevenueLines::vat($command->vatLines),
             $command->note,
             $actor->organization->countryCode,

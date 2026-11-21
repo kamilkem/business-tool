@@ -36,9 +36,9 @@ final class BusinessSummaryApiTest extends PayrollApiTestCase
         self::addHourlyRate($organization, $employee, '2026-01-01', 3_000);
         self::mockTime(self::NOW);
         $bar = self::register($owner, $organization);
-        self::revenue($owner, $organization, $bar, '2026-10-10', [['method' => 'cash', 'amount' => 100_000], ['method' => 'card', 'amount' => 23_000]], [['rate' => '23', 'gross' => 123_000, 'vat' => 23_000]]);
-        self::revenue($owner, $organization, $bar, '2026-10-11', [['method' => 'cash', 'amount' => 10_000]]);
-        self::revenue($owner, $organization, $bar, '2026-11-02', [['method' => 'cash', 'amount' => 20_000]]);
+        self::revenue($owner, $organization, $bar, '2026-10-10', ['Cash' => 100_000, 'Card' => 23_000], [['rate' => '23', 'gross' => 123_000, 'vat' => 23_000]]);
+        self::revenue($owner, $organization, $bar, '2026-10-11', ['Cash' => 10_000]);
+        self::revenue($owner, $organization, $bar, '2026-11-02', ['Cash' => 20_000]);
         self::expense($owner, $organization, '2026-10-15', 40_000, 9_200, '23');
         self::expense($owner, $organization, '2026-10-20', 5_000, 400, '8');
         self::shift($owner, $organization, $employee, '2026-10-03T18:00:00+02:00', '2026-10-03T22:00:00+02:00');
@@ -222,12 +222,12 @@ final class BusinessSummaryApiTest extends PayrollApiTestCase
         self::addHourlyRate($elsewhere, $employeeElsewhere, '2026-01-01', 3_000);
         self::mockTime(self::NOW);
         $barElsewhere = self::register($ownerElsewhere, $elsewhere);
-        self::revenue($ownerElsewhere, $elsewhere, $barElsewhere, '2026-10-10', [['method' => 'cash', 'amount' => 50_000]]);
+        self::revenue($ownerElsewhere, $elsewhere, $barElsewhere, '2026-10-10', ['Cash' => 50_000]);
         self::expense($ownerElsewhere, $elsewhere, '2026-10-15', 1_000, 230, '23');
         self::shift($ownerElsewhere, $elsewhere, $employeeElsewhere, '2026-10-03T18:00:00+02:00', '2026-10-03T22:00:00+02:00');
         $runElsewhere = self::generate($ownerElsewhere, $elsewhere, '2026-10');
         $bar = self::register($owner, $here);
-        self::revenue($owner, $here, $bar, '2026-10-10', [['method' => 'cash', 'amount' => 100]]);
+        self::revenue($owner, $here, $bar, '2026-10-10', ['Cash' => 100]);
 
         $mine = self::summary($owner, $here, ['from' => '2026-10', 'to' => '2026-10'])->toArray()['months'][0];
 
@@ -290,7 +290,7 @@ final class BusinessSummaryApiTest extends PayrollApiTestCase
     }
 
     /**
-     * @param list<array{method: string, amount: int}>        $payments
+     * @param array<string, int>                              $payments amounts by payment method name, the method added through the API on first use
      * @param list<array{rate: string, gross: int, vat: int}> $vatLines
      */
     private static function revenue(User $owner, Organization $organization, string $registerId, string $businessDate, array $payments, array $vatLines = []): void
@@ -298,10 +298,28 @@ final class BusinessSummaryApiTest extends PayrollApiTestCase
         self::client($owner, $organization)->request('POST', '/api/revenue-entries', ['json' => [
             'registerId' => $registerId,
             'businessDate' => $businessDate,
-            'payments' => $payments,
+            'payments' => array_map(
+                static fn (string $name, int $amount): array => ['paymentMethodId' => self::paymentMethod($owner, $organization, $name), 'amount' => $amount],
+                array_keys($payments),
+                $payments,
+            ),
             'vatLines' => $vatLines,
         ]]);
         self::assertResponseStatusCodeSame(201);
+    }
+
+    /** The id of the organization's payment method with the name, added through the API on first use. */
+    private static function paymentMethod(User $owner, Organization $organization, string $name): string
+    {
+        static $ids = [];
+        $key = $organization->getId()->toRfc4122().'/'.$name;
+        if (!isset($ids[$key])) {
+            $response = self::client($owner, $organization)->request('POST', '/api/payment-methods', ['json' => ['name' => $name]]);
+            self::assertResponseStatusCodeSame(201);
+            $ids[$key] = $response->toArray()['id'];
+        }
+
+        return $ids[$key];
     }
 
     private static function expense(User $owner, Organization $organization, string $issueDate, int $net, int $vat, string $rate): void

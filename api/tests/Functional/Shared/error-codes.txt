@@ -27,7 +27,9 @@ expenses.purchase_invoice_read_only
 income.invalid_payment_lines.amount_out_of_range
 income.invalid_payment_lines.duplicate_method
 income.invalid_payment_lines.empty
+income.invalid_payment_lines.method_deactivated
 income.invalid_payment_lines.unknown_method
+income.invalid_payment_method_name
 income.invalid_register_name
 income.invalid_vat_lines.duplicate_rate
 income.invalid_vat_lines.gross_out_of_range
@@ -36,6 +38,10 @@ income.invalid_vat_lines.unknown_rate
 income.invalid_vat_lines.vat_on_zero_rate
 income.invalid_vat_lines.vat_out_of_range
 income.management_forbidden
+income.payment_method_in_use
+income.payment_method_name_taken
+income.payment_method_not_found
+income.payment_method_order_mismatch
 income.register_deactivated
 income.register_name_taken
 income.register_not_found

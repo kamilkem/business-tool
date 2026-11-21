@@ -251,6 +251,51 @@
       "nameDescription_other": "Up to {{count}} characters, different from your other registers."
     }
   },
+  "paymentMethods": {
+    "title": "Payment methods",
+    "description": "How your takings are paid. The entry form and the summaries list them in this order.",
+    "add": "Add payment method",
+    "rename": "Rename",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "delete": "Delete",
+    "used": "Used in entries",
+    "unused": "Not used yet",
+    "activeList": "Active payment methods",
+    "deactivatedList": "Deactivated payment methods",
+    "reorderHint": "Drag a method by its handle, or focus the handle and use Space and the arrow keys, to change the order.",
+    "noneActive": "No active payment methods. Add or reactivate one before entering income.",
+    "deactivatedCount_one": "Deactivated payment methods ({{count}})",
+    "deactivatedCount_other": "Deactivated payment methods ({{count}})",
+    "deactivatedDescription": "They take no new entries. Entries that already use them keep them. Reactivate one to use it again: it goes to the end of the list.",
+    "confirmDelete": {
+      "title": "Delete {{name}}?",
+      "description": "No entry uses it, so nothing else changes. You can add it again later."
+    },
+    "toast": {
+      "added": "Payment method {{name}} added",
+      "renamed": "Payment method renamed to {{name}}",
+      "deactivated": "{{name}} deactivated",
+      "reactivated": "{{name}} reactivated",
+      "deleted": "{{name}} deleted"
+    },
+    "error": {
+      "nameTaken": "A payment method named “{{name}}” already exists.",
+      "nameTakenByDeactivated": "A deactivated payment method is already named “{{name}}”. Reactivate it, or pick another name.",
+      "deactivate": "Could not deactivate the payment method",
+      "reactivate": "Could not reactivate the payment method",
+      "delete": "Could not delete the payment method",
+      "reorder": "Could not save the new order"
+    },
+    "dialog": {
+      "renameTitle": "Rename {{name}}",
+      "renameDescription": "Entries and summaries, past ones included, show the new name.",
+      "addDescription": "For example meal vouchers, BLIK or a delivery platform. It goes to the end of the list.",
+      "name": "Name",
+      "nameDescription_one": "Up to {{count}} character, different from your other payment methods.",
+      "nameDescription_other": "Up to {{count}} characters, different from your other payment methods."
+    }
+  },
   "categories": {
     "error": {
       "nameTakenByArchived": "An archived category is already named “{{name}}”. Restore it, or pick another name.",
@@ -467,13 +512,8 @@
   "income": {
     "nav": {
       "dailyEntries": "Daily entries",
-      "registers": "Registers"
-    },
-    "paymentMethod": {
-      "cash": "Cash",
-      "card": "Card",
-      "transfer": "Transfer",
-      "voucher": "Voucher"
+      "registers": "Registers",
+      "paymentMethods": "Payment methods"
     },
     "error": {
       "register": "Choose a register.",
@@ -560,7 +600,10 @@
         "added": "Entry added for {{register}}, {{date}}",
         "updated": "Entry of {{register}}, {{date}} updated",
         "deleted": "Entry of {{register}}, {{date}} deleted"
-      }
+      },
+      "noPaymentMethods": "The organization has no active payment method.",
+      "managePaymentMethods": "Add or reactivate one",
+      "deactivatedMethod": "Deactivated: this entry keeps it, but new entries can't use it."
     }
   },
   "payroll": {
