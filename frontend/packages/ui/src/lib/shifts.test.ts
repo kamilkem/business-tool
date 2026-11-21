@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { grandTotal, type Shift, totalsPerEmployee } from "./shifts"
+import { canBeDeleted, grandTotal, type Shift, totalsPerEmployee } from "./shifts"
 
 const ANNA = "0193a1b2-0000-7000-8000-000000000001"
 const BOB = "0193a1b2-0000-7000-8000-000000000002"
@@ -78,5 +78,15 @@ describe("totalsPerEmployee", () => {
     ])
 
     expect(grandTotal(totals)).toEqual({ shifts: 3, openShifts: 1, workedMinutes: 720 })
+  })
+})
+
+describe("canBeDeleted", () => {
+  it("test_it_allows_deleting_an_ended_shift", () => {
+    expect(canBeDeleted(shift(ANNA, "Anna", "Nowak", 420))).toBe(true)
+  })
+
+  it("test_it_does_not_offer_to_delete_a_running_shift", () => {
+    expect(canBeDeleted(shift(ANNA, "Anna", "Nowak", null))).toBe(false)
   })
 })

@@ -11,6 +11,15 @@ export function isOpen(shift: Shift): boolean {
   return shift.endedAt === null
 }
 
+/**
+ * Whether an owner or manager can try to delete the shift: only once it has ended, as the API
+ * refuses a running one (`time_tracking.open_shift_cannot_be_deleted`). A shift in a locked month
+ * or with a pending change request is refused too, but the list does not say so: the API's 409 does.
+ */
+export function canBeDeleted(shift: Shift): boolean {
+  return !isOpen(shift)
+}
+
 export interface EmployeeTotal {
   userId: string
   firstName: string

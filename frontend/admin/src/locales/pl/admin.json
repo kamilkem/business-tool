@@ -1010,10 +1010,15 @@
     "keepOpen": "Zostaw puste, aby zmiana pozostała otwarta.",
     "nextDay": "Następnego dnia: godzina zakończenia nie jest późniejsza niż rozpoczęcia.",
     "notePlaceholder": "Opcjonalnie, np. dlaczego zmiana została wpisana lub poprawiona",
+    "delete": {
+      "title": "Usunąć tę zmianę?",
+      "description": "{{name}}, {{date}}, {{start}}–{{end}} ({{duration}}). Zmiana zostanie usunięta na stałe: tej operacji nie można cofnąć."
+    },
     "toast": {
       "added": "Dodano zmianę: {{name}}, {{date}}",
       "ended": "{{name}}: zmiana zakończona o {{time}}",
-      "updated": "Zaktualizowano zmianę: {{name}}"
+      "updated": "Zaktualizowano zmianę: {{name}}",
+      "deleted": "Usunięto zmianę: {{name}}, {{date}}"
     }
   },
   "settings": {
