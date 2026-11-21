@@ -64,10 +64,12 @@ final readonly class SendInvitationHandler implements CommandHandlerInterface
         $token = new PasswordToken(Uuid::fromString($command->tokenId), $user, PasswordTokenPurpose::Invitation, $secret, $now);
         $this->tokens->add($token);
 
-        // Queued only after the token is saved (adr/0012): the link in the e-mail always works.
+        // Queued only after the token is saved (adr/0012): the link in the e-mail always works. It is
+        // in the language chosen for the invitee on add-member, else the inviter's own (ADR 0028 §6).
         $this->mailer->send(new TransactionalEmail(
             to: $user->getEmail(),
-            subject: \sprintf('You are invited to %s', $organization->name),
+            locale: TransactionalEmail::localeOf($user->getLanguage() ?? $inviter->getLanguage()),
+            subject: 'invitation.subject',
             template: 'email/invitation.html.twig',
             context: [
                 'firstName' => $user->getFirstName(),
@@ -76,6 +78,7 @@ final readonly class SendInvitationHandler implements CommandHandlerInterface
                 'link' => $this->links->setPassword(AppLinks::appFor(MembershipRole::from($command->role)), $secret),
                 'validForDays' => PasswordTokenPurpose::Invitation->lifetime()->d,
             ],
+            subjectParameters: ['organizationName' => $organization->name],
         ));
     }
 }

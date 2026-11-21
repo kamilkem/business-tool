@@ -35,6 +35,7 @@ final class TransactionalMailerTest extends KernelTestCase
         self::assertNotNull($email);
         self::assertEmailAddressContains($email, 'From', 'no-reply@business-tool.localhost');
         self::assertEmailAddressContains($email, 'To', 'anna@example.com');
+        // A subject that is no key of the `email` domain comes out as it is.
         self::assertEmailSubjectContains($email, 'Welcome to Demo Bar');
         self::assertEmailHtmlBodyContains($email, 'Hello Anna');
     }
@@ -60,10 +61,35 @@ final class TransactionalMailerTest extends KernelTestCase
         self::assertEmailTextBodyContains($sent[0]->getMessage(), 'Hello Anna');
     }
 
+    public function test_it_writes_subject_and_body_in_the_emails_locale_also_in_the_worker(): void
+    {
+        // The worker has no request locale: the e-mail's own locale must reach the renderer (ADR 0028 §6).
+        $this->mailer()->send(new TransactionalEmail(
+            to: 'anna@example.com',
+            locale: 'pl',
+            subject: 'invitation.subject',
+            template: 'email/invitation.html.twig',
+            context: ['firstName' => 'Anna', 'organizationName' => 'Demo Bar', 'inviterName' => 'Olivia Owner', 'link' => 'https://example.com/accept/abc', 'validForDays' => 7],
+            subjectParameters: ['organizationName' => 'Demo Bar'],
+        ));
+
+        self::assertNotNull(self::$kernel);
+        $worker = new CommandTester(new Application(self::$kernel)->find('messenger:consume'));
+        $worker->execute(['receivers' => ['async'], '--limit' => 1, '--time-limit' => 10, '--no-reset' => null]);
+
+        $worker->assertCommandIsSuccessful();
+        $sent = array_values(array_filter(self::getMailerEvents(), static fn ($event) => !$event->isQueued()));
+        self::assertCount(1, $sent);
+        self::assertEmailSubjectContains($sent[0]->getMessage(), 'Zaproszenie do Demo Bar');
+        self::assertEmailHtmlBodyContains($sent[0]->getMessage(), 'Olivia Owner zaprasza Cię do Demo Bar w Business Tool.');
+        self::assertEmailTextBodyContains($sent[0]->getMessage(), 'Cześć Anna,');
+    }
+
     private function welcomeEmail(): TransactionalEmail
     {
         return new TransactionalEmail(
             to: 'anna@example.com',
+            locale: 'en',
             subject: 'Welcome to Demo Bar',
             template: 'email/test.html.twig',
             context: ['name' => 'Anna', 'link' => 'https://example.com/accept/abc'],

@@ -63,6 +63,9 @@ phpstan: ## Run static analysis
 	$(CONSOLE) cache:warmup --quiet
 	$(PHP) vendor/bin/phpstan analyse --memory-limit=1G
 
+translations-check: ## Lint the API's translation catalogs and fail on an e-mail text missing in a language (ADR 0028 §6)
+	$(PHP) sh -c 'set -e; bin/console lint:translations; for locale in en pl; do bin/console debug:translation $$locale --domain=email --only-missing; done'
+
 deptrac: ## Check layer dependencies (Domain/Application/Infrastructure/Ui)
 	$(PHP) vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress
 
@@ -90,7 +93,7 @@ guards: ## PR guards from CI: no new suppressions, no edited merged migrations (
 	BASE_REF=$(or $(BASE_REF),origin/main) .github/scripts/check-suppressions.sh
 	BASE_REF=$(or $(BASE_REF),origin/main) .github/scripts/check-merged-migrations.sh
 
-qa: adr-check guards db-validate deptrac phpstan test ## Run every check
+qa: adr-check guards db-validate translations-check deptrac phpstan test ## Run every check
 	$(PNPM) typecheck
 	$(PNPM) lint
 	$(PNPM) test
@@ -99,4 +102,4 @@ qa: adr-check guards db-validate deptrac phpstan test ## Run every check
 help:
 	@grep -hE '(^[a-zA-Z_-]+:.*?## .*$$)|(^## )' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-14s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m## /\n[33m/'
 
-.PHONY: up down build logs worker-restart mail sh install setup console migration migrate db-reset db-validate deptrac test phpstan admin timeclock types adr-check guards qa help
+.PHONY: up down build logs worker-restart mail sh install setup console migration migrate db-reset db-validate translations-check deptrac test phpstan admin timeclock types adr-check guards qa help

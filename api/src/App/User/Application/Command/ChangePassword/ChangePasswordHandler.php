@@ -53,7 +53,8 @@ final readonly class ChangePasswordHandler implements CommandHandlerInterface
         // someone else changed it, e.g. on a device left signed in.
         $this->mailer->send(new TransactionalEmail(
             to: $user->getEmail(),
-            subject: 'Your Business Tool password was changed',
+            locale: TransactionalEmail::localeOf($user->getLanguage()),
+            subject: 'password_changed.subject',
             template: 'email/password_changed.html.twig',
             context: ['firstName' => $user->getFirstName()],
         ));

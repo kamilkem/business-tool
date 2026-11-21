@@ -2,7 +2,9 @@
 # `Accept-Language` header, matched against the enabled locales, else English; the validator
 # translates 422 violations into it. Symfony ships Polish for its built-in constraints; our own
 # constraint messages are in `translations/validators+intl-icu.<language>.yaml`, keyed by their
-# English text. Adding a language: add it here and in App\Shared\Domain\Language.
+# English text. E-mails are in `translations/email+intl-icu.<language>.yaml`, keyed by e-mail.
+# Adding a language: add it here, in App\Shared\Domain\Language and in the `translations-check`
+# loops (Makefile, .github/workflows/ci.yaml).
 framework:
     default_locale: en
     enabled_locales: [en, pl]

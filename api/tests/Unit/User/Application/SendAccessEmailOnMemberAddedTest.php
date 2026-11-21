@@ -76,7 +76,9 @@ final class SendAccessEmailOnMemberAddedTest extends TestCase
         self::assertCount(1, $this->mailer->emails);
         $email = $this->mailer->emails[0];
         self::assertSame('eve@example.com', $email->to);
-        self::assertSame('You now have access to Corner Pub', $email->subject);
+        self::assertSame('en', $email->locale);
+        self::assertSame('added_to_organization.subject', $email->subject);
+        self::assertSame(['organizationName' => 'Corner Pub'], $email->subjectParameters);
         self::assertSame('email/added_to_organization.html.twig', $email->template);
         self::assertSame([
             'firstName' => 'Eve',

@@ -17,6 +17,8 @@ final readonly class MemberView
         public \DateTimeImmutable $joinedAt,
         public bool $invitationPending,
         public ?\DateTimeImmutable $deactivatedAt,
+        /** The user's own language code (ADR 0028), null when they never chose one; for e-mails to them. */
+        public ?string $language,
     ) {
     }
 
@@ -33,6 +35,7 @@ final readonly class MemberView
             $membership->getCreatedAt(),
             !$user->hasPassword(),
             $membership->getDeactivatedAt(),
+            $user->getLanguage()?->value,
         );
     }
 }

@@ -10,6 +10,7 @@ use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Mail\TransactionalEmail;
 use App\Shared\Application\Query\QueryInterface;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Unit\Shared\Application\RecordingMailer;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\User\Application\Command\SendInvitation\SendInvitationCommand;
@@ -66,7 +67,9 @@ final class SendInvitationHandlerTest extends TestCase
 
         $email = $this->onlyEmail();
         self::assertSame('eve@example.com', $email->to);
-        self::assertSame('You are invited to Corner Pub', $email->subject);
+        self::assertSame('en', $email->locale);
+        self::assertSame('invitation.subject', $email->subject);
+        self::assertSame(['organizationName' => 'Corner Pub'], $email->subjectParameters);
         self::assertSame('email/invitation.html.twig', $email->template);
         self::assertSame(['Eve', 'Corner Pub', 'Olivia Owner', 7], [
             $email->context['firstName'],
@@ -93,6 +96,25 @@ final class SendInvitationHandlerTest extends TestCase
         $this->handle($role);
 
         self::assertStringStartsWith($linkPrefix, (string) $this->onlyEmail()->context['link']);
+    }
+
+    public function test_it_writes_the_invitation_in_the_language_chosen_for_the_invitee(): void
+    {
+        $this->inviter->changeLanguage(Language::English);
+        $this->invitee->changeLanguage(Language::Polish);
+
+        $this->handle('employee');
+
+        self::assertSame('pl', $this->onlyEmail()->locale);
+    }
+
+    public function test_it_writes_the_invitation_in_the_inviters_language_when_none_was_chosen_for_the_invitee(): void
+    {
+        $this->inviter->changeLanguage(Language::Polish);
+
+        $this->handle('employee');
+
+        self::assertSame('pl', $this->onlyEmail()->locale);
     }
 
     public function test_it_invalidates_the_previous_invitation_but_not_a_password_reset(): void

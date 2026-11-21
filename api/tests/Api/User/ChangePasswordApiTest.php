@@ -6,9 +6,11 @@ namespace App\Tests\Api\User;
 
 use ApiPlatform\Test\Client;
 use App\Organization\Domain\Model\MembershipRole;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\UserFactory;
 use App\User\Domain\Model\User;
+use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\BrowserKit\Cookie as BrowserCookie;
@@ -89,6 +91,22 @@ final class ChangePasswordApiTest extends ApiTestCase
         self::assertEmailSubjectContains($email, 'Your Business Tool password was changed');
         self::assertEmailHtmlBodyContains($email, 'Hello Eve');
         self::assertEmailHtmlBodyContains($email, 'Forgot password?');
+    }
+
+    public function test_it_emails_the_user_in_their_own_language(): void
+    {
+        $user = UserFactory::createOne(['email' => 'eve@example.com', 'firstName' => 'Eve']);
+        $user->changeLanguage(Language::Polish);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::changePassword($user, UserFactory::PASSWORD, self::NEW_PASSWORD);
+
+        self::assertResponseStatusCodeSame(204);
+        $email = self::getMailerMessage();
+        self::assertInstanceOf(Email::class, $email);
+        self::assertEmailSubjectContains($email, 'Hasło do Business Tool zostało zmienione');
+        self::assertEmailHtmlBodyContains($email, 'Cześć Eve,');
+        self::assertEmailHtmlBodyContains($email, '„Nie pamiętasz hasła?”');
     }
 
     public function test_it_refuses_a_wrong_current_password_on_its_field_and_changes_nothing(): void

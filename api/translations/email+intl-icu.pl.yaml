@@ -1,0 +1,56 @@
+# Transactional e-mails (ADR 0028 §6), Polish. ICU MessageFormat; same keys as the English catalog.
+# Names are not declined, and past tenses are avoided where they would need the person's gender.
+common:
+    hello: 'Cześć,'
+    hello_name: 'Cześć {firstName},'
+    time_range: 'od {startedAt} do {endedAt}'
+    still_open: 'nadal otwarta'
+    unknown: 'nieznane'
+
+invitation:
+    subject: 'Zaproszenie do {organizationName}'
+    intro: '{inviterName} zaprasza Cię do {organizationName} w Business Tool.'
+    set_password_prompt: 'Na początek ustaw swoje hasło:'
+    set_password_link: 'Ustaw hasło'
+    expiry: 'Link działa jeden raz i wygasa za {validForDays, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}. Jeśli wygasł, poproś o nowe zaproszenie. Zaprasza Cię: {inviterName}.'
+    not_expected: 'Jeśli nie spodziewasz się tego zaproszenia, zignoruj tę wiadomość.'
+
+added_to_organization:
+    subject: 'Masz teraz dostęp do {organizationName}'
+    intro: '{addedByName} daje Ci dostęp do {organizationName} w Business Tool.'
+    sign_in_prompt: 'Zaloguj się swoim obecnym hasłem, aby zacząć:'
+    sign_in_link: 'Zaloguj się'
+
+password_reset:
+    subject: 'Zresetuj hasło do Business Tool'
+    intro: 'Ktoś poprosił o zresetowanie hasła do Twojego konta w Business Tool. Aby ustawić nowe hasło:'
+    link: 'Ustaw nowe hasło'
+    expiry: 'Link działa jeden raz i wygasa za {validForMinutes, plural, one {# minutę} few {# minuty} many {# minut} other {# minuty}}. Jeśli wygasł, poproś o nowy na stronie logowania.'
+    not_you: 'Jeśli to nie Ty, zignoruj tę wiadomość: Twoje hasło się nie zmieni.'
+
+password_changed:
+    subject: 'Hasło do Business Tool zostało zmienione'
+    body: 'Hasło do Twojego konta w Business Tool zostało właśnie zmienione. Na pozostałych urządzeniach nastąpiło wylogowanie; zaloguj się tam nowym hasłem.'
+    not_you: 'Jeśli to nie Ty, ktoś inny może mieć dostęp do Twojego konta. Od razu zresetuj hasło przyciskiem „Nie pamiętasz hasła?” na stronie logowania i powiedz o tym przełożonemu.'
+
+shift_change_request_submitted:
+    subject: '{requesterName} prosi o korektę zmiany'
+    missing_shift: '{requesterName} prosi o wpisanie przepracowanej zmiany, której nie odbito w {organizationName}:'
+    new_times: '{requesterName} prosi o zmianę godzin jednej ze swoich zmian w {organizationName}:'
+    now: 'Teraz: {range}'
+    asked_for: 'Prośba: {range}'
+    times_in: 'Godziny w strefie {timeZone}.'
+    note: 'Notatka:'
+    decide_prompt: 'Zatwierdź lub odrzuć prośbę w panelu administracyjnym:'
+    link: 'Otwórz panel administracyjny'
+
+shift_change_request_decided:
+    subject_approved: 'Twoja prośba o korektę zmiany została zatwierdzona'
+    subject_rejected: 'Twoja prośba o korektę zmiany została odrzucona'
+    approved: '{deciderName} zatwierdza Twoją prośbę o korektę zmiany w {organizationName}.'
+    shift_added: 'Zmiana została dodana:'
+    new_times: 'Twoja zmiana ma teraz takie godziny:'
+    rejected: '{deciderName} odrzuca Twoją prośbę o korektę zmiany w {organizationName}, więc Twoje zmiany pozostają takie, jak były. Prośba dotyczyła:'
+    reason: 'Powód:'
+    note: 'Twoja notatka:'
+    link: 'Zobacz swoje zmiany'

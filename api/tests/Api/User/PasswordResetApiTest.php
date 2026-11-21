@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api\User;
 
 use App\Organization\Domain\Model\MembershipRole;
+use App\Shared\Domain\Language\Language;
 use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\UserFactory;
 use App\Tests\Fixtures\OrganizationMother;
@@ -50,6 +51,20 @@ final class PasswordResetApiTest extends ApiTestCase
         $baseUrl = rtrim(\is_string($_SERVER[$baseUrlVariable] ?? null) ? $_SERVER[$baseUrlVariable] : '', '/');
         self::assertNotSame('', $baseUrl);
         self::assertStringContainsString('href="'.$baseUrl.'/set-password#token=', (string) $email->getHtmlBody());
+    }
+
+    public function test_it_mails_the_link_in_the_persons_own_language(): void
+    {
+        $user = UserFactory::createOne(['email' => 'max@example.com', 'firstName' => 'Max']);
+        $user->changeLanguage(Language::Polish);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::requestReset('max@example.com', 'admin');
+
+        $email = self::queuedEmail();
+        self::assertEmailSubjectContains($email, 'Zresetuj hasło do Business Tool');
+        self::assertEmailHtmlBodyContains($email, 'Cześć Max,');
+        self::assertEmailHtmlBodyContains($email, 'wygasa za 60 minut.');
     }
 
     public function test_it_lets_the_person_set_a_new_password_with_the_link(): void

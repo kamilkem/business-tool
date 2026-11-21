@@ -16,6 +16,7 @@ use App\Shared\Application\Link\ClientApp;
 use App\Shared\Application\Mail\TransactionalEmail;
 use App\Shared\Application\Mail\TransactionalMailerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Language\Language;
 use App\Shared\Domain\Event\EventHandlerInterface;
 use App\TimeTracking\Domain\Event\ShiftChangeRequestSubmitted;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestNotFoundException;
@@ -62,7 +63,7 @@ final readonly class NotifyManagersOnShiftChangeRequestSubmitted implements Even
         $shiftId = $request->getShiftId();
         $shift = null === $shiftId ? null : $this->shifts->findById($shiftId);
         $requesterName = trim($requester->firstName.' '.$requester->lastName);
-        $context = ShiftChangeRequestEmail::context($request, $shift, $organization->timezone) + [
+        $context = [
             'organizationName' => $organization->name,
             'requesterName' => $requesterName,
             'link' => $this->links->home(ClientApp::Admin),
@@ -73,11 +74,17 @@ final readonly class NotifyManagersOnShiftChangeRequestSubmitted implements Even
                 continue;
             }
 
+            // Each manager reads it in their own language, times included (ADR 0028 §6).
+            $locale = TransactionalEmail::localeOf(null === $manager->language ? null : Language::from($manager->language));
             $this->mailer->send(new TransactionalEmail(
                 to: $manager->email,
-                subject: \sprintf('%s asks for a shift change', $requesterName),
+                locale: $locale,
+                subject: 'shift_change_request_submitted.subject',
                 template: 'email/shift_change_request_submitted.html.twig',
-                context: ['firstName' => $manager->firstName] + $context,
+                context: ['firstName' => $manager->firstName]
+                    + ShiftChangeRequestEmail::context($request, $shift, $organization->timezone, $locale)
+                    + $context,
+                subjectParameters: ['requesterName' => $requesterName],
             ));
         }
     }

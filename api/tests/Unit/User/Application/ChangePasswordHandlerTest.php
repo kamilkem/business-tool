@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\User\Application;
 
+use App\Shared\Domain\Language\Language;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Shared\Application\RecordingMailer;
 use App\User\Application\Command\ChangePassword\ChangePasswordCommand;
@@ -79,9 +80,19 @@ final class ChangePasswordHandlerTest extends TestCase
         self::assertCount(1, $this->mailer->emails);
         $email = $this->mailer->emails[0];
         self::assertSame('eve@example.com', $email->to);
-        self::assertSame('Your Business Tool password was changed', $email->subject);
+        self::assertSame('en', $email->locale);
+        self::assertSame('password_changed.subject', $email->subject);
         self::assertSame('email/password_changed.html.twig', $email->template);
         self::assertSame(['firstName' => 'Jane'], $email->context);
+    }
+
+    public function test_it_writes_the_email_in_the_users_language(): void
+    {
+        $this->user->changeLanguage(Language::Polish);
+
+        $this->handle($this->user->getId()->toRfc4122(), 'correct horse battery');
+
+        self::assertSame('pl', $this->mailer->emails[0]->locale);
     }
 
     public function test_it_refuses_an_unknown_user_and_changes_nothing(): void
