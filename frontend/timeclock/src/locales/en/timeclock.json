@@ -1,1 +1,142 @@
-{}
+{
+  "app": {
+    "name": "Timeclock"
+  },
+  "common": {
+    "backToClock": "Back to the clock",
+    "backToSignIn": "Back to sign in",
+    "tryAgain": "Try again",
+    "timesIn": "Times in {{timeZone}}",
+    "month": "Month",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "noFinishedShifts": "No finished shifts",
+    "inShifts_one": "in {{count}} shift",
+    "inShifts_other": "in {{count}} shifts",
+    "openShiftAddedLater": "The shift you're on is added when you clock out."
+  },
+  "layout": {
+    "account": "Account",
+    "noOrganization": "No organization",
+    "signOut": "Sign out",
+    "notAMember": "You aren't a member of any organization, so there is nothing to clock in to. Ask your manager to add you."
+  },
+  "login": {
+    "description": "Sign in to log your shifts",
+    "passwordSet": "Your password is set. Sign in with it.",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "invalidCredentials": "The e-mail or password is wrong."
+  },
+  "setPassword": {
+    "title": "Set your password",
+    "description": "Choose the password you'll use to sign in to the timeclock."
+  },
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "description": "Enter the e-mail you sign in with and we'll send you a link to set a new password."
+  },
+  "account": {
+    "title": "Account",
+    "changePassword": "Change password"
+  },
+  "clock": {
+    "notClockedIn": "Not clocked in",
+    "onShiftSince": "On shift since {{time}}",
+    "timeOnShift": "Time on shift",
+    "offline": "You're offline. Clocking in and out needs a connection.",
+    "clockedOut": "Clocked out at {{time}}. You worked {{duration}}.",
+    "lessThanAMinute": "less than a minute",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "clockingIn": "Clocking in…",
+    "clockingOut": "Clocking out…",
+    "myShifts": "My shifts",
+    "myPay": "My pay",
+    "error": {
+      "alreadyClockedIn": "You're already clocked in, maybe from another tab or phone. Here is your current shift.",
+      "notClockedIn": "You're not clocked in, maybe you clocked out from another tab or phone.",
+      "tooSoon": "You clocked in a moment ago. Wait a few seconds and try again.",
+      "noAccess": "You no longer have access to this organization. Ask your manager."
+    }
+  },
+  "shifts": {
+    "title": "My shifts",
+    "total": "Total",
+    "workedIn": "Worked in {{period}}",
+    "none": "No shifts in {{period}}.",
+    "onShift": "On shift",
+    "untilNow": "{{start}} – now",
+    "soFar": "{{duration}} so far",
+    "askForNewTimesFor": "Ask for new times for {{day}}",
+    "addMissing": "Add a missing shift",
+    "myRequests": "My requests",
+    "change": {
+      "enteredByManager": "Entered by a manager",
+      "enteredByManagerOn": "Entered by a manager on {{when}}",
+      "enteredByYou": "Entered by you",
+      "enteredByYouOn": "Entered by you on {{when}}",
+      "changedByManager": "Changed by a manager",
+      "changedByManagerOn": "Changed by a manager on {{when}}",
+      "changedByYou": "Changed by you",
+      "changedByYouOn": "Changed by you on {{when}}"
+    }
+  },
+  "request": {
+    "askForNewTimes": "Ask for new times",
+    "addMissing": "Add a missing shift",
+    "newTimesDescription": "Your shift {{range}}. A manager changes it when they approve.",
+    "missingDescription": "A shift you worked but did not clock. A manager adds it when they approve.",
+    "timesIn": "Times in {{timeZone}}.",
+    "clockIn": "Clock-in",
+    "clockOut": "Clock-out",
+    "stillAtWork": "Leave empty if you are still at work.",
+    "nextDay": "The next day: the clock-out is not after the clock-in.",
+    "why": "Why",
+    "whyNewTimesPlaceholder": "e.g. I forgot to clock out",
+    "whyMissingPlaceholder": "e.g. My phone was dead",
+    "managerSees": "Your manager sees this.",
+    "send": "Send request",
+    "sending": "Sending…"
+  },
+  "requests": {
+    "title": "My requests",
+    "backToShifts": "Back to my shifts",
+    "none": "No requests yet. Ask for a change from <shifts>My shifts</shifts>.",
+    "rejectionReason": "Reason: {{reason}}",
+    "missingShift": "Missing shift",
+    "newTimes": "New times",
+    "open": "{{start}} – open",
+    "now": "Now {{range}}",
+    "sent": "Sent {{when}}",
+    "approvedOn": "Approved {{when}}",
+    "rejectedOn": "Rejected {{when}}",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "pay": {
+    "title": "My pay",
+    "myShiftsIn": "My shifts in {{period}}",
+    "approved": "Approved",
+    "estimate": "Estimate",
+    "approvedHeading": "Approved pay",
+    "estimatedHeading": "Estimated pay",
+    "approvedExplanation": "Gross, as approved for payroll.",
+    "estimateExplanation": "Gross, from your finished shifts so far at your rate. The approved amount can differ: hours may be rounded, and bonuses or advances are added then.",
+    "approvedOn": "Approved on {{date}}",
+    "hours": "Hours",
+    "worked": "Worked",
+    "breakdown": "Breakdown",
+    "payForHours": "Pay for hours",
+    "total": "Total",
+    "paidRounded": "{{shifts}} · paid {{duration}} (rounded)",
+    "noRate": "No pay rate is set for you yet, so this shows no pay. Ask your manager to set your rate.",
+    "someWithoutRate_one": "No pay rate is set for {{count}} shift, so it isn't counted. Ask your manager to set your rate.",
+    "someWithoutRate_other": "No pay rate is set for {{count}} shifts, so they aren't counted. Ask your manager to set your rate."
+  }
+}

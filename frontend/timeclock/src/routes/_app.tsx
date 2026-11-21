@@ -1,6 +1,7 @@
 import { logout, signInAgainUrl } from "@business-tool/api-client"
 import { Link, Outlet, createFileRoute, redirect, useMatchRoute, useRouter } from "@tanstack/react-router"
 import { LogOutIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@business-tool/ui/components/button"
 import { OrganizationTimeZoneContext } from "@business-tool/ui/hooks/use-organization-time-zone"
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { me, membership, session, queryClient } = Route.useRouteContext()
   const router = useRouter()
+  const { t } = useTranslation("timeclock")
   // The account screen works without an organization; the others need one.
   const onAccount = Boolean(useMatchRoute()({ to: "/account" }))
 
@@ -60,13 +62,13 @@ function AppLayout() {
   return (
     <div className="flex min-h-svh flex-col bg-muted pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <header className="flex items-center justify-between gap-2 py-2 pl-4 pr-2">
-        <Link to="/account" className="-my-1 min-w-0 rounded-md py-1 text-sm" aria-label="Account">
-          <div className="truncate font-medium">{membership?.organization.name ?? "No organization"}</div>
+        <Link to="/account" className="-my-1 min-w-0 rounded-md py-1 text-sm" aria-label={t("layout.account")}>
+          <div className="truncate font-medium">{membership?.organization.name ?? t("layout.noOrganization")}</div>
           <div className="truncate text-muted-foreground underline-offset-4 hover:underline">
             {me.firstName} {me.lastName}
           </div>
         </Link>
-        <Button variant="ghost" size="icon" className="size-11" onClick={signOut} aria-label="Sign out">
+        <Button variant="ghost" size="icon" className="size-11" onClick={signOut} aria-label={t("layout.signOut")}>
           <LogOutIcon />
         </Button>
       </header>
@@ -80,7 +82,7 @@ function AppLayout() {
       ) : (
         <main className="flex flex-1 flex-col items-center justify-center px-4 text-center">
           <p className="max-w-xs text-muted-foreground">
-            You aren't a member of any organization, so there is nothing to clock in to. Ask your manager to add you.
+            {t("layout.notAMember")}
           </p>
         </main>
       )}

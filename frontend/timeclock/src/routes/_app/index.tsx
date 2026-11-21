@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, WalletIcon, WifiOffIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -24,6 +25,7 @@ function ClockScreen() {
 }
 
 function ClockPanel({ organizationId }: { organizationId: string }) {
+  const { t } = useTranslation("timeclock")
   const now = useNow()
   const online = useOnline()
   const current = useQuery(currentShiftQuery(organizationId))
@@ -44,7 +46,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           <RunningShift shift={shift} now={now} format={format} />
         ) : (
           <>
-            <div className="text-sm font-medium text-muted-foreground">Not clocked in</div>
+            <div className="text-sm font-medium text-muted-foreground">{t("clock.notClockedIn")}</div>
             <div className="text-6xl font-semibold tabular-nums tracking-tight">
               {format.time(now)}
             </div>
@@ -52,7 +54,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           </>
         )}
         {format.timeZone !== browserTimeZone() && (
-          <p className="text-xs text-muted-foreground">Times in {format.timeZone.replaceAll("_", " ")}</p>
+          <p className="text-xs text-muted-foreground">{t("common.timesIn", { timeZone: format.timeZone.replaceAll("_", " ") })}</p>
         )}
       </main>
 
@@ -60,7 +62,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
         {!online && (
           <Alert>
             <WifiOffIcon />
-            <AlertDescription>You're offline. Clocking in and out needs a connection.</AlertDescription>
+            <AlertDescription>{t("clock.offline")}</AlertDescription>
           </Alert>
         )}
         {current.isError && (
@@ -79,8 +81,10 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           <Alert>
             <CircleCheckIcon />
             <AlertDescription>
-              Clocked out at {formatClockTime(format, endedShift.endedAt, now)}. You worked{" "}
-              {formatWorked(elapsedMs(endedShift.startedAt, endedShift.endedAt))}.
+              {t("clock.clockedOut", {
+                time: formatClockTime(format, endedShift.endedAt, now),
+                duration: formatWorked(elapsedMs(endedShift.startedAt, endedShift.endedAt)),
+              })}
             </AlertDescription>
           </Alert>
         )}
@@ -88,7 +92,7 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
         {current.isError ? (
           <Button size="lg" variant="outline" className="h-16 text-lg" onClick={() => current.refetch()} disabled={current.isFetching}>
             {current.isFetching ? <LoaderCircleIcon className="animate-spin" /> : null}
-            Try again
+            {t("common.tryAgain")}
           </Button>
         ) : (
           <Button
@@ -100,25 +104,21 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           >
             {clock.isPending && <LoaderCircleIcon className="animate-spin" />}
             {clock.isPending
-              ? lastAction === "out"
-                ? "Clocking out…"
-                : "Clocking in…"
-              : action === "out"
-                ? "Clock out"
-                : "Clock in"}
+              ? t(lastAction === "out" ? "clock.clockingOut" : "clock.clockingIn")
+              : t(action === "out" ? "clock.clockOut" : "clock.clockIn")}
           </Button>
         )}
         <div className="grid grid-cols-2 gap-2">
           <Button asChild variant="ghost" className="h-11">
             <Link to="/shifts">
               <CalendarDaysIcon />
-              My shifts
+              {t("clock.myShifts")}
             </Link>
           </Button>
           <Button asChild variant="ghost" className="h-11">
             <Link to="/pay">
               <WalletIcon />
-              My pay
+              {t("clock.myPay")}
             </Link>
           </Button>
         </div>
@@ -131,13 +131,14 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
 const TODAY: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" }
 
 function RunningShift({ shift, now, format }: { shift: Shift; now: Date; format: DateTimeFormat }) {
+  const { t } = useTranslation("timeclock")
   return (
     <>
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className="size-2 rounded-full bg-green-600" aria-hidden />
-        On shift since {formatClockTime(format, shift.startedAt, now)}
+        {t("clock.onShiftSince", { time: formatClockTime(format, shift.startedAt, now) })}
       </div>
-      <div className="text-6xl font-semibold tabular-nums tracking-tight" aria-label="Time on shift">
+      <div className="text-6xl font-semibold tabular-nums tracking-tight" aria-label={t("clock.timeOnShift")}>
         {formatElapsed(elapsedMs(shift.startedAt, now))}
       </div>
       <div className="text-muted-foreground">{format.date(now, TODAY)}</div>

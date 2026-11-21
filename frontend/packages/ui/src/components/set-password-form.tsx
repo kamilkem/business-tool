@@ -1,5 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from "react"
+import { useState, type FormEvent, type ReactElement } from "react"
 import { ApiError, type ApiClient, unwrap, violationsOf } from "@business-tool/api-client"
+import { Trans, useTranslation } from "react-i18next"
 import { CircleAlertIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -23,8 +24,11 @@ export interface SetPasswordFormProps {
   token: string | null
   /** Runs after the API set the password (204); the person signs in next. */
   onPasswordSet: () => void | Promise<void>
-  /** A link to the "forgot password" form, offered when the link no longer works. */
-  requestNewLink: ReactNode
+  /**
+   * A link to the "forgot password" form, offered when the link no longer works. Its text comes from
+   * the catalog ("request a new link"), so the element's own children are replaced.
+   */
+  requestNewLink: ReactElement
 }
 
 /**
@@ -33,6 +37,7 @@ export interface SetPasswordFormProps {
  * is one and the same 404, so the page cannot say which one it was.
  */
 export function SetPasswordForm({ api, token, onPasswordSet, requestNewLink }: SetPasswordFormProps) {
+  const { t } = useTranslation()
   const [linkInvalid, setLinkInvalid] = useState(token === null)
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
@@ -50,9 +55,9 @@ export function SetPasswordForm({ api, token, onPasswordSet, requestNewLink }: S
 
     const local: Errors = {}
     if (password.length < MIN_PASSWORD_LENGTH) {
-      local.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+      local.password = t("password.error.tooShort", { count: MIN_PASSWORD_LENGTH })
     } else if (confirmation !== password) {
-      local.confirmation = "The passwords don't match."
+      local.confirmation = t("password.error.mismatch")
     }
     setErrors(local)
     if (local.password || local.confirmation) return
@@ -83,7 +88,7 @@ export function SetPasswordForm({ api, token, onPasswordSet, requestNewLink }: S
     <form onSubmit={onSubmit} noValidate>
       <FieldGroup>
         <Field data-invalid={errors.password ? true : undefined}>
-          <FieldLabel htmlFor="password">New password</FieldLabel>
+          <FieldLabel htmlFor="password">{t("password.new")}</FieldLabel>
           <Input
             id="password"
             name="password"
@@ -97,11 +102,11 @@ export function SetPasswordForm({ api, token, onPasswordSet, requestNewLink }: S
           {errors.password ? (
             <FieldError>{errors.password}</FieldError>
           ) : (
-            <FieldDescription>At least {MIN_PASSWORD_LENGTH} characters.</FieldDescription>
+            <FieldDescription>{t("password.hint", { count: MIN_PASSWORD_LENGTH })}</FieldDescription>
           )}
         </Field>
         <Field data-invalid={errors.confirmation ? true : undefined}>
-          <FieldLabel htmlFor="confirmation">Repeat the new password</FieldLabel>
+          <FieldLabel htmlFor="confirmation">{t("password.repeat")}</FieldLabel>
           <Input
             id="confirmation"
             name="confirmation"
@@ -119,23 +124,23 @@ export function SetPasswordForm({ api, token, onPasswordSet, requestNewLink }: S
           </Alert>
         )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Set password"}
+          {pending ? t("common.saving") : t("password.set.submit")}
         </Button>
       </FieldGroup>
     </form>
   )
 }
 
-function InvalidLinkNotice({ requestNewLink }: { requestNewLink: ReactNode }) {
+function InvalidLinkNotice({ requestNewLink }: { requestNewLink: ReactElement }) {
+  const { t } = useTranslation()
   return (
     <Alert variant="destructive">
       <CircleAlertIcon />
-      <AlertTitle>This link doesn't work</AlertTitle>
+      <AlertTitle>{t("password.set.invalidLinkTitle")}</AlertTitle>
       <AlertDescription className="text-pretty">
-        <p>It may be mistyped, already used, or expired.</p>
+        <p>{t("password.set.invalidLinkReason")}</p>
         <p>
-          If you were invited, ask your manager to send you a new invitation. If you were resetting your password,{" "}
-          {requestNewLink}.
+          <Trans t={t} i18nKey="password.set.invalidLinkNext" components={{ requestNewLink }} />
         </p>
       </AlertDescription>
     </Alert>

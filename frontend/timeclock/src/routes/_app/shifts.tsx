@@ -12,6 +12,7 @@ import {
   PlusIcon,
   UserPenIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -32,8 +33,8 @@ import {
   monthKey,
   monthPeriodOf,
   shiftChange,
-  shiftCount,
   shiftHours,
+  inShifts,
   validateMyShiftsSearch,
 } from "@/lib/my-shifts"
 import { type ShiftChangeRequestTarget, ShiftChangeRequestSheet } from "@/components/shift-change-request-sheet"
@@ -52,6 +53,7 @@ function MyShiftsScreen() {
   const { me, membership } = Route.useRouteContext()
   const { month } = Route.useSearch()
   const navigate = Route.useNavigate()
+  const { t } = useTranslation("timeclock")
   const format = useDateTimeFormat()
   const [requestTarget, setRequestTarget] = useState<ShiftChangeRequestTarget | null>(null)
 
@@ -71,15 +73,15 @@ function MyShiftsScreen() {
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-3 px-4 pb-4">
       <div className="flex items-center gap-1">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-11">
-          <Link to="/" aria-label="Back to the clock">
+          <Link to="/" aria-label={t("common.backToClock")}>
             <ArrowLeftIcon />
           </Link>
         </Button>
-        <h1 className="text-lg font-semibold">My shifts</h1>
+        <h1 className="text-lg font-semibold">{t("shifts.title")}</h1>
       </div>
 
-      <div className="flex items-center gap-2" role="group" aria-label="Month">
-        <Button variant="outline" size="icon" className="size-11" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label="Previous month">
+      <div className="flex items-center gap-2" role="group" aria-label={t("common.month")}>
+        <Button variant="outline" size="icon" className="size-11" onClick={() => showMonth(shiftPeriod(period, -1))} aria-label={t("common.previousMonth")}>
           <ChevronLeftIcon />
         </Button>
         <div className="flex-1 text-center font-medium" aria-live="polite">
@@ -91,7 +93,7 @@ function MyShiftsScreen() {
           className="size-11"
           onClick={() => showMonth(shiftPeriod(period, 1))}
           disabled={isThisMonth}
-          aria-label="Next month"
+          aria-label={t("common.nextMonth")}
         >
           <ChevronRightIcon />
         </Button>
@@ -108,12 +110,12 @@ function MyShiftsScreen() {
       <div className="flex flex-col gap-2">
         <Button variant="outline" className="h-11" onClick={() => setRequestTarget({ kind: "missing" })}>
           <PlusIcon />
-          Add a missing shift
+          {t("shifts.addMissing")}
         </Button>
         <Button asChild variant="ghost" className="h-11">
           <Link to="/requests">
             <InboxIcon />
-            My requests
+            {t("shifts.myRequests")}
           </Link>
         </Button>
       </div>
@@ -130,7 +132,7 @@ function MyShiftsScreen() {
       />
 
       {format.timeZone !== browserTimeZone() && (
-        <p className="text-center text-xs text-muted-foreground">Times in {format.timeZone.replaceAll("_", " ")}</p>
+        <p className="text-center text-xs text-muted-foreground">{t("common.timesIn", { timeZone: format.timeZone.replaceAll("_", " ") })}</p>
       )}
     </main>
   )
@@ -147,6 +149,7 @@ function MonthShifts({
   period: BusinessPeriod
   onRequestNewTimes: (shift: Shift) => void
 }) {
+  const { t } = useTranslation("timeclock")
   const shifts = useQuery(myShiftsQuery(organizationId, userId, period))
   const format = useDateTimeFormat()
 
@@ -169,7 +172,7 @@ function MonthShifts({
         </Alert>
         <Button variant="outline" className="h-11" onClick={() => shifts.refetch()} disabled={shifts.isFetching}>
           {shifts.isFetching && <LoaderCircleIcon className="animate-spin" />}
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     )
@@ -181,17 +184,17 @@ function MonthShifts({
 
   return (
     <>
-      <section className="rounded-xl border bg-card p-4" aria-label="Total">
-        <div className="text-sm text-muted-foreground">Worked in {format.period(period)}</div>
+      <section className="rounded-xl border bg-card p-4" aria-label={t("shifts.total")}>
+        <div className="text-sm text-muted-foreground">{t("shifts.workedIn", { period: format.period(period) })}</div>
         <div className="text-4xl font-semibold tabular-nums tracking-tight">{formatDuration(total.workedMinutes)}</div>
-        <div className="text-sm text-muted-foreground">{closed === 0 ? "No finished shifts" : `in ${shiftCount(closed)}`}</div>
+        <div className="text-sm text-muted-foreground">{closed === 0 ? t("common.noFinishedShifts") : inShifts(closed)}</div>
         {total.openShifts > 0 && (
-          <p className="mt-2 text-sm">The shift you're on is added when you clock out.</p>
+          <p className="mt-2 text-sm">{t("common.openShiftAddedLater")}</p>
         )}
       </section>
 
       {shifts.data.length === 0 ? (
-        <p className="py-6 text-center text-muted-foreground">No shifts in {format.period(period)}.</p>
+        <p className="py-6 text-center text-muted-foreground">{t("shifts.none", { period: format.period(period) })}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {shifts.data.map((shift) => (
@@ -204,6 +207,7 @@ function MonthShifts({
 }
 
 function ShiftItem({ shift, userId, onRequestNewTimes }: { shift: Shift; userId: string; onRequestNewTimes: () => void }) {
+  const { t } = useTranslation("timeclock")
   const format = useDateTimeFormat()
   const change = shiftChange(format, shift, userId)
   const day = format.businessDate(shift.date, SHIFT_DAY)
@@ -216,7 +220,7 @@ function ShiftItem({ shift, userId, onRequestNewTimes }: { shift: Shift; userId:
           {isOpen(shift) ? (
             <span className="flex items-center gap-1.5 text-sm font-medium">
               <span className="size-2 rounded-full bg-green-600" aria-hidden />
-              On shift
+              {t("shifts.onShift")}
             </span>
           ) : (
             <span className="font-medium tabular-nums">{formatDuration(shift.durationMinutes ?? 0)}</span>
@@ -239,7 +243,7 @@ function ShiftItem({ shift, userId, onRequestNewTimes }: { shift: Shift; userId:
         size="icon"
         className="-my-2 size-11 shrink-0 text-muted-foreground"
         onClick={onRequestNewTimes}
-        aria-label={`Ask for new times for ${day}`}
+        aria-label={t("shifts.askForNewTimesFor", { day })}
       >
         <PencilIcon />
       </Button>
@@ -249,6 +253,7 @@ function ShiftItem({ shift, userId, onRequestNewTimes }: { shift: Shift; userId:
 
 /** " · 2 h 5 min so far" for the open shift; only this re-renders every second. */
 function SoFar({ startedAt }: { startedAt: string }) {
+  const { t } = useTranslation("timeclock")
   const now = useNow()
-  return <> · {formatDuration(minutesBetween(startedAt, now))} so far</>
+  return <> · {t("shifts.soFar", { duration: formatDuration(minutesBetween(startedAt, now)) })}</>
 }

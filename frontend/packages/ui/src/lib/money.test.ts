@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n/i18n"
+
 import {
   currencyFractionDigits,
   currencySymbol,
@@ -181,5 +183,16 @@ describe("moneyErrorMessage", () => {
     expect(moneyErrorMessage("too-many-decimals", "PLN")).toBe("PLN amounts have at most 2 decimal places.")
     expect(moneyErrorMessage("too-many-decimals", "JPY")).toBe("JPY amounts have no decimal places.")
     expect(moneyErrorMessage("invalid", "PLN")).toBe("Enter an amount, e.g. 12.50.")
+  })
+
+  it("test_it_explains_the_decimal_limit_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    try {
+      expect(moneyErrorMessage("too-many-decimals", "PLN")).toBe("Kwoty w PLN mają najwyżej 2 miejsca po przecinku.")
+      expect(moneyErrorMessage("too-many-decimals", "KWD")).toBe("Kwoty w KWD mają najwyżej 3 miejsca po przecinku.")
+      expect(moneyErrorMessage("too-many-decimals", "JPY")).toBe("Kwoty w JPY nie mają części dziesiętnej.")
+    } finally {
+      await i18n.changeLanguage("en")
+    }
   })
 })

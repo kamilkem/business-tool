@@ -1,14 +1,15 @@
 import type { components } from "@business-tool/api-client"
 import { addDays, type DateTimeFormat, type Instant } from "@business-tool/ui/lib/date-time"
 
+import { i18n } from "../i18n"
+
 /** One of the signed-in person's requests to an owner or manager to change their shifts (#84). */
 export type ShiftChangeRequest = components["schemas"]["ShiftChangeRequest"]
 export type ShiftChangeRequestStatus = ShiftChangeRequest["status"]
 
-export const STATUS_LABEL: Record<ShiftChangeRequestStatus, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
+/** "Pending", "Approved" or "Rejected", in the language shown. */
+export function statusLabel(status: ShiftChangeRequestStatus): string {
+  return i18n.t(`requests.status.${status}`, { ns: "timeclock" })
 }
 
 /**
@@ -18,7 +19,7 @@ export const STATUS_LABEL: Record<ShiftChangeRequestStatus, string> = {
 export function timeRange(format: DateTimeFormat, startedAt: Instant, endedAt: Instant | null): string {
   const day = format.date(startedAt, { weekday: "short", day: "numeric", month: "short" })
   const start = `${day}, ${format.time(startedAt)}`
-  if (endedAt === null) return `${start} – open`
+  if (endedAt === null) return i18n.t("requests.open", { ns: "timeclock", start })
   const startDate = format.dateOf(startedAt)
   const endDate = format.dateOf(endedAt)
   const end = format.time(endedAt)
@@ -30,7 +31,7 @@ export function timeRange(format: DateTimeFormat, startedAt: Instant, endedAt: I
 
 /** "Missing shift" or "New times". */
 export function requestTitle(request: ShiftChangeRequest): string {
-  return request.kind === "missing_shift" ? "Missing shift" : "New times"
+  return i18n.t(request.kind === "missing_shift" ? "requests.missingShift" : "requests.newTimes", { ns: "timeclock" })
 }
 
 /**
@@ -40,13 +41,14 @@ export function requestTitle(request: ShiftChangeRequest): string {
  */
 export function previousTimes(format: DateTimeFormat, request: ShiftChangeRequest): string | null {
   if (request.kind !== "new_times" || request.status === "approved" || request.shiftStartedAt === null) return null
-  return `Now ${timeRange(format, request.shiftStartedAt, request.shiftEndedAt)}`
+  return i18n.t("requests.now", { ns: "timeclock", range: timeRange(format, request.shiftStartedAt, request.shiftEndedAt) })
 }
 
 /** "Sent 12 Nov 2026, 01:00" or "Approved 12 Nov 2026, 09:15", in the organization's time zone. */
 export function requestWhen(format: DateTimeFormat, request: ShiftChangeRequest): string {
   if (request.status !== "pending" && request.decidedAt !== null) {
-    return `${STATUS_LABEL[request.status]} ${format.dateTime(request.decidedAt)}`
+    const when = format.dateTime(request.decidedAt)
+    return i18n.t(request.status === "approved" ? "requests.approvedOn" : "requests.rejectedOn", { ns: "timeclock", when })
   }
-  return `Sent ${format.dateTime(request.submittedAt)}`
+  return i18n.t("requests.sent", { ns: "timeclock", when: format.dateTime(request.submittedAt) })
 }

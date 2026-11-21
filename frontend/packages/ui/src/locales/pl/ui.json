@@ -12,5 +12,112 @@
   "language": {
     "label": "Język",
     "description": "Język obu aplikacji. Daty i liczby są zapisywane zgodnie z nim."
+  },
+  "common": {
+    "close": "Zamknij",
+    "email": "E-mail",
+    "saving": "Zapisywanie…",
+    "sending": "Wysyłanie…"
+  },
+  "sidebar": {
+    "title": "Panel boczny",
+    "description": "Panel boczny na telefonie.",
+    "toggle": "Pokaż lub ukryj panel boczny"
+  },
+  "duration": {
+    "minutes": "{{minutes}} min",
+    "hours": "{{hours}} godz.",
+    "hoursMinutes": "{{hours}} godz. {{minutes}} min"
+  },
+  "period": {
+    "label": "Okres",
+    "previousMonth": "Poprzedni miesiąc",
+    "nextMonth": "Następny miesiąc",
+    "previousPeriod": "Poprzedni okres",
+    "nextPeriod": "Następny okres",
+    "thisMonth": "Ten miesiąc",
+    "lastMonth": "Poprzedni miesiąc",
+    "from": "Od",
+    "to": "Do",
+    "apply": "Pokaż te daty",
+    "error": {
+      "bothDates": "Podaj obie daty.",
+      "endBeforeStart": "Data końcowa jest wcześniejsza niż początkowa.",
+      "tooLong_one": "Wybierz najwyżej {{count}} dzień.",
+      "tooLong_few": "Wybierz najwyżej {{count}} dni.",
+      "tooLong_many": "Wybierz najwyżej {{count}} dni.",
+      "tooLong_other": "Wybierz najwyżej {{count}} dnia."
+    }
+  },
+  "money": {
+    "error": {
+      "invalid": "Podaj kwotę, np. 12,50.",
+      "negative": "Kwota nie może być ujemna.",
+      "tooLarge": "Kwota jest za duża.",
+      "noDecimals": "Kwoty w {{currency}} nie mają części dziesiętnej.",
+      "tooManyDecimals_one": "Kwoty w {{currency}} mają najwyżej {{count}} miejsce po przecinku.",
+      "tooManyDecimals_few": "Kwoty w {{currency}} mają najwyżej {{count}} miejsca po przecinku.",
+      "tooManyDecimals_many": "Kwoty w {{currency}} mają najwyżej {{count}} miejsc po przecinku.",
+      "tooManyDecimals_other": "Kwoty w {{currency}} mają najwyżej {{count}} miejsca po przecinku."
+    }
+  },
+  "shiftMoment": {
+    "date": "{{label}}: data",
+    "repeated": "Godzina {{time}} występuje tego dnia dwa razy (zmiana czasu na zimowy):",
+    "which": "Która godzina {{time}}",
+    "first": "Pierwsza, UTC{{offset}}",
+    "second": "Druga, UTC{{offset}}"
+  },
+  "shiftForm": {
+    "error": {
+      "clockInDate": "Podaj datę rozpoczęcia.",
+      "clockInTime": "Podaj godzinę rozpoczęcia.",
+      "clockOutDate": "Podaj datę zakończenia.",
+      "clockOutTime": "Podaj godzinę zakończenia.",
+      "skippedTime": "Godzina {{time}} nie istnieje w dniu {{date}}: zegary przesunięto do przodu. Podaj godzinę po zmianie czasu.",
+      "endBeforeStart": "Zakończenie musi być później niż rozpoczęcie.",
+      "noteTooLong_one": "Notatka może mieć najwyżej {{count}} znak.",
+      "noteTooLong_few": "Notatka może mieć najwyżej {{count}} znaki.",
+      "noteTooLong_many": "Notatka może mieć najwyżej {{count}} znaków.",
+      "noteTooLong_other": "Notatka może mieć najwyżej {{count}} znaku.",
+      "noPerson": "Wybierz, kto pracował na tej zmianie.",
+      "noReason": "Napisz dlaczego, dla osoby, która rozpatrzy prośbę.",
+      "unchanged": "Zmień godzinę rozpoczęcia lub zakończenia: te godziny zmiana ma już teraz."
+    }
+  },
+  "password": {
+    "current": "Obecne hasło",
+    "new": "Nowe hasło",
+    "repeat": "Powtórz nowe hasło",
+    "hint_one": "Co najmniej {{count}} znak.",
+    "hint_few": "Co najmniej {{count}} znaki.",
+    "hint_many": "Co najmniej {{count}} znaków.",
+    "hint_other": "Co najmniej {{count}} znaku.",
+    "error": {
+      "currentMissing": "Podaj obecne hasło.",
+      "tooShort_one": "Hasło musi mieć co najmniej {{count}} znak.",
+      "tooShort_few": "Hasło musi mieć co najmniej {{count}} znaki.",
+      "tooShort_many": "Hasło musi mieć co najmniej {{count}} znaków.",
+      "tooShort_other": "Hasło musi mieć co najmniej {{count}} znaku.",
+      "mismatch": "Hasła nie są takie same."
+    },
+    "change": {
+      "submit": "Zmień hasło",
+      "doneTitle": "Hasło zostało zmienione",
+      "doneDescription": "Na tym urządzeniu nie musisz logować się ponownie. Na pozostałych zaloguj się nowym hasłem."
+    },
+    "set": {
+      "submit": "Ustaw hasło",
+      "invalidLinkTitle": "Ten link nie działa",
+      "invalidLinkReason": "Może być błędnie wpisany, już użyty albo wygasły.",
+      "invalidLinkNext": "Jeśli to było zaproszenie, poproś przełożonego o nowe. Jeśli resetujesz hasło, <requestNewLink>poproś o nowy link</requestNewLink>."
+    },
+    "forgot": {
+      "emailMissing": "Podaj adres e-mail, którym się logujesz.",
+      "submit": "Wyślij mi link",
+      "sentTitle": "Sprawdź skrzynkę e-mail",
+      "sentDescription": "Jeśli adres <email>{{email}}</email> ma konto, wysłaliśmy na niego link do ustawienia nowego hasła. Link działa jeden raz i tylko przez krótki czas.",
+      "nothingArrived": "Nic nie przyszło? Sprawdź folder spam albo <retry>spróbuj ponownie</retry>."
+    }
   }
 }

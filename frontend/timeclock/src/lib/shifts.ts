@@ -4,6 +4,8 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 
+import { i18n } from "../i18n"
+
 import { api } from "./api"
 import { currentShiftQuery, meQuery, myPayKey, myShiftsKey } from "./queries"
 
@@ -66,12 +68,10 @@ export function useClockMutation(organizationId: string) {
 export function clockErrorMessage(error: unknown, action: ClockAction): string {
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return action === "in"
-        ? "You're already clocked in, maybe from another tab or phone. Here is your current shift."
-        : "You're not clocked in, maybe you clocked out from another tab or phone."
+      return i18n.t(action === "in" ? "clock.error.alreadyClockedIn" : "clock.error.notClockedIn", { ns: "timeclock" })
     }
-    if (error.status === 422) return "You clocked in a moment ago. Wait a few seconds and try again."
-    if (error.status === 403) return "You no longer have access to this organization. Ask your manager."
+    if (error.status === 422) return i18n.t("clock.error.tooSoon", { ns: "timeclock" })
+    if (error.status === 403) return i18n.t("clock.error.noAccess", { ns: "timeclock" })
   }
   return requestErrorMessage(error)
 }

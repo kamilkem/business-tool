@@ -1,4 +1,6 @@
 import type { components } from "@business-tool/api-client"
+
+import { i18n } from "../i18n/i18n"
 import {
   type BusinessDate,
   type DateTimeFormat,
@@ -106,15 +108,15 @@ export function repeatedOffsets(moment: Pick<ShiftMoment, "date" | "time">, time
 type Resolved = { instant: Date } | { error: string }
 
 /** The instant a typed moment names in the time zone, or why it names none. */
-function resolve(moment: ShiftMoment, timeZone: string, format: DateTimeFormat, what: string): Resolved {
-  if (!isBusinessDate(moment.date)) return { error: `Enter the ${what} date.` }
-  if (!isWallTime(moment.time)) return { error: `Enter the ${what} time.` }
+function resolve(moment: ShiftMoment, timeZone: string, format: DateTimeFormat, end: "clockIn" | "clockOut"): Resolved {
+  if (!isBusinessDate(moment.date)) return { error: i18n.t(`shiftForm.error.${end}Date`) }
+  if (!isWallTime(moment.time)) return { error: i18n.t(`shiftForm.error.${end}Time`) }
   const local: LocalDateTime = { date: moment.date, time: moment.time }
   const candidates = instantsAt(local, timeZone)
   const instant = moment.occurrence === "second" ? (candidates[1] ?? candidates[0]) : candidates[0]
   if (!instant) {
     return {
-      error: `${moment.time} does not exist on ${format.businessDate(moment.date)}: the clocks moved forward. Enter a time after the change.`,
+      error: i18n.t("shiftForm.error.skippedTime", { time: moment.time, date: format.businessDate(moment.date) }),
     }
   }
   return { instant }
@@ -131,16 +133,16 @@ interface Times {
 /** Checks the client can make before sending; the API checks again (end after start, nothing in the future, no overlap). */
 function times(values: ShiftFormValues, timeZone: string, format: DateTimeFormat, endRequired: boolean): Times {
   const errors: ShiftFormErrors = {}
-  const start = resolve(values.start, timeZone, format, "clock-in")
+  const start = resolve(values.start, timeZone, format, "clockIn")
   const endEmpty = values.end.date === "" && values.end.time === ""
-  const end = endEmpty && !endRequired ? null : resolve(values.end, timeZone, format, "clock-out")
+  const end = endEmpty && !endRequired ? null : resolve(values.end, timeZone, format, "clockOut")
 
   if ("error" in start) errors.startedAt = start.error
   if (end && "error" in end) errors.endedAt = end.error
   const startedAt = "instant" in start ? start.instant : undefined
   const endedAt = end && "instant" in end ? end.instant : undefined
-  if (startedAt && endedAt && endedAt <= startedAt) errors.endedAt = "The clock-out must be after the clock-in."
-  if (values.note.trim().length > NOTE_MAX_LENGTH) errors.note = `Keep the note under ${NOTE_MAX_LENGTH} characters.`
+  if (startedAt && endedAt && endedAt <= startedAt) errors.endedAt = i18n.t("shiftForm.error.endBeforeStart")
+  if (values.note.trim().length > NOTE_MAX_LENGTH) errors.note = i18n.t("shiftForm.error.noteTooLong", { count: NOTE_MAX_LENGTH })
   return { errors, startedAt, endedAt }
 }
 
@@ -155,7 +157,7 @@ export function addShiftBody(
   format: DateTimeFormat,
 ): ShiftFormResult<AddShiftInput> {
   const { errors, startedAt, endedAt } = times(values, timeZone, format, true)
-  if (values.userId === "") errors.userId = "Choose who worked the shift."
+  if (values.userId === "") errors.userId = i18n.t("shiftForm.error.noPerson")
   if (hasErrors(errors) || !startedAt || !endedAt) return { ok: false, errors }
 
   const note = values.note.trim()
@@ -198,7 +200,7 @@ export function correctShiftBody(
 
 /** The note a change request needs: whoever decides it should know why. */
 function requestNoteError(values: ShiftFormValues): string | undefined {
-  return values.note.trim() === "" ? "Say why, for whoever decides the request." : undefined
+  return values.note.trim() === "" ? i18n.t("shiftForm.error.noReason") : undefined
 }
 
 /**
@@ -248,7 +250,7 @@ export function newTimesRequestBody(
   const startSame = sameMoment(initial.start, values.start)
   const endSame = endedAt ? sameMoment(initial.end, values.end) : wasOpen
   if (startSame && endSame) {
-    return { ok: false, errors: { shiftId: "Change the clock-in or the clock-out: these are the shift's times now." } }
+    return { ok: false, errors: { shiftId: i18n.t("shiftForm.error.unchanged") } }
   }
 
   return {

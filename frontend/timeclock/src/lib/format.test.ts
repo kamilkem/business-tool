@@ -1,10 +1,16 @@
 import { createDateTimeFormat } from "@business-tool/ui/lib/date-time"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { i18n } from "../i18n"
 
 import { elapsedMs, formatClockTime, formatElapsed, formatWorked } from "./format"
 
 // The tests run with TZ=America/New_York (vitest.config.ts); the bar is in Warsaw.
 const warsaw = createDateTimeFormat("Europe/Warsaw", "en-GB")
+
+afterEach(async () => {
+  await i18n.changeLanguage("en")
+})
 
 describe("formatClockTime", () => {
   it("test_it_shows_only_the_time_for_a_shift_that_started_today_in_warsaw", () => {
@@ -30,6 +36,12 @@ describe("durations on the clock screen", () => {
     expect(formatWorked(59_000)).toBe("less than a minute")
     expect(formatWorked(elapsedMs("2026-11-11T08:00:00Z", "2026-11-11T15:30:00Z"))).toBe("7 h 30 min")
     expect(formatWorked(elapsedMs("2026-10-24T20:00:00Z", "2026-10-25T05:00:00Z"))).toBe("9 h")
+  })
+
+  it("test_it_formats_worked_time_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    expect(formatWorked(59_000)).toBe("mniej niż minuta")
+    expect(formatWorked(elapsedMs("2026-11-11T08:00:00Z", "2026-11-11T15:30:00Z"))).toBe("7 godz. 30 min")
   })
 
   it("test_it_formats_the_running_timer", () => {

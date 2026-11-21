@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { type ApiClient, type components, unwrap, violationsOf } from "@business-tool/api-client"
 import { CircleAlertIcon, MailCheckIcon } from "lucide-react"
+import { Trans, useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
@@ -27,6 +28,7 @@ export interface ForgotPasswordFormProps {
  * form: it never tells who signs in here.
  */
 export function ForgotPasswordForm({ api, app }: ForgotPasswordFormProps) {
+  const { t } = useTranslation()
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
@@ -35,18 +37,30 @@ export function ForgotPasswordForm({ api, app }: ForgotPasswordFormProps) {
     return (
       <Alert>
         <MailCheckIcon />
-        <AlertTitle>Check your e-mail</AlertTitle>
+        <AlertTitle>{t("password.forgot.sentTitle")}</AlertTitle>
         <AlertDescription className="text-pretty">
           <p>
-            If <span className="font-medium text-foreground break-all">{sentTo}</span> has an account, we've sent it a
-            link to set a new password. The link works once and only for a short time.
+            <Trans
+              t={t}
+              i18nKey="password.forgot.sentDescription"
+              values={{ email: sentTo }}
+              components={{ email: <span className="font-medium text-foreground break-all" /> }}
+            />
           </p>
           <p>
-            Nothing arrived? Check the spam folder, or{" "}
-            <button type="button" className="underline underline-offset-3 hover:text-foreground" onClick={() => setSentTo(null)}>
-              try again
-            </button>
-            .
+            <Trans
+              t={t}
+              i18nKey="password.forgot.nothingArrived"
+              components={{
+                retry: (
+                  <button
+                    type="button"
+                    className="underline underline-offset-3 hover:text-foreground"
+                    onClick={() => setSentTo(null)}
+                  />
+                ),
+              }}
+            />
           </p>
         </AlertDescription>
       </Alert>
@@ -57,7 +71,7 @@ export function ForgotPasswordForm({ api, app }: ForgotPasswordFormProps) {
     event.preventDefault()
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim()
     if (email === "") {
-      setErrors({ email: "Enter the e-mail address you sign in with." })
+      setErrors({ email: t("password.forgot.emailMissing") })
       return
     }
 
@@ -82,7 +96,7 @@ export function ForgotPasswordForm({ api, app }: ForgotPasswordFormProps) {
     <form onSubmit={onSubmit} noValidate>
       <FieldGroup>
         <Field data-invalid={errors.email ? true : undefined}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel htmlFor="email">{t("common.email")}</FieldLabel>
           <Input
             id="email"
             name="email"
@@ -102,7 +116,7 @@ export function ForgotPasswordForm({ api, app }: ForgotPasswordFormProps) {
           </Alert>
         )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Sending…" : "Send me a link"}
+          {pending ? t("common.sending") : t("password.forgot.submit")}
         </Button>
       </FieldGroup>
     </form>

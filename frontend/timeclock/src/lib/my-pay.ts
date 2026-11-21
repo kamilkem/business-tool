@@ -1,7 +1,9 @@
 import { formatDuration } from "@business-tool/ui/lib/date-time"
 
+import { i18n } from "../i18n"
+
 import type { MyPay } from "./queries"
-import { shiftCount } from "./my-shifts"
+import { inShifts } from "./my-shifts"
 
 /** Whole minutes of a length in seconds, for `formatDuration()`: 2 h 29 min 59 s is "2 h 29 min". */
 export function minutesOf(seconds: number): number {
@@ -10,13 +12,12 @@ export function minutesOf(seconds: number): number {
 
 /** "Estimated pay" or "Approved pay": an estimate is never shown as if it were what will be paid. */
 export function payHeading(pay: MyPay): string {
-  return pay.status === "approved" ? "Approved pay" : "Estimated pay"
+  return i18n.t(pay.status === "approved" ? "pay.approvedHeading" : "pay.estimatedHeading", { ns: "timeclock" })
 }
 
 /** What the amount is, in a sentence under it. */
 export function payExplanation(pay: MyPay): string {
-  if (pay.status === "approved") return "Gross, as approved for payroll."
-  return "Gross, from your finished shifts so far at your rate. The approved amount can differ: hours may be rounded, and bonuses or advances are added then."
+  return i18n.t(pay.status === "approved" ? "pay.approvedExplanation" : "pay.estimateExplanation", { ns: "timeclock" })
 }
 
 /**
@@ -25,17 +26,14 @@ export function payExplanation(pay: MyPay): string {
  */
 export function noRateNotice(pay: MyPay): string | null {
   if (pay.shiftsWithoutRate === 0) return null
-  const which =
-    pay.shiftsWithoutRate === pay.shifts
-      ? "No pay rate is set for you yet, so this shows no pay."
-      : `No pay rate is set for ${shiftCount(pay.shiftsWithoutRate)}, so ${pay.shiftsWithoutRate === 1 ? "it isn't" : "they aren't"} counted.`
-  return `${which} Ask your manager to set your rate.`
+  if (pay.shiftsWithoutRate === pay.shifts) return i18n.t("pay.noRate", { ns: "timeclock" })
+  return i18n.t("pay.someWithoutRate", { ns: "timeclock", count: pay.shiftsWithoutRate })
 }
 
 /** "in 3 shifts", or the paid time when the approved run rounded it: "paid 7 h 30 min (rounded)". */
 export function hoursDetail(pay: MyPay): string {
-  if (pay.shifts === 0) return "No finished shifts"
-  const shifts = `in ${shiftCount(pay.shifts)}`
+  if (pay.shifts === 0) return i18n.t("common.noFinishedShifts", { ns: "timeclock" })
+  const shifts = inShifts(pay.shifts)
   if (pay.paidSeconds === pay.seconds) return shifts
-  return `${shifts} · paid ${formatDuration(minutesOf(pay.paidSeconds))} (rounded)`
+  return i18n.t("pay.paidRounded", { ns: "timeclock", shifts, duration: formatDuration(minutesOf(pay.paidSeconds)) })
 }

@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { i18n } from "../i18n"
 
 import { hoursDetail, minutesOf, noRateNotice, payExplanation, payHeading } from "./my-pay"
 import type { MyPay } from "./queries"
+
+afterEach(async () => {
+  await i18n.changeLanguage("en")
+})
 
 function pay(overrides: Partial<MyPay>): MyPay {
   return {
@@ -75,6 +81,29 @@ describe("hoursDetail", () => {
   it("test_it_shows_the_paid_time_when_an_approved_run_rounded_it", () => {
     expect(hoursDetail(pay({ status: "approved", shifts: 1, seconds: 4_200, paidSeconds: 5_400 }))).toBe(
       "in 1 shift · paid 1 h 30 min (rounded)",
+    )
+  })
+})
+
+describe("in Polish", () => {
+  it("test_it_counts_the_shifts_left_out_with_polish_plurals", async () => {
+    await i18n.changeLanguage("pl")
+    expect(noRateNotice(pay({ shiftsWithoutRate: 1 }))).toBe(
+      "1 zmiana nie ma stawki, więc nie jest wliczona. Poproś przełożonego o ustawienie stawki.",
+    )
+    expect(noRateNotice(pay({ shiftsWithoutRate: 2 }))).toBe(
+      "2 zmiany nie mają stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
+    )
+    expect(noRateNotice(pay({ shifts: 6, shiftsWithoutRate: 5 }))).toBe(
+      "5 zmian nie ma stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
+    )
+  })
+
+  it("test_it_shows_the_rounded_paid_time_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    expect(payHeading(pay({}))).toBe("Szacowana wypłata")
+    expect(hoursDetail(pay({ status: "approved", shifts: 1, seconds: 4_200, paidSeconds: 5_400 }))).toBe(
+      "z 1 zmiany · płatne 1 godz. 30 min (po zaokrągleniu)",
     )
   })
 })

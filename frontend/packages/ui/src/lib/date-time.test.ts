@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { i18n } from "../i18n/i18n"
 
 import {
   addDays,
@@ -298,5 +300,25 @@ describe("wall-clock times in the organization's time zone", () => {
     for (const date of instantsAt({ date: "2026-10-25", time: "02:30" }, WARSAW)) {
       expect(new Date(toZonedIsoString(date, WARSAW)).getTime()).toBe(date.getTime())
     }
+  })
+})
+
+describe("in Polish", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en")
+  })
+
+  it("test_it_writes_durations_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    expect(formatDuration(450)).toBe("7 godz. 30 min")
+    expect(formatDuration(480)).toBe("8 godz.")
+    expect(formatDuration(45)).toBe("45 min")
+  })
+
+  it("test_it_explains_an_unusable_period_with_polish_plurals", async () => {
+    await i18n.changeLanguage("pl")
+    expect(periodError({ from: "", to: "2026-11-30" })).toBe("Podaj obie daty.")
+    expect(periodError({ from: "2026-01-01", to: "2026-04-03" }, 92)).toBe("Wybierz najwyżej 92 dni.")
+    expect(periodError({ from: "2026-01-01", to: "2026-01-03" }, 1)).toBe("Wybierz najwyżej 1 dzień.")
   })
 })

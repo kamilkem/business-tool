@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from "react"
 import { cn } from "cn"
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "./button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "./field"
@@ -26,9 +27,10 @@ interface PeriodPickerProps {
  * "This month" is the month in the organization's time zone, not the browser's.
  */
 export function PeriodPicker({ value, onChange, maxDays, className }: PeriodPickerProps) {
+  const { t } = useTranslation()
   const format = useDateTimeFormat()
   const [open, setOpen] = useState(false)
-  const unit = isWholeMonth(value) ? "month" : "period"
+  const month = isWholeMonth(value)
 
   function choose(period: BusinessPeriod) {
     onChange(period)
@@ -39,8 +41,8 @@ export function PeriodPicker({ value, onChange, maxDays, className }: PeriodPick
   const lastMonth = monthOf(addDays(thisMonth.from, -1))
 
   return (
-    <div className={cn("flex items-center gap-1", className)} role="group" aria-label="Period">
-      <Button variant="outline" size="icon" onClick={() => onChange(shiftPeriod(value, -1))} aria-label={`Previous ${unit}`}>
+    <div className={cn("flex items-center gap-1", className)} role="group" aria-label={t("period.label")}>
+      <Button variant="outline" size="icon" onClick={() => onChange(shiftPeriod(value, -1))} aria-label={month ? t("period.previousMonth") : t("period.previousPeriod")}>
         <ChevronLeftIcon />
       </Button>
       <Popover open={open} onOpenChange={setOpen}>
@@ -53,10 +55,10 @@ export function PeriodPicker({ value, onChange, maxDays, className }: PeriodPick
         <PopoverContent align="start" className="w-80">
           <div className="grid grid-cols-2 gap-2">
             <Button variant="secondary" onClick={() => choose(thisMonth)}>
-              This month
+              {t("period.thisMonth")}
             </Button>
             <Button variant="secondary" onClick={() => choose(lastMonth)}>
-              Last month
+              {t("period.lastMonth")}
             </Button>
           </div>
           <Separator />
@@ -64,7 +66,7 @@ export function PeriodPicker({ value, onChange, maxDays, className }: PeriodPick
           {open && <CustomRange value={value} maxDays={maxDays} onApply={choose} />}
         </PopoverContent>
       </Popover>
-      <Button variant="outline" size="icon" onClick={() => onChange(shiftPeriod(value, 1))} aria-label={`Next ${unit}`}>
+      <Button variant="outline" size="icon" onClick={() => onChange(shiftPeriod(value, 1))} aria-label={month ? t("period.nextMonth") : t("period.nextPeriod")}>
         <ChevronRightIcon />
       </Button>
     </div>
@@ -80,6 +82,7 @@ function CustomRange({
   maxDays?: number
   onApply: (period: BusinessPeriod) => void
 }) {
+  const { t } = useTranslation()
   const id = useId()
   const [from, setFrom] = useState(value.from)
   const [to, setTo] = useState(value.to)
@@ -100,16 +103,16 @@ function CustomRange({
       <FieldGroup className="gap-3">
         <div className="grid grid-cols-2 gap-2">
           <Field>
-            <FieldLabel htmlFor={`${id}-from`}>From</FieldLabel>
+            <FieldLabel htmlFor={`${id}-from`}>{t("period.from")}</FieldLabel>
             <Input id={`${id}-from`} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
           </Field>
           <Field>
-            <FieldLabel htmlFor={`${id}-to`}>To</FieldLabel>
+            <FieldLabel htmlFor={`${id}-to`}>{t("period.to")}</FieldLabel>
             <Input id={`${id}-to`} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </Field>
         </div>
         {error && <FieldError>{error}</FieldError>}
-        <Button type="submit">Show these dates</Button>
+        <Button type="submit">{t("period.apply")}</Button>
       </FieldGroup>
     </form>
   )

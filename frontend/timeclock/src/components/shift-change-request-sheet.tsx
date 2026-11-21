@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { ApiError, unwrap, violationsOf } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@business-tool/ui/components/button"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@business-tool/ui/components/field"
@@ -79,6 +80,7 @@ function RequestForm({
   target,
   onSent,
 }: Omit<ShiftChangeRequestSheetProps, "target" | "onClose"> & { target: ShiftChangeRequestTarget }) {
+  const { t } = useTranslation("timeclock")
   const queryClient = useQueryClient()
   const format = useDateTimeFormat()
   const timeZone = format.timeZone
@@ -151,18 +153,18 @@ function RequestForm({
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col">
       <SheetHeader className="pr-12">
-        <SheetTitle>{shift ? "Ask for new times" : "Add a missing shift"}</SheetTitle>
+        <SheetTitle>{shift ? t("request.askForNewTimes") : t("request.addMissing")}</SheetTitle>
         <SheetDescription>
           {shift
-            ? `Your shift ${timeRange(format, shift.startedAt, shift.endedAt)}. A manager changes it when they approve.`
-            : "A shift you worked but did not clock. A manager adds it when they approve."}{" "}
-          Times in {timeZone.replaceAll("_", " ")}.
+            ? t("request.newTimesDescription", { range: timeRange(format, shift.startedAt, shift.endedAt) })
+            : t("request.missingDescription")}{" "}
+          {t("request.timesIn", { timeZone: timeZone.replaceAll("_", " ") })}
         </SheetDescription>
       </SheetHeader>
       <fieldset disabled={pending} className="px-4">
         <FieldGroup className="gap-5">
           <ShiftMomentField
-            label="Clock-in"
+            label={t("request.clockIn")}
             name="start"
             value={values.start}
             error={fieldErrors.startedAt}
@@ -170,34 +172,34 @@ function RequestForm({
             onChange={(start) => update({ start })}
           />
           <ShiftMomentField
-            label="Clock-out"
+            label={t("request.clockOut")}
             name="end"
             value={values.end}
             error={fieldErrors.endedAt}
             timeZone={timeZone}
             description={
               wasOpen
-                ? "Leave empty if you are still at work."
+                ? t("request.stillAtWork")
                 : !endDateSet && values.end.date !== values.start.date && values.end.date !== ""
-                  ? "The next day: the clock-out is not after the clock-in."
+                  ? t("request.nextDay")
                   : undefined
             }
             onChange={(end, dateChanged) => update({ end }, dateChanged)}
           />
           <Field data-invalid={fieldErrors.note ? true : undefined}>
-            <FieldLabel htmlFor="request-note">Why</FieldLabel>
+            <FieldLabel htmlFor="request-note">{t("request.why")}</FieldLabel>
             <Textarea
               id="request-note"
               value={values.note}
               maxLength={NOTE_MAX_LENGTH}
-              placeholder={shift ? "e.g. I forgot to clock out" : "e.g. My phone was dead"}
+              placeholder={shift ? t("request.whyNewTimesPlaceholder") : t("request.whyMissingPlaceholder")}
               aria-invalid={fieldErrors.note ? true : undefined}
               onChange={(e) => update({ note: e.target.value })}
             />
             {fieldErrors.note ? (
               <FieldError>{fieldErrors.note}</FieldError>
             ) : (
-              <FieldDescription>Your manager sees this.</FieldDescription>
+              <FieldDescription>{t("request.managerSees")}</FieldDescription>
             )}
           </Field>
           {formError && (
@@ -209,7 +211,7 @@ function RequestForm({
       </fieldset>
       <SheetFooter>
         <Button type="submit" className="h-11" disabled={pending}>
-          {pending ? "Sending…" : "Send request"}
+          {pending ? t("request.sending") : t("request.send")}
         </Button>
       </SheetFooter>
     </form>

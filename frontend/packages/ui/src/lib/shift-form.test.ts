@@ -1,6 +1,8 @@
 import { createDateTimeFormat } from "./date-time"
 import { describe, expect, it } from "vitest"
 
+import { i18n } from "../i18n/i18n"
+
 import {
   addShiftBody,
   correctShiftBody,
@@ -235,6 +237,19 @@ describe("requesting a missing shift", () => {
       ok: false,
       errors: { endedAt: "The clock-out must be after the clock-in." },
     })
+  })
+
+  it("test_it_explains_what_is_missing_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    try {
+      const values = { userId: "", start: at("2026-11-10", "22:00"), end: at("", ""), note: "  " }
+      expect(missingShiftRequestBody(values, WARSAW, format)).toEqual({
+        ok: false,
+        errors: { endedAt: "Podaj datę zakończenia.", note: "Napisz dlaczego, dla osoby, która rozpatrzy prośbę." },
+      })
+    } finally {
+      await i18n.changeLanguage("en")
+    }
   })
 })
 

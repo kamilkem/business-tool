@@ -10,6 +10,8 @@
  * `useOrganizationTimeZone()` / `useDateTimeFormat()` (`hooks/use-organization-time-zone`).
  */
 
+import { i18n } from "../i18n/i18n"
+
 /** An instant from the API (ISO 8601, e.g. "2026-11-11T13:02:00+00:00") or a `Date`. */
 export type Instant = string | Date
 
@@ -135,9 +137,9 @@ export function dayCount(period: BusinessPeriod): number {
 
 /** Why a period typed by a person can't be used (as a sentence), or null when it can. */
 export function periodError(period: BusinessPeriod, maxDays?: number): string | null {
-  if (!isBusinessDate(period.from) || !isBusinessDate(period.to)) return "Enter both dates."
-  if (period.to < period.from) return "The end date is before the start date."
-  if (maxDays !== undefined && dayCount(period) > maxDays) return `Choose at most ${maxDays} days.`
+  if (!isBusinessDate(period.from) || !isBusinessDate(period.to)) return i18n.t("period.error.bothDates")
+  if (period.to < period.from) return i18n.t("period.error.endBeforeStart")
+  if (maxDays !== undefined && dayCount(period) > maxDays) return i18n.t("period.error.tooLong", { count: maxDays })
   return null
 }
 
@@ -166,13 +168,16 @@ export function periodContains(period: BusinessPeriod, date: BusinessDate): bool
 
 // --- Durations --------------------------------------------------------------------------------
 
-/** "7 h 30 min", "45 min", "8 h", "0 min" for whole minutes (e.g. a shift's `durationMinutes`). */
+/**
+ * "7 h 30 min", "45 min", "8 h", "0 min" for whole minutes (e.g. a shift's `durationMinutes`), in the
+ * language shown ("7 godz. 30 min" in Polish).
+ */
 export function formatDuration(minutes: number): string {
   const total = Math.max(0, Math.floor(minutes))
   const hours = Math.floor(total / 60)
   const rest = total % 60
-  if (hours === 0) return `${rest} min`
-  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`
+  if (hours === 0) return i18n.t("duration.minutes", { minutes: rest })
+  return rest === 0 ? i18n.t("duration.hours", { hours }) : i18n.t("duration.hoursMinutes", { hours, minutes: rest })
 }
 
 /** Whole minutes between two instants, never negative. */

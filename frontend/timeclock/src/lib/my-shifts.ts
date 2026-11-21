@@ -1,6 +1,8 @@
 import { monthOf, type BusinessPeriod, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 import type { Shift } from "@business-tool/ui/lib/shifts"
 
+import { i18n } from "../i18n"
+
 /** A calendar month in the search params, "YYYY-MM". */
 export type Month = string
 
@@ -36,7 +38,7 @@ export function monthKey(period: BusinessPeriod): Month {
  */
 export function shiftHours(format: DateTimeFormat, shift: Shift): string {
   const start = format.time(shift.startedAt)
-  if (shift.endedAt === null) return `${start} – now`
+  if (shift.endedAt === null) return i18n.t("shifts.untilNow", { ns: "timeclock", start })
   const end = format.time(shift.endedAt)
   if (format.dateOf(shift.endedAt) === shift.date) return `${start} – ${end}`
   return `${start} – ${format.date(shift.endedAt, { weekday: "short" })} ${end}`
@@ -49,12 +51,13 @@ export function shiftHours(format: DateTimeFormat, shift: Shift): string {
  */
 export function shiftChange(format: DateTimeFormat, shift: Shift, myUserId: string): string | null {
   if (shift.source === "clock" && shift.correctedAt === null) return null
-  const who = shift.correctedBy === myUserId ? "you" : "a manager"
-  const what = shift.source === "manager" ? "Entered" : "Changed"
-  return shift.correctedAt === null ? `${what} by ${who}` : `${what} by ${who} on ${format.dateTime(shift.correctedAt)}`
+  const who = shift.correctedBy === myUserId ? "You" : "Manager"
+  const what = shift.source === "manager" ? "entered" : "changed"
+  if (shift.correctedAt === null) return i18n.t(`shifts.change.${what}By${who}`, { ns: "timeclock" })
+  return i18n.t(`shifts.change.${what}By${who}On`, { ns: "timeclock", when: format.dateTime(shift.correctedAt) })
 }
 
-/** "1 shift", "12 shifts". */
-export function shiftCount(count: number): string {
-  return count === 1 ? "1 shift" : `${count} shifts`
+/** "in 1 shift", "in 12 shifts" ("z 12 zmian"), under a total of worked time. */
+export function inShifts(count: number): string {
+  return i18n.t("common.inShifts", { ns: "timeclock", count })
 }

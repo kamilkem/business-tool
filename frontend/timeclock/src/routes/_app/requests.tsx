@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { ArrowLeftIcon, CircleAlertIcon, LoaderCircleIcon } from "lucide-react"
+import { Trans, useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
 import { Badge } from "@business-tool/ui/components/badge"
@@ -13,11 +14,11 @@ import { cn } from "@business-tool/ui/lib/utils"
 
 import { myShiftChangeRequestsQuery } from "@/lib/queries"
 import {
-  STATUS_LABEL,
   type ShiftChangeRequest,
   previousTimes,
   requestTitle,
   requestWhen,
+  statusLabel,
   timeRange,
 } from "@/lib/shift-change-requests"
 
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_app/requests")({
 
 /** The signed-in person's requests to change their shifts, newest first, with how they were decided. */
 function MyRequestsScreen() {
+  const { t } = useTranslation("timeclock")
   const { me, membership } = Route.useRouteContext()
   const format = useDateTimeFormat()
 
@@ -37,23 +39,24 @@ function MyRequestsScreen() {
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-3 px-4 pb-4">
       <div className="flex items-center gap-1">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-11">
-          <Link to="/shifts" aria-label="Back to my shifts">
+          <Link to="/shifts" aria-label={t("requests.backToShifts")}>
             <ArrowLeftIcon />
           </Link>
         </Button>
-        <h1 className="text-lg font-semibold">My requests</h1>
+        <h1 className="text-lg font-semibold">{t("requests.title")}</h1>
       </div>
 
       <Requests organizationId={membership.organization.id} userId={me.id} />
 
       {format.timeZone !== browserTimeZone() && (
-        <p className="text-center text-xs text-muted-foreground">Times in {format.timeZone.replaceAll("_", " ")}</p>
+        <p className="text-center text-xs text-muted-foreground">{t("common.timesIn", { timeZone: format.timeZone.replaceAll("_", " ") })}</p>
       )}
     </main>
   )
 }
 
 function Requests({ organizationId, userId }: { organizationId: string; userId: string }) {
+  const { t } = useTranslation("timeclock")
   const requests = useQuery(myShiftChangeRequestsQuery(organizationId, userId))
 
   if (requests.isPending) {
@@ -74,7 +77,7 @@ function Requests({ organizationId, userId }: { organizationId: string; userId: 
         </Alert>
         <Button variant="outline" className="h-11" onClick={() => requests.refetch()} disabled={requests.isFetching}>
           {requests.isFetching && <LoaderCircleIcon className="animate-spin" />}
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     )
@@ -83,11 +86,11 @@ function Requests({ organizationId, userId }: { organizationId: string; userId: 
   if (requests.data.length === 0) {
     return (
       <p className="py-6 text-center text-muted-foreground">
-        No requests yet. Ask for a change from{" "}
-        <Link to="/shifts" className="underline underline-offset-4">
-          My shifts
-        </Link>
-        .
+        <Trans
+          t={t}
+          i18nKey="requests.none"
+          components={{ shifts: <Link to="/shifts" className="underline underline-offset-4" /> }}
+        />
       </p>
     )
   }
@@ -108,6 +111,7 @@ const STATUS_CLASS: Record<ShiftChangeRequest["status"], string> = {
 }
 
 function RequestItem({ request }: { request: ShiftChangeRequest }) {
+  const { t } = useTranslation("timeclock")
   const format = useDateTimeFormat()
   const before = previousTimes(format, request)
 
@@ -115,13 +119,13 @@ function RequestItem({ request }: { request: ShiftChangeRequest }) {
     <li className="rounded-xl border bg-card px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <span className="font-medium">{requestTitle(request)}</span>
-        <Badge className={cn("border-transparent", STATUS_CLASS[request.status])}>{STATUS_LABEL[request.status]}</Badge>
+        <Badge className={cn("border-transparent", STATUS_CLASS[request.status])}>{statusLabel(request.status)}</Badge>
       </div>
       <div className="text-sm tabular-nums">{timeRange(format, request.startedAt, request.endedAt)}</div>
       {before && <div className="text-sm tabular-nums text-muted-foreground">{before}</div>}
       <p className="mt-1 text-sm break-words text-muted-foreground">{request.note}</p>
       {request.status === "rejected" && request.rejectionReason && (
-        <p className="mt-1 text-sm break-words text-destructive">Reason: {request.rejectionReason}</p>
+        <p className="mt-1 text-sm break-words text-destructive">{t("requests.rejectionReason", { reason: request.rejectionReason })}</p>
       )}
       <div className="mt-1 text-xs text-muted-foreground">{requestWhen(format, request)}</div>
     </li>

@@ -1,10 +1,23 @@
 import { createDateTimeFormat } from "@business-tool/ui/lib/date-time"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
-import { type ShiftChangeRequest, previousTimes, requestTitle, requestWhen, timeRange } from "./shift-change-requests"
+import { i18n } from "../i18n"
+
+import {
+  type ShiftChangeRequest,
+  previousTimes,
+  requestTitle,
+  requestWhen,
+  statusLabel,
+  timeRange,
+} from "./shift-change-requests"
 
 // The tests run with TZ=America/New_York (vitest.config.mts); the bar is in Warsaw.
 const warsaw = createDateTimeFormat("Europe/Warsaw", "en-GB")
+
+afterEach(async () => {
+  await i18n.changeLanguage("en")
+})
 
 function request(overrides: Partial<ShiftChangeRequest> = {}): ShiftChangeRequest {
   return {
@@ -71,6 +84,21 @@ describe("requests", () => {
     )
     expect(requestWhen(warsaw, request({ status: "rejected", decidedAt: "2026-11-12T08:00:00+00:00" }))).toBe(
       "Rejected 12 Nov 2026, 09:00",
+    )
+  })
+})
+
+describe("in Polish", () => {
+  const warsawPl = createDateTimeFormat("Europe/Warsaw", "pl-PL")
+
+  it("test_it_describes_a_request_in_polish", async () => {
+    await i18n.changeLanguage("pl")
+    expect(requestTitle(request())).toBe("Nowe godziny")
+    expect(statusLabel("pending")).toBe("Oczekuje")
+    expect(previousTimes(warsawPl, request())).toBe("Teraz: wt., 10 lis, 22:00 – 02:00")
+    expect(timeRange(warsawPl, "2026-11-10T21:00:00Z", null)).toBe("wt., 10 lis, 22:00 – otwarta")
+    expect(requestWhen(warsawPl, request({ status: "rejected", decidedAt: "2026-11-12T08:00:00+00:00" }))).toBe(
+      "Odrzucona 12 lis 2026, 09:00",
     )
   })
 })

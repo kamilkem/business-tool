@@ -1,1 +1,146 @@
-{}
+{
+  "app": {
+    "name": "Timeclock"
+  },
+  "common": {
+    "backToClock": "Wróć do zegara",
+    "backToSignIn": "Wróć do logowania",
+    "tryAgain": "Spróbuj ponownie",
+    "timesIn": "Godziny w strefie {{timeZone}}",
+    "month": "Miesiąc",
+    "previousMonth": "Poprzedni miesiąc",
+    "nextMonth": "Następny miesiąc",
+    "noFinishedShifts": "Brak zakończonych zmian",
+    "inShifts_one": "z {{count}} zmiany",
+    "inShifts_few": "z {{count}} zmian",
+    "inShifts_many": "z {{count}} zmian",
+    "inShifts_other": "z {{count}} zmiany",
+    "openShiftAddedLater": "Bieżąca zmiana zostanie doliczona, gdy ją zakończysz."
+  },
+  "layout": {
+    "account": "Konto",
+    "noOrganization": "Brak organizacji",
+    "signOut": "Wyloguj się",
+    "notAMember": "Nie należysz do żadnej organizacji, więc nie masz gdzie rozpocząć zmiany. Poproś przełożonego o dodanie."
+  },
+  "login": {
+    "description": "Zaloguj się, aby rejestrować swoje zmiany",
+    "passwordSet": "Hasło jest ustawione. Zaloguj się nim.",
+    "password": "Hasło",
+    "forgotPassword": "Nie pamiętasz hasła?",
+    "submit": "Zaloguj się",
+    "submitting": "Logowanie…",
+    "invalidCredentials": "Nieprawidłowy e-mail lub hasło."
+  },
+  "setPassword": {
+    "title": "Ustaw hasło",
+    "description": "Wybierz hasło, którym będziesz logować się do aplikacji Timeclock."
+  },
+  "forgotPassword": {
+    "title": "Nie pamiętasz hasła?",
+    "description": "Podaj e-mail, którym się logujesz, a wyślemy Ci link do ustawienia nowego hasła."
+  },
+  "account": {
+    "title": "Konto",
+    "changePassword": "Zmień hasło"
+  },
+  "clock": {
+    "notClockedIn": "Nie jesteś na zmianie",
+    "onShiftSince": "Na zmianie od {{time}}",
+    "timeOnShift": "Czas na zmianie",
+    "offline": "Brak internetu. Rozpoczęcie i zakończenie zmiany wymaga połączenia.",
+    "clockedOut": "Zmiana zakończona o {{time}}. Czas pracy: {{duration}}.",
+    "lessThanAMinute": "mniej niż minuta",
+    "clockIn": "Rozpocznij zmianę",
+    "clockOut": "Zakończ zmianę",
+    "clockingIn": "Rozpoczynanie zmiany…",
+    "clockingOut": "Kończenie zmiany…",
+    "myShifts": "Moje zmiany",
+    "myPay": "Moja wypłata",
+    "error": {
+      "alreadyClockedIn": "Twoja zmiana już trwa, może rozpoczęta w innej karcie lub na innym telefonie. Oto bieżąca zmiana.",
+      "notClockedIn": "Nie masz trwającej zmiany, może została zakończona w innej karcie lub na innym telefonie.",
+      "tooSoon": "Zmiana rozpoczęła się przed chwilą. Odczekaj kilka sekund i spróbuj ponownie.",
+      "noAccess": "Nie masz już dostępu do tej organizacji. Zapytaj przełożonego."
+    }
+  },
+  "shifts": {
+    "title": "Moje zmiany",
+    "total": "Suma",
+    "workedIn": "Czas pracy: {{period}}",
+    "none": "{{period}}: brak zmian.",
+    "onShift": "Na zmianie",
+    "untilNow": "{{start}} – teraz",
+    "soFar": "na razie {{duration}}",
+    "askForNewTimesFor": "Poproś o zmianę godzin: {{day}}",
+    "addMissing": "Dodaj brakującą zmianę",
+    "myRequests": "Moje prośby",
+    "change": {
+      "enteredByManager": "Wpisana przez przełożonego",
+      "enteredByManagerOn": "Wpisana przez przełożonego {{when}}",
+      "enteredByYou": "Wpisana przez Ciebie",
+      "enteredByYouOn": "Wpisana przez Ciebie {{when}}",
+      "changedByManager": "Zmieniona przez przełożonego",
+      "changedByManagerOn": "Zmieniona przez przełożonego {{when}}",
+      "changedByYou": "Zmieniona przez Ciebie",
+      "changedByYouOn": "Zmieniona przez Ciebie {{when}}"
+    }
+  },
+  "request": {
+    "askForNewTimes": "Poproś o zmianę godzin",
+    "addMissing": "Dodaj brakującą zmianę",
+    "newTimesDescription": "Twoja zmiana: {{range}}. Godziny zmienią się po zatwierdzeniu prośby.",
+    "missingDescription": "Zmiana przepracowana, ale nieodnotowana w aplikacji. Zostanie dodana po zatwierdzeniu prośby.",
+    "timesIn": "Godziny w strefie {{timeZone}}.",
+    "clockIn": "Rozpoczęcie",
+    "clockOut": "Zakończenie",
+    "stillAtWork": "Zostaw puste, jeśli nadal jesteś w pracy.",
+    "nextDay": "Następnego dnia: godzina zakończenia nie jest późniejsza niż rozpoczęcia.",
+    "why": "Powód",
+    "whyNewTimesPlaceholder": "np. zapomniane zakończenie zmiany",
+    "whyMissingPlaceholder": "np. rozładowany telefon",
+    "managerSees": "Twój przełożony to zobaczy.",
+    "send": "Wyślij prośbę",
+    "sending": "Wysyłanie…"
+  },
+  "requests": {
+    "title": "Moje prośby",
+    "backToShifts": "Wróć do moich zmian",
+    "none": "Nie masz jeszcze żadnych próśb. O zmianę możesz poprosić w zakładce <shifts>Moje zmiany</shifts>.",
+    "rejectionReason": "Powód: {{reason}}",
+    "missingShift": "Brakująca zmiana",
+    "newTimes": "Nowe godziny",
+    "open": "{{start}} – otwarta",
+    "now": "Teraz: {{range}}",
+    "sent": "Wysłana {{when}}",
+    "approvedOn": "Zatwierdzona {{when}}",
+    "rejectedOn": "Odrzucona {{when}}",
+    "status": {
+      "pending": "Oczekuje",
+      "approved": "Zatwierdzona",
+      "rejected": "Odrzucona"
+    }
+  },
+  "pay": {
+    "title": "Moja wypłata",
+    "myShiftsIn": "Moje zmiany: {{period}}",
+    "approved": "Zatwierdzona",
+    "estimate": "Szacunek",
+    "approvedHeading": "Zatwierdzona wypłata",
+    "estimatedHeading": "Szacowana wypłata",
+    "approvedExplanation": "Brutto, zgodnie z zatwierdzoną listą płac.",
+    "estimateExplanation": "Brutto, z zakończonych dotąd zmian według Twojej stawki. Zatwierdzona kwota może się różnić: godziny mogą zostać zaokrąglone, a premie i zaliczki są doliczane dopiero wtedy.",
+    "approvedOn": "Zatwierdzona {{date}}",
+    "hours": "Godziny",
+    "worked": "Czas pracy",
+    "breakdown": "Szczegóły",
+    "payForHours": "Za przepracowane godziny",
+    "total": "Razem",
+    "paidRounded": "{{shifts}} · płatne {{duration}} (po zaokrągleniu)",
+    "noRate": "Nie masz jeszcze ustawionej stawki, więc wypłata wynosi zero. Poproś przełożonego o ustawienie stawki.",
+    "someWithoutRate_one": "{{count}} zmiana nie ma stawki, więc nie jest wliczona. Poproś przełożonego o ustawienie stawki.",
+    "someWithoutRate_few": "{{count}} zmiany nie mają stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
+    "someWithoutRate_many": "{{count}} zmian nie ma stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
+    "someWithoutRate_other": "{{count}} zmiany nie ma stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki."
+  }
+}
