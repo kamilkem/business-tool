@@ -12,11 +12,11 @@ final class KsefNotAvailableException extends KsefException
 {
     public static function outsidePoland(string $countryCode): self
     {
-        return new self(\sprintf('KSeF is only available for organizations in Poland, not "%s".', $countryCode));
+        return new self(\sprintf('KSeF is only available for organizations in Poland, not "%s".', $countryCode), ['countryCode' => $countryCode], variant: __FUNCTION__);
     }
 
     public static function invalidNip(): self
     {
-        return new self('KSeF needs the organization\'s tax ID to be a valid NIP: set it in the organization\'s settings.');
+        return new self('KSeF needs the organization\'s tax ID to be a valid NIP: set it in the organization\'s settings.', [], variant: __FUNCTION__);
     }
 }

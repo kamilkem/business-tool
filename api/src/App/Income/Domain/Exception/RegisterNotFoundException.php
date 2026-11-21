@@ -9,6 +9,6 @@ final class RegisterNotFoundException extends IncomeException
 {
     public static function withId(string $registerId): self
     {
-        return new self(\sprintf('Register "%s" not found.', $registerId));
+        return new self(\sprintf('Register "%s" not found.', $registerId), ['registerId' => $registerId]);
     }
 }

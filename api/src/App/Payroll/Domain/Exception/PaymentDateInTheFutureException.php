@@ -11,6 +11,6 @@ final class PaymentDateInTheFutureException extends PayrollException
 {
     public static function date(BusinessDate $paidOn, BusinessDate $today): self
     {
-        return new self(\sprintf('The payment date %s is after today (%s).', $paidOn, $today));
+        return new self(\sprintf('The payment date %s is after today (%s).', $paidOn, $today), ['date' => $paidOn->toString(), 'today' => $today->toString()]);
     }
 }

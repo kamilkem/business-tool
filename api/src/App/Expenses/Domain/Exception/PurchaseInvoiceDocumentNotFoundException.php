@@ -9,6 +9,6 @@ final class PurchaseInvoiceDocumentNotFoundException extends ExpensesException
 {
     public static function forInvoice(string $invoiceId): self
     {
-        return new self(\sprintf('Purchase invoice "%s" has no original document.', $invoiceId));
+        return new self(\sprintf('Purchase invoice "%s" has no original document.', $invoiceId), ['invoiceId' => $invoiceId]);
     }
 }

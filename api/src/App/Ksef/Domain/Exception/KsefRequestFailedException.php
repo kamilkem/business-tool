@@ -12,24 +12,24 @@ namespace App\Ksef\Domain\Exception;
 final class KsefRequestFailedException extends KsefException
 {
     /** @param list<int> $ksefErrorCodes */
-    private function __construct(string $message, public readonly ?int $httpStatus, public readonly array $ksefErrorCodes)
+    private function __construct(string $message, public readonly ?int $httpStatus, public readonly array $ksefErrorCodes, ?string $operation, string $variant)
     {
-        parent::__construct($message);
+        parent::__construct($message, ['operation' => $operation, 'httpStatus' => $httpStatus], $variant);
     }
 
     /** @param list<int> $ksefErrorCodes */
     public static function unexpectedStatus(string $what, int $httpStatus, string $detail, array $ksefErrorCodes): self
     {
-        return new self(\sprintf('KSeF %s answered %d: %s', $what, $httpStatus, $detail), $httpStatus, $ksefErrorCodes);
+        return new self(\sprintf('KSeF %s answered %d: %s', $what, $httpStatus, $detail), $httpStatus, $ksefErrorCodes, $what, __FUNCTION__);
     }
 
     public static function malformedResponse(string $what, string $reason): self
     {
-        return new self(\sprintf('KSeF %s returned an unreadable response: %s', $what, $reason), null, []);
+        return new self(\sprintf('KSeF %s returned an unreadable response: %s', $what, $reason), null, [], $what, __FUNCTION__);
     }
 
     public static function noTokenEncryptionKey(): self
     {
-        return new self('KSeF offers no valid public key with the usage KsefTokenEncryption.', null, []);
+        return new self('KSeF offers no valid public key with the usage KsefTokenEncryption.', null, [], null, __FUNCTION__);
     }
 }

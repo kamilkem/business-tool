@@ -9,6 +9,6 @@ final class PurchaseInvoiceNotFoundException extends ExpensesException
 {
     public static function withId(string $invoiceId): self
     {
-        return new self(\sprintf('Purchase invoice "%s" not found.', $invoiceId));
+        return new self(\sprintf('Purchase invoice "%s" not found.', $invoiceId), ['invoiceId' => $invoiceId]);
     }
 }

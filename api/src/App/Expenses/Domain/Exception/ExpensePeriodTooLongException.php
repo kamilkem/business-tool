@@ -11,6 +11,6 @@ final class ExpensePeriodTooLongException extends ExpensesException
 {
     public static function of(BusinessPeriod $period, int $maxDays): self
     {
-        return new self(\sprintf('The period has %d days; at most %d are allowed.', $period->dayCount(), $maxDays));
+        return new self(\sprintf('The period has %d days; at most %d are allowed.', $period->dayCount(), $maxDays), ['from' => $period->first->toString(), 'to' => $period->last->toString(), 'days' => $period->dayCount(), 'maxDays' => $maxDays]);
     }
 }

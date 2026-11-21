@@ -13,17 +13,17 @@ final class KsefUnavailableException extends KsefException
 {
     public static function afterRetries(string $what, int $attempts, string $lastError): self
     {
-        return new self(\sprintf('KSeF %s failed after %d attempts: %s', $what, $attempts, $lastError));
+        return new self(\sprintf('KSeF %s failed after %d attempts: %s', $what, $attempts, $lastError), ['operation' => $what, 'attempts' => $attempts], variant: __FUNCTION__);
     }
 
     public static function authenticationNotFinished(int $polls): self
     {
-        return new self(\sprintf('KSeF authentication was still in progress after %d status checks.', $polls));
+        return new self(\sprintf('KSeF authentication was still in progress after %d status checks.', $polls), ['polls' => $polls], variant: __FUNCTION__);
     }
 
     /** @param list<string> $details */
     public static function authenticationCancelled(int $statusCode, string $description, array $details): self
     {
-        return new self(\sprintf('KSeF could not finish the authentication (status %d: %s%s).', $statusCode, $description, [] === $details ? '' : '; '.implode('; ', $details)));
+        return new self(\sprintf('KSeF could not finish the authentication (status %d: %s%s).', $statusCode, $description, [] === $details ? '' : '; '.implode('; ', $details)), ['statusCode' => $statusCode], variant: __FUNCTION__);
     }
 }

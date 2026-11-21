@@ -9,6 +9,6 @@ final class RegisterNameTakenException extends IncomeException
 {
     public static function of(string $name): self
     {
-        return new self(\sprintf('The organization already has a register named "%s".', $name));
+        return new self(\sprintf('The organization already has a register named "%s".', $name), ['name' => $name]);
     }
 }

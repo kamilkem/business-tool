@@ -9,11 +9,11 @@ final class PayrollRunStatusException extends PayrollException
 {
     public static function notDraft(string $id): self
     {
-        return new self(\sprintf('Payroll run "%s" is approved: reopen it first.', $id));
+        return new self(\sprintf('Payroll run "%s" is approved: reopen it first.', $id), ['runId' => $id], variant: __FUNCTION__);
     }
 
     public static function notApproved(string $id): self
     {
-        return new self(\sprintf('Payroll run "%s" is a draft, not an approved run.', $id));
+        return new self(\sprintf('Payroll run "%s" is a draft, not an approved run.', $id), ['runId' => $id], variant: __FUNCTION__);
     }
 }

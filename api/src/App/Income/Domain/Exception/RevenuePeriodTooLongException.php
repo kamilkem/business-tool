@@ -17,6 +17,6 @@ final class RevenuePeriodTooLongException extends IncomeException
             $period->first,
             $period->last,
             $period->dayCount(),
-        ));
+        ), ['from' => $period->first->toString(), 'to' => $period->last->toString(), 'days' => $period->dayCount(), 'maxDays' => $maxDays]);
     }
 }

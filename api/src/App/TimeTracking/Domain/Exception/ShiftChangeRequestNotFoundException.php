@@ -9,6 +9,6 @@ final class ShiftChangeRequestNotFoundException extends TimeTrackingException
 {
     public static function withId(string $requestId): self
     {
-        return new self(\sprintf('Shift change request "%s" not found.', $requestId));
+        return new self(\sprintf('Shift change request "%s" not found.', $requestId), ['requestId' => $requestId]);
     }
 }

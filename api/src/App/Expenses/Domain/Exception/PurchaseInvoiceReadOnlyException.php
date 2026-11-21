@@ -12,6 +12,6 @@ final class PurchaseInvoiceReadOnlyException extends ExpensesException
 {
     public static function imported(string $invoiceId, string $source): self
     {
-        return new self(\sprintf('The expense "%s" was imported from "%s": only its category can be changed.', $invoiceId, $source));
+        return new self(\sprintf('The expense "%s" was imported from "%s": only its category can be changed.', $invoiceId, $source), ['invoiceId' => $invoiceId, 'source' => $source]);
     }
 }

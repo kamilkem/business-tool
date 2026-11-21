@@ -9,6 +9,6 @@ final class ExpenseCategoryNotFoundException extends ExpensesException
 {
     public static function withId(string $categoryId): self
     {
-        return new self(\sprintf('Expense category "%s" not found.', $categoryId));
+        return new self(\sprintf('Expense category "%s" not found.', $categoryId), ['categoryId' => $categoryId]);
     }
 }

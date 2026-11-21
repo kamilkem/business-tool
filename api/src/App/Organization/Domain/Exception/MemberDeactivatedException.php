@@ -9,6 +9,6 @@ final class MemberDeactivatedException extends OrganizationException
 {
     public static function of(string $userId, string $organizationId): self
     {
-        return new self(\sprintf('User "%s" is a deactivated member of organization "%s". Reactivate them first.', $userId, $organizationId));
+        return new self(\sprintf('User "%s" is a deactivated member of organization "%s". Reactivate them first.', $userId, $organizationId), ['userId' => $userId, 'organizationId' => $organizationId]);
     }
 }

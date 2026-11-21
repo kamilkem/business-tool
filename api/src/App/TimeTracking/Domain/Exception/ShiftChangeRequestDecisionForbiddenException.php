@@ -9,6 +9,6 @@ final class ShiftChangeRequestDecisionForbiddenException extends TimeTrackingExc
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" may not approve or reject shift change requests: only owners and managers do.', $userId));
+        return new self(\sprintf('User "%s" may not approve or reject shift change requests: only owners and managers do.', $userId), ['userId' => $userId]);
     }
 }

@@ -9,6 +9,6 @@ final class NotClockedInException extends TimeTrackingException
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" is not clocked in. Clock in first.', $userId));
+        return new self(\sprintf('User "%s" is not clocked in. Clock in first.', $userId), ['userId' => $userId]);
     }
 }

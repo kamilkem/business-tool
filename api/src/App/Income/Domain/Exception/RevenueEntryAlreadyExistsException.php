@@ -9,6 +9,6 @@ final class RevenueEntryAlreadyExistsException extends IncomeException
 {
     public static function for(string $registerId, string $businessDate): self
     {
-        return new self(\sprintf('Register "%s" already has an entry for %s.', $registerId, $businessDate));
+        return new self(\sprintf('Register "%s" already has an entry for %s.', $registerId, $businessDate), ['registerId' => $registerId, 'businessDate' => $businessDate]);
     }
 }

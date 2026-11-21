@@ -14,6 +14,6 @@ final class ShiftPeriodLockedException extends TimeTrackingException
 {
     public static function on(BusinessDate $date): self
     {
-        return new self(\sprintf('The shifts of %s are locked: that period has been settled.', $date->toString()));
+        return new self(\sprintf('The shifts of %s are locked: that period has been settled.', $date->toString()), ['date' => $date->toString()]);
     }
 }

@@ -9,6 +9,6 @@ final class OrganizationSecretNotFoundException extends SecretException
 {
     public static function withId(string $secretId): self
     {
-        return new self(\sprintf('Secret "%s" not found.', $secretId));
+        return new self(\sprintf('Secret "%s" not found.', $secretId), ['secretId' => $secretId]);
     }
 }

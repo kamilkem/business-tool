@@ -14,7 +14,7 @@ final class ShiftEndNotAfterStartException extends TimeTrackingException
             $shiftId,
             $endedAt->format(\DATE_ATOM),
             $startedAt->format(\DATE_ATOM),
-        ));
+        ), ['shiftId' => $shiftId, 'startedAt' => $startedAt->format(\DATE_ATOM), 'endedAt' => $endedAt->format(\DATE_ATOM)], variant: __FUNCTION__);
     }
 
     /** For times asked for in a shift change request, before there is a shift with them. */
@@ -24,6 +24,6 @@ final class ShiftEndNotAfterStartException extends TimeTrackingException
             'A shift cannot end at %s: it would start at %s.',
             $endedAt->format(\DATE_ATOM),
             $startedAt->format(\DATE_ATOM),
-        ));
+        ), ['startedAt' => $startedAt->format(\DATE_ATOM), 'endedAt' => $endedAt->format(\DATE_ATOM)], variant: __FUNCTION__);
     }
 }

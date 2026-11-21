@@ -11,11 +11,11 @@ final class PayRateDateTakenException extends PayrollException
 {
     public static function hourlyRate(string $userId, BusinessDate $date): self
     {
-        return new self(\sprintf('User "%s" already has an hourly rate effective from %s.', $userId, $date));
+        return new self(\sprintf('User "%s" already has an hourly rate effective from %s.', $userId, $date), ['userId' => $userId, 'date' => $date->toString()], variant: __FUNCTION__);
     }
 
     public static function dayRate(string $userId, BusinessDate $date): self
     {
-        return new self(\sprintf('User "%s" already has a day rate on %s.', $userId, $date));
+        return new self(\sprintf('User "%s" already has a day rate on %s.', $userId, $date), ['userId' => $userId, 'date' => $date->toString()], variant: __FUNCTION__);
     }
 }

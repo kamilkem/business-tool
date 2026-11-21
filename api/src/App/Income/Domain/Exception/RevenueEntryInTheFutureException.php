@@ -9,6 +9,6 @@ final class RevenueEntryInTheFutureException extends IncomeException
 {
     public static function of(string $businessDate, string $today): self
     {
-        return new self(\sprintf('The business date %s is after today (%s).', $businessDate, $today));
+        return new self(\sprintf('The business date %s is after today (%s).', $businessDate, $today), ['businessDate' => $businessDate, 'today' => $today]);
     }
 }

@@ -9,6 +9,6 @@ final class ShiftChangeRequestChangesNothingException extends TimeTrackingExcept
 {
     public static function forShift(string $shiftId): self
     {
-        return new self(\sprintf('The requested times are already shift "%s"\'s times.', $shiftId));
+        return new self(\sprintf('The requested times are already shift "%s"\'s times.', $shiftId), ['shiftId' => $shiftId]);
     }
 }

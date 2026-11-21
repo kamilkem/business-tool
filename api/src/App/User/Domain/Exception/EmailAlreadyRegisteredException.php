@@ -8,6 +8,6 @@ final class EmailAlreadyRegisteredException extends UserException
 {
     public static function forEmail(string $email): self
     {
-        return new self(\sprintf('A user with the e-mail "%s" already exists.', $email));
+        return new self(\sprintf('A user with the e-mail "%s" already exists.', $email), ['email' => $email]);
     }
 }

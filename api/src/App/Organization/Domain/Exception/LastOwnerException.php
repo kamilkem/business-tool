@@ -9,6 +9,6 @@ final class LastOwnerException extends OrganizationException
 {
     public static function of(string $organizationId): self
     {
-        return new self(\sprintf('Organization "%s" must keep at least one owner. Make another member an owner first.', $organizationId));
+        return new self(\sprintf('Organization "%s" must keep at least one owner. Make another member an owner first.', $organizationId), ['organizationId' => $organizationId]);
     }
 }

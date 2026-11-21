@@ -9,6 +9,6 @@ final class ShiftChangeRequestAlreadyDecidedException extends TimeTrackingExcept
 {
     public static function of(string $requestId, string $status): self
     {
-        return new self(\sprintf('Shift change request "%s" has already been decided: it is %s.', $requestId, $status));
+        return new self(\sprintf('Shift change request "%s" has already been decided: it is %s.', $requestId, $status), ['requestId' => $requestId, 'status' => $status]);
     }
 }

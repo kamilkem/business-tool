@@ -8,6 +8,6 @@ final class OrganizationManagementForbiddenException extends OrganizationExcepti
 {
     public static function forUser(string $userId): self
     {
-        return new self(\sprintf('User "%s" may not manage this organization. Only owners and managers can.', $userId));
+        return new self(\sprintf('User "%s" may not manage this organization. Only owners and managers can.', $userId), ['userId' => $userId]);
     }
 }

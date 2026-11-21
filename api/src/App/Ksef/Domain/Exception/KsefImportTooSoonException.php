@@ -10,15 +10,15 @@ namespace App\Ksef\Domain\Exception;
  */
 final class KsefImportTooSoonException extends KsefException
 {
-    private function __construct(string $message, public readonly \DateTimeImmutable $retryAt)
+    private function __construct(string $message, public readonly \DateTimeImmutable $retryAt, int $minutes)
     {
-        parent::__construct($message);
+        parent::__construct($message, ['retryAt' => $retryAt->format(\DATE_ATOM), 'minutes' => $minutes]);
     }
 
     public static function until(\DateTimeImmutable $retryAt, \DateTimeImmutable $now): self
     {
         $minutes = max(1, (int) ceil(($retryAt->getTimestamp() - $now->getTimestamp()) / 60));
 
-        return new self(\sprintf('A KSeF import can be started again in %d min.', $minutes), $retryAt);
+        return new self(\sprintf('A KSeF import can be started again in %d min.', $minutes), $retryAt, $minutes);
     }
 }
