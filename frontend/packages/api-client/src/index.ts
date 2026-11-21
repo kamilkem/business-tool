@@ -37,6 +37,12 @@ export interface ApiClientOptions {
    * or the retried request still got 401), after the session is cleared.
    */
   onUnauthorized?: () => void
+  /**
+   * The UI language now shown ("en", "pl"), sent as `Accept-Language` on every request so the
+   * API answers in it (validation messages; ADR 0028 §5). Read per request, so a switch applies
+   * at once.
+   */
+  language?: () => string
   /** For tests; defaults to the global fetch. */
   fetch?: typeof globalThis.fetch
 }
@@ -80,7 +86,13 @@ export function violationsOf(error: unknown): Record<string, string> {
  * runs. When it cannot reach the API, the original 401 is returned and the
  * session is kept.
  */
-export function createApiClient({ baseUrl = "", session, onUnauthorized, fetch = globalThis.fetch }: ApiClientOptions) {
+export function createApiClient({
+  baseUrl = "",
+  session,
+  onUnauthorized,
+  language,
+  fetch = globalThis.fetch,
+}: ApiClientOptions) {
   // Plain JSON (not JSON-LD) responses; requests send Accept: application/json.
   const client = createClient<paths, "application/json">({
     baseUrl,
@@ -106,6 +118,8 @@ export function createApiClient({ baseUrl = "", session, onUnauthorized, fetch =
 
   const auth: Middleware = {
     onRequest({ request, id }) {
+      // Public endpoints too: a sign-in or password form shows the API's violations.
+      if (language) request.headers.set("Accept-Language", language())
       const path = new URL(request.url, "http://localhost").pathname
       if (PUBLIC_PATHS.some((pattern) => pattern.test(path))) return request
       const { token, organizationId } = session.get()

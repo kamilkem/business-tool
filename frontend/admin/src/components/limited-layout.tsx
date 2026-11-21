@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@business-tool/ui/components/dropdown-menu"
 
+import { LanguageMenu } from "@/components/language-menu"
 import { roleLabel } from "@/lib/members"
 import { useAccountActions } from "@/lib/use-account-actions"
 
@@ -80,6 +81,7 @@ export function LimitedLayout({ children }: { children: ReactNode }) {
                 Account
               </Link>
             </DropdownMenuItem>
+            <LanguageMenu />
             <DropdownMenuItem onSelect={signOut}>
               <LogOutIcon />
               Sign out

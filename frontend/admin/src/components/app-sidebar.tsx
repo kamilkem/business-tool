@@ -34,6 +34,7 @@ import {
   SidebarMenuItem,
 } from "@business-tool/ui/components/sidebar"
 
+import { LanguageMenu } from "@/components/language-menu"
 import { can } from "@/lib/access"
 import { roleLabel } from "@/lib/members"
 import { modulesFor } from "@/lib/modules"
@@ -170,6 +171,7 @@ export function AppSidebar() {
                     Account
                   </Link>
                 </DropdownMenuItem>
+                <LanguageMenu />
                 <DropdownMenuItem onSelect={signOut}>
                   <LogOutIcon />
                   Sign out

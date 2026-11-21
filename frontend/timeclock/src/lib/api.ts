@@ -1,10 +1,13 @@
 import { ApiError, createApiClient, createSession, signInAgainUrl } from "@business-tool/api-client"
 import { QueryClient } from "@tanstack/react-query"
 
+import { currentLanguage } from "@business-tool/ui/i18n/current-language"
+
 export const session = createSession("business-tool.timeclock.session")
 
 export const api = createApiClient({
   session,
+  language: currentLanguage,
   onUnauthorized: () => {
     queryClient.clear()
     // The session ended (signed out elsewhere, password reset, or unused for

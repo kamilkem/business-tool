@@ -6,5 +6,9 @@
     "tooManyAttemptsMinutes_other": "Too many attempts. Wait {{count}} minutes and try again.",
     "serverError": "Something went wrong on our side. Try again in a moment.",
     "noConnection": "Could not reach the server. Check your connection and try again."
+  },
+  "language": {
+    "label": "Language",
+    "description": "The language of both apps. Dates and numbers are written the way it writes them."
   }
 }
