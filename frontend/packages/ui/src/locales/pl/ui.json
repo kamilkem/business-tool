@@ -170,6 +170,11 @@
         "not_draft": "Ta lista płac jest zatwierdzona: najpierw otwórz ją ponownie."
       }
     },
+    "reporting": {
+      "business_summary_forbidden": "Podsumowanie firmy widzą tylko właściciele i menedżerowie.",
+      "business_summary_month_in_the_future": "{{month}} jeszcze się nie zaczął.",
+      "business_summary_period_too_long": "Wybierz okres najwyżej {{maxMonths}} miesięcy."
+    },
     "secret": {
       "management_forbidden": "Tylko właściciele mogą zapisywać i usuwać dane dostępowe.",
       "organization_secret_not_found": "Zapisane dane dostępowe już nie istnieją. Zapisz je ponownie.",

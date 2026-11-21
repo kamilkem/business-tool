@@ -36,3 +36,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0026](0026-per-organization-secrets-encrypted-with-app-keyring.md) | Per-organization secrets are encrypted in the database with libsodium under an application keyring, in their own module, and never leave it through the API | Accepted |
 | [0027](0027-payroll-v1-hourly-gross-monthly-runs.md) | Payroll v1 is hourly pay for a calendar month, gross only: a run is generated from ended shifts, approved by an owner, and locks its shifts | Accepted |
 | [0028](0028-ui-language-per-user-with-i18next.md) | The UI speaks English and Polish: each user picks a language, i18next catalogs in the frontend, error codes from the API, e-mails in the recipient's language | Accepted |
+| [0029](0029-reporting-module-composes-module-queries.md) | The monthly business summary is a query-only `App\Reporting` module that combines other modules' queries through the bus | Accepted |

@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/business-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Income, expenses, payroll and the result of the selected organization, per month.
+         * @description Owners and managers only (403 otherwise). One entry per calendar month from `from` to `to` (in the organization's time zone), oldest first, at most 12 months. The current month is a preview (`complete: false`); a month that has not started is a 422. Amounts are integer minor units, per currency: `currencies[0]` is always the organization's current currency, also for an empty month (all 0), and other currencies follow by code. Income is the revenue entries (gross, VAT, net = gross − VAT); expenses are the purchase invoices issued in the month; payroll cost is the month's approved run only, while a draft run's total is `payrollDraftTotal`, an estimate. `result` = incomeNet − expensesNet − payrollCost.
+         */
+        get: operations["api_business-summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/day-rates": {
         parameters: {
             query?: never;
@@ -1196,6 +1216,114 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description The business figures of the organization selected by the X-Organization-Id header for each month
+         *     of a period (ADR 0029): income, expenses, payroll and the result. Owners and managers only.
+         */
+        BusinessSummary: {
+            /** @description First month of the period, `YYYY-MM`. */
+            from: string;
+            /** @description Last month of the period, inclusive, `YYYY-MM`. */
+            to: string;
+            /** @description The organization's current currency (ISO 4217), first in every month's currencies. */
+            currency: string;
+            /** @description One entry per month, oldest first. */
+            months: components["schemas"]["BusinessSummaryMonth"][];
+        };
+        /**
+         * @description The business figures of the organization selected by the X-Organization-Id header for each month
+         *     of a period (ADR 0029): income, expenses, payroll and the result. Owners and managers only.
+         */
+        "BusinessSummary.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description First month of the period, `YYYY-MM`. */
+            from: string;
+            /** @description Last month of the period, inclusive, `YYYY-MM`. */
+            to: string;
+            /** @description The organization's current currency (ISO 4217), first in every month's currencies. */
+            currency: string;
+            /** @description One entry per month, oldest first. */
+            months: components["schemas"]["BusinessSummaryMonth.jsonld"][];
+        };
+        BusinessSummaryCurrency: {
+            /** @description ISO 4217 code. */
+            currency: string;
+            /** @description The revenue total: the sum of the entries' payment lines. */
+            incomeGross: number;
+            /** @description The VAT of the revenue entries' VAT breakdown. */
+            incomeVat: number;
+            /** @description incomeGross − incomeVat. */
+            incomeNet: number;
+            /** @description The revenue entries counted. */
+            revenueEntryCount: number;
+            /** @description The gross total of the purchase invoices issued in the month; corrections count with their own, possibly negative, amounts. */
+            expensesGross: number;
+            expensesVat: number;
+            expensesNet: number;
+            /** @description The purchase invoices counted. */
+            invoiceCount: number;
+            /** @description The total of the month's approved payroll run in this currency, else 0. */
+            payrollCost: number;
+            /** @description The total of the month's draft payroll run in this currency: an estimate, not counted in the result. Null without a draft. */
+            payrollDraftTotal: number | null;
+            /** @description incomeNet − expensesNet − payrollCost. */
+            result: number;
+        };
+        "BusinessSummaryCurrency.jsonld": {
+            /** @description ISO 4217 code. */
+            currency: string;
+            /** @description The revenue total: the sum of the entries' payment lines. */
+            incomeGross: number;
+            /** @description The VAT of the revenue entries' VAT breakdown. */
+            incomeVat: number;
+            /** @description incomeGross − incomeVat. */
+            incomeNet: number;
+            /** @description The revenue entries counted. */
+            revenueEntryCount: number;
+            /** @description The gross total of the purchase invoices issued in the month; corrections count with their own, possibly negative, amounts. */
+            expensesGross: number;
+            expensesVat: number;
+            expensesNet: number;
+            /** @description The purchase invoices counted. */
+            invoiceCount: number;
+            /** @description The total of the month's approved payroll run in this currency, else 0. */
+            payrollCost: number;
+            /** @description The total of the month's draft payroll run in this currency: an estimate, not counted in the result. Null without a draft. */
+            payrollDraftTotal: number | null;
+            /** @description incomeNet − expensesNet − payrollCost. */
+            result: number;
+        };
+        BusinessSummaryMonth: {
+            /** @description `YYYY-MM`. */
+            month: string;
+            /** @description The month's first business date, `YYYY-MM-DD`. */
+            firstDate: string;
+            /** @description The month's last business date, `YYYY-MM-DD`. */
+            lastDate: string;
+            /** @description False for the current month, whose figures are a preview. */
+            complete: boolean;
+            /** @enum {string} */
+            payrollStatus: "none" | "draft" | "approved";
+            /** @description The month's payroll run, if any. */
+            payrollRunId: string | null;
+            /** @description Figures per currency: the organization's current currency first, always present; others by code. */
+            currencies: components["schemas"]["BusinessSummaryCurrency"][];
+        };
+        "BusinessSummaryMonth.jsonld": {
+            /** @description `YYYY-MM`. */
+            month: string;
+            /** @description The month's first business date, `YYYY-MM-DD`. */
+            firstDate: string;
+            /** @description The month's last business date, `YYYY-MM-DD`. */
+            lastDate: string;
+            /** @description False for the current month, whose figures are a preview. */
+            complete: boolean;
+            /** @enum {string} */
+            payrollStatus: "none" | "draft" | "approved";
+            /** @description The month's payroll run, if any. */
+            payrollRunId: string | null;
+            /** @description Figures per currency: the organization's current currency first, always present; others by code. */
+            currencies: components["schemas"]["BusinessSummaryCurrency.jsonld"][];
+        };
         /** @description Unprocessable entity */
         ConstraintViolation: {
             /** @default 422 */
@@ -3532,7 +3660,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.unknown_method" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.register_deactivated" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.unknown_method" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.register_deactivated" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -3542,6 +3670,57 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "api_business-summary_get": {
+        parameters: {
+            query: {
+                /** @description First month, inclusive (YYYY-MM). */
+                from: string;
+                /** @description Last month, inclusive (YYYY-MM); at most 12 months from the first, and not after the current month. */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description BusinessSummary resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["BusinessSummary.jsonld"];
+                    "application/json": components["schemas"]["BusinessSummary"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A month is missing or invalid, to is before from, the period is too long, or a month has not started. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "api_day-rates_get_collection": {
         parameters: {
             query?: {

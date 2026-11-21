@@ -160,6 +160,11 @@
         "not_draft": "This run is approved: reopen it first."
       }
     },
+    "reporting": {
+      "business_summary_forbidden": "Only owners and managers can see the business summary.",
+      "business_summary_month_in_the_future": "{{month}} has not started yet.",
+      "business_summary_period_too_long": "Choose a period of at most {{maxMonths}} months."
+    },
     "secret": {
       "management_forbidden": "Only owners can save or remove credentials.",
       "organization_secret_not_found": "The saved credential no longer exists. Save it again.",
