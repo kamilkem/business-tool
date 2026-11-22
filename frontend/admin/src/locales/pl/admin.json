@@ -50,7 +50,10 @@
     "pending_few": "{{count}} oczekują",
     "pending_many": "{{count}} oczekuje",
     "pending_other": "{{count}} oczekuje",
-    "modules": "Moduły",
+    "groups": {
+      "finances": "Finanse",
+      "staff": "Personel"
+    },
     "soon": "Wkrótce",
     "settings": "Ustawienia organizacji",
     "expenses": "Wydatki",

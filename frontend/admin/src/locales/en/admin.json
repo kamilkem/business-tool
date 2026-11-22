@@ -46,7 +46,10 @@
     "shiftRequestsPending_other": "Shift requests ({{count}} pending)",
     "pending_one": "{{count}} pending",
     "pending_other": "{{count}} pending",
-    "modules": "Modules",
+    "groups": {
+      "finances": "Finances",
+      "staff": "Staff"
+    },
     "soon": "Soon",
     "settings": "Organization settings",
     "expenses": "Expenses",

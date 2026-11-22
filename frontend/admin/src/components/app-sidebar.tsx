@@ -38,7 +38,7 @@ import {
 import { LanguageMenu } from "@/components/language-menu"
 import { can } from "@/lib/access"
 import { roleLabel } from "@/lib/members"
-import { modulesFor } from "@/lib/modules"
+import { type ModuleInfo, modulesFor } from "@/lib/modules"
 import { shiftChangeRequestsQuery } from "@/lib/queries"
 import { useAccountActions } from "@/lib/use-account-actions"
 
@@ -48,6 +48,10 @@ export function AppSidebar() {
   const { switchOrganization, signOut } = useAccountActions()
   const memberships = me.memberships
   const role = membership?.role
+  const finances = modulesFor(role, "finances")
+  const staff = modulesFor(role, "staff")
+  const showTeam = can(role, "team")
+  const showShiftRequests = can(role, "shiftRequests")
 
   return (
     <Sidebar collapsible="icon">
@@ -93,48 +97,39 @@ export function AppSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {can(role, "team") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t("nav.team")}>
-                  <Link to="/team" activeProps={{ "data-active": true }}>
-                    <UsersIcon />
-                    <span>{t("nav.team")}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-            {membership && can(role, "shiftRequests") && (
-              <ShiftRequestsLink organizationId={membership.organization.id} />
-            )}
           </SidebarMenu>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t("nav.modules")}</SidebarGroupLabel>
-          <SidebarMenu>
-            {modulesFor(role).map((module) => (
-              <SidebarMenuItem key={module.key}>
-                {module.to ? (
-                  <SidebarMenuButton asChild tooltip={t(`modules.${module.key}.title`)}>
-                    <Link to={module.to} activeProps={{ "data-active": true }}>
-                      <module.icon />
-                      <span>{t(`modules.${module.key}.title`)}</span>
+        {finances.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t("nav.groups.finances")}</SidebarGroupLabel>
+            <SidebarMenu>
+              {finances.map((module) => (
+                <ModuleLink key={module.key} module={module} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+        {(showTeam || staff.length > 0 || showShiftRequests) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t("nav.groups.staff")}</SidebarGroupLabel>
+            <SidebarMenu>
+              {showTeam && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip={t("nav.team")}>
+                    <Link to="/team" activeProps={{ "data-active": true }}>
+                      <UsersIcon />
+                      <span>{t("nav.team")}</span>
                     </Link>
                   </SidebarMenuButton>
-                ) : (
-                  <>
-                    <SidebarMenuButton disabled tooltip={t(`modules.${module.key}.title`)}>
-                      <module.icon />
-                      <span>{t(`modules.${module.key}.title`)}</span>
-                    </SidebarMenuButton>
-                    <SidebarMenuBadge>
-                      <Badge variant="outline" className="text-[10px]">{t("nav.soon")}</Badge>
-                    </SidebarMenuBadge>
-                  </>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+                </SidebarMenuItem>
+              )}
+              {staff.map((module) => (
+                <ModuleLink key={module.key} module={module} />
+              ))}
+              {membership && showShiftRequests && <ShiftRequestsLink organizationId={membership.organization.id} />}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
@@ -184,6 +179,35 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  )
+}
+
+/** A module's link, or a disabled "soon" entry until its page is built. */
+function ModuleLink({ module }: { module: ModuleInfo }) {
+  const { t } = useTranslation("admin")
+  const title = t(`modules.${module.key}.title`)
+
+  return (
+    <SidebarMenuItem>
+      {module.to ? (
+        <SidebarMenuButton asChild tooltip={title}>
+          <Link to={module.to} activeProps={{ "data-active": true }}>
+            <module.icon />
+            <span>{title}</span>
+          </Link>
+        </SidebarMenuButton>
+      ) : (
+        <>
+          <SidebarMenuButton disabled tooltip={title}>
+            <module.icon />
+            <span>{title}</span>
+          </SidebarMenuButton>
+          <SidebarMenuBadge>
+            <Badge variant="outline" className="text-[10px]">{t("nav.soon")}</Badge>
+          </SidebarMenuBadge>
+        </>
+      )}
+    </SidebarMenuItem>
   )
 }
 
