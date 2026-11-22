@@ -3,9 +3,17 @@
     "cash_flow": {
       "access_forbidden": {
         "to_manage": "Tylko właściciele i menedżerowie mogą zmieniać ustawienia gotówki i przenosić gotówkę.",
+        "to_read_day_closes": "Zamknięcia dnia widzą tylko właściciele i menedżerowie.",
         "to_read_ledger": "Tylko właściciele i menedżerowie widzą stany i ruchy gotówki."
       },
       "audit_count_needs_deposit_storage": "„{{name}}” jest liczone przy każdym zamknięciu dnia, więc nie można go przeliczyć kontrolnie. Można tak przeliczyć tylko miejsca depozytowe.",
+      "day_already_closed": {
+        "by_member": "{{date}} jest już zamknięty przez: {{closedByFirstName}} {{closedByLastName}}, {{closedAt}}. Poproś właściciela lub menedżera o poprawkę.",
+        "concurrently": "Ktoś inny właśnie zamknął {{date}}. Odśwież stronę."
+      },
+      "day_close_not_found": "To zamknięcie dnia już nie istnieje. Odśwież stronę.",
+      "day_close_out_of_order": "Nie można już zamknąć {{date}}: {{lastClosedDate}} jest już zamknięty, a dni zamyka się po kolei.",
+      "day_close_period_too_long": "Zamknięcia dnia można pokazać naraz za najwyżej {{maxDays}} dni.",
       "denomination_in_use": "Ten nominał jest używany w zapisach gotówki, więc nie można go usunąć. Zamiast tego go dezaktywuj.",
       "denomination_not_found": "Ten nominał już nie istnieje. Odśwież stronę.",
       "denomination_not_offered": {
@@ -13,6 +21,18 @@
         "other_currency": "Ten nominał nie jest w walucie organizacji ({{organizationCurrency}})."
       },
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
+      "invalid_day_close": {
+        "amount": "Kwota musi wynosić od 0 do {{max}}.",
+        "duplicate_denomination": "Każdy nominał może wystąpić tylko raz w jednym miejscu.",
+        "duplicate_payment_method": "Każda forma płatności może wystąpić tylko raz.",
+        "duplicate_storage": "Każde miejsce na gotówkę może wystąpić tylko raz.",
+        "missing_payment_method": "Wpisz kwotę z dnia dla „{{name}}” (zero, jeśli jej nie było).",
+        "missing_storage": "Wpisz gotówkę dla „{{name}}”: każde aktywne miejsce należy do zamknięcia.",
+        "nothing_to_close": "Nie ma czego liczyć: najpierw dodaj miejsce na gotówkę i nominał.",
+        "payment_method_not_offered": "Ta forma płatności nie jest już dostępna. Odśwież stronę.",
+        "pieces": "Liczba sztuk musi wynosić od {{min}} do {{max}}.",
+        "register_not_offered": "Ta kasa nie jest już aktywna. Odśwież stronę i wybierz inną."
+      },
       "invalid_day_close_date": {
         "in_the_future": "Dzień można zamknąć najpóźniej dzisiaj ({{today}}), nie z późniejszą datą.",
         "not_chosen_by_employee": "Data zamknięcia wynika z godziny końca dnia: to {{dayCloseDate}}.",

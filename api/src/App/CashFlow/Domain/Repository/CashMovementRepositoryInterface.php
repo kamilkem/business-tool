@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace App\CashFlow\Domain\Repository;
 
 use App\CashFlow\Domain\Model\CashMovement;
-use App\CashFlow\Domain\Model\LedgerBalance;
-use App\CashFlow\Domain\Model\LedgerEntry;
-use App\CashFlow\Domain\Model\LedgerPosition;
 use App\Shared\Domain\Time\UtcRange;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Cash movements of the current organization only (TenantFilter), and the ledger queries over them
- * (ADR 0033 §4). Ledger order is (occurredAt, id).
+ * Cash movements of the current organization only (TenantFilter, ADR 0033 §4). Ledger order is
+ * (occurredAt, id); the ledger over movements and closes is CashLedgerInterface.
  */
 interface CashMovementRepositoryInterface
 {
@@ -27,19 +24,6 @@ interface CashMovementRepositoryInterface
      * @return list<CashMovement>
      */
     public function findOccurredIn(UtcRange $range, ?Uuid $storageId = null): array;
-
-    /**
-     * The storage's balance just before the position (null: after everything): its last count
-     * before it, plus every signed line after that count and before the position.
-     */
-    public function balanceOf(Uuid $storageId, ?LedgerPosition $before = null): LedgerBalance;
-
-    /**
-     * What every record after the position does to the storage, in ledger order.
-     *
-     * @return list<LedgerEntry>
-     */
-    public function entriesAfter(Uuid $storageId, LedgerPosition $after): array;
 
     public function add(CashMovement $movement): void;
 

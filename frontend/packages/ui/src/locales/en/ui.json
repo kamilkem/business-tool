@@ -3,9 +3,17 @@
     "cash_flow": {
       "access_forbidden": {
         "to_manage": "Only owners and managers can change cash flow settings or move cash.",
+        "to_read_day_closes": "Only owners and managers can see end-of-day closes.",
         "to_read_ledger": "Only owners and managers can see cash balances and movements."
       },
       "audit_count_needs_deposit_storage": "“{{name}}” is counted at each end-of-day close, so it can't take an audit count. Only deposit storages can.",
+      "day_already_closed": {
+        "by_member": "{{date}} is already closed, by {{closedByFirstName}} {{closedByLastName}} at {{closedAt}}. Ask an owner or manager to correct it.",
+        "concurrently": "{{date}} was just closed by someone else. Reload the page."
+      },
+      "day_close_not_found": "This end-of-day close no longer exists. Reload the page.",
+      "day_close_out_of_order": "{{date}} can't be closed any more: {{lastClosedDate}} is already closed, and days are closed in order.",
+      "day_close_period_too_long": "End-of-day closes can be shown for at most {{maxDays}} days at a time.",
       "denomination_in_use": "This denomination is used by cash records, so it can't be deleted. Deactivate it instead.",
       "denomination_not_found": "This denomination no longer exists. Reload the page.",
       "denomination_not_offered": {
@@ -13,6 +21,18 @@
         "other_currency": "This denomination is not in the organization's currency ({{organizationCurrency}})."
       },
       "denomination_value_taken": "This denomination already exists (it may be deactivated).",
+      "invalid_day_close": {
+        "amount": "An amount must be from 0 to {{max}}.",
+        "duplicate_denomination": "Each denomination may appear only once per storage.",
+        "duplicate_payment_method": "Each payment method may appear only once.",
+        "duplicate_storage": "Each storage may appear only once.",
+        "missing_payment_method": "Enter the day's amount for “{{name}}” (zero if there was none).",
+        "missing_storage": "Enter the cash for “{{name}}”: every active storage is part of the close.",
+        "nothing_to_close": "There is nothing to count: add a cash storage and a denomination first.",
+        "payment_method_not_offered": "This payment method is no longer offered. Reload the page.",
+        "pieces": "The number of pieces must be from {{min}} to {{max}}.",
+        "register_not_offered": "This register is no longer active. Reload the page and pick another one."
+      },
       "invalid_day_close_date": {
         "in_the_future": "A day can be closed up to today ({{today}}), not on a later date.",
         "not_chosen_by_employee": "The close's date follows from the day-end time: it is {{dayCloseDate}}.",

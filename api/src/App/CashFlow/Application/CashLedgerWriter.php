@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\CashFlow\Application;
 
+use App\CashFlow\Domain\CashLedgerInterface;
 use App\CashFlow\Domain\Event\CashLedgerChanged;
 use App\CashFlow\Domain\Exception\DenominationNotFoundException;
 use App\CashFlow\Domain\Exception\StorageBalanceNegativeException;
@@ -33,6 +34,7 @@ final readonly class CashLedgerWriter
 {
     public function __construct(
         private CashMovementRepositoryInterface $movements,
+        private CashLedgerInterface $ledger,
         private CashStorageRepositoryInterface $storages,
         private DenominationRepositoryInterface $denominations,
         private EventPublisherInterface $events,
@@ -108,8 +110,8 @@ final readonly class CashLedgerWriter
         }
 
         $position = $movement->position();
-        $opening = $this->movements->balanceOf($storage->getId(), $position)->pieces;
-        $entries = $this->movements->entriesAfter($storage->getId(), $position);
+        $opening = $this->ledger->balanceOf($storage->getId(), $position)->pieces;
+        $entries = $this->ledger->entriesAfter($storage->getId(), $position);
         if (null !== $entry) {
             array_unshift($entries, $entry);
         }

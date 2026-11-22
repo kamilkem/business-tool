@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\CashFlow\Application\Query\ListCashBalances;
 
 use App\CashFlow\Application\CashFlowActor;
+use App\CashFlow\Domain\CashLedgerInterface;
 use App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException;
 use App\CashFlow\Domain\Model\CashFlowAccess;
 use App\CashFlow\Domain\Model\CashStorageMode;
 use App\CashFlow\Domain\Model\Denomination;
-use App\CashFlow\Domain\Repository\CashMovementRepositoryInterface;
 use App\CashFlow\Domain\Repository\CashStorageRepositoryInterface;
 use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
 use App\Shared\Application\Query\QueryBusInterface;
@@ -20,7 +20,7 @@ final readonly class ListCashBalancesHandler implements QueryHandlerInterface
     public function __construct(
         private CashStorageRepositoryInterface $storages,
         private DenominationRepositoryInterface $denominations,
-        private CashMovementRepositoryInterface $movements,
+        private CashLedgerInterface $ledger,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -43,7 +43,7 @@ final readonly class ListCashBalancesHandler implements QueryHandlerInterface
 
         $views = [];
         foreach ($this->storages->findAll(includeDeactivated: true) as $storage) {
-            $balance = $this->movements->balanceOf($storage->getId());
+            $balance = $this->ledger->balanceOf($storage->getId());
             if (!$storage->isActive() && [] === $balance->pieces) {
                 continue;
             }

@@ -240,6 +240,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/day-closes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the end-of-day closes of the selected organization from one business date to another.
+         * @description Owners and managers only (403 otherwise). The closes of the dates within the period, latest first. Invalid dates, to before from and periods longer than 92 days are a 422.
+         */
+        get: operations["api_day-closes_get_collection"];
+        put?: never;
+        /**
+         * Closes a business date: counts the cash, records the deposits and the non-cash amounts.
+         * @description Any active member, employees included. It goes straight in; owners and managers correct it later.
+         *     - The date follows the organization's close settings (GET /day-close-settings) when left out. An employee in `day_end_time` mode may send only that date, in `employee_picks` mode today or yesterday; owners and managers any date up to today (422 otherwise, `cash_flow.invalid_day_close_date.*`).
+         *     - One close per date (409 `cash_flow.day_already_closed`, with who closed it and when), in date order: a date before the latest closed one is a 409 (`cash_flow.day_close_out_of_order`).
+         *     - Every active storage once: a counted storage gets the pieces of each active denomination that stay in it (one left out is zero), a deposit storage the pieces put into it (possibly none). Unknown storages or denominations are a 404, deactivated ones or another currency a 422.
+         *     - Every active non-cash payment method once, with the day's amount (zero allowed), and one active register (422 otherwise, `cash_flow.invalid_day_close.*`).
+         *     The cash income is Σ counted storages (count − the balance the ledger expected) + Σ deposits. A negative one is saved and flagged as a shortage.
+         */
+        post: operations["api_day-closes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/day-closes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One end-of-day close of the selected organization.
+         * @description Owners and managers only (403 otherwise). A close that is not the selected organization's is a 404.
+         */
+        get: operations["api_day-closes_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/day-close-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What an end-of-day close of the selected organization covers now.
+         * @description Any active member. The active storages and denominations, the active registers (with the one to preselect) and non-cash payment methods, the date a close made now gets, the close settings, and who closed that date, if anyone. canClose is false while no storage or no denomination is active.
+         */
+        get: operations["api_day-close-form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/day-close-settings": {
         parameters: {
             query?: never;
@@ -2164,6 +2233,316 @@ export interface components {
             readonly instance?: string | null;
         };
         /**
+         * @description An end-of-day close of the organization selected by the X-Organization-Id header, with what the
+         *     ledger expected (ADR 0033 §6), for owners and managers: employees see only the close they make, in
+         *     the response to POST /day-closes (403 here, `cash_flow.access_forbidden.to_read_day_closes`).
+         */
+        DayClose: {
+            id: string;
+            /** @description The business date closed (YYYY-MM-DD). */
+            date: string;
+            /** @description The register the close books into. */
+            registerId: string;
+            /** @description The register's current name; null when it is no longer offered. */
+            registerName: string | null;
+            /** @description ISO 4217. */
+            currency: string;
+            /** @description Minor units: Σ counted storages (total − expected opening) + Σ deposits. Negative for a shortage. */
+            cashIncome: number;
+            /** @description Whether the cash income is negative: a shortage, or a withdrawal nobody recorded, to review. */
+            shortage: boolean;
+            /** @description by the storages' names */
+            storages: components["schemas"]["DayCloseStorageItem"][];
+            /** @description in the organization's order of payment methods */
+            payments: components["schemas"]["DayClosePaymentLine"][];
+            /** @description The member who closed, of any role. */
+            closedBy: string;
+            closedByFirstName: string;
+            closedByLastName: string;
+            /**
+             * Format: date-time
+             * @description The server's time of the close: where it sits in the cash ledger.
+             */
+            closedAt: string;
+        };
+        /**
+         * @description An end-of-day close of the organization selected by the X-Organization-Id header, with what the
+         *     ledger expected (ADR 0033 §6), for owners and managers: employees see only the close they make, in
+         *     the response to POST /day-closes (403 here, `cash_flow.access_forbidden.to_read_day_closes`).
+         */
+        "DayClose.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The business date closed (YYYY-MM-DD). */
+            date: string;
+            /** @description The register the close books into. */
+            registerId: string;
+            /** @description The register's current name; null when it is no longer offered. */
+            registerName: string | null;
+            /** @description ISO 4217. */
+            currency: string;
+            /** @description Minor units: Σ counted storages (total − expected opening) + Σ deposits. Negative for a shortage. */
+            cashIncome: number;
+            /** @description Whether the cash income is negative: a shortage, or a withdrawal nobody recorded, to review. */
+            shortage: boolean;
+            /** @description by the storages' names */
+            storages: components["schemas"]["DayCloseStorageItem.jsonld"][];
+            /** @description in the organization's order of payment methods */
+            payments: components["schemas"]["DayClosePaymentLine.jsonld"][];
+            /** @description The member who closed, of any role. */
+            closedBy: string;
+            closedByFirstName: string;
+            closedByLastName: string;
+            /**
+             * Format: date-time
+             * @description The server's time of the close: where it sits in the cash ledger.
+             */
+            closedAt: string;
+        };
+        /**
+         * @description Everything the person closing the day needs, in the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §6): what the close covers, the proposed date and the settings,
+         *     and whether that date is already closed. No balances: employees see only what they enter.
+         */
+        DayCloseForm: {
+            /** @description ISO 4217: the organization's currency. */
+            currency: string;
+            /** @description Whether a close can be made: at least one active storage and one active denomination. */
+            canClose: boolean;
+            /** @description The date a close made now gets when none is sent (YYYY-MM-DD), and the one to preselect. */
+            proposedDate: string;
+            /** @description Today in the organization's time zone (YYYY-MM-DD): the latest date anyone may close. */
+            today: string;
+            /** @enum {string} */
+            mode: "day_end_time" | "employee_picks";
+            /** @example 05:00 */
+            dayEndsAt: string;
+            /** @description active, by name */
+            storages: components["schemas"]["DayCloseFormStorage"][];
+            /** @description active, in the currency, by value */
+            denominations: components["schemas"]["DayCloseFormDenomination"][];
+            /** @description active, by name */
+            registers: components["schemas"]["DayCloseFormOption"][];
+            /** @description The only active register, else the latest close's if it is active, else null. */
+            preselectedRegisterId: string | null;
+            /** @description active and not cash, in the organization's order */
+            paymentMethods: components["schemas"]["DayCloseFormOption"][];
+            /** @description Who closed the proposed date and when; null while it is open. */
+            proposedDateClosed: components["schemas"]["DayCloseFormClosed"] | null;
+        };
+        /**
+         * @description Everything the person closing the day needs, in the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §6): what the close covers, the proposed date and the settings,
+         *     and whether that date is already closed. No balances: employees see only what they enter.
+         */
+        "DayCloseForm.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description ISO 4217: the organization's currency. */
+            currency: string;
+            /** @description Whether a close can be made: at least one active storage and one active denomination. */
+            canClose: boolean;
+            /** @description The date a close made now gets when none is sent (YYYY-MM-DD), and the one to preselect. */
+            proposedDate: string;
+            /** @description Today in the organization's time zone (YYYY-MM-DD): the latest date anyone may close. */
+            today: string;
+            /** @enum {string} */
+            mode: "day_end_time" | "employee_picks";
+            /** @example 05:00 */
+            dayEndsAt: string;
+            /** @description active, by name */
+            storages: components["schemas"]["DayCloseFormStorage.jsonld"][];
+            /** @description active, in the currency, by value */
+            denominations: components["schemas"]["DayCloseFormDenomination.jsonld"][];
+            /** @description active, by name */
+            registers: components["schemas"]["DayCloseFormOption.jsonld"][];
+            /** @description The only active register, else the latest close's if it is active, else null. */
+            preselectedRegisterId: string | null;
+            /** @description active and not cash, in the organization's order */
+            paymentMethods: components["schemas"]["DayCloseFormOption.jsonld"][];
+            /** @description Who closed the proposed date and when; null while it is open. */
+            proposedDateClosed: components["schemas"]["DayCloseFormClosed.jsonld"] | null;
+        };
+        DayCloseFormClosed: {
+            dayCloseId: string;
+            closedBy: string;
+            closedByFirstName: string;
+            closedByLastName: string;
+            /** Format: date-time */
+            closedAt: string;
+        };
+        "DayCloseFormClosed.jsonld": {
+            dayCloseId: string;
+            closedBy: string;
+            closedByFirstName: string;
+            closedByLastName: string;
+            /** Format: date-time */
+            closedAt: string;
+        };
+        DayCloseFormDenomination: {
+            id: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+        };
+        "DayCloseFormDenomination.jsonld": {
+            id: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+        };
+        DayCloseFormOption: {
+            id: string;
+            name: string;
+        };
+        "DayCloseFormOption.jsonld": {
+            id: string;
+            name: string;
+        };
+        DayCloseFormStorage: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+        };
+        "DayCloseFormStorage.jsonld": {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+        };
+        DayClosePaymentInput: {
+            /**
+             * Format: uuid
+             * @description An active non-cash payment method of the organization (GET /day-close-form).
+             */
+            paymentMethodId: string;
+            amount: number;
+        };
+        DayClosePaymentLine: {
+            paymentMethodId: string;
+            /** @description The method's current name; null when it is no longer offered. */
+            name: string | null;
+            /** @description Minor units. */
+            amount: number;
+        };
+        "DayClosePaymentLine.jsonld": {
+            paymentMethodId: string;
+            /** @description The method's current name; null when it is no longer offered. */
+            name: string | null;
+            /** @description Minor units. */
+            amount: number;
+        };
+        DayClosePiecesLine: {
+            denominationId: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description What stays in a counted storage, or what was put into a deposit one. */
+            pieces: number;
+            /** @description pieces × value. */
+            amount: number;
+        };
+        "DayClosePiecesLine.jsonld": {
+            denominationId: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description What stays in a counted storage, or what was put into a deposit one. */
+            pieces: number;
+            /** @description pieces × value. */
+            amount: number;
+        };
+        /**
+         * @description The end-of-day close just made in the organization selected by the X-Organization-Id header, as
+         *     the person closing sees it (ADR 0033 §6): what they entered, the totals per storage and the cash
+         *     income, with no balance or expected opening.
+         */
+        DayCloseReceipt: {
+            id: string;
+            /** @description The business date closed (YYYY-MM-DD). */
+            date: string;
+            registerId: string;
+            /** @description The register's name; null when it is no longer offered. */
+            registerName: string | null;
+            /** @description ISO 4217. */
+            currency: string;
+            /** @description Minor units: the cash the close adds to the day's income. Negative for a shortage. */
+            cashIncome: number;
+            /** @description Whether the cash income is negative. */
+            shortage: boolean;
+            /** @description by the storages' names */
+            storages: components["schemas"]["DayCloseReceiptStorage"][];
+            /** @description in the organization's order of payment methods */
+            payments: components["schemas"]["DayClosePaymentLine"][];
+            /** Format: date-time */
+            closedAt: string;
+        };
+        /**
+         * @description The end-of-day close just made in the organization selected by the X-Organization-Id header, as
+         *     the person closing sees it (ADR 0033 §6): what they entered, the totals per storage and the cash
+         *     income, with no balance or expected opening.
+         */
+        "DayCloseReceipt.RecordDayCloseInput": {
+            /**
+             * Format: uuid
+             * @description An active register of the organization (GET /day-close-form).
+             */
+            registerId: string;
+            /** @description Every active storage, once each. */
+            storages: components["schemas"]["DayCloseStorageInput"][];
+            /** @description Every active non-cash payment method, once each; zero allowed. */
+            payments: components["schemas"]["DayClosePaymentInput"][];
+            /** @description YYYY-MM-DD; the proposed date when left out. An employee in `day_end_time` mode sends none or the proposed one, in `employee_picks` mode today or yesterday; owners and managers any date up to today. */
+            date?: string | null;
+        };
+        /**
+         * @description The end-of-day close just made in the organization selected by the X-Organization-Id header, as
+         *     the person closing sees it (ADR 0033 §6): what they entered, the totals per storage and the cash
+         *     income, with no balance or expected opening.
+         */
+        "DayCloseReceipt.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The business date closed (YYYY-MM-DD). */
+            date: string;
+            registerId: string;
+            /** @description The register's name; null when it is no longer offered. */
+            registerName: string | null;
+            /** @description ISO 4217. */
+            currency: string;
+            /** @description Minor units: the cash the close adds to the day's income. Negative for a shortage. */
+            cashIncome: number;
+            /** @description Whether the cash income is negative. */
+            shortage: boolean;
+            /** @description by the storages' names */
+            storages: components["schemas"]["DayCloseReceiptStorage.jsonld"][];
+            /** @description in the organization's order of payment methods */
+            payments: components["schemas"]["DayClosePaymentLine.jsonld"][];
+            /** Format: date-time */
+            closedAt: string;
+        };
+        DayCloseReceiptStorage: {
+            storageId: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            /** @description Minor units: what was counted in a counted storage, or put into a deposit one. */
+            total: number;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["DayClosePiecesLine"][];
+        };
+        "DayCloseReceiptStorage.jsonld": {
+            storageId: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            /** @description Minor units: what was counted in a counted storage, or put into a deposit one. */
+            total: number;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["DayClosePiecesLine.jsonld"][];
+        };
+        /**
          * @description How the end-of-day closes of the organization selected by the X-Organization-Id header get their
          *     business date (ADR 0033 §5). Every active member reads them, because the close form needs them;
          *     owners and managers change them (403 otherwise). An organization that never changed them has the
@@ -2208,6 +2587,45 @@ export interface components {
              * @description When an owner or manager changed them last; null while the organization has the defaults.
              */
             updatedAt: string | null;
+        };
+        DayCloseStorageInput: {
+            /**
+             * Format: uuid
+             * @description An active storage of the organization (GET /day-close-form).
+             */
+            storageId: string;
+            /** @description each denomination once */
+            lines: components["schemas"]["CashCountLineInput"][];
+        };
+        DayCloseStorageItem: {
+            storageId: string;
+            /** @description The storage's current name. */
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            /** @description Minor units: what was counted in a counted storage, or put into a deposit one. */
+            total: number;
+            /** @description Minor units: a counted storage's balance just before the close; null for a deposit storage. */
+            expectedOpening: number | null;
+            /** @description Minor units: what the storage adds to the cash income (total − expected opening, or the deposit). */
+            cashIncome: number;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["DayClosePiecesLine"][];
+        };
+        "DayCloseStorageItem.jsonld": {
+            storageId: string;
+            /** @description The storage's current name. */
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            /** @description Minor units: what was counted in a counted storage, or put into a deposit one. */
+            total: number;
+            /** @description Minor units: a counted storage's balance just before the close; null for a deposit storage. */
+            expectedOpening: number | null;
+            /** @description Minor units: what the storage adds to the cash income (total − expected opening, or the deposit). */
+            cashIncome: number;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["DayClosePiecesLine.jsonld"][];
         };
         /**
          * @description A member's rate for one business date in the organization selected by the X-Organization-Id
@@ -4665,7 +5083,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -5447,6 +5865,181 @@ export interface operations {
                     "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_day-closes_get_collection": {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD); at most 92 days from the first. */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DayClose collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["DayClose.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["DayClose"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, or the period is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_day-closes_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new DayCloseReceipt resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["DayCloseReceipt.RecordDayCloseInput"];
+                "application/json": components["schemas"]["DayCloseReceipt.RecordDayCloseInput"];
+            };
+        };
+        responses: {
+            /** @description The recorded close. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayCloseReceipt.jsonld"];
+                    "application/json": components["schemas"]["DayCloseReceipt"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A storage or a denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The date is already closed, or a later date is. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, the date is not allowed, or the close does not cover what it should. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_day-closes_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DayClose identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DayClose resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayClose.jsonld"];
+                    "application/json": components["schemas"]["DayClose"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The close is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_day-close-form_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DayCloseForm resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["DayCloseForm.jsonld"];
+                    "application/json": components["schemas"]["DayCloseForm"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

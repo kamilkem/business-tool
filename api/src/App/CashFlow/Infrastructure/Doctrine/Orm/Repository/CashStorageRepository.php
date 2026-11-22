@@ -7,6 +7,7 @@ namespace App\CashFlow\Infrastructure\Doctrine\Orm\Repository;
 use App\CashFlow\Domain\Exception\StorageInUseException;
 use App\CashFlow\Domain\Exception\StorageNameTakenException;
 use App\CashFlow\Domain\Model\CashMovementLine;
+use App\CashFlow\Domain\Model\DayCloseStorage;
 use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Repository\CashStorageRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -50,31 +51,42 @@ final class CashStorageRepository extends ServiceEntityRepository implements Cas
         return $qb->getQuery()->getResult();
     }
 
-    /** The movements' lines refer to it (#181); the end-of-day close's lines join them in #185. */
+    /** A movement's line or a close refers to it. */
     public function isUsed(Uuid $id): bool
     {
-        $used = $this->getEntityManager()->createQueryBuilder()
-            ->select('1')
-            ->from(CashMovementLine::class, 'l')
-            ->where('l.storage = :id')
-            ->setParameter('id', $id, UuidType::NAME)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getArrayResult();
+        foreach ([CashMovementLine::class, DayCloseStorage::class] as $lines) {
+            $used = $this->getEntityManager()->createQueryBuilder()
+                ->select('1')
+                ->from($lines, 'l')
+                ->where('l.storage = :id')
+                ->setParameter('id', $id, UuidType::NAME)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getArrayResult();
+            if ([] !== $used) {
+                return true;
+            }
+        }
 
-        return [] !== $used;
+        return false;
     }
 
     public function usedIds(): array
     {
-        /** @var list<array{id: mixed}> $rows */
-        $rows = $this->getEntityManager()->createQueryBuilder()
-            ->select('DISTINCT IDENTITY(l.storage) AS id')
-            ->from(CashMovementLine::class, 'l')
-            ->getQuery()
-            ->getArrayResult();
+        $ids = [];
+        foreach ([CashMovementLine::class, DayCloseStorage::class] as $lines) {
+            /** @var list<array{id: mixed}> $rows */
+            $rows = $this->getEntityManager()->createQueryBuilder()
+                ->select('DISTINCT IDENTITY(l.storage) AS id')
+                ->from($lines, 'l')
+                ->getQuery()
+                ->getArrayResult();
+            foreach ($rows as $row) {
+                $ids[] = $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : (string) $row['id'];
+            }
+        }
 
-        return array_map(static fn (array $row): string => $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : (string) $row['id'], $rows);
+        return array_values(array_unique($ids));
     }
 
     public function add(CashStorage $storage): void

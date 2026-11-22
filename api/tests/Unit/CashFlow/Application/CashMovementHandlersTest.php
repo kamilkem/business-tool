@@ -368,7 +368,7 @@ final class CashMovementHandlersTest extends TestCase
     /** @return list<CashBalanceView>|null */
     private function balances(User $actor): ?array
     {
-        return (new ListCashBalancesHandler($this->storages, $this->denominations, $this->movements, $this->queryBus))(new ListCashBalancesQuery($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122()));
+        return (new ListCashBalancesHandler($this->storages, $this->denominations, new InMemoryCashLedger($this->movements), $this->queryBus))(new ListCashBalancesQuery($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122()));
     }
 
     private function balanceOf(CashStorage $storage): CashBalanceView
@@ -422,12 +422,12 @@ final class CashMovementHandlersTest extends TestCase
 
     private function writer(): CashLedgerWriter
     {
-        return new CashLedgerWriter($this->movements, $this->storages, $this->denominations, $this->events);
+        return new CashLedgerWriter($this->movements, new InMemoryCashLedger($this->movements), $this->storages, $this->denominations, $this->events);
     }
 
     private function views(): CashMovementViews
     {
-        return new CashMovementViews($this->movements, $this->denominations, $this->queryBus);
+        return new CashMovementViews(new InMemoryCashLedger($this->movements), $this->denominations, $this->queryBus);
     }
 
     private function adjustHandler(): RecordCashAdjustmentHandler

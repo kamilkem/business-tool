@@ -6,9 +6,9 @@ namespace App\CashFlow\Application;
 
 use App\CashFlow\Application\Query\GetCashMovement\CashMovementLineView;
 use App\CashFlow\Application\Query\GetCashMovement\CashMovementView;
+use App\CashFlow\Domain\CashLedgerInterface;
 use App\CashFlow\Domain\Model\CashMovement;
 use App\CashFlow\Domain\Model\CashMovementKind;
-use App\CashFlow\Domain\Repository\CashMovementRepositoryInterface;
 use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
 use App\Organization\Application\Query\ListMembers\ListMembersQuery;
 use App\Organization\Application\Query\ListMembers\MemberView;
@@ -22,7 +22,7 @@ use App\Shared\Application\Query\QueryBusInterface;
 final readonly class CashMovementViews
 {
     public function __construct(
-        private CashMovementRepositoryInterface $movements,
+        private CashLedgerInterface $ledger,
         private DenominationRepositoryInterface $denominations,
         private QueryBusInterface $queryBus,
     ) {
@@ -105,7 +105,7 @@ final readonly class CashMovementViews
     private function valueBefore(CashMovement $count): int
     {
         $storage = $count->storages()[0];
-        $balance = $this->movements->balanceOf($storage->getId(), $count->position())->pieces;
+        $balance = $this->ledger->balanceOf($storage->getId(), $count->position())->pieces;
         $denominations = $this->denominations->findByIds(array_map(strval(...), array_keys($balance)));
 
         $value = 0;
