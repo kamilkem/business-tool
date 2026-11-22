@@ -23,11 +23,13 @@
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
       "invalid_day_close": {
         "amount": "Kwota musi wynosić od 0 do {{max}}.",
+        "cash_income": "Policzona gotówka jest większa, niż może wynieść przychód z dnia: sprawdź liczbę sztuk.",
         "duplicate_denomination": "Każdy nominał może wystąpić tylko raz w jednym miejscu.",
         "duplicate_payment_method": "Każda forma płatności może wystąpić tylko raz.",
         "duplicate_storage": "Każde miejsce na gotówkę może wystąpić tylko raz.",
         "missing_payment_method": "Wpisz kwotę z dnia dla „{{name}}” (zero, jeśli jej nie było).",
         "missing_storage": "Wpisz gotówkę dla „{{name}}”: każde aktywne miejsce należy do zamknięcia.",
+        "nothing_to_book": "Dnia nie da się zaksięgować jako przychodu: najpierw aktywuj formę płatności (gotówkę albo bezgotówkową).",
         "nothing_to_close": "Nie ma czego liczyć: najpierw dodaj miejsce na gotówkę i nominał.",
         "payment_method_not_offered": "Ta forma płatności nie jest już dostępna. Odśwież stronę.",
         "pieces": "Liczba sztuk musi wynosić od {{min}} do {{max}}.",
@@ -116,6 +118,7 @@
       "register_name_taken": "Kasa o nazwie „{{name}}” już istnieje.",
       "register_not_found": "Ta kasa już nie istnieje. Odśwież stronę.",
       "revenue_entry_already_exists": "Ta kasa ma już wpis za {{businessDate}}.",
+      "revenue_entry_booked_by_day_close": "Ten wpis pochodzi z zamknięcia dnia: jego płatności zmieniają się tylko przy korekcie zamknięcia i nie można go usunąć ręcznie.",
       "revenue_entry_in_the_future": "{{businessDate}} to dzień późniejszy niż dziś ({{today}}).",
       "revenue_entry_not_found": "Ten wpis już nie istnieje. Odśwież stronę.",
       "revenue_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni."

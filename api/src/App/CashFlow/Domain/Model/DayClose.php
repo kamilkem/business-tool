@@ -117,7 +117,8 @@ class DayClose implements TenantAwareInterface
      *
      * @throws DayAlreadyClosedException       when the date is already closed
      * @throws DayCloseOutOfOrderException     when a later date is already closed
-     * @throws InvalidDayCloseException        when the close does not match the offer, or nothing can be closed
+     * @throws InvalidDayCloseException        when the close does not match the offer, nothing can be closed or
+     *                                         booked, or the cash income is more than a revenue line takes
      * @throws StorageDeactivatedException     when a storage is deactivated
      * @throws DenominationNotOfferedException when a denomination is in another currency or deactivated
      */
@@ -143,6 +144,9 @@ class DayClose implements TenantAwareInterface
         if (!$offer->canClose()) {
             throw InvalidDayCloseException::nothingToClose($offer->currency);
         }
+        if (!$offer->canBook()) {
+            throw InvalidDayCloseException::nothingToBook();
+        }
 
         $register = self::uuidOrNull($registerId);
         if (null === $register || !isset($offer->registers[$register->toRfc4122()])) {
@@ -151,6 +155,10 @@ class DayClose implements TenantAwareInterface
 
         $close = new self($id, $date, $register, $offer->currency, $actorId, self::momentOf($now));
         $close->recordStorages($offer, self::byStorage($offer, $counts), $expectedOpenings);
+        // Income books the cash income as one payment line (ADR 0033 §9).
+        if ($close->cashIncome > RevenueEntry::MAX_AMOUNT) {
+            throw InvalidDayCloseException::cashIncome($close->cashIncome, RevenueEntry::MAX_AMOUNT);
+        }
         $close->recordPayments($offer, $amounts);
 
         return $close;

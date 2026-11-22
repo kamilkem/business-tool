@@ -26,7 +26,8 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
 
 /**
  * What one register took on one business date, from its daily report, in the organization selected
- * by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403.
+ * by the X-Organization-Id header (ADR 0022). Owners and managers only: anyone else gets a 403. An
+ * end-of-day close of any member books its register's entry (ADR 0033 §9; `dayCloseId`).
  * Amounts are integer minor units of `currency`, the organization's when the entry was recorded
  * (ADR 0010). The totals are computed; the VAT totals need not match the payments total.
  */
@@ -102,10 +103,11 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: "Corrects an entry's payment lines, VAT lines and note.",
-                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing.',
+                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing. An entry booked from an end-of-day close (dayCloseId) keeps the payment lines the close wrote: changing them is a 409, while its VAT lines and note may be corrected.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The entry is not one of the selected organization\'s.'),
+                    '409' => new Response('The entry is booked from an end-of-day close and the payment lines differ from the close\'s.'),
                     '422' => new Response('A field is invalid or a line breaks a rule.'),
                 ],
             ),
@@ -119,11 +121,12 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: 'Deletes a revenue entry.',
-                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. The entry and its lines are removed and no trace is kept (ADR 0022 §8).',
+                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. The entry and its lines are removed and no trace is kept (ADR 0022 §8). An entry booked from an end-of-day close (dayCloseId) goes only with its close (409).',
                 responses: [
                     '204' => new Response('The entry was deleted.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The entry is not one of the selected organization\'s.'),
+                    '409' => new Response('The entry is booked from an end-of-day close.'),
                 ],
             ),
             read: false,
@@ -156,10 +159,15 @@ final readonly class RevenueEntryResource
         /** The sum of the VAT lines' VAT, in minor units; 0 without a breakdown. */
         public int $vatTotal,
         public ?string $note,
-        /** The owner or manager who recorded the entry. */
+        /**
+         * The end-of-day close (GET /day-closes/{id}) the entry is booked from; null for a manual
+         * entry. Its payment lines change only through the close; its VAT lines and note stay editable.
+         */
+        public ?string $dayCloseId,
+        /** Who recorded the entry: an owner or manager, or the member of any role who closed the day. */
         public string $createdBy,
         public \DateTimeImmutable $createdAt,
-        /** The owner or manager who changed the entry last; null until the first change. */
+        /** Who changed the entry last (an owner or manager, or the member whose close took it over); null until the first change. */
         public ?string $updatedBy,
         public ?\DateTimeImmutable $updatedAt,
     ) {
@@ -185,6 +193,7 @@ final readonly class RevenueEntryResource
             vatGrossTotal: $view->vatGrossTotal,
             vatTotal: $view->vatTotal,
             note: $view->note,
+            dayCloseId: $view->dayCloseId,
             createdBy: $view->createdBy,
             createdAt: $view->createdAt,
             updatedBy: $view->updatedBy,

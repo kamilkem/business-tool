@@ -17,6 +17,9 @@ interface RevenueEntryRepositoryInterface
 
     public function findByRegisterAndDate(Uuid $registerId, BusinessDate $businessDate): ?RevenueEntry;
 
+    /** The entry booked from the end-of-day close (ADR 0033 §9), if any. */
+    public function findByDayCloseId(Uuid $dayCloseId): ?RevenueEntry;
+
     /**
      * Entries whose business date is in the period (both ends included), of one register or of all:
      * by business date, then by register name.

@@ -8,6 +8,7 @@ use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
 use App\Income\Domain\Exception\InvalidVatLinesException;
 use App\Income\Domain\Exception\RegisterDeactivatedException;
+use App\Income\Domain\Exception\RevenueEntryBookedByDayCloseException;
 use App\Income\Domain\Exception\RevenueEntryInTheFutureException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
@@ -31,6 +32,10 @@ use Symfony\Component\Uid\Uuid;
  *   not have to match the payments.
  * - The currency is the organization's when the entry is recorded, and stays (§5).
  * - Owners and managers only (§7); the entry keeps who recorded it and who changed it last (§8).
+ * - Or booked from an end-of-day close of Cash flow, as the member who closed, of any role (ADR 0033
+ *   §9, superseding ADR 0022 §7 in part): bookFromDayClose(), or a manual entry taken over with
+ *   bookDayClose(). Such an entry belongs to its close (dayCloseId): its payment lines change only
+ *   through the close, and it is not deleted by hand (409); its VAT breakdown and note stay editable.
  *
  * Amounts are integer minor units (ADR 0010), at most MAX_AMOUNT each (an INTEGER column).
  */
@@ -75,6 +80,10 @@ class RevenueEntry implements TenantAwareInterface
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $note = null;
+
+    /** The Cash flow end-of-day close the entry is booked from (ADR 0033 §9), by id only (ADR 0004); null for a manual entry. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true, unique: true)]
+    private ?Uuid $dayCloseId = null;
 
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $createdBy;
@@ -150,6 +159,63 @@ class RevenueEntry implements TenantAwareInterface
     }
 
     /**
+     * Books an end-of-day close of a register and date that has no entry yet (ADR 0033 §9). Cash flow
+     * has checked its own actor, of any role, and asked Income up front for an active register and
+     * active payment methods, so neither the role nor whether they are still active is checked here.
+     *
+     * @param string              $currency the close's currency (ISO 4217)
+     * @param list<PaymentAmount> $payments the cash method's line and the non-cash methods' lines
+     *
+     * @throws InvalidPaymentLinesException when the payment lines break a rule
+     */
+    public static function bookFromDayClose(
+        Uuid $id,
+        Uuid $dayCloseId,
+        Register $register,
+        BusinessDate $businessDate,
+        string $currency,
+        array $payments,
+        Uuid $actorId,
+        \DateTimeImmutable $now,
+    ): self {
+        self::assertValidPayments($payments, self::methodIds($payments));
+
+        $entry = new self($id, $register, $businessDate, $currency, $actorId, $now);
+        $entry->dayCloseId = $dayCloseId;
+        $entry->applyPayments($payments);
+
+        return $entry;
+    }
+
+    /**
+     * Books the close into an entry that already exists for its register and date: the close's own
+     * entry when the close is recorded again or corrected, or a manual entry, which the close takes
+     * over (ADR 0033 §9) so that it never blocks an employee at night. The payment lines are
+     * replaced; the VAT breakdown, the note and the currency are kept. A change records who made it.
+     *
+     * @param list<PaymentAmount> $payments
+     *
+     * @throws InvalidPaymentLinesException when the payment lines break a rule
+     * @throws \LogicException              when the entry belongs to another close: one close per date
+     */
+    public function bookDayClose(Uuid $dayCloseId, array $payments, Uuid $actorId, \DateTimeImmutable $now): void
+    {
+        if (null !== $this->dayCloseId && !$this->dayCloseId->equals($dayCloseId)) {
+            throw new \LogicException(\sprintf('The revenue entry "%s" is booked from another close.', $this->id->toRfc4122()));
+        }
+        self::assertValidPayments($payments, self::methodIds($payments));
+
+        if (null !== $this->dayCloseId && self::samePayments($payments, $this->getPaymentLines())) {
+            return;
+        }
+
+        $this->dayCloseId = $dayCloseId;
+        $this->applyPayments($payments);
+        $this->updatedBy = $actorId;
+        $this->updatedAt = $now;
+    }
+
+    /**
      * Replaces the payment lines, the VAT lines and the note. The entry may belong to a deactivated
      * register (ADR 0022 §2), and keep lines of deactivated payment methods it already has (ADR 0030
      * §4). A change records who made it and when; setting what the entry already has changes nothing.
@@ -158,13 +224,20 @@ class RevenueEntry implements TenantAwareInterface
      * @param list<VatAmount>     $vat
      * @param string              $countryCode the organization's country, which gives the VAT rates
      *
-     * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
-     * @throws InvalidPaymentLinesException       when the payment lines break a rule
-     * @throws InvalidVatLinesException           when the VAT lines break a rule
+     * An entry booked from a close keeps the payment lines the close wrote: sending them unchanged
+     * is how its VAT breakdown and note are edited.
+     *
+     * @throws IncomeManagementForbiddenException    when the actor is not an owner or manager
+     * @throws RevenueEntryBookedByDayCloseException when the entry is booked from a close and the payment lines differ
+     * @throws InvalidPaymentLinesException          when the payment lines break a rule
+     * @throws InvalidVatLinesException              when the VAT lines break a rule
      */
     public function change(array $payments, array $vat, ?string $note, string $countryCode, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): void
     {
         IncomeAccess::assertCanManage($actorId, $actorRole);
+        if (null !== $this->dayCloseId && !self::samePayments($payments, $this->getPaymentLines())) {
+            throw RevenueEntryBookedByDayCloseException::of($this->id->toRfc4122(), $this->dayCloseId->toRfc4122());
+        }
         self::assertValidPayments($payments, array_map(static fn (PaymentAmount $line): string => $line->method->getId()->toRfc4122(), $this->getPaymentLines()));
         self::assertValidVat($vat, $countryCode);
         $note = self::normalizeNote($note);
@@ -178,6 +251,21 @@ class RevenueEntry implements TenantAwareInterface
         $this->note = $note;
         $this->updatedBy = $actorId;
         $this->updatedAt = $now;
+    }
+
+    /**
+     * A manual entry may be deleted by its owners and managers; one booked from a close goes only
+     * with its close (#189).
+     *
+     * @throws IncomeManagementForbiddenException    when the actor is not an owner or manager
+     * @throws RevenueEntryBookedByDayCloseException when the entry is booked from a close
+     */
+    public function assertCanDelete(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        IncomeAccess::assertCanManage($actorId, $actorRole);
+        if (null !== $this->dayCloseId) {
+            throw RevenueEntryBookedByDayCloseException::of($this->id->toRfc4122(), $this->dayCloseId->toRfc4122());
+        }
     }
 
     public function getId(): Uuid
@@ -227,6 +315,11 @@ class RevenueEntry implements TenantAwareInterface
     public function getNote(): ?string
     {
         return $this->note;
+    }
+
+    public function getDayCloseId(): ?Uuid
+    {
+        return $this->dayCloseId;
     }
 
     public function getCreatedBy(): Uuid
@@ -365,6 +458,16 @@ class RevenueEntry implements TenantAwareInterface
             }
             $seen[$rate->code] = true;
         }
+    }
+
+    /**
+     * @param list<PaymentAmount> $payments
+     *
+     * @return list<string>
+     */
+    private static function methodIds(array $payments): array
+    {
+        return array_map(static fn (PaymentAmount $line): string => $line->method->getId()->toRfc4122(), $payments);
     }
 
     /**

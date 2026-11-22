@@ -57,6 +57,7 @@ import {
   entryFormErrors,
   entryFormFrom,
   entryLines,
+  entryUpdateBody,
   formPaymentsTotal,
   formVatGross,
   isDuplicateEntry,
@@ -126,6 +127,8 @@ function EntryForm({
   const { t } = useTranslation("admin")
   const organizationCurrency = useOrganizationCurrency()
   const editing = target.kind === "edit" ? target.entry : null
+  // An entry booked from an end-of-day close keeps the close's payment lines (ADR 0033 §9).
+  const booked = editing !== null && editing.dayCloseId !== null
   // An entry keeps the currency it was recorded in (ADR 0022 §5).
   const currency = editing?.currency ?? organizationCurrency
   const money = (minor: MinorUnits) => formatMoney(minor, currency, locale)
@@ -218,12 +221,12 @@ function EntryForm({
   })
 
   const update = useMutation({
-    mutationFn: ({ id, lines }: { id: string; lines: EntryLines }) =>
+    mutationFn: ({ entry, lines }: { entry: RevenueEntry; lines: EntryLines }) =>
       unwrap(
         api.PATCH("/api/revenue-entries/{id}", {
-          params: { path: { id } },
+          params: { path: { id: entry.id } },
           // The lists are replaced whole; an empty vatLines removes the breakdown.
-          body: { ...lines, note: values.note.trim() || null },
+          body: entryUpdateBody(entry, lines, values.note),
           headers: { "Content-Type": "application/merge-patch+json" },
         }),
       ),
@@ -266,7 +269,7 @@ function EntryForm({
     const result = entryLines(values, methods, vatRates, today)
     if (!result.ok) return setErrors(result.errors)
     setErrors({})
-    if (editing) update.mutate({ id: editing.id, lines: result.lines })
+    if (editing) update.mutate({ entry: editing, lines: result.lines })
     else record.mutate(result.lines)
   }
 
@@ -295,7 +298,7 @@ function EntryForm({
             <>
               {by(editing.createdBy, format.dateTime(editing.createdAt), "createdBy")}
               {editing.updatedBy && editing.updatedAt && `; ${by(editing.updatedBy, format.dateTime(editing.updatedAt), "updatedBy")}`}
-              . {t("income.entry.fixed")}
+              . {booked ? t("income.entry.bookedFromClose") : t("income.entry.fixed")}
             </>
           ) : (
             t("income.entry.addDescription")
@@ -374,8 +377,19 @@ function EntryForm({
 
           <FieldSet>
             <FieldLegend variant="label">{t("income.summary.payments")}</FieldLegend>
-            <FieldDescription>{t("income.entry.paymentsDescription")}</FieldDescription>
-            {methods.length === 0 ? (
+            <FieldDescription>
+              {booked ? t("income.entry.bookedPaymentsDescription") : t("income.entry.paymentsDescription")}
+            </FieldDescription>
+            {editing && booked ? (
+              <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                {editing.payments.map((line) => (
+                  <div key={line.paymentMethodId} className="flex items-baseline justify-between gap-2 rounded-md border px-3 py-2">
+                    <dt>{line.paymentMethodName}</dt>
+                    <dd className="font-medium tabular-nums">{money(line.amount)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : methods.length === 0 ? (
               <div role="alert" className="flex items-start gap-2 rounded-md border px-3 py-2 text-sm">
                 <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <span>
@@ -482,7 +496,7 @@ function EntryForm({
       </fieldset>
 
       <DialogFooter className="sm:justify-between">
-        {editing ? (
+        {editing && !booked ? (
           <Button type="button" variant="ghost" className="text-destructive" disabled={pending} onClick={() => setConfirmDelete(true)}>
             <Trash2Icon />
             {t("common.delete")}
@@ -495,7 +509,7 @@ function EntryForm({
         </Button>
       </DialogFooter>
 
-      {editing && (
+      {editing && !booked && (
         <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
           <AlertDialogContent>
             <AlertDialogHeader>

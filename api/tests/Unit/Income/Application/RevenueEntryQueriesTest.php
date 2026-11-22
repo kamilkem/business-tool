@@ -52,6 +52,7 @@ final class RevenueEntryQueriesTest extends IncomeHandlerTestCase
             121_000,
             20_180,
             'Event',
+            null,
             $this->owner->getId()->toRfc4122(),
             new \DateTimeImmutable('2026-11-12 08:00:00'),
             $this->manager->getId()->toRfc4122(),

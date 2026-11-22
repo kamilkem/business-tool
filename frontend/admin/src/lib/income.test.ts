@@ -10,6 +10,7 @@ import {
   entryFormErrors,
   entryFormFrom,
   entryLines,
+  entryUpdateBody,
   formPaymentsTotal,
   formVatGross,
   incomeGrid,
@@ -52,6 +53,7 @@ function entry(registerName: string, businessDate: string, paymentsTotal: number
     vatGrossTotal: 0,
     vatTotal: 0,
     note: null,
+    dayCloseId: null,
     createdBy: "owner",
     createdAt: `${businessDate}T22:00:00+00:00`,
     updatedBy: null,
@@ -220,6 +222,17 @@ describe("entry form", () => {
       vatLines: { "23": { gross: 300_00, vat: 56_10 } },
       note: "Event",
     })
+  })
+
+  it("test_it_leaves_the_payment_lines_of_an_entry_booked_from_a_close_out_of_a_correction", () => {
+    const lines = {
+      payments: [{ paymentMethodId: "m-cash", amount: 300_00 }],
+      vatLines: [{ rate: "23", gross: 300_00, vat: 56_10 }],
+    }
+    const manual = entry("Bar", "2026-11-03", 300_00)
+
+    expect(entryUpdateBody(manual, lines, "  Event ")).toEqual({ ...lines, note: "Event" })
+    expect(entryUpdateBody({ ...manual, dayCloseId: "close-1" }, lines, " ")).toEqual({ vatLines: lines.vatLines, note: null })
   })
 
   it("test_it_maps_the_apis_violations_back_to_the_methods_and_rates_sent", () => {

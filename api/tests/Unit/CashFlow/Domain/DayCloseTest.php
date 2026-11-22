@@ -181,6 +181,23 @@ final class DayCloseTest extends TestCase
         $this->expectRefusal('cash_flow.invalid_day_close.nothing_to_close', fn () => $this->record(offer: $this->offer(storages: [])));
     }
 
+    public function test_it_refuses_a_close_that_income_could_not_book_into_any_payment_method(): void
+    {
+        $this->expectRefusal('cash_flow.invalid_day_close.nothing_to_book', fn () => $this->record(offer: $this->offer(nonCash: [], cashMethod: false), amounts: []));
+
+        // Only the non-cash lines are booked without a cash method (ADR 0033 §9).
+        self::assertSame(['card', 'blik'], array_map(
+            fn (string $id): string => $id === $this->cardId->toRfc4122() ? 'card' : 'blik',
+            array_keys($this->record(offer: $this->offer(cashMethod: false))->nonCashAmounts()),
+        ));
+    }
+
+    public function test_it_refuses_a_cash_income_larger_than_a_revenue_line_takes(): void
+    {
+        // 200 000 × 200 zł = 4 000 000 000 grosze, more than RevenueEntry::MAX_AMOUNT.
+        $this->expectRefusal('cash_flow.invalid_day_close.cash_income', fn () => $this->record(box: [[$this->twoHundred, 200_000]]));
+    }
+
     public function test_it_refuses_a_register_that_is_not_active(): void
     {
         $this->expectRefusal('cash_flow.invalid_day_close.register_not_offered', fn () => $this->record(registerId: Uuid::v7()->toRfc4122()));
@@ -274,7 +291,7 @@ final class DayCloseTest extends TestCase
      * @param list<Denomination>|null    $denominations
      * @param array<string, string>|null $nonCash
      */
-    private function offer(?array $storages = null, ?array $denominations = null, ?array $nonCash = null): DayCloseOffer
+    private function offer(?array $storages = null, ?array $denominations = null, ?array $nonCash = null, bool $cashMethod = true): DayCloseOffer
     {
         return new DayCloseOffer(
             'PLN',
@@ -282,6 +299,7 @@ final class DayCloseTest extends TestCase
             $denominations ?? [$this->fifty, $this->hundred, $this->twoHundred],
             [$this->registerId->toRfc4122() => 'Bar'],
             $nonCash ?? [$this->cardId->toRfc4122() => 'Card', $this->blikId->toRfc4122() => 'BLIK'],
+            $cashMethod,
         );
     }
 

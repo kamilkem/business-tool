@@ -659,7 +659,9 @@
       },
       "noPaymentMethods": "Organizacja nie ma aktywnej metody płatności.",
       "managePaymentMethods": "Dodaj metodę lub aktywuj ją ponownie",
-      "deactivatedMethod": "Dezaktywowana: ten wpis ją zachowuje, ale nowe wpisy nie mogą jej używać."
+      "deactivatedMethod": "Dezaktywowana: ten wpis ją zachowuje, ale nowe wpisy nie mogą jej używać.",
+      "bookedFromClose": "Zaksięgowane z zamknięcia dnia: kasa i dzień się nie zmieniają, a płatności zmieniają się tylko przy korekcie zamknięcia. Możesz dodać rozbicie VAT i notatkę.",
+      "bookedPaymentsDescription": "Z zamknięcia dnia: gotówka to zmiana w miejscach na gotówkę, pozostałe formy tak, jak wpisano je przy zamknięciu."
     }
   },
   "payroll": {

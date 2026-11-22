@@ -42,6 +42,11 @@ final class RevenueEntryRepository extends ServiceEntityRepository implements Re
             ->getOneOrNullResult();
     }
 
+    public function findByDayCloseId(Uuid $dayCloseId): ?RevenueEntry
+    {
+        return $this->findOneBy(['dayCloseId' => $dayCloseId]);
+    }
+
     public function findInPeriod(BusinessPeriod $period, ?Uuid $registerId = null): array
     {
         // The lines are fetched with the entries: a list shows them all (#43).
