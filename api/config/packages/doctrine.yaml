@@ -37,6 +37,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/Income/Domain/Model'
                 prefix: 'App\Income\Domain\Model'
                 alias: AppIncome
+            AppCashFlow:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/CashFlow/Domain/Model'
+                prefix: 'App\CashFlow\Domain\Model'
+                alias: AppCashFlow
             AppExpenses:
                 type: attribute
                 is_bundle: false

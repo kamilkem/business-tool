@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ui\Fixture;
 
+use App\CashFlow\Domain\Model\DefaultDenominations;
+use App\CashFlow\Domain\Model\Denomination;
 use App\Expenses\Domain\Model\DefaultExpenseCategories;
 use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoice;
@@ -103,6 +105,10 @@ final class AppFixtures extends Fixture
         $barCategories = $this->expenseCategories($manager, $bar, $owner->getId(), $now);
         $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
 
+        $this->denominations($manager, $bar, $owner->getId(), $now);
+        $this->denominations($manager, $cafe, $mixed->getId(), $now);
+        $manager->flush();
+
         $this->ksefConnection($manager, $bar, $owner->getId(), $now);
         $this->purchaseInvoices($manager, $bar, $barCategories, $owner->getId(), $now);
 
@@ -171,6 +177,15 @@ final class AppFixtures extends Fixture
         }
 
         return $methods;
+    }
+
+    /** The defaults of the organization's currency (ADR 0033 §2), as AddDefaultDenominationsOnOrganizationCreated adds them. */
+    private function denominations(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        foreach (DefaultDenominations::forCurrency($organization->getCurrency()) as $default) {
+            $manager->persist(Denomination::create(Uuid::v7(), $organization->getCurrency(), $default['value'], $default['kind'], null, $ownerId, MembershipRole::Owner, $now));
+        }
     }
 
     /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */

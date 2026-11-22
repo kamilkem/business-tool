@@ -42,6 +42,11 @@ services:
         exclude:
             - '../src/App/Income/Domain/Model/'
 
+    App\CashFlow\:
+        resource: '../src/App/CashFlow/'
+        exclude:
+            - '../src/App/CashFlow/Domain/Model/'
+
     App\Expenses\:
         resource: '../src/App/Expenses/'
         exclude:

@@ -1,5 +1,12 @@
 {
   "apiError": {
+    "cash_flow": {
+      "access_forbidden": "Only owners and managers can change cash flow settings.",
+      "denomination_in_use": "This denomination is used by cash records, so it can't be deleted. Deactivate it instead.",
+      "denomination_not_found": "This denomination no longer exists. Reload the page.",
+      "denomination_value_taken": "This denomination already exists (it may be deactivated).",
+      "invalid_denomination_value": "A denomination's value must be greater than zero."
+    },
     "expenses": {
       "expense_category_archived": "The category “{{name}}” is archived. Restore it to assign it.",
       "expense_category_name_taken": "A category named “{{name}}” already exists.",
