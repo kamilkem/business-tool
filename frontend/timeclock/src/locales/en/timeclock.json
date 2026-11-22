@@ -59,7 +59,8 @@
       "notClockedIn": "You're not clocked in, maybe you clocked out from another tab or phone.",
       "tooSoon": "You clocked in a moment ago. Wait a few seconds and try again.",
       "noAccess": "You no longer have access to this organization. Ask your manager."
-    }
+    },
+    "closeDay": "Close the day"
   },
   "shifts": {
     "title": "My shifts",
@@ -137,5 +138,51 @@
     "noRate": "No pay rate is set for you yet, so this shows no pay. Ask your manager to set your rate.",
     "someWithoutRate_one": "No pay rate is set for {{count}} shift, so it isn't counted. Ask your manager to set your rate.",
     "someWithoutRate_other": "No pay rate is set for {{count}} shifts, so they aren't counted. Ask your manager to set your rate."
+  },
+  "closeDay": {
+    "title": "Close the day",
+    "cannotClose": "The day can't be closed yet: no cash storage or denomination is set up. Ask your manager.",
+    "alreadyClosed": "{{date}} is already closed, by {{name}} at {{time}}. If something is wrong, ask your manager to correct it.",
+    "stepOf": "Step {{step}} of {{steps}}",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Close the day",
+    "closing": "Closing…",
+    "startAgain": "Start again",
+    "day": {
+      "title": "Day and register",
+      "date": "Day",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "dateFixed": "You're closing {{date}}.",
+      "register": "Register"
+    },
+    "storage": {
+      "depositHint": "Enter only what you're putting into {{name}} now.",
+      "countedHint": "Count what stays in {{name}} and enter every denomination. Leave a field empty for none.",
+      "depositTotal": "Put in",
+      "countedTotal": "Counted",
+      "pieces": "Pieces of {{denomination}}",
+      "fewer": "One fewer of {{denomination}}",
+      "more": "One more of {{denomination}}"
+    },
+    "payments": {
+      "title": "Other payments",
+      "hint": "Enter the day's amount of each, as the terminal or report shows it. Leave a field empty for none.",
+      "total": "Total"
+    },
+    "summary": {
+      "title": "Check and close",
+      "deposited": "Put into {{name}}",
+      "counted": "Counted in {{name}}",
+      "cashIncomeLater": "The day's cash income is worked out when you close the day."
+    },
+    "receipt": {
+      "title": "{{date}} is closed",
+      "closedAt": "Closed at {{time}}",
+      "cashIncome": "Cash income",
+      "unknownMethod": "A payment method no longer offered",
+      "shortage": "The cash is short by {{amount}}. The day's cash income is booked as 0, and your manager will check it."
+    }
   }
 }

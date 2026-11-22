@@ -61,7 +61,8 @@
       "notClockedIn": "Nie masz trwającej zmiany, może została zakończona w innej karcie lub na innym telefonie.",
       "tooSoon": "Zmiana rozpoczęła się przed chwilą. Odczekaj kilka sekund i spróbuj ponownie.",
       "noAccess": "Nie masz już dostępu do tej organizacji. Zapytaj przełożonego."
-    }
+    },
+    "closeDay": "Zamknij dzień"
   },
   "shifts": {
     "title": "Moje zmiany",
@@ -141,5 +142,51 @@
     "someWithoutRate_few": "{{count}} zmiany nie mają stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
     "someWithoutRate_many": "{{count}} zmian nie ma stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki.",
     "someWithoutRate_other": "{{count}} zmiany nie ma stawki, więc nie są wliczone. Poproś przełożonego o ustawienie stawki."
+  },
+  "closeDay": {
+    "title": "Zamknij dzień",
+    "cannotClose": "Dnia nie można jeszcze zamknąć: nie ma ustawionego miejsca na gotówkę ani nominałów. Zapytaj przełożonego.",
+    "alreadyClosed": "Ten dzień ({{date}}) jest już zamknięty: {{name}}, {{time}}. Jeśli coś się nie zgadza, poproś przełożonego o poprawkę.",
+    "stepOf": "Krok {{step}} z {{steps}}",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "submit": "Zamknij dzień",
+    "closing": "Zamykanie…",
+    "startAgain": "Zacznij od nowa",
+    "day": {
+      "title": "Dzień i kasa",
+      "date": "Dzień",
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj",
+      "dateFixed": "Zamykasz dzień: {{date}}.",
+      "register": "Kasa"
+    },
+    "storage": {
+      "depositHint": "Wpisz tylko to, co teraz wkładasz do: {{name}}.",
+      "countedHint": "Policz, co zostaje w: {{name}}, i wpisz każdy nominał. Puste pole oznacza zero.",
+      "depositTotal": "Wkładasz",
+      "countedTotal": "Policzone",
+      "pieces": "Liczba sztuk: {{denomination}}",
+      "fewer": "O jedną sztukę mniej: {{denomination}}",
+      "more": "O jedną sztukę więcej: {{denomination}}"
+    },
+    "payments": {
+      "title": "Inne płatności",
+      "hint": "Wpisz kwotę z całego dnia dla każdej z nich, tak jak pokazuje terminal lub raport. Puste pole oznacza zero.",
+      "total": "Razem"
+    },
+    "summary": {
+      "title": "Sprawdź i zamknij",
+      "deposited": "Włożone do: {{name}}",
+      "counted": "Policzone w: {{name}}",
+      "cashIncomeLater": "Przychód gotówkowy z dnia zostanie wyliczony po zamknięciu dnia."
+    },
+    "receipt": {
+      "title": "Dzień zamknięty: {{date}}",
+      "closedAt": "Zamknięto o {{time}}",
+      "cashIncome": "Przychód gotówkowy",
+      "unknownMethod": "Metoda płatności, której już nie ma",
+      "shortage": "Brakuje {{amount}} gotówki. Przychód gotówkowy z dnia jest zapisany jako 0, a przełożony to sprawdzi."
+    }
   }
 }

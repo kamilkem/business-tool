@@ -76,3 +76,17 @@ export function myPayQuery(organizationId: string, userId: string, month: string
     queryFn: () => unwrap(api.GET("/api/my-pay", { params: { query: { month } } })),
   })
 }
+
+/** The key of the close form in the organization, to refresh after a close. */
+export const dayCloseFormKey = (organizationId: string) => ["day-close-form", organizationId] as const
+
+/**
+ * What an end-of-day close covers now (ADR 0033 §6): the storages, denominations, registers and
+ * non-cash methods, the date and whether it is already closed. No balances: any member may read it.
+ */
+export function dayCloseFormQuery(organizationId: string) {
+  return queryOptions({
+    queryKey: dayCloseFormKey(organizationId),
+    queryFn: () => unwrap(api.GET("/api/day-close-form")),
+  })
+}

@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppCloseDayRouteImport } from './routes/_app/close-day'
 import { Route as AppPayRouteImport } from './routes/_app/pay'
 import { Route as AppRequestsRouteImport } from './routes/_app/requests'
 import { Route as AppShiftsRouteImport } from './routes/_app/shifts'
@@ -48,6 +49,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCloseDayRoute = AppCloseDayRouteImport.update({
+  id: '/close-day',
+  path: '/close-day',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayRoute = AppPayRouteImport.update({
   id: '/pay',
   path: '/pay',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/close-day': typeof AppCloseDayRoute
   '/pay': typeof AppPayRoute
   '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/close-day': typeof AppCloseDayRoute
   '/pay': typeof AppPayRoute
   '/requests': typeof AppRequestsRoute
   '/shifts': typeof AppShiftsRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/close-day': typeof AppCloseDayRoute
   '/_app/pay': typeof AppPayRoute
   '/_app/requests': typeof AppRequestsRoute
   '/_app/shifts': typeof AppShiftsRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/close-day'
     | '/pay'
     | '/requests'
     | '/shifts'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/close-day'
     | '/pay'
     | '/requests'
     | '/shifts'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/_app/account'
+    | '/_app/close-day'
     | '/_app/pay'
     | '/_app/requests'
     | '/_app/shifts'
@@ -181,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/close-day': {
+      id: '/_app/close-day'
+      path: '/close-day'
+      fullPath: '/close-day'
+      preLoaderRoute: typeof AppCloseDayRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/pay': {
       id: '/_app/pay'
       path: '/pay'
@@ -207,6 +226,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppCloseDayRoute: typeof AppCloseDayRoute
   AppPayRoute: typeof AppPayRoute
   AppRequestsRoute: typeof AppRequestsRoute
   AppShiftsRoute: typeof AppShiftsRoute
@@ -215,6 +235,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppCloseDayRoute: AppCloseDayRoute,
   AppPayRoute: AppPayRoute,
   AppRequestsRoute: AppRequestsRoute,
   AppShiftsRoute: AppShiftsRoute,

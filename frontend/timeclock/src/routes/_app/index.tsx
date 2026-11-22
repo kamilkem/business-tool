@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, WalletIcon, WifiOffIcon } from "lucide-react"
+import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LockKeyholeIcon, WalletIcon, WifiOffIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
@@ -9,7 +9,7 @@ import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { browserTimeZone, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 
-import { currentShiftQuery, type Shift } from "@/lib/queries"
+import { currentShiftQuery, dayCloseFormQuery, type Shift } from "@/lib/queries"
 import { elapsedMs, formatClockTime, formatElapsed, formatWorked } from "@/lib/format"
 import { clockErrorMessage, useClockMutation, useNow, useOnline } from "@/lib/shifts"
 
@@ -31,6 +31,8 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
   const current = useQuery(currentShiftQuery(organizationId))
   const clock = useClockMutation(organizationId)
   const format = useDateTimeFormat()
+  // The close is offered only while there is something to count (#187).
+  const canCloseDay = useQuery(dayCloseFormQuery(organizationId)).data?.canClose === true
 
   const shift = current.data
   const action = shift ? "out" : "in"
@@ -88,6 +90,14 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
             </AlertDescription>
           </Alert>
         )}
+        {endedShift && canCloseDay && (
+          <Button asChild size="lg" variant="outline" className="h-12">
+            <Link to="/close-day">
+              <LockKeyholeIcon />
+              {t("clock.closeDay")}
+            </Link>
+          </Button>
+        )}
 
         {current.isError ? (
           <Button size="lg" variant="outline" className="h-16 text-lg" onClick={() => current.refetch()} disabled={current.isFetching}>
@@ -121,6 +131,14 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
               {t("clock.myPay")}
             </Link>
           </Button>
+          {canCloseDay && !endedShift && (
+            <Button asChild variant="ghost" className="col-span-2 h-11">
+              <Link to="/close-day">
+                <LockKeyholeIcon />
+                {t("clock.closeDay")}
+              </Link>
+            </Button>
+          )}
         </div>
       </footer>
     </>
