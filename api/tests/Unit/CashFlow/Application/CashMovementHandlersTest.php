@@ -142,7 +142,7 @@ final class CashMovementHandlersTest extends TestCase
 
         $event = $this->events->events[0] ?? null;
         self::assertInstanceOf(CashLedgerChanged::class, $event);
-        self::assertSame([$this->organization->getId()->toRfc4122(), $id, [$this->safe->getId()->toRfc4122()], '2026-11-22T10:00:00+00:00', $this->manager->getId()->toRfc4122()], [$event->organizationId, $event->movementId, $event->storageIds, $event->occurredAt, $event->actorId]);
+        self::assertSame([$this->organization->getId()->toRfc4122(), $id, [$this->safe->getId()->toRfc4122()], '2026-11-22T10:00:00+00:00', $this->manager->getId()->toRfc4122()], [$event->organizationId, $event->recordId, $event->storageIds, $event->occurredAt, $event->actorId]);
     }
 
     public function test_it_moves_cash_between_storages_in_one_movement(): void
@@ -244,7 +244,7 @@ final class CashMovementHandlersTest extends TestCase
         ($this->deleteHandler())(new DeleteCashMovementCommand($this->organization->getId()->toRfc4122(), $this->manager->getId()->toRfc4122(), $out));
         self::assertNull($this->movements->findById(Uuid::fromString($out)));
         self::assertSame(30_000, $this->balanceOf($this->safe)->total);
-        self::assertSame($out, $this->lastEvent()->movementId);
+        self::assertSame($out, $this->lastEvent()->recordId);
     }
 
     public function test_it_answers_not_found_for_a_missing_movement_storage_or_denomination(): void

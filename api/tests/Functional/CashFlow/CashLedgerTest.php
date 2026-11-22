@@ -24,6 +24,7 @@ use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
 use App\CashFlow\Infrastructure\Doctrine\Orm\CashLedger;
 use App\CashFlow\Infrastructure\Doctrine\Orm\Repository\DayCloseRepository;
 use App\Organization\Domain\Model\MembershipRole;
+use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Domain\Time\BusinessPeriod;
@@ -120,6 +121,56 @@ final class CashLedgerTest extends KernelTestCase
 
         $this->expectException(DayAlreadyClosedException::class);
         $this->close('2026-11-21', '2026-11-22 02:00');
+    }
+
+    public function test_it_finds_the_first_close_after_a_position_that_counted_a_storage(): void
+    {
+        $first = $this->close('2026-11-20', '2026-11-21 01:00', box: [[$this->hundred, 1]]);
+        $second = $this->close('2026-11-21', '2026-11-22 01:00', box: [[$this->hundred, 2]], safe: [[$this->fifty, 1]]);
+        $this->entityManager->clear();
+
+        $before = new LedgerPosition(new \DateTimeImmutable('2026-11-20 12:00'), Uuid::v7());
+        self::assertSame($first->getId()->toRfc4122(), $this->closes->findFirstCountingAfter($this->box->getId(), $before)?->getId()->toRfc4122());
+        self::assertSame($second->getId()->toRfc4122(), $this->closes->findFirstCountingAfter($this->box->getId(), $first->position())?->getId()->toRfc4122());
+        self::assertNull($this->closes->findFirstCountingAfter($this->box->getId(), $second->position()));
+        // A deposit storage anchors nothing.
+        self::assertNull($this->closes->findFirstCountingAfter($this->safe->getId(), $before));
+    }
+
+    public function test_it_saves_a_corrected_close_in_place_and_removes_a_deleted_one_with_its_lines(): void
+    {
+        $close = $this->close('2026-11-21', '2026-11-22 01:00', box: [[$this->hundred, 2]], safe: [[$this->hundred, 3]]);
+        // As a new request does: an empty identity map, and the organization selected again.
+        $organizationId = $this->tenantContext->getOrganization()->getId();
+        $this->entityManager->clear();
+        $this->tenantContext->switchTo($this->entityManager->find(Organization::class, $organizationId) ?? self::fail('Organization expected.'));
+
+        $close = $this->closes->findById($close->getId()) ?? self::fail('Close expected.');
+        $close->correct(
+            $this->registerId->toRfc4122(),
+            [],
+            $this->denominations->findByCurrency('PLN'),
+            [new StorageCount($this->managed($this->box), $this->pieces([[$this->fifty, 1], [$this->hundred, 2]])), new StorageCount($this->managed($this->safe), $this->pieces([[$this->fifty, 2]]))],
+            [],
+            [],
+            [$this->box->getId()->toRfc4122() => 0],
+            $this->owner,
+            MembershipRole::Owner,
+            new \DateTimeImmutable('2026-11-22 09:00'),
+        );
+        $this->closes->save($close);
+        $this->entityManager->clear();
+
+        $saved = $this->closes->findById($close->getId()) ?? self::fail('Close expected.');
+        self::assertSame([35_000, '2026-11-22 09:00'], [$saved->getCashIncome(), $saved->getUpdatedAt()?->format('Y-m-d H:i')]);
+        self::assertSame(self::byId([[$this->fifty, 1], [$this->hundred, 2]]), $this->ledger->balanceOf($this->box->getId())->pieces);
+        self::assertSame(self::byId([[$this->fifty, 2]]), $this->ledger->balanceOf($this->safe->getId())->pieces);
+
+        $this->closes->remove($saved);
+        $this->entityManager->clear();
+        self::assertNull($this->closes->findById($close->getId()));
+        self::assertSame([], $this->ledger->balanceOf($this->box->getId())->pieces);
+        self::assertSame([], $this->ledger->balanceOf($this->safe->getId())->pieces);
     }
 
     public function test_it_tells_that_a_close_uses_its_storages_and_denominations_and_keeps_them_from_another_organization(): void

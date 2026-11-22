@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Ui\Http\CashFlow;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\CashFlow\Application\Query\GetDayClose\DayCloseView;
 use App\CashFlow\Application\Query\ListDayCloses\ListDayClosesQuery;
 use Symfony\Component\Routing\Requirement\Requirement;
+use Ui\Http\CashFlow\Processor\CorrectDayCloseProcessor;
+use Ui\Http\CashFlow\Processor\DeleteDayCloseProcessor;
 use Ui\Http\CashFlow\Provider\DayCloseCollectionProvider;
 use Ui\Http\CashFlow\Provider\DayCloseProvider;
 
@@ -20,6 +24,7 @@ use Ui\Http\CashFlow\Provider\DayCloseProvider;
  * An end-of-day close of the organization selected by the X-Organization-Id header, with what the
  * ledger expected (ADR 0033 §6), for owners and managers: employees see only the close they make, in
  * the response to POST /day-closes (403 here, `cash_flow.access_forbidden.to_read_day_closes`).
+ * Owners and managers correct and delete closes (§7); employees cannot redo one.
  */
 #[ApiResource(
     shortName: 'DayClose',
@@ -65,6 +70,44 @@ use Ui\Http\CashFlow\Provider\DayCloseProvider;
             ),
             provider: DayCloseProvider::class,
         ),
+        new Put(
+            uriTemplate: '/day-closes/{id}',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Corrects an end-of-day close of the selected organization.',
+                description: 'Owners and managers only (403 otherwise, before the body is validated). The body replaces the close\'s counts, deposits, non-cash amounts and register; the business date never changes (delete the close and close the date again instead). It covers what the close covered: every storage of the close once (in the mode it had at the close; a counted storage\'s missing denomination is zero) and every non-cash payment method of the close once, deactivated ones included; a denomination is offered when it is active or already in the close. The register is the close\'s own or an active one. The expected openings and the cash income are computed again, the revenue entry booked from the close follows (another register: the old entry is removed and the new register\'s is booked), and so does the next close of each storage that counted it. A correction that would take a deposit storage below zero pieces of a denomination is a 409.',
+                responses: [
+                    '200' => new Response('The close as corrected.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The close is not one of the selected organization\'s.'),
+                    '409' => new Response('A deposit storage would go below zero pieces of a denomination.'),
+                    '422' => new Response('The body is invalid, or does not cover what the close covers.'),
+                ],
+            ),
+            input: CorrectDayCloseInput::class,
+            // The provider refuses employees (403) and unknown closes (404) before the body is read.
+            read: true,
+            provider: DayCloseProvider::class,
+            processor: CorrectDayCloseProcessor::class,
+        ),
+        new Delete(
+            uriTemplate: '/day-closes/{id}',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Deletes an end-of-day close of the selected organization.',
+                description: 'Owners and managers only (403 otherwise). It removes the close\'s ledger records and the revenue entry booked from it (VAT breakdown and note included); its cash then counts in the next close of each storage, which is computed again with its revenue entry. A delete that would take a deposit storage below zero pieces of a denomination is a 409. The date may then be closed again only when no later date is closed.',
+                responses: [
+                    '204' => new Response('The close is deleted.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The close is not one of the selected organization\'s.'),
+                    '409' => new Response('A deposit storage would go below zero pieces of a denomination.'),
+                ],
+            ),
+            provider: DayCloseProvider::class,
+            processor: DeleteDayCloseProcessor::class,
+        ),
     ],
 )]
 final readonly class DayCloseResource
@@ -95,6 +138,12 @@ final readonly class DayCloseResource
         public string $closedByLastName,
         /** The server's time of the close: where it sits in the cash ledger. */
         public \DateTimeImmutable $closedAt,
+        /** The owner or manager who corrected the close last; null while nobody did. */
+        public ?string $updatedBy,
+        public ?string $updatedByFirstName,
+        public ?string $updatedByLastName,
+        /** When the close was corrected last; null while nobody did. */
+        public ?\DateTimeImmutable $updatedAt,
     ) {
     }
 
@@ -114,6 +163,10 @@ final readonly class DayCloseResource
             closedByFirstName: $view->closedByFirstName,
             closedByLastName: $view->closedByLastName,
             closedAt: $view->closedAt,
+            updatedBy: $view->updatedById,
+            updatedByFirstName: $view->updatedByFirstName,
+            updatedByLastName: $view->updatedByLastName,
+            updatedAt: $view->updatedAt,
         );
     }
 }

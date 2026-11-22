@@ -39,4 +39,12 @@ final class CashFlowAccess
             throw CashFlowAccessForbiddenException::toReadDayCloses($actorId->toRfc4122());
         }
     }
+
+    /** @throws CashFlowAccessForbiddenException when the role is employee: owners and managers review closes; employees cannot redo one (ADR 0033 §7) */
+    public static function assertCanCorrectDayCloses(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        if (!$actorRole->canManageOrganization()) {
+            throw CashFlowAccessForbiddenException::toCorrectDayCloses($actorId->toRfc4122());
+        }
+    }
 }

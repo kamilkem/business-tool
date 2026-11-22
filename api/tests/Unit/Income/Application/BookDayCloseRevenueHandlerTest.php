@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Income\Application;
 
+use App\CashFlow\Domain\Event\DayCloseChanged;
+use App\CashFlow\Domain\Event\DayCloseDeleted;
 use App\CashFlow\Domain\Event\DayCloseRecorded;
 use App\Income\Application\Command\BookDayCloseRevenue\BookDayCloseRevenueCommand;
 use App\Income\Application\Command\BookDayCloseRevenue\BookDayCloseRevenueHandler;
+use App\Income\Application\Command\RemoveDayCloseRevenue\RemoveDayCloseRevenueCommand;
+use App\Income\Application\Command\RemoveDayCloseRevenue\RemoveDayCloseRevenueHandler;
+use App\Income\Application\EventHandler\BookRevenueOnDayCloseChanged;
 use App\Income\Application\EventHandler\BookRevenueOnDayCloseRecorded;
+use App\Income\Application\EventHandler\RemoveRevenueOnDayCloseDeleted;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\Register;
@@ -21,6 +27,9 @@ use Symfony\Component\Uid\Uuid;
 /** The employee closes the day; the close books the register "Bar" for 2026-11-11 (ADR 0033 §9). */
 #[CoversClass(BookDayCloseRevenueHandler::class)]
 #[CoversClass(BookRevenueOnDayCloseRecorded::class)]
+#[CoversClass(BookRevenueOnDayCloseChanged::class)]
+#[CoversClass(RemoveRevenueOnDayCloseDeleted::class)]
+#[CoversClass(RemoveDayCloseRevenueHandler::class)]
 final class BookDayCloseRevenueHandlerTest extends IncomeHandlerTestCase
 {
     private const string DATE = '2026-11-11';
@@ -127,6 +136,56 @@ final class BookDayCloseRevenueHandlerTest extends IncomeHandlerTestCase
             $commands[0]->organizationId, $commands[0]->actorId, $commands[0]->dayCloseId, $commands[0]->registerId, $commands[0]->businessDate, $commands[0]->currency, $commands[0]->cashIncome, $commands[0]->nonCashAmounts,
         ]);
         self::assertTrue(Uuid::isValid($commands[0]->newEntryId));
+    }
+
+    public function test_it_books_a_changed_close_again_as_the_manager_who_corrected_it(): void
+    {
+        $bus = new RecordingCommandBus();
+        $nonCash = [$this->card->getId()->toRfc4122() => 5_000];
+
+        (new BookRevenueOnDayCloseChanged($bus))(new DayCloseChanged($this->organizationId(), $this->closeId, $this->bar->getId()->toRfc4122(), self::DATE, 'PLN', 12_000, $nonCash, $this->manager->getId()->toRfc4122()));
+
+        $commands = $bus->commandsOf(BookDayCloseRevenueCommand::class);
+        self::assertCount(1, $commands);
+        self::assertSame([$this->manager->getId()->toRfc4122(), $this->closeId, 12_000, $nonCash], [$commands[0]->actorId, $commands[0]->dayCloseId, $commands[0]->cashIncome, $commands[0]->nonCashAmounts]);
+    }
+
+    public function test_it_sends_the_removal_command_for_a_deleted_close(): void
+    {
+        $bus = new RecordingCommandBus();
+
+        (new RemoveRevenueOnDayCloseDeleted($bus))(new DayCloseDeleted($this->organizationId(), $this->closeId, $this->bar->getId()->toRfc4122(), self::DATE, $this->manager->getId()->toRfc4122()));
+
+        $commands = $bus->commandsOf(RemoveDayCloseRevenueCommand::class);
+        self::assertCount(1, $commands);
+        self::assertSame([$this->organizationId(), $this->manager->getId()->toRfc4122(), $this->closeId], [$commands[0]->organizationId, $commands[0]->actorId, $commands[0]->dayCloseId]);
+    }
+
+    public function test_it_removes_the_entry_of_a_deleted_close_with_its_vat_and_leaves_the_others(): void
+    {
+        $other = $this->recorded('2026-11-10', cash: 5_000);
+        $this->book(cashIncome: 10_000);
+        $entry = $this->bookedEntry();
+        $entry->change($entry->getPaymentLines(), [new VatAmount('23', 20_000, 3_740)], 'Checked', 'PL', $this->manager->getId(), MembershipRole::Manager, new \DateTimeImmutable(self::NOW));
+
+        $this->remove();
+
+        self::assertNull($this->entries->findByDayCloseId(Uuid::fromString($this->closeId)));
+        self::assertSame([$other], $this->entries->all());
+    }
+
+    public function test_it_removes_nothing_when_the_deleted_close_booked_no_entry(): void
+    {
+        $other = $this->recorded(self::DATE, cash: 5_000);
+
+        $this->remove();
+
+        self::assertSame([$other], $this->entries->all());
+    }
+
+    private function remove(): void
+    {
+        (new RemoveDayCloseRevenueHandler($this->entries))(new RemoveDayCloseRevenueCommand($this->organizationId(), $this->manager->getId()->toRfc4122(), $this->closeId));
     }
 
     /** @param array<string, int>|null $nonCash */
