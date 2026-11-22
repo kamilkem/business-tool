@@ -152,7 +152,7 @@ final class CashStorageTest extends TestCase
                 $attempt();
                 self::fail($case.' should be refused.');
             } catch (CashFlowAccessForbiddenException $e) {
-                self::assertSame('cash_flow.access_forbidden', $e->errorCode(), $case);
+                self::assertSame('cash_flow.access_forbidden.to_manage', $e->errorCode(), $case);
                 self::assertSame(['userId' => $employee->toRfc4122()], $e->errorParameters(), $case);
             }
         }

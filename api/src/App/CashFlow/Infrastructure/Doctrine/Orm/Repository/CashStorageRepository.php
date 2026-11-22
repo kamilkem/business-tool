@@ -6,12 +6,14 @@ namespace App\CashFlow\Infrastructure\Doctrine\Orm\Repository;
 
 use App\CashFlow\Domain\Exception\StorageInUseException;
 use App\CashFlow\Domain\Exception\StorageNameTakenException;
+use App\CashFlow\Domain\Model\CashMovementLine;
 use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Repository\CashStorageRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<CashStorage> */
@@ -48,18 +50,31 @@ final class CashStorageRepository extends ServiceEntityRepository implements Cas
         return $qb->getQuery()->getResult();
     }
 
-    /**
-     * Nothing refers to storages yet. The ledger (#181) and the end-of-day close (#185) add their
-     * lines here, with a foreign key that has no ON DELETE (remove()).
-     */
+    /** The movements' lines refer to it (#181); the end-of-day close's lines join them in #185. */
     public function isUsed(Uuid $id): bool
     {
-        return false;
+        $used = $this->getEntityManager()->createQueryBuilder()
+            ->select('1')
+            ->from(CashMovementLine::class, 'l')
+            ->where('l.storage = :id')
+            ->setParameter('id', $id, UuidType::NAME)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getArrayResult();
+
+        return [] !== $used;
     }
 
     public function usedIds(): array
     {
-        return [];
+        /** @var list<array{id: mixed}> $rows */
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('DISTINCT IDENTITY(l.storage) AS id')
+            ->from(CashMovementLine::class, 'l')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): string => $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : (string) $row['id'], $rows);
     }
 
     public function add(CashStorage $storage): void

@@ -6,13 +6,15 @@ namespace App\Tests\Api\CashFlow;
 
 use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Model\CashStorageMode;
+use App\CashFlow\Domain\Model\Denomination;
+use App\CashFlow\Domain\Model\DenominationKind;
 use App\CashFlow\Domain\Repository\CashStorageRepositoryInterface;
+use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Tests\Api\ApiTestCase;
 use App\Tests\Factory\UserFactory;
-use App\Tests\Fixtures\Entity\CashStorageReference;
 use App\Tests\Fixtures\OrganizationMother;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -259,11 +261,10 @@ final class CashStorageApiTest extends ApiTestCase
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
         $id = self::addStorage($organization, 'Sejf')->getId()->toRfc4122();
-        // Nothing records movements or closes yet (#181, #185): a test-only row with a foreign key stands in.
-        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
-        $entityManager->persist(new CashStorageReference($entityManager->getReference(CashStorage::class, Uuid::fromString($id)) ?? throw new \LogicException('Storage expected.')));
-        $entityManager->flush();
-        $entityManager->clear();
+        $denominationId = self::addDenomination($organization, 10_000)->getId()->toRfc4122();
+        static::clientFor($owner, $organization)->request('POST', '/api/cash-movements/adjustments', ['json' => ['storageId' => $id, 'lines' => [['denominationId' => $denominationId, 'pieces' => 1]]]]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertTrue(self::get($owner, $organization, $id)->toArray()['used']);
 
         $response = self::delete($owner, $organization, $id);
 
@@ -380,7 +381,7 @@ final class CashStorageApiTest extends ApiTestCase
         $response = $request($employee, $organization, $id);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame('cash_flow.access_forbidden', $response->toArray(false)['code']);
+        self::assertSame('cash_flow.access_forbidden.to_manage', $response->toArray(false)['code']);
         // Before looking at the storage: an unknown one is a 403 too.
         $request($employee, $organization, Uuid::v7()->toRfc4122());
         self::assertResponseStatusCodeSame(403);
@@ -431,6 +432,24 @@ final class CashStorageApiTest extends ApiTestCase
         }
 
         return $storage;
+    }
+
+    private static function addDenomination(Organization $organization, int $value): Denomination
+    {
+        $owner = OrganizationMother::ownerOf($organization);
+        $denomination = Denomination::create(Uuid::v7(), 'PLN', $value, DenominationKind::Note, null, $owner->getId(), MembershipRole::Owner, Clock::get()->now());
+
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $tenantContext = static::getContainer()->get(TenantContextInterface::class);
+        $tenantContext->switchTo($entityManager->find(Organization::class, $organization->getId()) ?? throw new \LogicException('Organization expected.'));
+        try {
+            static::getContainer()->get(DenominationRepositoryInterface::class)->add($denomination);
+        } finally {
+            $tenantContext->reset();
+            $entityManager->clear();
+        }
+
+        return $denomination;
     }
 
     /** @param array<string, mixed> $body */

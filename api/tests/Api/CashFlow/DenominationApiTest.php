@@ -257,7 +257,7 @@ final class DenominationApiTest extends ApiTestCase
         $response = $request($employee, $organization, $id);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame('cash_flow.access_forbidden', $response->toArray(false)['code']);
+        self::assertSame('cash_flow.access_forbidden.to_manage', $response->toArray(false)['code']);
         // Before looking at the denomination: an unknown one is a 403 too.
         $request($employee, $organization, Uuid::v7()->toRfc4122());
         self::assertResponseStatusCodeSame(403);

@@ -24,6 +24,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cash-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the current balance of each cash storage of the selected organization.
+         * @description Owners and managers only (403 otherwise, `cash_flow.access_forbidden.to_read_ledger`). Every active storage, and a deactivated one while it still holds cash; active ones first, each group by name. Each lists every active denomination of the organization's currency, then any other one it holds. A counted storage's balance does not include the takings since its last close: it is an estimate.
+         */
+        get: operations["api_cash-balances_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cash-movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the cash movements of the selected organization from one business date to another.
+         * @description Owners and managers only (403 otherwise, `cash_flow.access_forbidden.to_read_ledger`). The movements at a moment within the dates, in the organization's time zone, newest first. storageId narrows the list to the movements on one storage of the selected organization (404 otherwise). Invalid dates, to before from and periods longer than 92 days are a 422.
+         */
+        get: operations["api_cash-movements_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cash-movements/adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds cash to or takes cash out of one storage.
+         * @description Owners and managers only (403 otherwise). Signed pieces per denomination, never zero, each denomination once (422). The storage and the denominations must be the selected organization's (404), the denominations in its currency (422). A deactivated storage or denomination is only taken out of (422). occurredAt is now when left out, and never after now (422). A deposit storage may not go below zero pieces of a denomination at that moment or any later one (409).
+         */
+        post: operations["api_cash-movementsadjustments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cash-movements/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records an audit count of a deposit storage.
+         * @description Owners and managers only (403 otherwise). The pieces of each denomination the storage holds, zero or more, each denomination once (422); an active denomination of the organization's currency left out counts as zero. The count replaces the storage's balance; its discrepancy is the counted value minus the balance just before it. Only an active deposit storage is audited: a counted storage is counted at each close (409, `cash_flow.audit_count_needs_deposit_storage`). occurredAt is now when left out, and never after now (422). A backdated count may not leave the storage below zero later (409).
+         */
+        post: operations["api_cash-movementscounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cash-movements/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves cash from one storage into another.
+         * @description Owners and managers only (403 otherwise). Positive pieces per denomination, each denomination once, between two different storages (422). The storages and the denominations must be the selected organization's (404), the denominations active and in its currency (422), and the storage the cash goes into active (422). occurredAt is now when left out, and never after now (422). A deposit storage may not go below zero pieces of a denomination at that moment or any later one (409).
+         */
+        post: operations["api_cash-movementstransfers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cash-movements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One cash movement of the selected organization.
+         * @description Owners and managers only (403 otherwise). A movement that is not the selected organization's is a 404.
+         */
+        get: operations["api_cash-movements_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a wrong cash movement, to enter it again.
+         * @description Owners and managers only (403 otherwise); a movement that is not the selected organization's is a 404. A deposit storage may not go below zero pieces of a denomination without it (409).
+         */
+        delete: operations["api_cash-movements_id_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cash-storages": {
         parameters: {
             query?: never;
@@ -1624,6 +1748,268 @@ export interface components {
             /** @description Figures per currency: the organization's current currency first, always present; others by code. */
             currencies: components["schemas"]["BusinessSummaryCurrency.jsonld"][];
         };
+        CashAdjustmentLineInput: {
+            /**
+             * Format: uuid
+             * @description A denomination of the organization (GET /denominations).
+             */
+            denominationId: string;
+            pieces: number;
+        };
+        /**
+         * @description What a cash storage of the organization selected by the X-Organization-Id header holds now,
+         *     derived from its ledger (ADR 0033 §4): its last count plus every movement since. Owners and
+         *     managers only; employees see no balance (403).
+         */
+        CashBalance: {
+            storageId: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            active: boolean;
+            /** @description ISO 4217: the organization's currency, which the total is in. */
+            currency: string;
+            /** @description by currency (the organization's first), then value */
+            lines: components["schemas"]["CashBalanceLine"][];
+            /** @description The value of the lines in the organization's currency, in minor units. */
+            total: number;
+            /** @description True for a counted storage: between closes its balance does not include the day's takings. */
+            estimate: boolean;
+            /**
+             * Format: date-time
+             * @description The moment of the last count the balance starts from; null when the storage was never counted.
+             */
+            countedAt: string | null;
+        };
+        /**
+         * @description What a cash storage of the organization selected by the X-Organization-Id header holds now,
+         *     derived from its ledger (ADR 0033 §4): its last count plus every movement since. Owners and
+         *     managers only; employees see no balance (403).
+         */
+        "CashBalance.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            storageId: string;
+            name: string;
+            /** @enum {string} */
+            mode: "counted" | "deposit";
+            active: boolean;
+            /** @description ISO 4217: the organization's currency, which the total is in. */
+            currency: string;
+            /** @description by currency (the organization's first), then value */
+            lines: components["schemas"]["CashBalanceLine.jsonld"][];
+            /** @description The value of the lines in the organization's currency, in minor units. */
+            total: number;
+            /** @description True for a counted storage: between closes its balance does not include the day's takings. */
+            estimate: boolean;
+            /**
+             * Format: date-time
+             * @description The moment of the last count the balance starts from; null when the storage was never counted.
+             */
+            countedAt: string | null;
+        };
+        CashBalanceLine: {
+            denominationId: string;
+            /** @description ISO 4217 */
+            currency: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description False when the denomination is deactivated: take its pieces out with an adjustment. */
+            active: boolean;
+            /** @description May be below zero in a counted storage, whose balance between closes is an estimate. */
+            pieces: number;
+            /** @description pieces × value, in minor units. */
+            amount: number;
+        };
+        "CashBalanceLine.jsonld": {
+            denominationId: string;
+            /** @description ISO 4217 */
+            currency: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description False when the denomination is deactivated: take its pieces out with an adjustment. */
+            active: boolean;
+            /** @description May be below zero in a counted storage, whose balance between closes is an estimate. */
+            pieces: number;
+            /** @description pieces × value, in minor units. */
+            amount: number;
+        };
+        CashCountLineInput: {
+            /**
+             * Format: uuid
+             * @description A denomination of the organization (GET /denominations).
+             */
+            denominationId: string;
+            pieces: number;
+        };
+        /**
+         * @description One action of an owner or manager on the cash ledger of the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §4): an adjustment of one storage, a transfer between two, or
+         *     an audit count of a deposit storage. Owners and managers only; employees get a 403. Movements are
+         *     not edited: a wrong one is deleted and entered again. A deposit storage never goes below zero
+         *     pieces of a denomination at any point of its ledger (409, `cash_flow.storage_balance_negative`).
+         */
+        CashMovement: {
+            id: string;
+            /** @enum {string} */
+            kind: "adjustment" | "transfer" | "count";
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description The storage adjusted or counted, or the one a transfer takes cash out of. */
+            storageId: string;
+            /** @description The storage's current name. */
+            storageName: string;
+            /** @description The storage a transfer puts cash into; null for the other kinds. */
+            targetStorageId: string | null;
+            targetStorageName: string | null;
+            /** @description ISO 4217: the currency of the denominations. */
+            currency: string;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["CashMovementLine"][];
+            /** @description The sum of the lines' amounts, in minor units: signed for an adjustment, moved for a transfer, counted for a count. */
+            total: number;
+            /** @description A count's counted total minus the storage's balance just before it, in minor units; null for the other kinds. */
+            discrepancy: number | null;
+            note: string | null;
+            /** @description The owner or manager who entered it. */
+            createdBy: string;
+            createdByFirstName: string;
+            createdByLastName: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /**
+         * @description One action of an owner or manager on the cash ledger of the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §4): an adjustment of one storage, a transfer between two, or
+         *     an audit count of a deposit storage. Owners and managers only; employees get a 403. Movements are
+         *     not edited: a wrong one is deleted and entered again. A deposit storage never goes below zero
+         *     pieces of a denomination at any point of its ledger (409, `cash_flow.storage_balance_negative`).
+         */
+        "CashMovement.RecordCashAdjustmentInput": {
+            /**
+             * Format: uuid
+             * @description A storage of the organization (GET /cash-storages).
+             */
+            storageId: string;
+            /** @description At least one line, each denomination once. */
+            lines: components["schemas"]["CashAdjustmentLineInput"][];
+            /** @description E.g. "change from the bank", "bank run", "opening float". */
+            note?: string | null;
+            /**
+             * Format: date-time
+             * @description When the cash moved, with a time zone offset; now when left out. Never after now.
+             */
+            occurredAt?: string;
+        };
+        /**
+         * @description One action of an owner or manager on the cash ledger of the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §4): an adjustment of one storage, a transfer between two, or
+         *     an audit count of a deposit storage. Owners and managers only; employees get a 403. Movements are
+         *     not edited: a wrong one is deleted and entered again. A deposit storage never goes below zero
+         *     pieces of a denomination at any point of its ledger (409, `cash_flow.storage_balance_negative`).
+         */
+        "CashMovement.RecordCashCountInput": {
+            /**
+             * Format: uuid
+             * @description A deposit storage of the organization (GET /cash-storages).
+             */
+            storageId: string;
+            /** @description Each denomination once; an active denomination left out counts as zero, so an empty list is an empty storage. */
+            lines: components["schemas"]["CashCountLineInput"][];
+            note?: string | null;
+            /**
+             * Format: date-time
+             * @description When the storage was counted, with a time zone offset; now when left out. Never after now.
+             */
+            occurredAt?: string;
+        };
+        /**
+         * @description One action of an owner or manager on the cash ledger of the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §4): an adjustment of one storage, a transfer between two, or
+         *     an audit count of a deposit storage. Owners and managers only; employees get a 403. Movements are
+         *     not edited: a wrong one is deleted and entered again. A deposit storage never goes below zero
+         *     pieces of a denomination at any point of its ledger (409, `cash_flow.storage_balance_negative`).
+         */
+        "CashMovement.RecordCashTransferInput": {
+            /**
+             * Format: uuid
+             * @description The storage the cash leaves (GET /cash-storages).
+             */
+            fromStorageId: string;
+            /**
+             * Format: uuid
+             * @description The storage the cash enters: another one, active.
+             */
+            toStorageId: string;
+            /** @description At least one line, each denomination once. */
+            lines: components["schemas"]["CashTransferLineInput"][];
+            note?: string | null;
+            /**
+             * Format: date-time
+             * @description When the cash moved, with a time zone offset; now when left out. Never after now.
+             */
+            occurredAt?: string;
+        };
+        /**
+         * @description One action of an owner or manager on the cash ledger of the organization selected by the
+         *     X-Organization-Id header (ADR 0033 §4): an adjustment of one storage, a transfer between two, or
+         *     an audit count of a deposit storage. Owners and managers only; employees get a 403. Movements are
+         *     not edited: a wrong one is deleted and entered again. A deposit storage never goes below zero
+         *     pieces of a denomination at any point of its ledger (409, `cash_flow.storage_balance_negative`).
+         */
+        "CashMovement.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @enum {string} */
+            kind: "adjustment" | "transfer" | "count";
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description The storage adjusted or counted, or the one a transfer takes cash out of. */
+            storageId: string;
+            /** @description The storage's current name. */
+            storageName: string;
+            /** @description The storage a transfer puts cash into; null for the other kinds. */
+            targetStorageId: string | null;
+            targetStorageName: string | null;
+            /** @description ISO 4217: the currency of the denominations. */
+            currency: string;
+            /** @description by value, lowest first */
+            lines: components["schemas"]["CashMovementLine.jsonld"][];
+            /** @description The sum of the lines' amounts, in minor units: signed for an adjustment, moved for a transfer, counted for a count. */
+            total: number;
+            /** @description A count's counted total minus the storage's balance just before it, in minor units; null for the other kinds. */
+            discrepancy: number | null;
+            note: string | null;
+            /** @description The owner or manager who entered it. */
+            createdBy: string;
+            createdByFirstName: string;
+            createdByLastName: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CashMovementLine: {
+            denominationId: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description Signed for an adjustment, moved for a transfer, counted for a count. */
+            pieces: number;
+            /** @description pieces × value. */
+            amount: number;
+        };
+        "CashMovementLine.jsonld": {
+            denominationId: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description Signed for an adjustment, moved for a transfer, counted for a count. */
+            pieces: number;
+            /** @description pieces × value. */
+            amount: number;
+        };
         /**
          * @description A place the organization selected by the X-Organization-Id header keeps cash in (ADR 0033 §3),
          *     counted at each close or deposited into. Every active member reads them, because the end-of-day
@@ -1697,6 +2083,14 @@ export interface components {
              * @description When the storage was deactivated; null while it is active.
              */
             deactivatedAt: string | null;
+        };
+        CashTransferLineInput: {
+            /**
+             * Format: uuid
+             * @description A denomination of the organization (GET /denominations).
+             */
+            denominationId: string;
+            pieces: number;
         };
         /** @description Unprocessable entity */
         ConstraintViolation: {
@@ -4185,7 +4579,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_storage_name" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -4239,6 +4633,377 @@ export interface operations {
             };
             /** @description A month is missing or invalid, to is before from, the period is too long, or a month has not started. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_cash-balances_get_collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CashBalance collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["CashBalance.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["CashBalance"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_cash-movements_get_collection": {
+        parameters: {
+            query: {
+                /** @description First business date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD); at most 92 days from the first. */
+                to: string;
+                /** @description Only the movements on this storage. */
+                storageId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CashMovement collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["CashMovement.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["CashMovement"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The storageId is not a storage of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is missing or invalid, to is before from, the period is too long, or storageId is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_cash-movementsadjustments_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new CashMovement resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["CashMovement.RecordCashAdjustmentInput"];
+                "application/json": components["schemas"]["CashMovement.RecordCashAdjustmentInput"];
+            };
+        };
+        responses: {
+            /** @description The recorded movement. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["CashMovement.jsonld"];
+                    "application/json": components["schemas"]["CashMovement"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The storage or a denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A deposit storage would hold fewer than zero pieces of a denomination. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, a denomination is not offered, or the moment is after now. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_cash-movementscounts_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new CashMovement resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["CashMovement.RecordCashCountInput"];
+                "application/json": components["schemas"]["CashMovement.RecordCashCountInput"];
+            };
+        };
+        responses: {
+            /** @description The recorded count. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["CashMovement.jsonld"];
+                    "application/json": components["schemas"]["CashMovement"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The storage or a denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The storage is counted at each close, or it would hold fewer than zero pieces of a denomination later. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, a denomination or the storage is not offered, or the moment is after now. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_cash-movementstransfers_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new CashMovement resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["CashMovement.RecordCashTransferInput"];
+                "application/json": components["schemas"]["CashMovement.RecordCashTransferInput"];
+            };
+        };
+        responses: {
+            /** @description The recorded movement. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["CashMovement.jsonld"];
+                    "application/json": components["schemas"]["CashMovement"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A storage or a denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A deposit storage would hold fewer than zero pieces of a denomination. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or invalid, the storages are the same, a denomination or a storage is not offered, or the moment is after now. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_cash-movements_id_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description CashMovement identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CashMovement resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["CashMovement.jsonld"];
+                    "application/json": components["schemas"]["CashMovement"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The movement is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_cash-movements_id_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description CashMovement identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The movement is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The movement is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A deposit storage would hold fewer than zero pieces of a denomination. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

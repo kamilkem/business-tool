@@ -1,12 +1,32 @@
 {
   "apiError": {
     "cash_flow": {
-      "access_forbidden": "Only owners and managers can change cash flow settings.",
+      "access_forbidden": {
+        "to_manage": "Only owners and managers can change cash flow settings or move cash.",
+        "to_read_ledger": "Only owners and managers can see cash balances and movements."
+      },
+      "audit_count_needs_deposit_storage": "“{{name}}” is counted at each end-of-day close, so it can't take an audit count. Only deposit storages can.",
       "denomination_in_use": "This denomination is used by cash records, so it can't be deleted. Deactivate it instead.",
       "denomination_not_found": "This denomination no longer exists. Reload the page.",
+      "denomination_not_offered": {
+        "deactivated": "This denomination is deactivated: you can only take it out of a storage, with an adjustment.",
+        "other_currency": "This denomination is not in the organization's currency ({{organizationCurrency}})."
+      },
       "denomination_value_taken": "This denomination already exists (it may be deactivated).",
       "invalid_denomination_value": "A denomination's value must be greater than zero.",
+      "invalid_movement": {
+        "duplicate_denomination": "Each denomination may appear only once.",
+        "note": "A note can have at most {{maxLength}} characters.",
+        "pieces": "The number of pieces must be from {{min}} to {{max}}, and an adjustment can't be zero.",
+        "same_storage": "The cash must go into another storage.",
+        "without_lines": "Enter at least one denomination."
+      },
       "invalid_storage_name": "A cash storage name must have 1 to {{maxLength}} characters.",
+      "movement_in_the_future": "The cash can't have moved at {{occurredAt}}: that is after now.",
+      "movement_not_found": "This cash movement no longer exists. Reload the page.",
+      "movement_period_too_long": "Cash movements can be shown for at most {{maxDays}} days at a time.",
+      "storage_balance_negative": "“{{name}}” would hold fewer than zero pieces of a denomination ({{pieces}}) at {{at}}. Check the amounts or the time.",
+      "storage_deactivated": "“{{name}}” is deactivated: you can only take cash out of it.",
       "storage_in_use": "The cash storage “{{name}}” is used by cash records, so it can't be deleted. Deactivate it instead.",
       "storage_name_taken": "A cash storage named “{{name}}” already exists (it may be deactivated).",
       "storage_not_found": "This cash storage no longer exists. Reload the page."

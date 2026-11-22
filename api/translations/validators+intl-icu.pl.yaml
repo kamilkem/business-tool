@@ -3,10 +3,12 @@
 # their own Polish. ValidatorTranslationsTest fails when a message in src/ has no entry.
 'A missing shift needs its end.': 'Brakująca zmiana musi mieć godzinę zakończenia.'
 'Each VAT rate may appear only once.': 'Każda stawka VAT może wystąpić tylko raz.'
+'Each denomination may appear only once.': 'Każdy nominał może wystąpić tylko raz.'
 'Each payment method may appear only once.': 'Każda forma płatności może wystąpić tylko raz.'
 'Filter either by a category or by uncategorized expenses, not both.': 'Filtruj według kategorii albo wydatków bez kategorii, nie obu naraz.'
 'Give both roundingUnit and roundingDirection, or neither.': 'Podaj roundingUnit i roundingDirection razem albo żadnego z nich.'
 'The VAT may not exceed the gross amount.': 'VAT nie może przekraczać kwoty brutto.'
+'The cash must go into another storage.': 'Gotówka musi trafić do innego miejsca.'
 'The current password is wrong.': 'Obecne hasło jest nieprawidłowe.'
 'The last date must not be before the first date.': 'Data końcowa nie może być wcześniejsza niż początkowa.'
 'The last month must not be before the first month.': 'Miesiąc końcowy nie może być wcześniejszy niż początkowy.'
