@@ -7,6 +7,7 @@ namespace App\Income\Application\Query\GetRegister;
 use App\Income\Application\IncomeActor;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
+use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
 use App\Shared\Application\Query\QueryBusInterface;
 use App\Shared\Application\Query\QueryHandlerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -15,6 +16,7 @@ final readonly class GetRegisterHandler implements QueryHandlerInterface
 {
     public function __construct(
         private RegisterRepositoryInterface $registers,
+        private RevenueEntryRepositoryInterface $entries,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -28,6 +30,6 @@ final readonly class GetRegisterHandler implements QueryHandlerInterface
 
         $register = Uuid::isValid($query->registerId) ? $this->registers->findById(Uuid::fromString($query->registerId)) : null;
 
-        return null === $register ? null : RegisterView::fromRegister($register);
+        return null === $register ? null : RegisterView::fromRegister($register, $this->entries->usesRegister($register->getId()));
     }
 }

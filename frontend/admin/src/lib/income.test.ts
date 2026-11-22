@@ -33,6 +33,7 @@ function register(name: string, active = true): Register {
     id: `register-${name}`,
     name,
     active,
+    used: true,
     createdAt: "2026-10-01T10:00:00+00:00",
     deactivatedAt: active ? null : "2026-11-05T10:00:00+00:00",
   }

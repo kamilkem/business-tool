@@ -54,6 +54,7 @@
       "payment_method_not_found": "This payment method no longer exists. Reload the page.",
       "payment_method_order_mismatch": "The payment methods changed in the meantime. The list has been reloaded: try again.",
       "register_deactivated": "This register is deactivated and takes no new entries.",
+      "register_in_use": "“{{name}}” has revenue entries, so it can't be deleted. Deactivate it instead.",
       "register_name_taken": "A register named “{{name}}” already exists.",
       "register_not_found": "This register no longer exists. Reload the page.",
       "revenue_entry_already_exists": "This register already has an entry for {{businessDate}}.",

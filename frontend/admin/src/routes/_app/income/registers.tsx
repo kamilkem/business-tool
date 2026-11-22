@@ -2,7 +2,7 @@ import { useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { ArchiveIcon, ChevronRightIcon, MoreHorizontalIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { ArchiveIcon, ChevronRightIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -23,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@business-tool/ui/components/dropdown-menu"
 import {
@@ -41,10 +42,11 @@ import { RegisterDialog } from "@/components/register-dialog"
 import { api } from "@/lib/api"
 import { requireCapability } from "@/lib/access"
 import { registersQuery } from "@/lib/queries"
-import { type Register, splitRegisters, withRegister } from "@/lib/registers"
+import { type Register, splitRegisters, withoutRegister, withRegister } from "@/lib/registers"
 
 /*
- * Registers of the Income module (ADR 0022 §2). The path /income/registers is stable: the Income
+ * Registers of the Income module (ADR 0022 §2). One without revenue entries can be deleted; one
+ * with entries is deactivated instead (ADR 0032). The path /income/registers is stable: the Income
  * page links here when the organization has no active register.
  */
 export const Route = createFileRoute("/_app/income/registers")({
@@ -67,6 +69,13 @@ function RegistersPage() {
   const [renaming, setRenaming] = useState<Register | null>(null)
   const [deactivating, setDeactivating] = useState<Register | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Register | null>(null)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+
+  function askToDelete(register: Register) {
+    setDeleting(register)
+    setConfirmDeleteOpen(true)
+  }
 
   function askToDeactivate(register: Register) {
     setDeactivating(register)
@@ -97,6 +106,27 @@ function RegistersPage() {
     },
   })
 
+  const remove = useMutation({
+    mutationFn: (register: Register) =>
+      unwrap(api.DELETE("/api/registers/{id}", { params: { path: { id: register.id } } })),
+    onSuccess: async (_, register) => {
+      queryClient.setQueryData(listKey, (list) => (list ? withoutRegister(list, register.id) : list))
+      await queryClient.invalidateQueries({ queryKey: registersQuery(organizationId, false).queryKey })
+      toast.success(t("registers.toast.deleted", { name: register.name }))
+    },
+    onError: async (error) => {
+      // A 409: an entry was recorded for it in the meantime; it can still be deactivated.
+      toast.error(t("registers.error.delete"), { description: requestErrorMessage(error) })
+      await queryClient.invalidateQueries({ queryKey: ["registers", organizationId] })
+    },
+  })
+
+  function busyId(): string | null {
+    if (deactivate.isPending) return deactivate.variables.id
+    if (remove.isPending) return remove.variables.id
+    return null
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -122,9 +152,10 @@ function RegistersPage() {
           ) : (
             <RegistersTable
               registers={active}
-              busyId={deactivate.isPending ? deactivate.variables.id : null}
+              busyId={busyId()}
               onRename={openRename}
               onDeactivate={askToDeactivate}
+              onDelete={askToDelete}
             />
           )}
         </CardContent>
@@ -142,7 +173,7 @@ function RegistersPage() {
             <p className="px-2 text-sm text-muted-foreground">{t("registers.deactivatedDescription")}</p>
             <Card className="py-0">
               <CardContent className="px-0">
-                <RegistersTable registers={deactivated} busyId={null} onRename={openRename} />
+                <RegistersTable registers={deactivated} busyId={busyId()} onRename={openRename} onDelete={askToDelete} />
               </CardContent>
             </Card>
           </CollapsibleContent>
@@ -175,6 +206,26 @@ function RegistersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("registers.confirmDelete.title", { name: deleting?.name ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("registers.confirmDelete.description")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleting) remove.mutate(deleting)
+              }}
+            >
+              {t("registers.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -185,9 +236,11 @@ interface RegistersTableProps {
   onRename: (register: Register) => void
   /** Only for active registers. */
   onDeactivate?: (register: Register) => void
+  /** Offered only for registers without revenue entries. */
+  onDelete: (register: Register) => void
 }
 
-function RegistersTable({ registers, busyId, onRename, onDeactivate }: RegistersTableProps) {
+function RegistersTable({ registers, busyId, onRename, onDeactivate, onDelete }: RegistersTableProps) {
   const format = useDateTimeFormat()
   const { t } = useTranslation("admin")
 
@@ -205,7 +258,12 @@ function RegistersTable({ registers, busyId, onRename, onDeactivate }: Registers
       <TableBody>
         {registers.map((register) => (
           <TableRow key={register.id} className={register.active ? undefined : "text-muted-foreground"}>
-            <TableCell className="pl-4 font-medium">{register.name}</TableCell>
+            <TableCell className="pl-4">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="font-medium">{register.name}</span>
+                {!register.used && <span className="text-xs text-muted-foreground">{t("registers.unused")}</span>}
+              </div>
+            </TableCell>
             <TableCell>{format.date(register.deactivatedAt ?? register.createdAt)}</TableCell>
             <TableCell className="w-12 pr-4 text-right">
               <DropdownMenu>
@@ -229,6 +287,15 @@ function RegistersTable({ registers, busyId, onRename, onDeactivate }: Registers
                       <ArchiveIcon />
                       {t("registers.deactivate")}
                     </DropdownMenuItem>
+                  )}
+                  {!register.used && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => onDelete(register)}>
+                        <Trash2Icon />
+                        {t("registers.delete")}
+                      </DropdownMenuItem>
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>

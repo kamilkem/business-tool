@@ -6,6 +6,7 @@ namespace App\Income\Domain\Model;
 
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidRegisterNameException;
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RegisterNameTakenException;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
@@ -20,8 +21,9 @@ use Symfony\Component\Uid\Uuid;
  * with the same name (RegisterRepositoryInterface::findByName()), and the unique constraint below
  * stops two concurrent writes.
  *
- * Registers are deactivated, never deleted, because entries refer to them. A deactivated register
- * takes no new entries; its entries stay visible and editable.
+ * A register no entry refers to can be deleted; one with entries is deactivated instead, because
+ * the entries refer to it (ADR 0032). A deactivated register takes no new entries; its entries stay
+ * visible and editable.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'register')]
@@ -103,6 +105,22 @@ class Register implements TenantAwareInterface
     {
         IncomeAccess::assertCanManage($actorId, $actorRole);
         $this->deactivatedAt ??= $now;
+    }
+
+    /**
+     * Only a register without revenue entries can be deleted (ADR 0032); the repository removes it.
+     *
+     * @param bool $used whether a revenue entry refers to it (RevenueEntryRepositoryInterface::usesRegister())
+     *
+     * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
+     * @throws RegisterInUseException             when an entry refers to it
+     */
+    public function assertDeletable(bool $used, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        IncomeAccess::assertCanManage($actorId, $actorRole);
+        if ($used) {
+            throw RegisterInUseException::of($this->id->toRfc4122(), $this->name);
+        }
     }
 
     public function isActive(): bool

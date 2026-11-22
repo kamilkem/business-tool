@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Income;
 
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RevenueEntryAlreadyExistsException;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
@@ -15,6 +16,7 @@ use App\Income\Domain\Model\VatAmount;
 use App\Income\Domain\Repository\PaymentMethodRepositoryInterface;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
+use App\Income\Infrastructure\Doctrine\Orm\Repository\RegisterRepository;
 use App\Income\Infrastructure\Doctrine\Orm\Repository\RevenueEntryRepository;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
@@ -32,9 +34,11 @@ use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
  * RevenueEntryRepository against PostgreSQL: the business date as a DATE column, the lines, the
- * unique (organization, register, business date) and the TenantFilter on entries and lines.
+ * unique (organization, register, business date) and the TenantFilter on entries and lines; which
+ * registers entries use, and the foreign key that keeps a register with entries.
  */
 #[CoversClass(RevenueEntryRepository::class)]
+#[CoversClass(RegisterRepository::class)]
 #[CoversClass(BusinessDateType::class)]
 final class RevenueEntryRepositoryTest extends KernelTestCase
 {
@@ -127,7 +131,8 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
     public function test_it_removes_an_entry_with_its_lines(): void
     {
         $this->switchToNewOrganization();
-        $entry = $this->record($this->addRegister('Bar'), '2026-11-11', [$this->cash(100), $this->card(200)], [new VatAmount('23', 300, 56)]);
+        $register = $this->addRegister('Bar');
+        $entry = $this->record($register, '2026-11-11', [$this->cash(100), $this->card(200)], [new VatAmount('23', 300, 56)]);
         $this->entries->add($entry);
 
         $this->entries->remove($entry);
@@ -136,6 +141,8 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         self::assertNull($this->entries->findById($entry->getId()));
         self::assertSame(0, $this->countLines(RevenuePaymentLine::class));
         self::assertSame(0, $this->countLines(RevenueVatLine::class));
+        self::assertFalse($this->entries->usesRegister($register->getId()));
+        self::assertSame([], $this->entries->usedRegisterIds());
     }
 
     public function test_it_finds_the_entries_of_a_period_by_date_then_register_name(): void
@@ -175,6 +182,25 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         );
     }
 
+    public function test_it_deletes_a_register_without_entries_and_keeps_one_with_entries(): void
+    {
+        $this->switchToNewOrganization();
+        $bar = $this->addRegister('Bar');
+        $kitchen = $this->addRegister('Kitchen');
+        $this->entries->add($this->record($bar, '2026-11-11', [$this->cash(100)]));
+
+        self::assertTrue($this->entries->usesRegister($bar->getId()));
+        self::assertFalse($this->entries->usesRegister($kitchen->getId()));
+        self::assertSame([$bar->getId()->toRfc4122()], $this->entries->usedRegisterIds());
+
+        $this->registers->remove($kitchen);
+        self::assertNull($this->registers->findById($kitchen->getId()));
+
+        // The foreign key holds when the check was skipped (an entry recorded in the meantime).
+        $this->expectException(RegisterInUseException::class);
+        $this->registers->remove($bar);
+    }
+
     public function test_it_does_not_show_another_organizations_entries_or_lines(): void
     {
         $this->switchToNewOrganization();
@@ -190,6 +216,8 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
         self::assertSame([], $this->entries->findInPeriod(BusinessPeriod::month(2026, 11)));
         self::assertSame(0, $this->countLines(RevenuePaymentLine::class));
         self::assertSame(0, $this->countLines(RevenueVatLine::class));
+        self::assertFalse($this->entries->usesRegister($register->getId()));
+        self::assertSame([], $this->entries->usedRegisterIds());
     }
 
     private function switchToNewOrganization(): Organization

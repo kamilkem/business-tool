@@ -54,6 +54,7 @@
       "payment_method_not_found": "Ta metoda płatności już nie istnieje. Odśwież stronę.",
       "payment_method_order_mismatch": "Metody płatności zmieniły się w międzyczasie. Lista została odświeżona: spróbuj ponownie.",
       "register_deactivated": "Ta kasa jest wyłączona i nie przyjmuje nowych wpisów.",
+      "register_in_use": "Kasa „{{name}}” ma wpisy przychodów, więc nie można jej usunąć. Zamiast tego ją dezaktywuj.",
       "register_name_taken": "Kasa o nazwie „{{name}}” już istnieje.",
       "register_not_found": "Ta kasa już nie istnieje. Odśwież stronę.",
       "revenue_entry_already_exists": "Ta kasa ma już wpis za {{businessDate}}.",

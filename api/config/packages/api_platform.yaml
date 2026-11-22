@@ -81,6 +81,7 @@ api_platform:
         App\Income\Domain\Exception\InvalidPaymentLinesException: 422
         App\Income\Domain\Exception\InvalidVatLinesException: 422
         App\Income\Domain\Exception\RegisterNotFoundException: 404
+        App\Income\Domain\Exception\RegisterInUseException: 409
         App\Income\Domain\Exception\RevenueEntryNotFoundException: 404
         App\Income\Domain\Exception\RevenuePeriodTooLongException: 422
         App\Income\Domain\Exception\InvalidPaymentMethodNameException: 422

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\Income;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
@@ -16,6 +17,7 @@ use App\Income\Application\Query\GetRegister\RegisterView;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Income\Processor\AddRegisterProcessor;
 use Ui\Http\Income\Processor\DeactivateRegisterProcessor;
+use Ui\Http\Income\Processor\DeleteRegisterProcessor;
 use Ui\Http\Income\Processor\UpdateRegisterProcessor;
 use Ui\Http\Income\Provider\RegisterCollectionProvider;
 use Ui\Http\Income\Provider\RegisterProvider;
@@ -24,8 +26,9 @@ use Ui\Http\Income\Provider\UpdateRegisterInputProvider;
 /**
  * A register (a till with its own fiscal printer) of the organization selected by the
  * X-Organization-Id header; revenue entries are recorded per register and business date (ADR 0022
- * §2). Owners and managers only: anyone else gets a 403. Registers are deactivated, never deleted:
- * a deactivated register takes no new entries, and its entries stay visible and editable.
+ * §2). Owners and managers only: anyone else gets a 403. A register no entry refers to can be
+ * deleted; one with entries is deactivated instead (ADR 0032): a deactivated register takes no new
+ * entries, and its entries stay visible and editable.
  */
 #[ApiResource(
     shortName: 'Register',
@@ -115,6 +118,23 @@ use Ui\Http\Income\Provider\UpdateRegisterInputProvider;
             read: false,
             processor: DeactivateRegisterProcessor::class,
         ),
+        new Delete(
+            uriTemplate: '/registers/{id}',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            openapi: new Operation(
+                summary: 'Deletes a register that no revenue entry refers to.',
+                description: 'Owners and managers only (403 otherwise); a register that is not the selected organization\'s is a 404. A register with any revenue entry, active or deactivated, cannot be deleted (409, `income.register_in_use`): deactivate it instead.',
+                responses: [
+                    '204' => new Response('The register is deleted.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The register is not one of the selected organization\'s.'),
+                    '409' => new Response('A revenue entry refers to the register.'),
+                ],
+            ),
+            read: false,
+            processor: DeleteRegisterProcessor::class,
+        ),
     ],
 )]
 final readonly class RegisterResource
@@ -124,6 +144,8 @@ final readonly class RegisterResource
         public string $name,
         /** False once deactivated: the register takes no new entries. */
         public bool $active,
+        /** Whether a revenue entry refers to it: a used register cannot be deleted, only deactivated. */
+        public bool $used,
         public \DateTimeImmutable $createdAt,
         /** When the register was deactivated; null while it is active. */
         public ?\DateTimeImmutable $deactivatedAt,
@@ -132,6 +154,6 @@ final readonly class RegisterResource
 
     public static function fromView(RegisterView $view): self
     {
-        return new self($view->id, $view->name, $view->active, $view->createdAt, $view->deactivatedAt);
+        return new self($view->id, $view->name, $view->active, $view->used, $view->createdAt, $view->deactivatedAt);
     }
 }

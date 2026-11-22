@@ -138,6 +138,8 @@ export function invalidateRevenue(queryClient: QueryClient, organizationId: stri
     queryClient.invalidateQueries({ queryKey: ["revenue-summary", organizationId] }),
     // Whether a payment method is used (and so can be deleted) follows the entries.
     queryClient.invalidateQueries({ queryKey: ["payment-methods", organizationId] }),
+    // So does whether a register has entries.
+    queryClient.invalidateQueries({ queryKey: ["registers", organizationId] }),
   ])
 }
 

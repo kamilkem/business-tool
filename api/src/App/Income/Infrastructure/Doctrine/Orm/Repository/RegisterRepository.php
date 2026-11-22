@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Income\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RegisterNameTakenException;
 use App\Income\Domain\Model\Register;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -54,6 +56,17 @@ final class RegisterRepository extends ServiceEntityRepository implements Regist
     public function save(Register $register): void
     {
         $this->flush($register);
+    }
+
+    public function remove(Register $register): void
+    {
+        $this->getEntityManager()->remove($register);
+
+        try {
+            $this->getEntityManager()->flush();
+        } catch (ForeignKeyConstraintViolationException) {
+            throw RegisterInUseException::of($register->getId()->toRfc4122(), $register->getName());
+        }
     }
 
     private function flush(Register $register): void

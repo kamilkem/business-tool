@@ -46,4 +46,9 @@ final class InMemoryRegisterRepository implements RegisterRepositoryInterface
     public function save(Register $register): void
     {
     }
+
+    public function remove(Register $register): void
+    {
+        unset($this->byId[$register->getId()->toRfc4122()]);
+    }
 }

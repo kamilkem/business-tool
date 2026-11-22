@@ -47,6 +47,7 @@ final class RegisterApiTest extends IncomeApiTestCase
             'id' => $register['id'],
             'name' => 'Kitchen',
             'active' => true,
+            'used' => false,
             'createdAt' => '2026-11-12T23:30:00+00:00',
             'deactivatedAt' => null,
         ], $register);
@@ -266,6 +267,58 @@ final class RegisterApiTest extends IncomeApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    #[DataProvider('managingRoles')]
+    public function test_it_lets_owners_and_managers_delete_a_register_without_entries_active_or_deactivated(MembershipRole $role): void
+    {
+        [$actor, $organization] = self::memberWithRole($role);
+        $kitchen = self::addRegister($organization, 'Kitchen')->getId()->toRfc4122();
+        $terrace = self::addRegister($organization, 'Terrace');
+        self::deactivateRegister($organization, $terrace);
+        self::mockTime(self::NOW);
+
+        foreach ([$kitchen, $terrace->getId()->toRfc4122()] as $id) {
+            $response = self::delete($actor, $organization, $id);
+            self::assertResponseStatusCodeSame(204);
+            self::assertSame('', $response->getContent());
+            self::get($actor, $organization, $id);
+            self::assertResponseStatusCodeSame(404);
+        }
+
+        self::assertSame([], self::list($actor, $organization, true)->toArray());
+    }
+
+    public function test_it_answers_409_for_deleting_a_register_with_entries_even_deactivated(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $bar = self::addRegister($organization, 'Bar')->getId()->toRfc4122();
+        $kitchen = self::addRegister($organization, 'Kitchen')->getId()->toRfc4122();
+        self::mockTime(self::NOW);
+        $entry = self::recordEntry($owner, $organization, $bar, '2026-11-12')->toArray();
+
+        self::assertSame([true, false], array_column(self::list($owner, $organization)->toArray(), 'used'));
+        self::assertTrue(self::get($owner, $organization, $bar)->toArray()['used']);
+
+        foreach ([false, true] as $deactivated) {
+            if ($deactivated) {
+                self::deactivate($owner, $organization, $bar);
+            }
+            $response = self::delete($owner, $organization, $bar);
+            self::assertResponseStatusCodeSame(409);
+            $problem = $response->toArray(false);
+            self::assertSame(['income.register_in_use', ['registerId' => $bar, 'name' => 'Bar']], [$problem['code'], $problem['parameters']]);
+        }
+        self::assertSame(['Kitchen', 'Bar'], array_column(self::list($owner, $organization, true)->toArray(), 'name'));
+        self::assertSame($entry, self::getEntry($owner, $organization, $entry['id'])->toArray());
+
+        // Once its last entry is deleted, the register is unused and can go.
+        static::clientFor($owner, $organization)->request('DELETE', '/api/revenue-entries/'.$entry['id']);
+        self::assertResponseStatusCodeSame(204);
+        self::assertFalse(self::get($owner, $organization, $bar)->toArray()['used']);
+        self::delete($owner, $organization, $bar);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame(['Kitchen'], array_column(self::list($owner, $organization, true)->toArray(), 'name'));
+    }
+
     public function test_it_answers_404_for_an_unknown_register(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
@@ -277,7 +330,11 @@ final class RegisterApiTest extends IncomeApiTestCase
         self::assertResponseStatusCodeSame(404);
         self::deactivate($owner, $organization, $unknown);
         self::assertResponseStatusCodeSame(404);
+        self::delete($owner, $organization, $unknown);
+        self::assertResponseStatusCodeSame(404);
         static::clientFor($owner, $organization)->request('GET', '/api/registers/not-a-uuid');
+        self::assertResponseStatusCodeSame(404);
+        static::clientFor($owner, $organization)->request('DELETE', '/api/registers/not-a-uuid');
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -298,6 +355,8 @@ final class RegisterApiTest extends IncomeApiTestCase
         self::assertResponseStatusCodeSame(404);
         self::deactivate($owner, $organization, $id);
         self::assertResponseStatusCodeSame(404);
+        self::delete($owner, $organization, $id);
+        self::assertResponseStatusCodeSame(404);
 
         self::assertSame($before, self::get($ownerElsewhere, $elsewhere, $id)->toArray());
     }
@@ -310,6 +369,7 @@ final class RegisterApiTest extends IncomeApiTestCase
         yield 'POST' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::add($user, $organization, ['name' => 'Kitchen'])];
         yield 'PATCH' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::rename($user, $organization, $id, ['name' => 'Kitchen'])];
         yield 'deactivate' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::deactivate($user, $organization, $id)];
+        yield 'DELETE' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::delete($user, $organization, $id)];
     }
 
     /** @param \Closure(User, Organization, string): ResponseInterface $request */
@@ -347,6 +407,8 @@ final class RegisterApiTest extends IncomeApiTestCase
         self::assertResponseStatusCodeSame(403);
         self::deactivate($employee, $organization, $unknown);
         self::assertResponseStatusCodeSame(403);
+        self::delete($employee, $organization, $unknown);
+        self::assertResponseStatusCodeSame(403);
     }
 
     private static function list(User $user, Organization $organization, ?bool $includeDeactivated = null): ResponseInterface
@@ -379,6 +441,11 @@ final class RegisterApiTest extends IncomeApiTestCase
     private static function deactivate(User $user, Organization $organization, string $id): ResponseInterface
     {
         return static::clientFor($user, $organization)->request('POST', '/api/registers/'.$id.'/deactivate');
+    }
+
+    private static function delete(User $user, Organization $organization, string $id): ResponseInterface
+    {
+        return static::clientFor($user, $organization)->request('DELETE', '/api/registers/'.$id);
     }
 
     private static function recordEntry(User $user, Organization $organization, string $registerId, string $businessDate): ResponseInterface

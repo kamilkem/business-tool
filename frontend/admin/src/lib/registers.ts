@@ -4,8 +4,9 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { i18n } from "../i18n"
 
 /*
- * Registers (ADR 0022 §2): tills with their own fiscal printer. Deactivated, never deleted,
- * because their revenue entries stay on the Income page.
+ * Registers (ADR 0022 §2): tills with their own fiscal printer. One without revenue entries can be
+ * deleted; one with entries is deactivated instead, because its entries stay on the Income page
+ * (ADR 0032).
  */
 
 export type Register = components["schemas"]["Register"]
@@ -31,6 +32,11 @@ export function withRegister(registers: readonly Register[], updated: Register):
   const others = registers.filter((r) => r.id !== updated.id)
   const { active, deactivated } = splitRegisters([...others, updated])
   return [...active.sort(byName), ...deactivated.sort(byName)]
+}
+
+/** The list without a deleted register. */
+export function withoutRegister(registers: readonly Register[], id: string): Register[] {
+  return registers.filter((r) => r.id !== id)
 }
 
 /** Where to show a refused add or rename: on the name field, or under the form. */
