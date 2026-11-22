@@ -13,6 +13,12 @@
         "other_currency": "Ten nominał nie jest w walucie organizacji ({{organizationCurrency}})."
       },
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
+      "invalid_day_close_date": {
+        "in_the_future": "Dzień można zamknąć najpóźniej dzisiaj ({{today}}), nie z późniejszą datą.",
+        "not_chosen_by_employee": "Data zamknięcia wynika z godziny końca dnia: to {{dayCloseDate}}.",
+        "not_today_or_yesterday": "Możesz zamknąć tylko dzisiejszy lub wczorajszy dzień."
+      },
+      "invalid_day_end_time": "Godzina końca dnia musi być od 00:00 do {{latest}}.",
       "invalid_denomination_value": "Wartość nominału musi być większa od zera.",
       "invalid_movement": {
         "duplicate_denomination": "Każdy nominał może wystąpić tylko raz.",
