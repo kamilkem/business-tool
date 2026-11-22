@@ -16,6 +16,8 @@ export interface ModuleInfo {
   icon: LucideIcon
   /** The module's page, once it is built; until then it is shown as "coming soon". */
   to?: LinkProps["to"]
+  /** The path prefix of all the module's pages, when they are not all under `to`: its link is active on each. */
+  section?: string
   /** What the page needs (its route guards with the same capability); the API refuses everyone else. */
   capability?: Capability
 }
@@ -41,6 +43,7 @@ export const modules: ModuleInfo[] = [
     group: "finances",
     icon: BanknoteIcon,
     to: "/cash-flow/closes",
+    section: "/cash-flow/",
     capability: "cashFlow",
   },
   {

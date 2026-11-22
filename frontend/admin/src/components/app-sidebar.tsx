@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { Link, useLocation, useRouteContext } from "@tanstack/react-router"
 import {
   BuildingIcon,
   CheckIcon,
@@ -186,12 +186,14 @@ export function AppSidebar() {
 function ModuleLink({ module }: { module: ModuleInfo }) {
   const { t } = useTranslation("admin")
   const title = t(`modules.${module.key}.title`)
+  const pathname = useLocation({ select: (location) => location.pathname })
+  const inSection = module.section !== undefined && pathname.startsWith(module.section)
 
   return (
     <SidebarMenuItem>
       {module.to ? (
         <SidebarMenuButton asChild tooltip={title}>
-          <Link to={module.to} activeProps={{ "data-active": true }}>
+          <Link to={module.to} data-active={inSection || undefined} activeProps={{ "data-active": true }}>
             <module.icon />
             <span>{title}</span>
           </Link>

@@ -1207,5 +1207,145 @@
       "save": "Zapisz zamknięcie",
       "done": "Zamknięcie dnia {{date}} jest zapisane."
     }
+  },
+  "cashFlow": {
+    "nav": {
+      "closes": "Zamknięcia",
+      "storages": "Miejsca",
+      "denominations": "Nominały"
+    }
+  },
+  "cashStorages": {
+    "title": "Miejsca na gotówkę",
+    "description": "Gdzie trzymasz gotówkę. Każde miejsce jest częścią każdego zamknięcia dnia: liczone albo na wpłaty.",
+    "add": "Dodaj miejsce",
+    "edit": "Edytuj",
+    "deactivate": "Dezaktywuj",
+    "reactivate": "Aktywuj ponownie",
+    "delete": "Usuń",
+    "used": "Użyte w zapisach gotówki",
+    "unused": "Jeszcze nieużyte",
+    "noneActive": "Brak aktywnych miejsc. Dodaj miejsce przed pierwszym zamknięciem dnia.",
+    "activeList": "Aktywne miejsca",
+    "deactivatedList": "Dezaktywowane miejsca",
+    "deactivatedDescription": "Nie są częścią nowych zamknięć. Dawne zamknięcia i ruchy gotówki zachowują je, pod ich nazwami.",
+    "mode": {
+      "counted": "Liczone",
+      "deposit": "Wpłaty"
+    },
+    "modeDescription": {
+      "counted": "Przy zamknięciu liczy się każdy nominał, a wynik staje się nowym stanem (np. kasetka).",
+      "deposit": "Przy zamknięciu pracownik wpisuje tylko to, co włożył, nie znając stanu (np. sejf wrzutowy)."
+    },
+    "confirmDelete": {
+      "title": "Usunąć miejsce {{name}}?",
+      "description": "Żadne zamknięcie ani ruch gotówki go nie używa, więc nic więcej się nie zmieni. Nazwa znów będzie wolna."
+    },
+    "toast": {
+      "added": "Dodano miejsce {{name}}",
+      "saved": "Zapisano miejsce {{name}}",
+      "deactivated": "Miejsce {{name}} dezaktywowane",
+      "reactivated": "Miejsce {{name}} znów aktywne",
+      "deleted": "Usunięto miejsce {{name}}"
+    },
+    "error": {
+      "nameTaken": "Miejsce o nazwie „{{name}}” już istnieje.",
+      "nameTakenByDeactivated": "Dezaktywowane miejsce ma już nazwę „{{name}}”. Aktywuj je ponownie albo wybierz inną nazwę.",
+      "deactivate": "Nie udało się dezaktywować miejsca",
+      "reactivate": "Nie udało się ponownie aktywować miejsca",
+      "delete": "Nie udało się usunąć miejsca"
+    },
+    "dialog": {
+      "editTitle": "Edytuj: {{name}}",
+      "editDescription": "Dawne zamknięcia i ruchy gotówki będą pokazywać nową nazwę.",
+      "addDescription": "Kasetka, sejf lub inne miejsce na gotówkę. Na początku jest puste: zapisz pogotowie kasowe jako korektę.",
+      "name": "Nazwa",
+      "mode": "Przy zamknięciu",
+      "modeChangeHint": "Zmiana obowiązuje od następnego zamknięcia.",
+      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych miejsc.",
+      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych miejsc.",
+      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych miejsc.",
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych miejsc."
+    },
+    "deactivatedCount_one": "Dezaktywowane miejsca ({{count}})",
+    "deactivatedCount_few": "Dezaktywowane miejsca ({{count}})",
+    "deactivatedCount_many": "Dezaktywowane miejsca ({{count}})",
+    "deactivatedCount_other": "Dezaktywowane miejsca ({{count}})"
+  },
+  "denominations": {
+    "title": "Nominały",
+    "description": "Monety i banknoty w {{currency}}, które liczy się przy zamknięciu dnia.",
+    "add": "Dodaj nominał",
+    "deactivate": "Dezaktywuj",
+    "reactivate": "Aktywuj ponownie",
+    "delete": "Usuń",
+    "used": "Użyty w zapisach gotówki",
+    "unused": "Jeszcze nieużyty",
+    "noneActive": "Brak aktywnych nominałów w {{currency}}. Dodaj monety i banknoty, które liczysz.",
+    "deactivatedList": "Dezaktywowane nominały",
+    "deactivatedDescription": "Nie są już liczone. Jeśli w jakimś miejscu nadal są takie sztuki, wyjmij je korektą.",
+    "kind": {
+      "coin": "Moneta",
+      "note": "Banknot"
+    },
+    "confirmDelete": {
+      "title": "Usunąć nominał {{value}}?",
+      "description": "Żadne zamknięcie ani ruch gotówki go nie używa, więc nic więcej się nie zmieni. Możesz go później dodać ponownie."
+    },
+    "toast": {
+      "added": "Dodano nominał {{value}}",
+      "deactivated": "Nominał {{value}} dezaktywowany",
+      "reactivated": "Nominał {{value}} znów aktywny",
+      "deleted": "Usunięto nominał {{value}}"
+    },
+    "error": {
+      "valueTaken": "Nominał {{value}} już jest na liście.",
+      "valueTakenByDeactivated": "Nominał {{value}} już jest na liście, dezaktywowany. Aktywuj go ponownie.",
+      "valueRequired": "Wpisz wartość większą od zera.",
+      "deactivate": "Nie udało się dezaktywować nominału",
+      "reactivate": "Nie udało się ponownie aktywować nominału",
+      "delete": "Nie udało się usunąć nominału"
+    },
+    "dialog": {
+      "description": "Moneta lub banknot w {{currency}}, walucie organizacji.",
+      "value": "Wartość",
+      "valueDescription": "Wartość nominalna, np. 5 dla piątki.",
+      "kind": "Rodzaj"
+    },
+    "deactivatedCount_one": "Dezaktywowane nominały ({{count}})",
+    "deactivatedCount_few": "Dezaktywowane nominały ({{count}})",
+    "deactivatedCount_many": "Dezaktywowane nominały ({{count}})",
+    "deactivatedCount_other": "Dezaktywowane nominały ({{count}})",
+    "group": {
+      "coin_one": "Monety ({{count}})",
+      "coin_few": "Monety ({{count}})",
+      "coin_many": "Monety ({{count}})",
+      "coin_other": "Monety ({{count}})",
+      "note_one": "Banknoty ({{count}})",
+      "note_few": "Banknoty ({{count}})",
+      "note_many": "Banknoty ({{count}})",
+      "note_other": "Banknoty ({{count}})"
+    }
+  },
+  "dayCloseSettings": {
+    "title": "Zamknięcie dnia",
+    "description": "Jak zamknięcie dnia dostaje swoją datę.",
+    "changedAt": "Ostatnia zmiana: {{at}}.",
+    "defaults": "To ustawienia domyślne.",
+    "saved": "Zapisano ustawienia zamknięcia dnia",
+    "modeLabel": "Data zamknięcia",
+    "mode": {
+      "day_end_time": "Z godziny końca dnia",
+      "employee_picks": "Wybiera pracownik"
+    },
+    "modeDescription": {
+      "day_end_time": "Data wynika z godziny końca dnia poniżej, a pracownicy jej nie wybierają.",
+      "employee_picks": "Pracownicy wybierają dziś albo wczoraj. Timeclock podpowiada datę z godziny końca dnia poniżej."
+    },
+    "dayEndsAt": "Godzina końca dnia",
+    "dayEndsAtDescription": {
+      "day_end_time": "Zamknięcie przed {{time}} należy do poprzedniego dnia: przy 05:00 zamknięcie w sobotę o 02:30 jest piątkowe. Od 00:00 do {{latest}}.",
+      "employee_picks": "Zamknięcie przed {{time}} podpowiada poprzedni dzień. Od 00:00 do {{latest}}."
+    }
   }
 }
