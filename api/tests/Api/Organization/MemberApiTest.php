@@ -379,7 +379,7 @@ final class MemberApiTest extends ApiTestCase
         self::assertEmailAddressContains($email, 'To', 'eve@example.com');
         self::assertEmailSubjectContains($email, 'You are invited to '.$organization->getName());
         self::assertEmailHtmlBodyContains($email, 'Hello Eve');
-        self::assertEmailHtmlBodyContains($email, $owner->getFirstName().' '.$owner->getLastName().' invited you');
+        self::assertEmailHtmlBodyContains($email, self::htmlFullName($owner).' invited you');
         // Employees work in the time clock (TIMECLOCK_URL in .env).
         self::assertEmailHtmlBodyContains($email, 'http://localhost:5174/set-password#token=');
 
@@ -401,7 +401,7 @@ final class MemberApiTest extends ApiTestCase
         $email = self::queuedEmail();
         self::assertEmailSubjectContains($email, 'Zaproszenie do '.$organization->getName());
         self::assertEmailHtmlBodyContains($email, 'Cześć Eve,');
-        self::assertEmailHtmlBodyContains($email, $owner->getFirstName().' '.$owner->getLastName().' zaprasza Cię do');
+        self::assertEmailHtmlBodyContains($email, self::htmlFullName($owner).' zaprasza Cię do');
         self::assertEmailHtmlBodyContains($email, 'wygasa za 7 dni');
         self::assertEmailHtmlBodyNotContains($email, 'Hello');
     }
@@ -802,6 +802,12 @@ final class MemberApiTest extends ApiTestCase
         self::assertInstanceOf(Email::class, $email);
 
         return $email;
+    }
+
+    /** The user's full name as Twig escapes it in an e-mail body (Faker names such as "O'Conner" contain quotes). */
+    private static function htmlFullName(User $user): string
+    {
+        return htmlspecialchars($user->getFirstName().' '.$user->getLastName(), \ENT_QUOTES | \ENT_SUBSTITUTE);
     }
 
     /** The secret from the link in an invitation e-mail, as the set-password page reads it. */
