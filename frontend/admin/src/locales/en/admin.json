@@ -619,7 +619,9 @@
       },
       "noPaymentMethods": "The organization has no active payment method.",
       "managePaymentMethods": "Add or reactivate one",
-      "deactivatedMethod": "Deactivated: this entry keeps it, but new entries can't use it."
+      "deactivatedMethod": "Deactivated: this entry keeps it, but new entries can't use it.",
+      "bookedFromClose": "Booked from the end-of-day close: the register and the day don't change, and the payments change only when the close is corrected. You can add the VAT breakdown and a note.",
+      "bookedPaymentsDescription": "From the end-of-day close: cash is the change in the cash storages, the other methods as entered at the close."
     }
   },
   "payroll": {

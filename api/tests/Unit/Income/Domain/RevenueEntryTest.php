@@ -8,6 +8,7 @@ use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
 use App\Income\Domain\Exception\InvalidVatLinesException;
 use App\Income\Domain\Exception\RegisterDeactivatedException;
+use App\Income\Domain\Exception\RevenueEntryBookedByDayCloseException;
 use App\Income\Domain\Exception\RevenueEntryInTheFutureException;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
@@ -278,6 +279,107 @@ final class RevenueEntryTest extends TestCase
         $this->expectException(InvalidVatLinesException::class);
 
         $entry->change([$this->cash(100)], [new VatAmount('zw', 100, 5)], null, 'PL', $this->actorId, MembershipRole::Owner, new \DateTimeImmutable(self::LATER));
+    }
+
+    public function test_it_books_an_end_of_day_close_as_the_member_who_closed_of_any_role(): void
+    {
+        $id = Uuid::v7();
+        $closeId = Uuid::v7();
+        $employeeId = Uuid::v7();
+        $now = new \DateTimeImmutable(self::NOW);
+        $this->register->deactivate($this->actorId, MembershipRole::Owner, $now);
+
+        // Cash flow checked the register and the methods up front: a race since does not stop the booking.
+        $entry = RevenueEntry::bookFromDayClose($id, $closeId, $this->register, BusinessDate::fromString('2026-11-11'), 'PLN', [$this->cash(80_000), $this->card(0)], $employeeId, $now);
+
+        self::assertSame($id, $entry->getId());
+        self::assertSame($closeId, $entry->getDayCloseId());
+        self::assertEquals([$this->cash(80_000), $this->card(0)], $entry->getPaymentLines());
+        self::assertSame([], $entry->getVatLines());
+        self::assertNull($entry->getNote());
+        self::assertSame($employeeId, $entry->getCreatedBy());
+        self::assertSame($now, $entry->getCreatedAt());
+        self::assertNull($entry->getUpdatedBy());
+    }
+
+    public function test_it_books_no_close_without_a_payment_line_or_with_an_amount_out_of_range(): void
+    {
+        foreach ([[], [$this->cash(RevenueEntry::MAX_AMOUNT + 1)]] as $payments) {
+            try {
+                RevenueEntry::bookFromDayClose(Uuid::v7(), Uuid::v7(), $this->register, BusinessDate::fromString('2026-11-11'), 'PLN', $payments, $this->actorId, new \DateTimeImmutable(self::NOW));
+                self::fail('Invalid payment lines were booked.');
+            } catch (InvalidPaymentLinesException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_it_takes_over_a_manual_entry_replacing_its_payment_lines_and_keeping_its_vat_and_note(): void
+    {
+        $voucher = new PaymentAmount(self::method('Voucher'), 700);
+        $entry = $this->record([$this->cash(100), $voucher], [new VatAmount('23', 800, 150)], note: 'Typed in by hand');
+        $closeId = Uuid::v7();
+        $employeeId = Uuid::v7();
+        $later = new \DateTimeImmutable(self::LATER);
+
+        $entry->bookDayClose($closeId, [$this->cash(90_000), $this->card(30_000)], $employeeId, $later);
+
+        self::assertSame($closeId, $entry->getDayCloseId());
+        self::assertEquals([$this->cash(90_000), $this->card(30_000)], $entry->getPaymentLines());
+        self::assertEquals([new VatAmount('23', 800, 150)], $entry->getVatLines());
+        self::assertSame('Typed in by hand', $entry->getNote());
+        self::assertSame($this->actorId, $entry->getCreatedBy());
+        self::assertSame($employeeId, $entry->getUpdatedBy());
+        self::assertSame($later, $entry->getUpdatedAt());
+    }
+
+    public function test_it_books_the_same_close_again_changing_only_what_differs(): void
+    {
+        $closeId = Uuid::v7();
+        $entry = RevenueEntry::bookFromDayClose(Uuid::v7(), $closeId, $this->register, BusinessDate::fromString('2026-11-11'), 'PLN', [$this->cash(100)], $this->actorId, new \DateTimeImmutable(self::NOW));
+
+        $entry->bookDayClose($closeId, [$this->cash(100)], Uuid::v7(), new \DateTimeImmutable(self::LATER));
+        self::assertNull($entry->getUpdatedAt());
+
+        $correctorId = Uuid::v7();
+        $entry->bookDayClose($closeId, [$this->cash(120)], $correctorId, new \DateTimeImmutable(self::LATER));
+        self::assertSame(120, $entry->getTotal());
+        self::assertSame($correctorId, $entry->getUpdatedBy());
+
+        $this->expectException(\LogicException::class);
+        $entry->bookDayClose(Uuid::v7(), [$this->cash(120)], $correctorId, new \DateTimeImmutable(self::LATER));
+    }
+
+    public function test_it_keeps_the_payment_lines_a_close_wrote_but_lets_a_manager_edit_the_vat_and_note(): void
+    {
+        $closeId = Uuid::v7();
+        $entry = RevenueEntry::bookFromDayClose(Uuid::v7(), $closeId, $this->register, BusinessDate::fromString('2026-11-11'), 'PLN', [$this->cash(1_000), $this->card(500)], Uuid::v7(), new \DateTimeImmutable(self::NOW));
+        $managerId = Uuid::v7();
+
+        $entry->change([$this->card(500), $this->cash(1_000)], [new VatAmount('23', 1_500, 280)], 'From the Z report', 'PL', $managerId, MembershipRole::Manager, new \DateTimeImmutable(self::LATER));
+        self::assertEquals([new VatAmount('23', 1_500, 280)], $entry->getVatLines());
+        self::assertSame('From the Z report', $entry->getNote());
+        self::assertSame($managerId, $entry->getUpdatedBy());
+
+        foreach ([[$this->cash(1_000)], [$this->cash(1_001), $this->card(500)], [$this->cash(1_000), $this->card(500), new PaymentAmount(self::method('Voucher'), 0)]] as $payments) {
+            try {
+                $entry->change($payments, [], null, 'PL', $managerId, MembershipRole::Manager, new \DateTimeImmutable(self::LATER));
+                self::fail('The payment lines of a close were changed by hand.');
+            } catch (RevenueEntryBookedByDayCloseException $e) {
+                self::assertSame('income.revenue_entry_booked_by_day_close', $e->errorCode());
+                self::assertSame(['entryId' => $entry->getId()->toRfc4122(), 'dayCloseId' => $closeId->toRfc4122()], $e->errorParameters());
+            }
+        }
+        self::assertEquals([$this->cash(1_000), $this->card(500)], $entry->getPaymentLines());
+    }
+
+    public function test_it_deletes_a_manual_entry_but_not_one_booked_from_a_close(): void
+    {
+        $this->record([$this->cash(100)], [])->assertCanDelete($this->actorId, MembershipRole::Manager);
+
+        $booked = RevenueEntry::bookFromDayClose(Uuid::v7(), Uuid::v7(), $this->register, BusinessDate::fromString('2026-11-11'), 'PLN', [$this->cash(100)], Uuid::v7(), new \DateTimeImmutable(self::NOW));
+        $this->expectException(RevenueEntryBookedByDayCloseException::class);
+        $booked->assertCanDelete($this->actorId, MembershipRole::Owner);
     }
 
     /**

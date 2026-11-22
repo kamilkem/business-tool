@@ -210,6 +210,18 @@ export function formVatGross(values: EntryFormValues, rates: readonly VatRate[])
   return { total: grosses.reduce((sum, gross) => sum + gross, 0), hasLines: grosses.length > 0 }
 }
 
+/**
+ * The body of PATCH /revenue-entries/{id}. An entry booked from an end-of-day close (`dayCloseId`)
+ * keeps the payment lines the close wrote (ADR 0033 §9: changing them is a 409), so they are left out
+ * and merge-patch keeps them; its VAT lines and note are sent as for any entry.
+ */
+export function entryUpdateBody(entry: RevenueEntry, lines: EntryLines, note: string): UpdateRevenueEntryInput {
+  const trimmed = note.trim() || null
+  return entry.dayCloseId === null
+    ? { payments: lines.payments, vatLines: lines.vatLines, note: trimmed }
+    : { vatLines: lines.vatLines, note: trimmed }
+}
+
 /** The lines of a valid form, in the order the API gets them (for mapping its errors back). */
 export interface EntryLines {
   payments: components["schemas"]["PaymentLineInput"][]

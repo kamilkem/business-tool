@@ -149,7 +149,7 @@ final class CashLedgerTest extends KernelTestCase
         $now = new \DateTimeImmutable($at);
         $boxStorage = $this->managed($this->box);
         $safeStorage = $this->managed($this->safe);
-        $offer = new DayCloseOffer('PLN', [$boxStorage, $safeStorage], $this->denominations->findByCurrency('PLN'), [$this->registerId->toRfc4122() => 'Bar'], []);
+        $offer = new DayCloseOffer('PLN', [$boxStorage, $safeStorage], $this->denominations->findByCurrency('PLN'), [$this->registerId->toRfc4122() => 'Bar'], [], true);
         $opening = 0;
         foreach ($this->ledger->balanceOf($boxStorage->getId(), DayClose::positionAt($id, $now))->pieces as $denominationId => $pieces) {
             $opening += $pieces * ($this->denominations->findById(Uuid::fromString((string) $denominationId))?->getValue() ?? 0);

@@ -35,6 +35,17 @@ final class InMemoryRevenueEntryRepository implements RevenueEntryRepositoryInte
         return null;
     }
 
+    public function findByDayCloseId(Uuid $dayCloseId): ?RevenueEntry
+    {
+        foreach ($this->byId as $entry) {
+            if ($entry->getDayCloseId()?->equals($dayCloseId) ?? false) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
     public function findInPeriod(BusinessPeriod $period, ?Uuid $registerId = null): array
     {
         return array_values(array_filter(

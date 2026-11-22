@@ -9,6 +9,7 @@ use App\Income\Application\RevenueLines;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
 use App\Income\Domain\Exception\InvalidVatLinesException;
+use App\Income\Domain\Exception\RevenueEntryBookedByDayCloseException;
 use App\Income\Domain\Exception\RevenueEntryNotFoundException;
 use App\Income\Domain\Repository\PaymentMethodRepositoryInterface;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
@@ -33,6 +34,7 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
      * @throws OrganizationNotFoundException      when the actor is not an active member of the organization
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws RevenueEntryNotFoundException      when the entry is not one of the organization's
+     * @throws RevenueEntryBookedByDayCloseException when the entry is booked from a close and the payment lines differ
      * @throws InvalidPaymentLinesException       when the payment lines break a rule
      * @throws InvalidVatLinesException           when the VAT lines break a rule
      */

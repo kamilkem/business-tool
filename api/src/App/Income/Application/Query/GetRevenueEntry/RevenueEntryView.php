@@ -29,6 +29,8 @@ final readonly class RevenueEntryView
         public int $vatGrossTotal,
         public int $vatTotal,
         public ?string $note,
+        /** The end-of-day close the entry is booked from (ADR 0033 §9); null for a manual entry. */
+        public ?string $dayCloseId,
         public string $createdBy,
         public \DateTimeImmutable $createdAt,
         public ?string $updatedBy,
@@ -52,6 +54,7 @@ final readonly class RevenueEntryView
             array_sum(array_map(static fn (VatAmount $line): int => $line->gross, $vatLines)),
             array_sum(array_map(static fn (VatAmount $line): int => $line->vat, $vatLines)),
             $entry->getNote(),
+            $entry->getDayCloseId()?->toRfc4122(),
             $entry->getCreatedBy()->toRfc4122(),
             $entry->getCreatedAt(),
             $entry->getUpdatedBy()?->toRfc4122(),

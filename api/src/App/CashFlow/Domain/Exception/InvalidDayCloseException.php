@@ -17,6 +17,22 @@ final class InvalidDayCloseException extends CashFlowException
         return new self(\sprintf('A day is closed only while at least one cash storage and one denomination in %s are active.', $currency), ['currency' => $currency], variant: __FUNCTION__);
     }
 
+    /** Income has no active payment method to book the close into: none marked as cash, and no non-cash one (ADR 0033 §9). */
+    public static function nothingToBook(): self
+    {
+        return new self('A day is closed only while at least one payment method is active: the one marked as cash, or a non-cash one.', [], variant: __FUNCTION__);
+    }
+
+    /** The cash income is booked as one revenue line, which takes at most $max minor units. */
+    public static function cashIncome(int $cashIncome, int $max): self
+    {
+        return new self(
+            \sprintf('A cash income of %d is more than a revenue entry takes (at most %d): check the counts.', $cashIncome, $max),
+            ['cashIncome' => $cashIncome, 'max' => $max],
+            variant: __FUNCTION__,
+        );
+    }
+
     public static function missingStorage(string $storageId, string $name): self
     {
         return new self(\sprintf('The close covers every active cash storage; "%s" is missing.', $name), ['storageId' => $storageId, 'name' => $name], variant: __FUNCTION__);

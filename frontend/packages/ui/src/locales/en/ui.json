@@ -23,11 +23,13 @@
       "denomination_value_taken": "This denomination already exists (it may be deactivated).",
       "invalid_day_close": {
         "amount": "An amount must be from 0 to {{max}}.",
+        "cash_income": "The counted cash is more than a day's income can be: check the number of pieces.",
         "duplicate_denomination": "Each denomination may appear only once per storage.",
         "duplicate_payment_method": "Each payment method may appear only once.",
         "duplicate_storage": "Each storage may appear only once.",
         "missing_payment_method": "Enter the day's amount for “{{name}}” (zero if there was none).",
         "missing_storage": "Enter the cash for “{{name}}”: every active storage is part of the close.",
+        "nothing_to_book": "The day can't be booked as income: activate a payment method first (the cash one, or a non-cash one).",
         "nothing_to_close": "There is nothing to count: add a cash storage and a denomination first.",
         "payment_method_not_offered": "This payment method is no longer offered. Reload the page.",
         "pieces": "The number of pieces must be from {{min}} to {{max}}.",
@@ -116,6 +118,7 @@
       "register_name_taken": "A register named “{{name}}” already exists.",
       "register_not_found": "This register no longer exists. Reload the page.",
       "revenue_entry_already_exists": "This register already has an entry for {{businessDate}}.",
+      "revenue_entry_booked_by_day_close": "This entry comes from an end-of-day close: its payments change only when the close is corrected, and it can't be deleted by hand.",
       "revenue_entry_in_the_future": "{{businessDate}} is after today ({{today}}).",
       "revenue_entry_not_found": "This entry no longer exists. Reload the page.",
       "revenue_period_too_long": "Choose a period of at most {{maxDays}} days."

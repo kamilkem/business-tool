@@ -62,6 +62,7 @@ final class RevenueEntryApiTest extends IncomeApiTestCase
             'vatGrossTotal' => 301_000,
             'vatTotal' => 56_098,
             'note' => 'Busy Thursday',
+            'dayCloseId' => null,
             'createdBy' => $actor->getId()->toRfc4122(),
             'createdAt' => '2026-11-12T23:30:00+00:00',
             'updatedBy' => null,

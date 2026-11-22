@@ -39,8 +39,11 @@ final readonly class DayCloseOffers
             $registerNames[$register->id] = $register->name;
         }
         $nonCash = [];
+        $cashMethod = false;
         foreach ($methods as $method) {
-            if (!$method->cash) {
+            if ($method->cash) {
+                $cashMethod = true;
+            } else {
                 $nonCash[$method->id] = $method->name;
             }
         }
@@ -53,6 +56,7 @@ final readonly class DayCloseOffers
             $this->denominations->findByCurrency($currency),
             $registerNames,
             $nonCash,
+            $cashMethod,
         );
     }
 }
