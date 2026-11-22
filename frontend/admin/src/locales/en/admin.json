@@ -128,6 +128,19 @@
       "payrollPending": "Payroll not approved: not in the costs.",
       "footnote": "Costs are net expenses plus approved payroll. Select a month to see its figures.",
       "partialFootnote": "* The month is still running."
+    },
+    "cash": {
+      "title": "Cash on hand",
+      "now": "Now",
+      "estimateHint": "An estimate until the next close: the day's takings are counted then.",
+      "storages": "Cash by storage",
+      "noStorages": "There are no cash storages yet.",
+      "addStorage": "Add a storage",
+      "lastClose": "Last close: {{date}}",
+      "noClose_one": "No close in the last {{count}} day.",
+      "noClose_other": "No close in the last {{count}} days.",
+      "shortage": "Shortage",
+      "open": "Open cash flow"
     }
   },
   "useTimeclock": {

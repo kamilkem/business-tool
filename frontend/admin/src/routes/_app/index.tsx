@@ -43,9 +43,11 @@ import {
   compareBusinessDates,
   shiftPeriod,
   thisMonth as monthNow,
+  today,
 } from "@business-tool/ui/lib/date-time";
 import { cn } from "@business-tool/ui/lib/utils";
 
+import { CashOnHandCard } from "@/components/cash-on-hand-card";
 import { UseTimeclock } from "@/components/use-timeclock";
 import { can } from "@/lib/access";
 import {
@@ -64,13 +66,19 @@ import {
   validateDashboardSearch,
 } from "@/lib/dashboard";
 import { monthKey } from "@/lib/payroll";
-import { businessSummaryQuery } from "@/lib/queries";
+import { lastClosePeriod } from "@/lib/cash-on-hand";
+import {
+  businessSummaryQuery,
+  cashBalancesQuery,
+  dayClosesQuery,
+} from "@/lib/queries";
 
 /*
  * The start page. Owners and managers get the dashboard (#68): the selected month's income,
  * expenses, payroll and result, and a trend of the months up to it, from one business summary
- * request (ADR 0029). Employees get the way to the timeclock (ADR 0021). The start page is where
- * `requireCapability()` redirects to, so it is gated with `can()` rather than redirecting itself.
+ * request (ADR 0029), and the cash on hand now from the Cash flow balances (#191). Employees get
+ * the way to the timeclock (ADR 0021). The start page is where `requireCapability()` redirects
+ * to, so it is gated with `can()` rather than redirecting itself.
  */
 export const Route = createFileRoute("/_app/")({
   validateSearch: (search: Record<string, unknown>): DashboardSearch =>
@@ -81,9 +89,23 @@ export const Route = createFileRoute("/_app/")({
     if (!membership || !can(membership.role, "dashboard")) return;
     const { organization } = membership;
     const period = dashboardMonth(deps.month, monthNow(organization.timezone));
-    await queryClient.ensureQueryData(
-      businessSummaryQuery(organization.id, trendRange(period)),
-    );
+    const cashOnHand = can(membership.role, "cashFlow")
+      ? [
+          queryClient.ensureQueryData(cashBalancesQuery(organization.id)),
+          queryClient.ensureQueryData(
+            dayClosesQuery(
+              organization.id,
+              lastClosePeriod(today(organization.timezone)),
+            ),
+          ),
+        ]
+      : [];
+    await Promise.all([
+      queryClient.ensureQueryData(
+        businessSummaryQuery(organization.id, trendRange(period)),
+      ),
+      ...cashOnHand,
+    ]);
   },
   component: StartPage,
 });
@@ -99,7 +121,7 @@ function StartPage() {
 }
 
 function Dashboard({ organizationId }: { organizationId: string }) {
-  const { me } = Route.useRouteContext();
+  const { me, membership } = Route.useRouteContext();
   const { t } = useTranslation("admin");
   const format = useDateTimeFormat();
   const search = Route.useSearch();
@@ -164,7 +186,16 @@ function Dashboard({ organizationId }: { organizationId: string }) {
 
       <MonthNotes month={month} />
       <MonthCards month={month} />
-      <Trend summary={summary} selected={month.month} />
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Trend
+          summary={summary}
+          selected={month.month}
+          className="xl:col-span-2"
+        />
+        {can(membership?.role, "cashFlow") && (
+          <CashOnHandCard organizationId={organizationId} />
+        )}
+      </div>
     </div>
   );
 }
@@ -355,15 +386,17 @@ const COSTS_BAR = "bg-orange-600";
 function Trend({
   summary,
   selected,
+  className,
 }: {
   summary: BusinessSummary;
   selected: string;
+  className?: string;
 }) {
   const { t } = useTranslation("admin");
   const bars = trendBars(summary);
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>{t("dashboard.trend.title")}</CardTitle>
         <CardDescription>

@@ -138,6 +138,21 @@
       "payrollPending": "Lista płac niezatwierdzona: poza kosztami.",
       "footnote": "Koszty to wydatki netto i zatwierdzone wynagrodzenia. Wybierz miesiąc, aby zobaczyć jego kwoty.",
       "partialFootnote": "* Miesiąc jeszcze trwa."
+    },
+    "cash": {
+      "title": "Stan gotówki",
+      "now": "Teraz",
+      "estimateHint": "Szacunek do następnego zamknięcia: wtedy liczony jest utarg dnia.",
+      "storages": "Gotówka według miejsc",
+      "noStorages": "Nie ma jeszcze miejsc przechowywania gotówki.",
+      "addStorage": "Dodaj miejsce",
+      "lastClose": "Ostatnie zamknięcie: {{date}}",
+      "noClose_one": "Brak zamknięcia w ostatnim {{count}} dniu.",
+      "noClose_few": "Brak zamknięcia w ostatnich {{count}} dniach.",
+      "noClose_many": "Brak zamknięcia w ostatnich {{count}} dniach.",
+      "noClose_other": "Brak zamknięcia w ostatnich {{count}} dniach.",
+      "shortage": "Niedobór",
+      "open": "Przejdź do gotówki"
     }
   },
   "useTimeclock": {
