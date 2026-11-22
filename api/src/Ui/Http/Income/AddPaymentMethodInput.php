@@ -7,7 +7,7 @@ namespace Ui\Http\Income;
 use App\Income\Domain\Model\PaymentMethod;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/** Uniqueness of the name in the organization is the domain's (409). */
+/** Uniqueness of the name in the organization, and the one active cash method, are the domain's (409). */
 final readonly class AddPaymentMethodInput
 {
     public function __construct(
@@ -15,6 +15,8 @@ final readonly class AddPaymentMethodInput
         #[Assert\NotBlank(normalizer: 'trim')]
         #[Assert\Length(max: PaymentMethod::NAME_MAX_LENGTH, normalizer: 'trim')]
         public string $name,
+        /** Whether the end-of-day close books the counted cash on it (ADR 0033 §9). */
+        public bool $cash = false,
     ) {
     }
 }

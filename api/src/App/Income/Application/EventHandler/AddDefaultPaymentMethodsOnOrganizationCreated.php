@@ -17,7 +17,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * A new organization starts with the default payment methods of its country
- * (DefaultPaymentMethods), added in that order as its owner adds them (ADR 0030 §2). The request
+ * (DefaultPaymentMethods), the first marked as cash, added in that order as its owner adds them (ADR 0030 §2). The request
  * that created the organization may have another one selected (X-Organization-Id), so the methods
  * are added with the new organization selected, and the previous selection comes back afterwards. A name the
  * organization already has is skipped, so handling the event twice adds nothing.
@@ -40,13 +40,14 @@ final readonly class AddDefaultPaymentMethodsOnOrganizationCreated implements Ev
         $previous = $this->tenantContext->hasOrganization() ? $this->tenantContext->getOrganization() : null;
         $this->tenantContext->switchTo($organization);
         try {
-            foreach (DefaultPaymentMethods::forCountry($organization->getCountryCode()) as $name) {
+            foreach (DefaultPaymentMethods::forCountry($organization->getCountryCode()) as $default) {
                 try {
                     $this->commandBus->handle(new AddPaymentMethodCommand(
                         $event->organizationId,
                         $event->ownerId,
                         Uuid::v7()->toRfc4122(),
-                        $name,
+                        $default['name'],
+                        $default['cash'],
                     ));
                 } catch (PaymentMethodNameTakenException) {
                 }

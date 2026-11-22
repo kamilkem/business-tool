@@ -5,6 +5,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
+  BanknoteIcon,
   ChevronRightIcon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -24,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@business-tool/ui/components/alert-dialog"
+import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
 import { Card, CardContent } from "@business-tool/ui/components/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@business-tool/ui/components/collapsible"
@@ -73,17 +75,17 @@ function PaymentMethodsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   // Both kept while their dialog closes, so its title doesn't change during the animation.
-  const [renaming, setRenaming] = useState<PaymentMethod | null>(null)
+  const [editing, setEditing] = useState<PaymentMethod | null>(null)
   const [deleting, setDeleting] = useState<PaymentMethod | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   function openAdd() {
-    setRenaming(null)
+    setEditing(null)
     setDialogOpen(true)
   }
 
-  function openRename(method: PaymentMethod) {
-    setRenaming(method)
+  function openEdit(method: PaymentMethod) {
+    setEditing(method)
     setDialogOpen(true)
   }
 
@@ -176,7 +178,7 @@ function PaymentMethodsPage() {
                   method={method}
                   handle={handle}
                   busy={busyId === method.id}
-                  onRename={openRename}
+                  onEdit={openEdit}
                   onToggle={(m) => toggle.mutate({ method: m, to: "deactivate" })}
                   onDelete={askToDelete}
                 />
@@ -205,7 +207,7 @@ function PaymentMethodsPage() {
                       <MethodRow
                         method={method}
                         busy={busyId === method.id}
-                        onRename={openRename}
+                        onEdit={openEdit}
                         onToggle={(m) => toggle.mutate({ method: m, to: "reactivate" })}
                         onDelete={askToDelete}
                       />
@@ -218,7 +220,7 @@ function PaymentMethodsPage() {
         </Collapsible>
       )}
 
-      <PaymentMethodDialog organizationId={organizationId} open={dialogOpen} onOpenChange={setDialogOpen} method={renaming} />
+      <PaymentMethodDialog organizationId={organizationId} open={dialogOpen} onOpenChange={setDialogOpen} method={editing} />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
@@ -248,13 +250,13 @@ interface MethodRowProps {
   /** The drag handle, for active methods. */
   handle?: ReactNode
   busy: boolean
-  onRename: (method: PaymentMethod) => void
+  onEdit: (method: PaymentMethod) => void
   /** Deactivates an active method, reactivates a deactivated one. */
   onToggle: (method: PaymentMethod) => void
   onDelete: (method: PaymentMethod) => void
 }
 
-function MethodRow({ method, handle, busy, onRename, onToggle, onDelete }: MethodRowProps) {
+function MethodRow({ method, handle, busy, onEdit, onToggle, onDelete }: MethodRowProps) {
   const { t } = useTranslation("admin")
 
   return (
@@ -262,6 +264,12 @@ function MethodRow({ method, handle, busy, onRename, onToggle, onDelete }: Metho
       {handle}
       <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
         <span className={`truncate font-medium ${method.active ? "" : "text-muted-foreground"}`}>{method.name}</span>
+        {method.cash && (
+          <Badge variant="secondary" className="self-center">
+            <BanknoteIcon data-icon="inline-start" />
+            {t("paymentMethods.cash")}
+          </Badge>
+        )}
         <span className="text-xs text-muted-foreground">{method.used ? t("paymentMethods.used") : t("paymentMethods.unused")}</span>
       </div>
       <DropdownMenu>
@@ -271,9 +279,9 @@ function MethodRow({ method, handle, busy, onRename, onToggle, onDelete }: Metho
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onRename(method)}>
+          <DropdownMenuItem onSelect={() => onEdit(method)}>
             <PencilIcon />
-            {t("paymentMethods.rename")}
+            {t("paymentMethods.edit")}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onToggle(method)}>
             {method.active ? <ArchiveIcon /> : <ArchiveRestoreIcon />}

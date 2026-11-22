@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Income;
 
 use App\Income\Domain\Exception\PaymentMethodInUseException;
+use App\Income\Domain\Exception\CashPaymentMethodTakenException;
 use App\Income\Domain\Exception\PaymentMethodNameTakenException;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
@@ -85,6 +86,37 @@ final class PaymentMethodRepositoryTest extends KernelTestCase
         $this->add('Cash');
     }
 
+    public function test_it_finds_the_active_cash_method_and_keeps_deactivated_ones_out_of_the_rule(): void
+    {
+        $this->switchToNewOrganization();
+        self::assertNull($this->methods->findActiveCash());
+        $old = $this->add('Old cash', cash: true);
+        $old->deactivate(Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01'));
+        $this->methods->save($old);
+        self::assertNull($this->methods->findActiveCash());
+
+        $cash = $this->add('Gotówka', cash: true);
+        $this->entityManager->clear();
+
+        $found = $this->methods->findActiveCash();
+        self::assertInstanceOf(PaymentMethod::class, $found);
+        self::assertSame($cash->getId()->toRfc4122(), $found->getId()->toRfc4122());
+        $this->switchToNewOrganization();
+        self::assertNull($this->methods->findActiveCash());
+        $this->add('Gotówka', cash: true);
+    }
+
+    public function test_it_rejects_a_second_active_cash_method_written_concurrently(): void
+    {
+        $this->switchToNewOrganization();
+        $this->add('Gotówka', cash: true);
+
+        // The model was given no active cash method, as in a concurrent request; the partial unique index stops it.
+        $this->expectException(CashPaymentMethodTakenException::class);
+
+        $this->add('Cash', cash: true);
+    }
+
     public function test_it_deletes_an_unused_method_and_keeps_a_used_one(): void
     {
         $this->switchToNewOrganization();
@@ -127,9 +159,9 @@ final class PaymentMethodRepositoryTest extends KernelTestCase
         $this->tenantContext->switchTo(OrganizationFactory::createOne());
     }
 
-    private function add(string $name): PaymentMethod
+    private function add(string $name, bool $cash = false): PaymentMethod
     {
-        $method = PaymentMethod::create(Uuid::v7(), $name, null, $this->methods->nextPosition(), Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-01'));
+        $method = PaymentMethod::create(Uuid::v7(), $name, null, $this->methods->nextPosition(), $cash, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-01'));
         $this->methods->add($method);
 
         return $method;

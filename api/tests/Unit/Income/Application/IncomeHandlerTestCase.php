@@ -72,7 +72,7 @@ abstract class IncomeHandlerTestCase extends TestCase
         $this->registers->add($this->bar);
         $this->paymentMethods = new InMemoryPaymentMethodRepository();
         foreach (['cash' => 'Cash', 'card' => 'Card', 'transfer' => 'Transfer', 'voucher' => 'Voucher'] as $property => $name) {
-            $this->{$property} = PaymentMethodMother::named($name, $this->paymentMethods->nextPosition());
+            $this->{$property} = PaymentMethodMother::named($name, $this->paymentMethods->nextPosition(), cash: 'cash' === $property);
             $this->paymentMethods->add($this->{$property});
         }
 

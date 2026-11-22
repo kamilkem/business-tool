@@ -21,10 +21,15 @@ final class UpdatePaymentMethodInput
     #[Assert\Length(max: PaymentMethod::NAME_MAX_LENGTH, normalizer: 'trim')]
     public ?string $name = null;
 
+    /** At most one active method is cash (409 otherwise). */
+    #[Assert\NotNull]
+    public ?bool $cash = null;
+
     public static function fromView(PaymentMethodView $view): self
     {
         $input = new self();
         $input->name = $view->name;
+        $input->cash = $view->cash;
 
         return $input;
     }

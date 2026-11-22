@@ -58,6 +58,7 @@ final class AddDefaultPaymentMethodsOnOrganizationCreatedTest extends TestCase
         $this->handle($organization);
 
         self::assertSame(['Gotówka', 'Karta', 'Przelew', 'Bon'], $this->names());
+        self::assertSame('Gotówka', $this->paymentMethods->findActiveCash()?->getName());
         self::assertSame(array_fill(0, 4, $organization->getId()->toRfc4122()), $this->selectedWhileHandling);
         foreach ($this->paymentMethods->findAll() as $method) {
             self::assertEquals(new \DateTimeImmutable(self::NOW), $method->getCreatedAt());
@@ -71,6 +72,7 @@ final class AddDefaultPaymentMethodsOnOrganizationCreatedTest extends TestCase
         $this->handle($this->organization('DE'));
 
         self::assertSame(['Cash', 'Card', 'Transfer', 'Voucher'], $this->names());
+        self::assertSame('Cash', $this->paymentMethods->findActiveCash()?->getName());
     }
 
     public function test_it_selects_the_previously_selected_organization_again(): void
@@ -88,7 +90,7 @@ final class AddDefaultPaymentMethodsOnOrganizationCreatedTest extends TestCase
     public function test_it_skips_names_the_organization_already_has_so_handling_twice_adds_nothing(): void
     {
         $organization = $this->organization('PL');
-        $this->paymentMethods->add(PaymentMethod::create(Uuid::v7(), 'Karta', null, 0, $this->owner->getId(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01')));
+        $this->paymentMethods->add(PaymentMethod::create(Uuid::v7(), 'Karta', null, 0, false, null, $this->owner->getId(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01')));
 
         $this->handle($organization);
         $this->handle($organization);

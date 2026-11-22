@@ -68,6 +68,7 @@
       "purchase_invoice_read_only": "Ten wydatek został zaimportowany: można zmienić tylko jego kategorię."
     },
     "income": {
+      "cash_payment_method_taken": "Inna aktywna metoda płatności jest już oznaczona jako gotówka. Najpierw usuń jej oznaczenie.",
       "invalid_payment_lines": {
         "amount_out_of_range": "Kwota dla metody „{{name}}” jest poza dozwolonym zakresem.",
         "duplicate_method": "Metoda płatności „{{name}}” występuje więcej niż raz.",

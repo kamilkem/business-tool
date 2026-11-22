@@ -290,7 +290,7 @@ final class RevenueEntryRepositoryTest extends KernelTestCase
     private function method(string $name, int $position): PaymentMethod
     {
         if (!isset($this->methods[$name])) {
-            $this->methods[$name] = PaymentMethod::create(Uuid::v7(), $name, null, $position, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-01'));
+            $this->methods[$name] = PaymentMethod::create(Uuid::v7(), $name, null, $position, false, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-10-01'));
             self::getContainer()->get(PaymentMethodRepositoryInterface::class)->add($this->methods[$name]);
         }
 

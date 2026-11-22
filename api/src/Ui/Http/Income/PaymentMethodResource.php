@@ -29,7 +29,9 @@ use Ui\Http\Income\Provider\UpdatePaymentMethodInputProvider;
  * by the X-Organization-Id header (ADR 0030). Revenue entries hold one line per method. Owners and
  * managers only: anyone else gets a 403. The organization orders its methods (PUT
  * /payment-methods/order); lists, the entry lines and the summaries follow that order. A method no
- * entry has used can be deleted; a used one is deactivated instead and can be reactivated.
+ * entry has used can be deleted; a used one is deactivated instead and can be reactivated. At most
+ * one active method is marked as cash: the end-of-day close books the counted cash on it (ADR 0033
+ * §9); a second one is a 409 (`income.cash_payment_method_taken`).
  */
 #[ApiResource(
     shortName: 'PaymentMethod',
@@ -71,11 +73,11 @@ use Ui\Http\Income\Provider\UpdatePaymentMethodInputProvider;
             uriTemplate: '/payment-methods',
             openapi: new Operation(
                 summary: 'Adds a payment method at the end of the selected organization\'s list.',
-                description: 'Owners and managers only (403 otherwise). The name is trimmed, 1 to 64 characters (422), and unique in the organization among active and deactivated methods, compared as written (409).',
+                description: 'Owners and managers only (403 otherwise). The name is trimmed, 1 to 64 characters (422), and unique in the organization among active and deactivated methods, compared as written (409). `cash` (default false) marks it as cash; another active cash method is a 409 (`income.cash_payment_method_taken`).',
                 responses: [
                     '201' => new Response('The new payment method, active.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
-                    '409' => new Response('A payment method of the organization already has the name.'),
+                    '409' => new Response('A payment method of the organization already has the name, or another active method is cash.'),
                     '422' => new Response('The name is missing, blank or too long.'),
                 ],
             ),
@@ -88,12 +90,12 @@ use Ui\Http\Income\Provider\UpdatePaymentMethodInputProvider;
             uriVariables: ['id'],
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
-                summary: 'Renames a payment method.',
-                description: 'Owners and managers only (403 otherwise); a method that is not the selected organization\'s is a 404. A deactivated method can be renamed too. The rules of POST apply to the name (409, 422); renaming to the current name changes nothing. Entries and summaries show the new name.',
+                summary: 'Renames a payment method, or marks it as cash.',
+                description: 'Owners and managers only (403 otherwise); a method that is not the selected organization\'s is a 404. A deactivated method can be renamed and marked too. The rules of POST apply to the name (409, 422); renaming to the current name changes nothing. Entries and summaries show the new name. Marking an active method as cash while another active method is cash is a 409 (`income.cash_payment_method_taken`): remove the other mark first.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The payment method is not one of the selected organization\'s.'),
-                    '409' => new Response('Another payment method of the organization has the name.'),
+                    '409' => new Response('Another payment method of the organization has the name, or another active method is cash.'),
                     '422' => new Response('The name is blank or too long.'),
                 ],
             ),
@@ -126,11 +128,12 @@ use Ui\Http\Income\Provider\UpdatePaymentMethodInputProvider;
             status: 200,
             openapi: new Operation(
                 summary: 'Reactivates a payment method.',
-                description: 'Owners and managers only (403 otherwise); a method that is not the selected organization\'s is a 404. The method takes lines again and goes to the end of the list. The request has no body. Reactivating an active method changes nothing.',
+                description: 'Owners and managers only (403 otherwise); a method that is not the selected organization\'s is a 404. The method takes lines again and goes to the end of the list. The request has no body. Reactivating an active method changes nothing. A method marked as cash cannot be reactivated while another active method is cash (409, `income.cash_payment_method_taken`).',
                 responses: [
                     '200' => new Response('The active payment method.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The payment method is not one of the selected organization\'s.'),
+                    '409' => new Response('The method is cash and another active method is.'),
                 ],
             ),
             input: false,
@@ -163,6 +166,8 @@ final readonly class PaymentMethodResource
         public string $name,
         /** False once deactivated: the method takes no new lines. */
         public bool $active,
+        /** Whether the end-of-day close books the counted cash on the method (ADR 0033 §9); at most one active method is cash. */
+        public bool $cash,
         /** Whether a revenue entry has a line for the method: a used method cannot be deleted, only deactivated. */
         public bool $used,
         public \DateTimeImmutable $createdAt,
@@ -173,6 +178,6 @@ final readonly class PaymentMethodResource
 
     public static function fromView(PaymentMethodView $view): self
     {
-        return new self($view->id, $view->name, $view->active, $view->used, $view->createdAt, $view->deactivatedAt);
+        return new self($view->id, $view->name, $view->active, $view->cash, $view->used, $view->createdAt, $view->deactivatedAt);
     }
 }
