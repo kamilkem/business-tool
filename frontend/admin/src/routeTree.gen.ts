@@ -19,6 +19,8 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
+import { Route as AppCashFlowDenominationsRouteImport } from './routes/_app/cash-flow/denominations'
+import { Route as AppCashFlowStoragesRouteImport } from './routes/_app/cash-flow/storages'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
@@ -78,6 +80,17 @@ const AppTeamRoute = AppTeamRouteImport.update({
 const AppTimeRoute = AppTimeRouteImport.update({
   id: '/time',
   path: '/time',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCashFlowDenominationsRoute =
+  AppCashFlowDenominationsRouteImport.update({
+    id: '/cash-flow/denominations',
+    path: '/cash-flow/denominations',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppCashFlowStoragesRoute = AppCashFlowStoragesRouteImport.update({
+  id: '/cash-flow/storages',
+  path: '/cash-flow/storages',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
@@ -148,6 +161,8 @@ export interface FileRoutesByFullPath {
   '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
+  '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
+  '/cash-flow/storages': typeof AppCashFlowStoragesRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
@@ -170,6 +185,8 @@ export interface FileRoutesByTo {
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
+  '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
+  '/cash-flow/storages': typeof AppCashFlowStoragesRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
@@ -194,6 +211,8 @@ export interface FileRoutesById {
   '/_app/team': typeof AppTeamRoute
   '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
+  '/_app/cash-flow/storages': typeof AppCashFlowStoragesRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
   '/_app/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
@@ -218,6 +237,8 @@ export interface FileRouteTypes {
     | '/shift-requests'
     | '/team'
     | '/time'
+    | '/cash-flow/denominations'
+    | '/cash-flow/storages'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
@@ -240,6 +261,8 @@ export interface FileRouteTypes {
     | '/team'
     | '/time'
     | '/'
+    | '/cash-flow/denominations'
+    | '/cash-flow/storages'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
@@ -263,6 +286,8 @@ export interface FileRouteTypes {
     | '/_app/team'
     | '/_app/time'
     | '/_app/'
+    | '/_app/cash-flow/denominations'
+    | '/_app/cash-flow/storages'
     | '/_app/expenses/categories'
     | '/_app/income/payment-methods'
     | '/_app/income/registers'
@@ -355,6 +380,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTimeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cash-flow/denominations': {
+      id: '/_app/cash-flow/denominations'
+      path: '/cash-flow/denominations'
+      fullPath: '/cash-flow/denominations'
+      preLoaderRoute: typeof AppCashFlowDenominationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash-flow/storages': {
+      id: '/_app/cash-flow/storages'
+      path: '/cash-flow/storages'
+      fullPath: '/cash-flow/storages'
+      preLoaderRoute: typeof AppCashFlowStoragesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/expenses/': {
       id: '/_app/expenses/'
       path: '/expenses'
@@ -442,6 +481,8 @@ interface AppRouteChildren {
   AppTeamRoute: typeof AppTeamRoute
   AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppCashFlowDenominationsRoute: typeof AppCashFlowDenominationsRoute
+  AppCashFlowStoragesRoute: typeof AppCashFlowStoragesRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
   AppIncomePaymentMethodsRoute: typeof AppIncomePaymentMethodsRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
@@ -462,6 +503,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeamRoute: AppTeamRoute,
   AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
+  AppCashFlowDenominationsRoute: AppCashFlowDenominationsRoute,
+  AppCashFlowStoragesRoute: AppCashFlowStoragesRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
   AppIncomePaymentMethodsRoute: AppIncomePaymentMethodsRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,

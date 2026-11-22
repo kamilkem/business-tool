@@ -1139,5 +1139,135 @@
       "save": "Record the close",
       "done": "The close of {{date}} is recorded."
     }
+  },
+  "cashFlow": {
+    "nav": {
+      "closes": "Closes",
+      "storages": "Storages",
+      "denominations": "Denominations"
+    }
+  },
+  "cashStorages": {
+    "title": "Cash storages",
+    "description": "Where the cash is kept. Each one is part of every end-of-day close: counted, or taking deposits.",
+    "add": "Add storage",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "delete": "Delete",
+    "used": "Used by cash records",
+    "unused": "Not used yet",
+    "noneActive": "No active storages. Add one before the first end-of-day close.",
+    "activeList": "Active storages",
+    "deactivatedList": "Deactivated storages",
+    "deactivatedDescription": "They are not part of new closes. Past closes and movements keep them, under their names.",
+    "mode": {
+      "counted": "Counted",
+      "deposit": "Deposit"
+    },
+    "modeDescription": {
+      "counted": "At the close, every denomination in it is counted, and the count is its new balance (e.g. the cash box).",
+      "deposit": "At the close, the employee enters only what they put in, without knowing the balance (e.g. a drop safe)."
+    },
+    "confirmDelete": {
+      "title": "Delete {{name}}?",
+      "description": "No close or movement refers to it, so nothing else changes. The name becomes free again."
+    },
+    "toast": {
+      "added": "Storage {{name}} added",
+      "saved": "Storage {{name}} saved",
+      "deactivated": "{{name}} deactivated",
+      "reactivated": "{{name}} reactivated",
+      "deleted": "{{name}} deleted"
+    },
+    "error": {
+      "nameTaken": "A storage named “{{name}}” already exists.",
+      "nameTakenByDeactivated": "A deactivated storage is already named “{{name}}”. Reactivate it, or pick another name.",
+      "deactivate": "Could not deactivate the storage",
+      "reactivate": "Could not reactivate the storage",
+      "delete": "Could not delete the storage"
+    },
+    "dialog": {
+      "editTitle": "Edit {{name}}",
+      "editDescription": "Past closes and movements show the new name.",
+      "addDescription": "A cash box, a safe or another place cash is kept. It starts empty: record its opening float as an adjustment.",
+      "name": "Name",
+      "mode": "At the close",
+      "modeChangeHint": "The change applies from the next close.",
+      "nameDescription_one": "Up to {{count}} character, different from your other storages.",
+      "nameDescription_other": "Up to {{count}} characters, different from your other storages."
+    },
+    "deactivatedCount_one": "Deactivated storages ({{count}})",
+    "deactivatedCount_other": "Deactivated storages ({{count}})"
+  },
+  "denominations": {
+    "title": "Denominations",
+    "description": "The coins and notes in {{currency}} that end-of-day closes count.",
+    "add": "Add denomination",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "delete": "Delete",
+    "used": "Used by cash records",
+    "unused": "Not used yet",
+    "noneActive": "No active denominations in {{currency}}. Add the coins and notes you count.",
+    "deactivatedList": "Deactivated denominations",
+    "deactivatedDescription": "They are not counted any more. If a storage still holds some, take them out with an adjustment.",
+    "kind": {
+      "coin": "Coin",
+      "note": "Note"
+    },
+    "confirmDelete": {
+      "title": "Delete {{value}}?",
+      "description": "No close or movement uses it, so nothing else changes. You can add it again later."
+    },
+    "toast": {
+      "added": "{{value}} added",
+      "deactivated": "{{value}} deactivated",
+      "reactivated": "{{value}} reactivated",
+      "deleted": "{{value}} deleted"
+    },
+    "error": {
+      "valueTaken": "{{value}} is already on the list.",
+      "valueTakenByDeactivated": "{{value}} is already on the list, deactivated. Reactivate it instead.",
+      "valueRequired": "Enter a value greater than zero.",
+      "deactivate": "Could not deactivate the denomination",
+      "reactivate": "Could not reactivate the denomination",
+      "delete": "Could not delete the denomination"
+    },
+    "dialog": {
+      "description": "A coin or note in {{currency}}, the organization's currency.",
+      "value": "Value",
+      "valueDescription": "The face value, e.g. 5 for a five.",
+      "kind": "Kind"
+    },
+    "deactivatedCount_one": "Deactivated denominations ({{count}})",
+    "deactivatedCount_other": "Deactivated denominations ({{count}})",
+    "group": {
+      "coin_one": "Coins ({{count}})",
+      "coin_other": "Coins ({{count}})",
+      "note_one": "Notes ({{count}})",
+      "note_other": "Notes ({{count}})"
+    }
+  },
+  "dayCloseSettings": {
+    "title": "Close of day",
+    "description": "How an end-of-day close gets its business date.",
+    "changedAt": "Last changed {{at}}.",
+    "defaults": "These are the defaults.",
+    "saved": "Close of day settings saved",
+    "modeLabel": "Date of a close",
+    "mode": {
+      "day_end_time": "From the day-end time",
+      "employee_picks": "The employee picks"
+    },
+    "modeDescription": {
+      "day_end_time": "The date follows from the day-end time below, and employees don't choose it.",
+      "employee_picks": "Employees pick today or yesterday. The timeclock suggests the date from the day-end time below."
+    },
+    "dayEndsAt": "Day-end time",
+    "dayEndsAtDescription": {
+      "day_end_time": "A close before {{time}} belongs to the previous day: with 05:00, a close at 02:30 on Saturday is Friday's. From 00:00 to {{latest}}.",
+      "employee_picks": "A close before {{time}} suggests the previous day. From 00:00 to {{latest}}."
+    }
   }
 }

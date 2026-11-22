@@ -243,3 +243,36 @@ export function invalidateDayCloses(queryClient: QueryClient, organizationId: st
     invalidateRevenue(queryClient, organizationId),
   ])
 }
+
+/** The organization's cash storages (GET /cash-storages), deactivated ones too: active first, each group by name. */
+export const cashStoragesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["cash-storages", organizationId],
+    queryFn: () => unwrap(api.GET("/api/cash-storages", { params: { query: { includeDeactivated: true } } })),
+  })
+
+/** The denominations of the organization's currency (GET /denominations), deactivated ones too: active first, each by value. */
+export const denominationsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["denominations", organizationId],
+    queryFn: () => unwrap(api.GET("/api/denominations", { params: { query: { includeDeactivated: true } } })),
+  })
+
+/** How a close gets its date (GET /day-close-settings): the defaults until an owner or manager saves them. */
+export const dayCloseSettingsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["day-close-settings", organizationId],
+    queryFn: () => unwrap(api.GET("/api/day-close-settings")),
+  })
+
+/**
+ * After a storage, denomination or the close-of-day settings change: the close form offers the
+ * active ones and the proposed date, and the closes show the storages under their current names.
+ */
+export function invalidateDayCloseForm(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["day-close-form", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["day-closes", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["day-close", organizationId] }),
+  ])
+}

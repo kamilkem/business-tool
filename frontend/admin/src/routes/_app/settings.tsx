@@ -12,12 +12,13 @@ import { Input } from "@business-tool/ui/components/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { DayCloseSettingsCard } from "@/components/day-close-settings-card"
 import { KsefConnectionCard } from "@/components/ksef-connection-card"
 import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { can, requireCapability } from "@/lib/access"
 import { ksefAvailableIn } from "@/lib/ksef"
-import { organizationQuery, refetchMe } from "@/lib/queries"
+import { dayCloseSettingsQuery, organizationQuery, refetchMe } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
 type CsvSeparator = components["schemas"]["Organization"]["csvSeparator"]
@@ -27,7 +28,13 @@ const CSV_SEPARATORS: readonly CsvSeparator[] = ["semicolon", "comma"]
 
 export const Route = createFileRoute("/_app/settings")({
   beforeLoad: requireCapability("settings"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(organizationQuery(context.membership.organization.id)),
+  loader: async ({ context }) => {
+    const { membership, queryClient } = context
+    await Promise.all([
+      queryClient.ensureQueryData(organizationQuery(membership.organization.id)),
+      can(membership.role, "cashFlow") ? queryClient.ensureQueryData(dayCloseSettingsQuery(membership.organization.id)) : null,
+    ])
+  },
   component: SettingsPage,
 })
 
@@ -134,6 +141,7 @@ function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      {can(membership.role, "cashFlow") && <DayCloseSettingsCard organizationId={id} />}
       {ksefAvailableIn(organization.countryCode) && can(membership.role, "ksef") && (
         <KsefConnectionCard membership={membership} />
       )}

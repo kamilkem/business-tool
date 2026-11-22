@@ -12,6 +12,7 @@ import { useMoneyFormat } from "@business-tool/ui/hooks/use-organization-currenc
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { type BusinessPeriod, isWholeMonth, thisMonth } from "@business-tool/ui/lib/date-time"
 
+import { CashFlowNav } from "@/components/cash-flow-nav"
 import { requireCapability } from "@/lib/access"
 import { DAY_CLOSES_MAX_DAYS, type DayClosesSearch, dayClosesTable, validateDayClosesSearch } from "@/lib/day-closes"
 import { dayClosesQuery } from "@/lib/queries"
@@ -56,9 +57,12 @@ function DayClosesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("dayCloses.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("dayCloses.description")}</p>
+        <div className="flex min-w-0 flex-col gap-3">
+          <CashFlowNav />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("dayCloses.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("dayCloses.description")}</p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodPicker value={period} onChange={setPeriod} maxDays={DAY_CLOSES_MAX_DAYS} />
