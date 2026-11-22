@@ -98,6 +98,14 @@ api_platform:
         App\CashFlow\Domain\Exception\StorageNameTakenException: 409
         App\CashFlow\Domain\Exception\StorageNotFoundException: 404
         App\CashFlow\Domain\Exception\StorageInUseException: 409
+        App\CashFlow\Domain\Exception\StorageDeactivatedException: 422
+        App\CashFlow\Domain\Exception\MovementNotFoundException: 404
+        App\CashFlow\Domain\Exception\MovementInTheFutureException: 422
+        App\CashFlow\Domain\Exception\MovementPeriodTooLongException: 422
+        App\CashFlow\Domain\Exception\InvalidMovementException: 422
+        App\CashFlow\Domain\Exception\DenominationNotOfferedException: 422
+        App\CashFlow\Domain\Exception\AuditCountNeedsDepositStorageException: 409
+        App\CashFlow\Domain\Exception\StorageBalanceNegativeException: 409
         App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
         App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
         App\Expenses\Domain\Exception\ExpensesManagementForbiddenException: 403

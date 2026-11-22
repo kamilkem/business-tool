@@ -1,12 +1,32 @@
 {
   "apiError": {
     "cash_flow": {
-      "access_forbidden": "Tylko właściciele i menedżerowie mogą zmieniać ustawienia gotówki.",
+      "access_forbidden": {
+        "to_manage": "Tylko właściciele i menedżerowie mogą zmieniać ustawienia gotówki i przenosić gotówkę.",
+        "to_read_ledger": "Tylko właściciele i menedżerowie widzą stany i ruchy gotówki."
+      },
+      "audit_count_needs_deposit_storage": "„{{name}}” jest liczone przy każdym zamknięciu dnia, więc nie można go przeliczyć kontrolnie. Można tak przeliczyć tylko miejsca depozytowe.",
       "denomination_in_use": "Ten nominał jest używany w zapisach gotówki, więc nie można go usunąć. Zamiast tego go dezaktywuj.",
       "denomination_not_found": "Ten nominał już nie istnieje. Odśwież stronę.",
+      "denomination_not_offered": {
+        "deactivated": "Ten nominał jest dezaktywowany: można go tylko wyjąć z miejsca, korektą.",
+        "other_currency": "Ten nominał nie jest w walucie organizacji ({{organizationCurrency}})."
+      },
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
       "invalid_denomination_value": "Wartość nominału musi być większa od zera.",
+      "invalid_movement": {
+        "duplicate_denomination": "Każdy nominał może wystąpić tylko raz.",
+        "note": "Notatka może mieć najwyżej {{maxLength}} znaków.",
+        "pieces": "Liczba sztuk musi wynosić od {{min}} do {{max}}, a korekta nie może być zerowa.",
+        "same_storage": "Gotówka musi trafić do innego miejsca.",
+        "without_lines": "Wpisz co najmniej jeden nominał."
+      },
       "invalid_storage_name": "Nazwa miejsca na gotówkę musi mieć od 1 do {{maxLength}} znaków.",
+      "movement_in_the_future": "Gotówka nie mogła zostać przeniesiona o {{occurredAt}}: to później niż teraz.",
+      "movement_not_found": "Ten ruch gotówki już nie istnieje. Odśwież stronę.",
+      "movement_period_too_long": "Ruchy gotówki można pokazać najwyżej za {{maxDays}} dni naraz.",
+      "storage_balance_negative": "W „{{name}}” byłoby mniej niż zero sztuk nominału ({{pieces}}) o {{at}}. Sprawdź kwoty albo godzinę.",
+      "storage_deactivated": "„{{name}}” jest dezaktywowane: można z niego tylko wyjąć gotówkę.",
       "storage_in_use": "Miejsce na gotówkę „{{name}}” jest używane w zapisach gotówki, więc nie można go usunąć. Zamiast tego je dezaktywuj.",
       "storage_name_taken": "Miejsce na gotówkę o nazwie „{{name}}” już istnieje (może być dezaktywowane).",
       "storage_not_found": "To miejsce na gotówkę już nie istnieje. Odśwież stronę."

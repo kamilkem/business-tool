@@ -24,6 +24,13 @@ interface DenominationRepositoryInterface
      */
     public function findByCurrency(string $currency, bool $includeDeactivated = false): array;
 
+    /**
+     * @param list<string> $ids
+     *
+     * @return array<string, Denomination> by id: those of the ids that are the organization's, of any currency
+     */
+    public function findByIds(array $ids): array;
+
     /** Whether a close or movement uses the denomination. */
     public function isUsed(Uuid $id): bool;
 

@@ -49,6 +49,18 @@ final class InMemoryDenominationRepository implements DenominationRepositoryInte
         return $list;
     }
 
+    public function findByIds(array $ids): array
+    {
+        $found = [];
+        foreach ($ids as $id) {
+            if (Uuid::isValid($id) && isset($this->byId[Uuid::fromString($id)->toRfc4122()])) {
+                $found[Uuid::fromString($id)->toRfc4122()] = $this->byId[Uuid::fromString($id)->toRfc4122()];
+            }
+        }
+
+        return $found;
+    }
+
     public function isUsed(Uuid $id): bool
     {
         return isset($this->used[$id->toRfc4122()]);
