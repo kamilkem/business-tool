@@ -299,6 +299,18 @@ function EntryForm({
               {by(editing.createdBy, format.dateTime(editing.createdAt), "createdBy")}
               {editing.updatedBy && editing.updatedAt && `; ${by(editing.updatedBy, format.dateTime(editing.updatedAt), "updatedBy")}`}
               . {booked ? t("income.entry.bookedFromClose") : t("income.entry.fixed")}
+              {editing.dayCloseId !== null && (
+                <>
+                  {" "}
+                  <Link
+                    to="/cash-flow/closes/$closeId"
+                    params={{ closeId: editing.dayCloseId }}
+                    className="font-medium text-foreground underline underline-offset-4"
+                  >
+                    {t("income.entry.openClose")}
+                  </Link>
+                </>
+              )}
             </>
           ) : (
             t("income.entry.addDescription")

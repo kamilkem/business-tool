@@ -26,6 +26,10 @@ import { Route as AppIncomePaymentMethodsRouteImport } from './routes/_app/incom
 import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayrollRatesRouteImport } from './routes/_app/payroll/rates'
+import { Route as AppCashFlowClosesIndexRouteImport } from './routes/_app/cash-flow/closes/index'
+import { Route as AppCashFlowClosesNewRouteImport } from './routes/_app/cash-flow/closes/new'
+import { Route as AppCashFlowClosesCloseIdIndexRouteImport } from './routes/_app/cash-flow/closes/$closeId/index'
+import { Route as AppCashFlowClosesCloseIdCorrectRouteImport } from './routes/_app/cash-flow/closes/$closeId/correct'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -111,6 +115,28 @@ const AppPayrollRatesRoute = AppPayrollRatesRouteImport.update({
   path: '/payroll/rates',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCashFlowClosesIndexRoute = AppCashFlowClosesIndexRouteImport.update({
+  id: '/cash-flow/closes/',
+  path: '/cash-flow/closes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCashFlowClosesNewRoute = AppCashFlowClosesNewRouteImport.update({
+  id: '/cash-flow/closes/new',
+  path: '/cash-flow/closes/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCashFlowClosesCloseIdIndexRoute =
+  AppCashFlowClosesCloseIdIndexRouteImport.update({
+    id: '/cash-flow/closes/$closeId/',
+    path: '/cash-flow/closes/$closeId/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppCashFlowClosesCloseIdCorrectRoute =
+  AppCashFlowClosesCloseIdCorrectRouteImport.update({
+    id: '/cash-flow/closes/$closeId/correct',
+    path: '/cash-flow/closes/$closeId/correct',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -129,6 +155,10 @@ export interface FileRoutesByFullPath {
   '/expenses/': typeof AppExpensesIndexRoute
   '/income/': typeof AppIncomeIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
+  '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
+  '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
+  '/cash-flow/closes/$closeId/': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -147,6 +177,10 @@ export interface FileRoutesByTo {
   '/expenses': typeof AppExpensesIndexRoute
   '/income': typeof AppIncomeIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
+  '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/cash-flow/closes': typeof AppCashFlowClosesIndexRoute
+  '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
+  '/cash-flow/closes/$closeId': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,6 +201,10 @@ export interface FileRoutesById {
   '/_app/expenses/': typeof AppExpensesIndexRoute
   '/_app/income/': typeof AppIncomeIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
+  '/_app/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/_app/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
+  '/_app/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
+  '/_app/cash-flow/closes/$closeId/': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,6 +225,10 @@ export interface FileRouteTypes {
     | '/expenses/'
     | '/income/'
     | '/payroll/'
+    | '/cash-flow/closes/new'
+    | '/cash-flow/closes/'
+    | '/cash-flow/closes/$closeId/correct'
+    | '/cash-flow/closes/$closeId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -205,6 +247,10 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/income'
     | '/payroll'
+    | '/cash-flow/closes/new'
+    | '/cash-flow/closes'
+    | '/cash-flow/closes/$closeId/correct'
+    | '/cash-flow/closes/$closeId'
   id:
     | '__root__'
     | '/_app'
@@ -224,6 +270,10 @@ export interface FileRouteTypes {
     | '/_app/expenses/'
     | '/_app/income/'
     | '/_app/payroll/'
+    | '/_app/cash-flow/closes/new'
+    | '/_app/cash-flow/closes/'
+    | '/_app/cash-flow/closes/$closeId/correct'
+    | '/_app/cash-flow/closes/$closeId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -354,6 +404,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollRatesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cash-flow/closes/': {
+      id: '/_app/cash-flow/closes/'
+      path: '/cash-flow/closes'
+      fullPath: '/cash-flow/closes/'
+      preLoaderRoute: typeof AppCashFlowClosesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash-flow/closes/new': {
+      id: '/_app/cash-flow/closes/new'
+      path: '/cash-flow/closes/new'
+      fullPath: '/cash-flow/closes/new'
+      preLoaderRoute: typeof AppCashFlowClosesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash-flow/closes/$closeId/': {
+      id: '/_app/cash-flow/closes/$closeId/'
+      path: '/cash-flow/closes/$closeId'
+      fullPath: '/cash-flow/closes/$closeId/'
+      preLoaderRoute: typeof AppCashFlowClosesCloseIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash-flow/closes/$closeId/correct': {
+      id: '/_app/cash-flow/closes/$closeId/correct'
+      path: '/cash-flow/closes/$closeId/correct'
+      fullPath: '/cash-flow/closes/$closeId/correct'
+      preLoaderRoute: typeof AppCashFlowClosesCloseIdCorrectRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -371,6 +449,10 @@ interface AppRouteChildren {
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
+  AppCashFlowClosesNewRoute: typeof AppCashFlowClosesNewRoute
+  AppCashFlowClosesIndexRoute: typeof AppCashFlowClosesIndexRoute
+  AppCashFlowClosesCloseIdCorrectRoute: typeof AppCashFlowClosesCloseIdCorrectRoute
+  AppCashFlowClosesCloseIdIndexRoute: typeof AppCashFlowClosesCloseIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -387,6 +469,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppExpensesIndexRoute: AppExpensesIndexRoute,
   AppIncomeIndexRoute: AppIncomeIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
+  AppCashFlowClosesNewRoute: AppCashFlowClosesNewRoute,
+  AppCashFlowClosesIndexRoute: AppCashFlowClosesIndexRoute,
+  AppCashFlowClosesCloseIdCorrectRoute: AppCashFlowClosesCloseIdCorrectRoute,
+  AppCashFlowClosesCloseIdIndexRoute: AppCashFlowClosesCloseIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

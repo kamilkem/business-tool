@@ -1,5 +1,6 @@
 import type { components } from "@business-tool/api-client"
 import { addDays, type BusinessDate } from "@business-tool/ui/lib/date-time"
+import { MAX_AMOUNT, type Pieces, piecesTotal } from "@business-tool/ui/lib/cash-count"
 import type { MinorUnits } from "@business-tool/ui/lib/money"
 
 export type DayCloseForm = components["schemas"]["DayCloseForm"]
@@ -7,15 +8,6 @@ export type DayCloseReceipt = components["schemas"]["DayCloseReceipt"]
 export type RecordDayCloseInput = components["schemas"]["DayCloseReceipt.RecordDayCloseInput"]
 export type DayCloseStorage = components["schemas"]["DayCloseFormStorage"]
 export type DayCloseDenomination = components["schemas"]["DayCloseFormDenomination"]
-
-/** The most pieces of one denomination a line may have (the API's `CashMovement::MAX_PIECES`). */
-export const MAX_PIECES = 1_000_000
-
-/** The most a non-cash amount may be, in minor units (the API's `RevenueEntry::MAX_AMOUNT`). */
-export const MAX_AMOUNT = 2_147_483_647
-
-/** Pieces by denomination id; a denomination left out is zero. */
-export type Pieces = Readonly<Record<string, number>>
 
 /** What the person has entered so far. */
 export interface DayCloseValues {
@@ -81,11 +73,6 @@ export function stepsOf(form: DayCloseForm): DayCloseStep[] {
   ]
 }
 
-/** The value of the pieces, in minor units: Σ pieces × face value, over the denominations offered. */
-export function piecesTotal(denominations: readonly DayCloseDenomination[], pieces: Pieces | undefined): MinorUnits {
-  if (!pieces) return 0
-  return denominations.reduce((total, denomination) => total + denomination.value * (pieces[denomination.id] ?? 0), 0)
-}
 
 /** The value of each storage's pieces, in the form's order of storages. */
 export function storageTotals(form: DayCloseForm, values: DayCloseValues): { storage: DayCloseStorage; total: MinorUnits }[] {
@@ -97,22 +84,7 @@ export function nonCashTotal(form: DayCloseForm, values: DayCloseValues): MinorU
   return form.paymentMethods.reduce((total, method) => total + (values.amounts[method.id] ?? 0), 0)
 }
 
-/**
- * The number of pieces typed into a field: a whole number from 0 to `MAX_PIECES`, else null. An
- * empty field is zero, so a denomination nobody has is simply left blank.
- */
-export function parsePieces(text: string): number | null {
-  const trimmed = text.trim()
-  if (trimmed === "") return 0
-  if (!/^\d+$/.test(trimmed)) return null
-  const pieces = Number(trimmed)
-  return pieces <= MAX_PIECES ? pieces : null
-}
 
-/** One more or one fewer piece, kept from 0 to `MAX_PIECES`. */
-export function stepPieces(pieces: number, by: 1 | -1): number {
-  return Math.min(MAX_PIECES, Math.max(0, pieces + by))
-}
 
 /**
  * Sets a storage's pieces of one denomination; null when the field holds text that is not a number

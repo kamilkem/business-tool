@@ -2,21 +2,18 @@ import { describe, expect, it } from "vitest"
 
 import {
   type DayCloseForm,
-  MAX_PIECES,
   asksForDay,
   canLeaveStep,
   dateChoices,
   initialValues,
   nonCashTotal,
-  parsePieces,
-  piecesTotal,
   recordDayCloseBody,
-  stepPieces,
   stepsOf,
   storageTotals,
   withAmount,
   withPieces,
 } from "./day-close"
+import { piecesTotal } from "@business-tool/ui/lib/cash-count"
 
 const BOX = { id: "box", name: "Kasetka", mode: "counted" } as const
 const SAFE = { id: "safe", name: "Sejf", mode: "deposit" } as const
@@ -44,21 +41,6 @@ function form(overrides: Partial<DayCloseForm> = {}): DayCloseForm {
     ...overrides,
   }
 }
-
-describe("piecesTotal", () => {
-  it("test_it_adds_up_pieces_times_face_values_in_minor_units", () => {
-    expect(piecesTotal(form().denominations, { d50gr: 3, d5: 2, d100: 4 })).toBe(3 * 50 + 2 * 500 + 4 * 10_000)
-  })
-
-  it("test_it_is_zero_with_nothing_entered", () => {
-    expect(piecesTotal(form().denominations, undefined)).toBe(0)
-    expect(piecesTotal(form().denominations, {})).toBe(0)
-  })
-
-  it("test_it_ignores_pieces_of_a_denomination_no_longer_offered", () => {
-    expect(piecesTotal([COIN_5], { d5: 1, gone: 99 })).toBe(500)
-  })
-})
 
 describe("storageTotals and nonCashTotal", () => {
   it("test_it_totals_each_storage_in_the_forms_order", () => {
@@ -143,22 +125,6 @@ describe("withPieces", () => {
     expect(canLeaveStep({ kind: "storage", storage: BOX }, form(), invalid)).toBe(false)
     expect(canLeaveStep({ kind: "storage", storage: SAFE }, form(), invalid)).toBe(true)
     expect(canLeaveStep({ kind: "storage", storage: BOX }, form(), withPieces(invalid, "box", "d5", 4))).toBe(true)
-  })
-})
-
-describe("parsePieces and stepPieces", () => {
-  it("test_it_reads_whole_numbers_and_an_empty_field_as_zero", () => {
-    expect(parsePieces("12")).toBe(12)
-    expect(parsePieces(" ")).toBe(0)
-    expect(parsePieces("1.5")).toBeNull()
-    expect(parsePieces("-1")).toBeNull()
-    expect(parsePieces(String(MAX_PIECES + 1))).toBeNull()
-  })
-
-  it("test_it_steps_within_zero_and_the_maximum", () => {
-    expect(stepPieces(0, -1)).toBe(0)
-    expect(stepPieces(2, 1)).toBe(3)
-    expect(stepPieces(MAX_PIECES, 1)).toBe(MAX_PIECES)
   })
 })
 
