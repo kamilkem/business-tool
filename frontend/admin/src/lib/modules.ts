@@ -42,7 +42,7 @@ export const modules: ModuleInfo[] = [
     key: "cashFlow",
     group: "finances",
     icon: BanknoteIcon,
-    to: "/cash-flow/closes",
+    to: "/cash-flow",
     section: "/cash-flow/",
     capability: "cashFlow",
   },

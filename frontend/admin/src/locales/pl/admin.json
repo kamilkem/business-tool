@@ -1163,7 +1163,8 @@
       "deposited": "Wpłacone",
       "storageCashIncome": "Przychód gotówkowy",
       "nothingCounted": "Przy liczeniu miejsce było puste.",
-      "nothingDeposited": "Nic nie wpłacono."
+      "nothingDeposited": "Nic nie wpłacono.",
+      "cashMovements": "Ruchy gotówki tego dnia"
     },
     "editor": {
       "date": "Dzień",
@@ -1210,9 +1211,158 @@
   },
   "cashFlow": {
     "nav": {
+      "balances": "Stany",
       "closes": "Zamknięcia",
       "storages": "Miejsca",
       "denominations": "Nominały"
+    },
+    "title": "Gotówka",
+    "description": "Ile gotówki jest teraz w każdym miejscu i każdy ruch oraz zamknięcie, które to zmieniły.",
+    "actions": {
+      "adjust": "Dodaj lub wypłać",
+      "transfer": "Przenieś",
+      "transferFrom": "Przenieś stąd",
+      "count": "Przelicz"
+    },
+    "kind": {
+      "adjustment": "Korekta",
+      "transfer": "Przeniesienie",
+      "count": "Przeliczenie",
+      "close": "Zamknięcie"
+    },
+    "balances": {
+      "title": "Stany",
+      "onHand": "{{amount}} we wszystkich miejscach",
+      "none": "Nie ma jeszcze miejsc przechowywania gotówki: najpierw dodaj jedno.",
+      "deactivated": "Wyłączone",
+      "countedAt": "Ostatnio przeliczone {{when}}",
+      "neverCounted": "Jeszcze nie przeliczone",
+      "estimate": "Szacunek",
+      "estimateHint": "Szacunek do następnego zamknięcia: wtedy liczony jest utarg dnia.",
+      "negativeEstimate": "Poniżej zera: gotówka wyjęta od ostatniego przeliczenia, które zastąpi następne zamknięcie.",
+      "breakdown_one": "{{count}} nominał",
+      "breakdown_few": "{{count}} nominały",
+      "breakdown_many": "{{count}} nominałów",
+      "breakdown_other": "{{count}} nominału",
+      "retired": "wyłączony",
+      "retiredHint": "Wciąż są tu wyłączone nominały ({{denominations}}). Wyjmij je korektą.",
+      "takeOut": "Wyjmij je",
+      "actionsFor": "Działania dla: {{name}}",
+      "addStorage": "Dodaj miejsce"
+    },
+    "history": {
+      "title_one": "{{count}} wpis: {{period}}",
+      "title_few": "{{count}} wpisy: {{period}}",
+      "title_many": "{{count}} wpisów: {{period}}",
+      "title_other": "{{count}} wpisu: {{period}}",
+      "title_month_one": "{{count}} wpis: {{period}}",
+      "title_month_few": "{{count}} wpisy: {{period}}",
+      "title_month_many": "{{count}} wpisów: {{period}}",
+      "title_month_other": "{{count}} wpisu: {{period}}",
+      "description": "Ruchy gotówki i zamknięcia dnia, od najnowszych, w strefie czasowej organizacji.",
+      "ofStorage": "Ruchy i zamknięcia dla „{{name}}”, od najnowszych.",
+      "storage": "Miejsce",
+      "allStorages": "Wszystkie miejsca",
+      "none": "W tym okresie gotówka się nie ruszała.",
+      "by": "{{when}} · {{name}}",
+      "enteredAt": "(wpisano {{when}})",
+      "added": "Dodano do: {{name}}",
+      "removed": "Wypłacono z: {{name}}",
+      "transfer": "{{from}} → {{to}}",
+      "count": "Przeliczono: {{name}}",
+      "closeCounted": "{{name}}: przeliczono {{amount}} (oczekiwano {{expected}})",
+      "closeDeposited": "{{name}}: wpłacono {{amount}}",
+      "discrepancy": "Różnica {{amount}}",
+      "noDiscrepancy": "Bez różnicy",
+      "pieces_one": "{{count}} nominał",
+      "pieces_few": "{{count}} nominały",
+      "pieces_many": "{{count}} nominałów",
+      "pieces_other": "{{count}} nominału"
+    },
+    "form": {
+      "title": {
+        "adjustment": "Dodaj lub wypłać gotówkę",
+        "transfer": "Przenieś gotówkę",
+        "count": "Przeliczenie"
+      },
+      "description": {
+        "adjustment": "Drobne z banku, wpłata do banku, pogotowie kasowe: gotówka, która trafia do miejsca albo z niego wychodzi.",
+        "transfer": "Te same sztuki wychodzą z jednego miejsca i trafiają do drugiego. Nie zmienia to przychodu.",
+        "count": "Ile jest w miejscu depozytowym, przeliczone poza zamknięciem. Zastępuje stan; różnica jest pokazana jako rozbieżność."
+      },
+      "direction": "Dodaj lub wypłać",
+      "add": "Dodaj gotówkę",
+      "remove": "Wypłać gotówkę",
+      "storage": "Miejsce",
+      "from": "Skąd",
+      "to": "Dokąd",
+      "chooseStorage": "Wybierz miejsce",
+      "chooseTarget": "Wybierz miejsce, do którego trafi gotówka",
+      "sameStorage": "Gotówka musi trafić do innego miejsca.",
+      "deactivatedStorage": "To miejsce jest wyłączone: można z niego tylko wypłacić.",
+      "countOnlyDeposit": "Przelicza się tylko miejsca depozytowe: liczone są przeliczane przy każdym zamknięciu.",
+      "counted": "Przeliczono",
+      "holds_one": "jest {{count}} sztuka",
+      "holds_few": "są {{count}} sztuki",
+      "holds_many": "jest {{count}} sztuk",
+      "holds_other": "jest {{count}} sztuki",
+      "expected_one": "oczekiwano {{count}} sztuki",
+      "expected_few": "oczekiwano {{count}} sztuk",
+      "expected_many": "oczekiwano {{count}} sztuk",
+      "expected_other": "oczekiwano {{count}} sztuki",
+      "noDenominations": "Nie ma aktywnych nominałów. Najpierw dodaj je w zakładce Nominały.",
+      "total": {
+        "adjustment": "Razem",
+        "transfer": "Przeniesiono",
+        "count": "Przeliczono"
+      },
+      "discrepancy": "Różnica wobec obecnego stanu",
+      "after": "{{name}} po zmianie",
+      "fixPieces": "Wpisz liczbę sztuk: liczbę całkowitą od 0 do 1 000 000.",
+      "nothing": "Wpisz co najmniej jedną sztukę.",
+      "note": "Notatka (opcjonalnie)",
+      "notePlaceholder": {
+        "adjustment": "np. drobne z banku",
+        "transfer": "np. utarg do sejfu",
+        "count": "np. comiesięczna kontrola",
+        "remove": "np. wpłata do banku"
+      },
+      "noteTooLong_one": "Notatka może mieć najwyżej {{count}} znak.",
+      "noteTooLong_few": "Notatka może mieć najwyżej {{count}} znaki.",
+      "noteTooLong_many": "Notatka może mieć najwyżej {{count}} znaków.",
+      "noteTooLong_other": "Notatka może mieć najwyżej {{count}} znaku.",
+      "earlier": "Było to wcześniej",
+      "when": "Kiedy to było",
+      "whenHint": "W strefie czasowej organizacji ({{timeZone}}). Nie później niż teraz.",
+      "momentInvalid": "Wpisz datę i godzinę.",
+      "momentSkipped": "Godziny {{time}} nie ma tego dnia (zmiana czasu na letni). Wybierz inną.",
+      "momentInFuture": "To później niż teraz: wybierz wcześniejszą godzinę.",
+      "submit": {
+        "adjustment": "Dodaj gotówkę",
+        "remove": "Wypłać gotówkę",
+        "transfer": "Przenieś",
+        "count": "Zapisz przeliczenie"
+      }
+    },
+    "toast": {
+      "added": "Dodano {{amount}} do: {{name}}",
+      "removed": "Wypłacono {{amount}} z: {{name}}",
+      "transferred": "Przeniesiono {{amount}}: {{from}} → {{to}}",
+      "counted": "Zapisano przeliczenie {{name}}: {{amount}}"
+    },
+    "delete": {
+      "label": "Usuń: {{title}}",
+      "title": "Usunąć ten ruch?",
+      "what": "{{kind}}: {{name}}, {{when}}.",
+      "checkingCloses": "Sprawdzam, które zamknięcie się zmieni…",
+      "closesUnknown": "Nie udało się sprawdzić zamknięć po nim.",
+      "noClose": "Żadne zamknięcie dnia się nie zmieni.",
+      "changesClose_one": "Zamknięcie z {{dates}} zostanie przeliczone: oczekiwany stan otwarcia, przychód gotówkowy i gotówka zaksięgowana w jego wpisie przychodu.",
+      "changesClose_few": "Zamknięcia z {{dates}} zostaną przeliczone: oczekiwane stany otwarcia, przychód gotówkowy i gotówka zaksięgowana we wpisach przychodu.",
+      "changesClose_many": "Zamknięcia z {{dates}} zostaną przeliczone: oczekiwane stany otwarcia, przychód gotówkowy i gotówka zaksięgowana we wpisach przychodu.",
+      "changesClose_other": "Zamknięcia z {{dates}} zostaną przeliczone: oczekiwane stany otwarcia, przychód gotówkowy i gotówka zaksięgowana we wpisach przychodu.",
+      "done": "Usunięto ruch",
+      "failed": "Nie udało się usunąć ruchu"
     }
   },
   "cashStorages": {
