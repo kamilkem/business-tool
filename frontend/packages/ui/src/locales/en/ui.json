@@ -5,7 +5,11 @@
       "denomination_in_use": "This denomination is used by cash records, so it can't be deleted. Deactivate it instead.",
       "denomination_not_found": "This denomination no longer exists. Reload the page.",
       "denomination_value_taken": "This denomination already exists (it may be deactivated).",
-      "invalid_denomination_value": "A denomination's value must be greater than zero."
+      "invalid_denomination_value": "A denomination's value must be greater than zero.",
+      "invalid_storage_name": "A cash storage name must have 1 to {{maxLength}} characters.",
+      "storage_in_use": "The cash storage “{{name}}” is used by cash records, so it can't be deleted. Deactivate it instead.",
+      "storage_name_taken": "A cash storage named “{{name}}” already exists (it may be deactivated).",
+      "storage_not_found": "This cash storage no longer exists. Reload the page."
     },
     "expenses": {
       "expense_category_archived": "The category “{{name}}” is archived. Restore it to assign it.",

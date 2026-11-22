@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ui\Fixture;
 
+use App\CashFlow\Domain\Model\CashStorage;
+use App\CashFlow\Domain\Model\DefaultCashStorages;
 use App\CashFlow\Domain\Model\DefaultDenominations;
 use App\CashFlow\Domain\Model\Denomination;
 use App\Expenses\Domain\Model\DefaultExpenseCategories;
@@ -108,6 +110,9 @@ final class AppFixtures extends Fixture
         $this->denominations($manager, $bar, $owner->getId(), $now);
         $this->denominations($manager, $cafe, $mixed->getId(), $now);
         $manager->flush();
+        $this->cashStorages($manager, $bar, $owner->getId(), $now);
+        $this->cashStorages($manager, $cafe, $mixed->getId(), $now);
+        $manager->flush();
 
         $this->ksefConnection($manager, $bar, $owner->getId(), $now);
         $this->purchaseInvoices($manager, $bar, $barCategories, $owner->getId(), $now);
@@ -185,6 +190,15 @@ final class AppFixtures extends Fixture
         $this->tenantContext->switchTo($organization);
         foreach (DefaultDenominations::forCurrency($organization->getCurrency()) as $default) {
             $manager->persist(Denomination::create(Uuid::v7(), $organization->getCurrency(), $default['value'], $default['kind'], null, $ownerId, MembershipRole::Owner, $now));
+        }
+    }
+
+    /** The defaults of the organization's country (ADR 0033 §3), as AddDefaultCashStoragesOnOrganizationCreated adds them. */
+    private function cashStorages(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        foreach (DefaultCashStorages::forCountry($organization->getCountryCode()) as $default) {
+            $manager->persist(CashStorage::create(Uuid::v7(), $default['name'], $default['mode'], null, $ownerId, MembershipRole::Owner, $now));
         }
     }
 
