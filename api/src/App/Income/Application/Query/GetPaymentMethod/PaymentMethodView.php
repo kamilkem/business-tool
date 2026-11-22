@@ -12,6 +12,8 @@ final readonly class PaymentMethodView
         public string $id,
         public string $name,
         public bool $active,
+        /** Whether the end-of-day close books the counted cash on it (ADR 0033 §9). */
+        public bool $cash,
         /** Whether a revenue entry has a line for it: a used method cannot be deleted, only deactivated. */
         public bool $used,
         public \DateTimeImmutable $createdAt,
@@ -25,6 +27,7 @@ final readonly class PaymentMethodView
             $method->getId()->toRfc4122(),
             $method->getName(),
             $method->isActive(),
+            $method->isCash(),
             $used,
             $method->getCreatedAt(),
             $method->getDeactivatedAt(),

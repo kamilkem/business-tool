@@ -89,6 +89,7 @@ api_platform:
         App\Income\Domain\Exception\PaymentMethodNotFoundException: 404
         App\Income\Domain\Exception\PaymentMethodInUseException: 409
         App\Income\Domain\Exception\PaymentMethodOrderMismatchException: 409
+        App\Income\Domain\Exception\CashPaymentMethodTakenException: 409
         App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException: 403
         App\CashFlow\Domain\Exception\InvalidDenominationValueException: 422
         App\CashFlow\Domain\Exception\DenominationValueTakenException: 409

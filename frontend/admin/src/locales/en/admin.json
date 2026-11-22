@@ -266,12 +266,13 @@
     "title": "Payment methods",
     "description": "How your takings are paid. The entry form and the summaries list them in this order.",
     "add": "Add payment method",
-    "rename": "Rename",
+    "edit": "Edit",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",
     "delete": "Delete",
     "used": "Used in entries",
     "unused": "Not used yet",
+    "cash": "Cash",
     "activeList": "Active payment methods",
     "deactivatedList": "Deactivated payment methods",
     "reorderHint": "Drag a method by its handle, or focus the handle and use Space and the arrow keys, to change the order.",
@@ -285,10 +286,10 @@
     },
     "toast": {
       "added": "Payment method {{name}} added",
-      "renamed": "Payment method renamed to {{name}}",
       "deactivated": "{{name}} deactivated",
       "reactivated": "{{name}} reactivated",
-      "deleted": "{{name}} deleted"
+      "deleted": "{{name}} deleted",
+      "saved": "Payment method {{name}} saved"
     },
     "error": {
       "nameTaken": "A payment method named “{{name}}” already exists.",
@@ -296,15 +297,19 @@
       "deactivate": "Could not deactivate the payment method",
       "reactivate": "Could not reactivate the payment method",
       "delete": "Could not delete the payment method",
-      "reorder": "Could not save the new order"
+      "reorder": "Could not save the new order",
+      "cashTakenBy": "“{{name}}” is already marked as cash. Remove its mark first."
     },
     "dialog": {
-      "renameTitle": "Rename {{name}}",
-      "renameDescription": "Entries and summaries, past ones included, show the new name.",
+      "editTitle": "Edit {{name}}",
+      "editDescription": "A new name shows in entries and summaries, past ones included.",
       "addDescription": "For example meal vouchers, BLIK or a delivery platform. It goes to the end of the list.",
       "name": "Name",
       "nameDescription_one": "Up to {{count}} character, different from your other payment methods.",
-      "nameDescription_other": "Up to {{count}} characters, different from your other payment methods."
+      "nameDescription_other": "Up to {{count}} characters, different from your other payment methods.",
+      "cash": "Cash",
+      "cashDescription": "The end-of-day close books the counted cash on this method. Only one active method can be cash.",
+      "cashTakenHint": "“{{name}}” is marked as cash now. Remove its mark first to mark this one."
     }
   },
   "categories": {

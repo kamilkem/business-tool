@@ -47,6 +47,7 @@ final class PaymentMethodApiTest extends IncomeApiTestCase
             'id' => $method['id'],
             'name' => 'BLIK',
             'active' => true,
+            'cash' => false,
             'used' => false,
             'createdAt' => '2026-11-12T23:30:00+00:00',
             'deactivatedAt' => null,
@@ -127,6 +128,79 @@ final class PaymentMethodApiTest extends IncomeApiTestCase
         self::assertSame('Card (terminal)', self::getEntry($actor, $organization, $entry['id'])->toArray()['payments'][0]['paymentMethodName']);
         self::assertSame('Card', self::rename($actor, $organization, $id, ['name' => 'Card'])->toArray()['name']);
         self::assertSame('Card', self::rename($actor, $organization, $id, [])->toArray()['name']);
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_lets_owners_and_managers_keep_at_most_one_active_method_marked_as_cash(MembershipRole $role): void
+    {
+        [$actor, $organization] = self::memberWithRole($role);
+        $cash = self::paymentMethodId($organization, 'Cash');
+        $card = self::paymentMethodId($organization, 'Card');
+        self::assertSame([true, false, false, false], array_column(self::list($actor, $organization)->toArray(), 'cash'));
+
+        $response = self::add($actor, $organization, ['name' => 'BLIK', 'cash' => true]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('income.cash_payment_method_taken', $response->toArray(false)['code']);
+        self::assertSame('BLIK', $response->toArray(false)['parameters']['name']);
+
+        foreach ([['cash' => true], ['name' => 'Card (cash)', 'cash' => true]] as $body) {
+            $response = self::rename($actor, $organization, $card, $body);
+            self::assertResponseStatusCodeSame(409);
+            self::assertSame(['income.cash_payment_method_taken', ['paymentMethodId' => $card, 'name' => $body['name'] ?? 'Card']], [$response->toArray(false)['code'], $response->toArray(false)['parameters']]);
+        }
+        self::assertSame(['Card', false], [self::get($actor, $organization, $card)->toArray()['name'], self::get($actor, $organization, $card)->toArray()['cash']]);
+        self::assertCount(4, self::list($actor, $organization, true)->toArray());
+
+        // Moving the mark: remove it first, then mark the other method.
+        self::assertFalse(self::rename($actor, $organization, $cash, ['cash' => false])->toArray()['cash']);
+        $marked = self::rename($actor, $organization, $card, ['cash' => true])->toArray();
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['Card', true], [$marked['name'], $marked['cash']]);
+        self::assertTrue(self::rename($actor, $organization, $card, ['name' => 'Karta'])->toArray()['cash']);
+
+        // A deactivated cash method keeps its mark, and comes back only while no other active method is cash.
+        self::assertTrue(self::deactivate($actor, $organization, $card)->toArray()['cash']);
+        self::assertTrue(self::rename($actor, $organization, $cash, ['cash' => true])->toArray()['cash']);
+        $response = self::reactivate($actor, $organization, $card);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(['income.cash_payment_method_taken', ['paymentMethodId' => $card, 'name' => 'Karta']], [$response->toArray(false)['code'], $response->toArray(false)['parameters']]);
+        self::assertFalse(self::get($actor, $organization, $card)->toArray()['active']);
+
+        self::rename($actor, $organization, $cash, ['cash' => false]);
+        self::assertSame([true, true], [self::reactivate($actor, $organization, $card)->toArray()['active'], self::get($actor, $organization, $card)->toArray()['cash']]);
+        self::assertSame('BLIK', self::add($actor, $organization, ['name' => 'BLIK', 'cash' => false])->toArray()['name']);
+    }
+
+    public function test_it_counts_only_the_organizations_own_cash_method(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
+        self::paymentMethodId($elsewhere);
+        $mine = self::addPaymentMethod($organization, 'Gotówka')->getId()->toRfc4122();
+
+        $marked = self::rename($owner, $organization, $mine, ['cash' => true]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($marked->toArray()['cash']);
+    }
+
+    public function test_it_answers_422_for_a_cash_flag_that_is_not_a_boolean(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $card = self::paymentMethodId($organization, 'Card');
+
+        $responses = [
+            self::add($owner, $organization, ['name' => 'BLIK', 'cash' => 'yes']),
+            self::rename($owner, $organization, $card, ['cash' => null]),
+            self::rename($owner, $organization, $card, ['cash' => 'yes']),
+        ];
+
+        foreach ($responses as $response) {
+            self::assertSame(422, $response->getStatusCode());
+            self::assertSame(['cash'], array_values(array_unique(array_column($response->toArray(false)['violations'] ?? [], 'propertyPath'))));
+        }
+        self::assertSame([true, false], array_slice(array_column(self::list($owner, $organization, true)->toArray(), 'cash'), 0, 2));
+        self::assertCount(4, self::list($owner, $organization, true)->toArray());
     }
 
     public function test_it_answers_409_and_422_for_an_invalid_rename(): void
@@ -281,6 +355,7 @@ final class PaymentMethodApiTest extends IncomeApiTestCase
     {
         yield 'GET' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::get($user, $organization, $id)];
         yield 'PATCH' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::rename($user, $organization, $id, ['name' => 'Mine now'])];
+        yield 'PATCH cash' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::rename($user, $organization, $id, ['cash' => true])];
         yield 'deactivate' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::deactivate($user, $organization, $id)];
         yield 'reactivate' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::reactivate($user, $organization, $id)];
         yield 'DELETE' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::delete($user, $organization, $id)];
@@ -291,6 +366,7 @@ final class PaymentMethodApiTest extends IncomeApiTestCase
     {
         yield 'GET collection' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::list($user, $organization, true)];
         yield 'POST' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::add($user, $organization, ['name' => 'BLIK'])];
+        yield 'POST cash' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::add($user, $organization, ['name' => 'Cash 2', 'cash' => true])];
         yield 'PUT order' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::reorder($user, $organization, [$id])];
         yield from self::requestsById();
     }

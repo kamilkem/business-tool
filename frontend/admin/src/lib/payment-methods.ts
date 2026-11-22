@@ -5,7 +5,8 @@ import { i18n } from "../i18n"
 
 /*
  * Payment methods (ADR 0030): a list each organization keeps and orders. A method no revenue entry
- * has used can be deleted; a used one is deactivated instead, and can be reactivated.
+ * has used can be deleted; a used one is deactivated instead, and can be reactivated. At most one
+ * active method is marked as cash: the end-of-day close books the counted cash on it (ADR 0033 §9).
  */
 
 export type PaymentMethod = components["schemas"]["PaymentMethod"]
@@ -80,17 +81,35 @@ export function entryFormMethods(
   return rows
 }
 
-/** Where to show a refused add or rename: on the name field, or under the form. */
+/**
+ * The active method marked as cash other than `method` (the one being edited; none when adding):
+ * while there is one, `method` cannot be marked too.
+ */
+export function otherActiveCashMethod(methods: readonly PaymentMethod[], method?: PaymentMethod | null): PaymentMethod | undefined {
+  return methods.find((m) => m.active && m.cash && m.id !== method?.id)
+}
+
+/** Where to show a refused add or edit: on the name field, on the cash checkbox, or under the form. */
 export interface PaymentMethodFormErrors {
   name?: string
+  cash?: string
   form?: string
 }
 
 /**
- * Turns the API's refusal of a name into messages for the form. A 409 is a duplicate name;
- * deactivated methods count too, so say so when the clash is with one of them.
+ * Turns the API's refusal of an add or edit into messages for the form. A 409 is another active
+ * cash method (by its code) or a duplicate name; deactivated methods count for names too, so say
+ * so when the clash is with one of them.
  */
 export function paymentMethodFormErrors(error: unknown, name: string, methods: readonly PaymentMethod[]): PaymentMethodFormErrors {
+  if (error instanceof ApiError && error.status === 409 && error.code === "income.cash_payment_method_taken") {
+    const current = otherActiveCashMethod(methods)
+    return {
+      cash: current
+        ? i18n.t("paymentMethods.error.cashTakenBy", { ns: "admin", name: current.name })
+        : requestErrorMessage(error),
+    }
+  }
   if (error instanceof ApiError && error.status === 409) {
     const written = name.trim()
     const existing = methods.find((m) => m.name === written)
@@ -101,11 +120,12 @@ export function paymentMethodFormErrors(error: unknown, name: string, methods: r
     }
   }
   if (error instanceof ApiError && error.status === 422) {
-    const { name: nameError, ...others } = violationsOf(error)
+    const { name: nameError, cash: cashError, ...others } = violationsOf(error)
     const rest = Object.values(others).join(" ")
     const result: PaymentMethodFormErrors = {}
     if (nameError) result.name = nameError
-    if (rest || !nameError) result.form = rest || requestErrorMessage(error)
+    if (cashError) result.cash = cashError
+    if (rest || (!nameError && !cashError)) result.form = rest || requestErrorMessage(error)
     return result
   }
   return { form: requestErrorMessage(error) }

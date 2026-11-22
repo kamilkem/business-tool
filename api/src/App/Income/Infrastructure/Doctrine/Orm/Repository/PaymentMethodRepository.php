@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Income\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Income\Domain\Exception\CashPaymentMethodTakenException;
 use App\Income\Domain\Exception\PaymentMethodInUseException;
 use App\Income\Domain\Exception\PaymentMethodNameTakenException;
 use App\Income\Domain\Model\PaymentMethod;
@@ -30,6 +31,11 @@ final class PaymentMethodRepository extends ServiceEntityRepository implements P
     public function findByName(string $name): ?PaymentMethod
     {
         return $this->findOneBy(['name' => $name]);
+    }
+
+    public function findActiveCash(): ?PaymentMethod
+    {
+        return $this->findOneBy(['cash' => true, 'deactivatedAt' => null]);
     }
 
     public function findAll(bool $includeDeactivated = false): array
@@ -90,6 +96,9 @@ final class PaymentMethodRepository extends ServiceEntityRepository implements P
         try {
             $this->getEntityManager()->flush();
         } catch (UniqueConstraintViolationException $e) {
+            if (str_contains($e->getMessage(), PaymentMethod::ONE_ACTIVE_CASH)) {
+                throw CashPaymentMethodTakenException::of($method->getId()->toRfc4122(), $method->getName());
+            }
             if (!str_contains($e->getMessage(), PaymentMethod::UNIQUE_NAME)) {
                 throw $e;
             }

@@ -14,6 +14,8 @@ final readonly class AddPaymentMethodCommand implements CommandInterface
         public string $actorId,
         public string $paymentMethodId,
         public string $name,
+        /** Whether the end-of-day close books the counted cash on it (ADR 0033 §9). */
+        public bool $cash = false,
     ) {
     }
 }

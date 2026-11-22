@@ -6,6 +6,7 @@ import {
   type PaymentMethod,
   entryFormMethods,
   moveItem,
+  otherActiveCashMethod,
   paymentMethodFormErrors,
   reorderedPaymentMethods,
   splitPaymentMethods,
@@ -13,18 +14,19 @@ import {
   withoutPaymentMethod,
 } from "./payment-methods"
 
-function method(name: string, { active = true, used = false } = {}): PaymentMethod {
+function method(name: string, { active = true, used = false, cash = false } = {}): PaymentMethod {
   return {
     id: `m-${name}`,
     name,
     active,
+    cash,
     used,
     createdAt: "2026-10-01T10:00:00+00:00",
     deactivatedAt: active ? null : "2026-11-05T10:00:00+00:00",
   }
 }
 
-const cash = method("Cash", { used: true })
+const cash = method("Cash", { used: true, cash: true })
 const card = method("Card")
 const blik = method("BLIK")
 const voucher = method("Voucher", { active: false, used: true })
@@ -85,7 +87,37 @@ describe("entryFormMethods", () => {
   })
 })
 
+describe("otherActiveCashMethod", () => {
+  it("test_it_finds_the_active_cash_method_other_than_the_one_edited", () => {
+    expect(otherActiveCashMethod(LIST)).toBe(cash)
+    expect(otherActiveCashMethod(LIST, card)).toBe(cash)
+    expect(otherActiveCashMethod(LIST, cash)).toBeUndefined()
+  })
+
+  it("test_it_ignores_a_deactivated_cash_method", () => {
+    const oldCash = method("Old cash", { active: false, cash: true })
+
+    expect(otherActiveCashMethod([card, oldCash])).toBeUndefined()
+  })
+})
+
 describe("paymentMethodFormErrors", () => {
+  it("test_it_puts_another_cash_method_on_the_checkbox_and_names_it", () => {
+    const conflict = new ApiError(409, { detail: "cash", code: "income.cash_payment_method_taken", parameters: { paymentMethodId: card.id, name: "Card" } })
+
+    expect(paymentMethodFormErrors(conflict, "Card", LIST)).toEqual({ cash: "“Cash” is already marked as cash. Remove its mark first." })
+    // The list no longer shows the cash method (it changed meanwhile): the code's own message.
+    expect(paymentMethodFormErrors(conflict, "Card", [card])).toEqual({
+      cash: "Another active payment method is already marked as cash. Remove its mark first.",
+    })
+  })
+
+  it("test_it_puts_a_cash_violation_on_the_checkbox", () => {
+    const invalid = new ApiError(422, { violations: [{ propertyPath: "cash", message: "Not a boolean." }] })
+
+    expect(paymentMethodFormErrors(invalid, "x", LIST)).toEqual({ cash: "Not a boolean." })
+  })
+
   it("test_it_puts_a_duplicate_name_on_the_field_and_says_when_a_deactivated_method_has_it", () => {
     const conflict = new ApiError(409, { detail: "taken", code: "income.payment_method_name_taken", parameters: { name: "Voucher" } })
 
@@ -113,6 +145,15 @@ describe("paymentMethodFormErrors", () => {
       const conflict = new ApiError(409, { detail: "taken" })
 
       expect(paymentMethodFormErrors(conflict, "Card", LIST)).toEqual({ name: "Metoda płatności o nazwie „Card” już istnieje." })
+    })
+
+    it("test_it_explains_another_cash_method_in_polish", () => {
+      const conflict = new ApiError(409, { detail: "cash", code: "income.cash_payment_method_taken", parameters: { paymentMethodId: card.id, name: "Card" } })
+
+      expect(paymentMethodFormErrors(conflict, "Card", LIST)).toEqual({ cash: "Metoda „Cash” jest już oznaczona jako gotówka. Najpierw usuń jej oznaczenie." })
+      expect(paymentMethodFormErrors(conflict, "Card", [card])).toEqual({
+        cash: "Inna aktywna metoda płatności jest już oznaczona jako gotówka. Najpierw usuń jej oznaczenie.",
+      })
     })
   })
 })

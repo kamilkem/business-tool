@@ -32,6 +32,17 @@ final class InMemoryPaymentMethodRepository implements PaymentMethodRepositoryIn
         return null;
     }
 
+    public function findActiveCash(): ?PaymentMethod
+    {
+        foreach ($this->byId as $method) {
+            if ($method->isCash() && $method->isActive()) {
+                return $method;
+            }
+        }
+
+        return null;
+    }
+
     public function findAll(bool $includeDeactivated = false): array
     {
         $methods = array_values(array_filter($this->byId, static fn (PaymentMethod $method): bool => $includeDeactivated || $method->isActive()));

@@ -176,8 +176,9 @@ final class AppFixtures extends Fixture
     {
         $this->tenantContext->switchTo($organization);
         $methods = [];
-        foreach ([...DefaultPaymentMethods::forCountry($organization->getCountryCode()), ...$extra] as $position => $name) {
-            $methods[] = $method = PaymentMethod::create(Uuid::v7(), $name, null, $position, $ownerId, MembershipRole::Owner, $now);
+        $extra = array_map(static fn (string $name): array => ['name' => $name, 'cash' => false], $extra);
+        foreach ([...DefaultPaymentMethods::forCountry($organization->getCountryCode()), ...$extra] as $position => $default) {
+            $methods[] = $method = PaymentMethod::create(Uuid::v7(), $default['name'], null, $position, $default['cash'], null, $ownerId, MembershipRole::Owner, $now);
             $manager->persist($method);
         }
 

@@ -40,7 +40,7 @@ final readonly class AddPaymentMethodProcessor implements ProcessorInterface
         $actorId = $this->currentUser->id();
         $paymentMethodId = Uuid::v7()->toRfc4122();
 
-        $this->commandBus->handle(new AddPaymentMethodCommand($organizationId, $actorId, $paymentMethodId, $data->name));
+        $this->commandBus->handle(new AddPaymentMethodCommand($organizationId, $actorId, $paymentMethodId, $data->name, $data->cash));
 
         /** @var PaymentMethodView $view */
         $view = $this->queryBus->ask(new GetPaymentMethodQuery($organizationId, $actorId, $paymentMethodId));

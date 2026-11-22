@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Income\Domain\Model;
 
+use App\Income\Domain\Exception\CashPaymentMethodTakenException;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentMethodNameException;
 use App\Income\Domain\Exception\PaymentMethodInUseException;
@@ -26,16 +27,24 @@ use Symfony\Component\Uid\Uuid;
  *   A new or reactivated method goes to the end.
  * - A method no entry has used can be deleted. A used one is deactivated instead: it takes no new
  *   lines, its lines stay (and an edit of their entry may keep them), and it can be reactivated.
+ * - A method can be marked as cash: the end-of-day close fills its line with the counted cash income
+ *   (ADR 0033 §9). At most one active method is: the model checks it against the active cash method
+ *   (PaymentMethodRepositoryInterface::findActiveCash()), and the partial unique index below stops two
+ *   concurrent writes. A deactivated method keeps its mark, and reactivating it checks the rule again.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'payment_method')]
 #[ORM\UniqueConstraint(name: self::UNIQUE_NAME, columns: ['organization_id', 'name'])]
+#[ORM\UniqueConstraint(name: self::ONE_ACTIVE_CASH, columns: ['organization_id'], options: ['where' => '((cash = true) AND (deactivated_at IS NULL))'])]
 class PaymentMethod implements TenantAwareInterface
 {
     use TenantAwareTrait;
 
     /** Name of the unique constraint on names; the repository adapter recognizes its violations. */
     public const string UNIQUE_NAME = 'payment_method_name_unique';
+
+    /** Name of the partial unique index on the active cash method; the repository adapter recognizes its violations. */
+    public const string ONE_ACTIVE_CASH = 'payment_method_one_active_cash';
 
     public const int NAME_MAX_LENGTH = 64;
 
@@ -50,17 +59,22 @@ class PaymentMethod implements TenantAwareInterface
     #[ORM\Column]
     private int $position;
 
+    /** Whether the end-of-day close books the counted cash income on this method (ADR 0033 §9). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $cash;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deactivatedAt = null;
 
-    private function __construct(Uuid $id, string $name, int $position, \DateTimeImmutable $createdAt)
+    private function __construct(Uuid $id, string $name, int $position, bool $cash, \DateTimeImmutable $createdAt)
     {
         $this->id = $id;
         $this->name = $name;
         $this->position = $position;
+        $this->cash = $cash;
         $this->createdAt = $createdAt;
     }
 
@@ -69,20 +83,26 @@ class PaymentMethod implements TenantAwareInterface
      *                                 (PaymentMethodRepositoryInterface::findByName())
      * @param int            $position after every method of the organization
      *                                 (PaymentMethodRepositoryInterface::nextPosition())
+     * @param ?PaymentMethod $activeCash the organization's active cash method, if any
+     *                                   (PaymentMethodRepositoryInterface::findActiveCash())
      *
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws InvalidPaymentMethodNameException  when the name is blank or too long
      * @throws PaymentMethodNameTakenException    when another method has the name
+     * @throws CashPaymentMethodTakenException    when it is to be cash and another active method is
      */
-    public static function create(Uuid $id, string $name, ?self $sameName, int $position, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): self
+    public static function create(Uuid $id, string $name, ?self $sameName, int $position, bool $cash, ?self $activeCash, Uuid $actorId, MembershipRole $actorRole, \DateTimeImmutable $now): self
     {
         IncomeAccess::assertCanManage($actorId, $actorRole);
         $name = self::normalizeName($name);
         if (null !== $sameName) {
             throw PaymentMethodNameTakenException::of($name);
         }
+        if ($cash && null !== $activeCash) {
+            throw CashPaymentMethodTakenException::of($id->toRfc4122(), $name);
+        }
 
-        return new self($id, $name, $position, $now);
+        return new self($id, $name, $position, $cash, $now);
     }
 
     /**
@@ -107,6 +127,27 @@ class PaymentMethod implements TenantAwareInterface
     }
 
     /**
+     * Marks the method as cash, or removes the mark. Setting the current value changes nothing. A
+     * deactivated method may be marked too: the rule counts active methods only, and reactivating it
+     * checks it.
+     *
+     * @param ?PaymentMethod $activeCash the organization's active cash method, if any
+     *                                   (PaymentMethodRepositoryInterface::findActiveCash())
+     *
+     * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
+     * @throws CashPaymentMethodTakenException    when an active method is marked and another active method is cash
+     */
+    public function changeCash(bool $cash, ?self $activeCash, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        IncomeAccess::assertCanManage($actorId, $actorRole);
+        if ($cash && !$this->cash && $this->isActive()) {
+            $this->assertNoOtherActiveCash($activeCash);
+        }
+
+        $this->cash = $cash;
+    }
+
+    /**
      * The method takes no new lines from now on. Deactivating it again keeps the first moment.
      *
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
@@ -121,15 +162,21 @@ class PaymentMethod implements TenantAwareInterface
      * The method takes lines again, at the end of the list. Reactivating an active method changes
      * nothing.
      *
-     * @param int $position after every method of the organization (PaymentMethodRepositoryInterface::nextPosition())
+     * @param int            $position   after every method of the organization (PaymentMethodRepositoryInterface::nextPosition())
+     * @param ?PaymentMethod $activeCash the organization's active cash method, if any
+     *                                   (PaymentMethodRepositoryInterface::findActiveCash())
      *
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
+     * @throws CashPaymentMethodTakenException    when the method is cash and another active method is
      */
-    public function reactivate(int $position, Uuid $actorId, MembershipRole $actorRole): void
+    public function reactivate(int $position, ?self $activeCash, Uuid $actorId, MembershipRole $actorRole): void
     {
         IncomeAccess::assertCanManage($actorId, $actorRole);
         if ($this->isActive()) {
             return;
+        }
+        if ($this->cash) {
+            $this->assertNoOtherActiveCash($activeCash);
         }
 
         $this->deactivatedAt = null;
@@ -182,6 +229,11 @@ class PaymentMethod implements TenantAwareInterface
         return $this->position;
     }
 
+    public function isCash(): bool
+    {
+        return $this->cash;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -196,6 +248,18 @@ class PaymentMethod implements TenantAwareInterface
     public static function compare(self $a, self $b): int
     {
         return [$a->isActive() ? 0 : 1, $a->position, $a->id->toRfc4122()] <=> [$b->isActive() ? 0 : 1, $b->position, $b->id->toRfc4122()];
+    }
+
+    /**
+     * For a method that is, or is about to be, active and cash.
+     *
+     * @throws CashPaymentMethodTakenException
+     */
+    private function assertNoOtherActiveCash(?self $activeCash): void
+    {
+        if (null !== $activeCash && !$activeCash->id->equals($this->id)) {
+            throw CashPaymentMethodTakenException::of($this->id->toRfc4122(), $this->name);
+        }
     }
 
     /**

@@ -284,12 +284,13 @@
     "title": "Metody płatności",
     "description": "Jak płacą Twoi klienci. Formularz wpisu i podsumowania pokazują je w tej kolejności.",
     "add": "Dodaj metodę płatności",
-    "rename": "Zmień nazwę",
+    "edit": "Edytuj",
     "deactivate": "Dezaktywuj",
     "reactivate": "Aktywuj ponownie",
     "delete": "Usuń",
     "used": "Używana we wpisach",
     "unused": "Jeszcze nieużywana",
+    "cash": "Gotówka",
     "activeList": "Aktywne metody płatności",
     "deactivatedList": "Dezaktywowane metody płatności",
     "reorderHint": "Aby zmienić kolejność, przeciągnij metodę za uchwyt albo ustaw na nim fokus i użyj Spacji oraz strzałek.",
@@ -305,10 +306,10 @@
     },
     "toast": {
       "added": "Dodano metodę płatności {{name}}",
-      "renamed": "Nowa nazwa metody płatności: {{name}}",
       "deactivated": "Metoda {{name}} dezaktywowana",
       "reactivated": "Metoda {{name}} aktywowana ponownie",
-      "deleted": "Usunięto {{name}}"
+      "deleted": "Usunięto {{name}}",
+      "saved": "Zapisano metodę płatności {{name}}"
     },
     "error": {
       "nameTaken": "Metoda płatności o nazwie „{{name}}” już istnieje.",
@@ -316,17 +317,21 @@
       "deactivate": "Nie udało się dezaktywować metody płatności",
       "reactivate": "Nie udało się ponownie aktywować metody płatności",
       "delete": "Nie udało się usunąć metody płatności",
-      "reorder": "Nie udało się zapisać nowej kolejności"
+      "reorder": "Nie udało się zapisać nowej kolejności",
+      "cashTakenBy": "Metoda „{{name}}” jest już oznaczona jako gotówka. Najpierw usuń jej oznaczenie."
     },
     "dialog": {
-      "renameTitle": "Zmień nazwę: {{name}}",
-      "renameDescription": "Wpisy i podsumowania, także wcześniejsze, pokażą nową nazwę.",
+      "editTitle": "Edytuj: {{name}}",
+      "editDescription": "Nowa nazwa pojawi się we wpisach i podsumowaniach, także wcześniejszych.",
       "addDescription": "Na przykład bony żywieniowe, BLIK lub platforma dostaw. Trafi na koniec listy.",
       "name": "Nazwa",
       "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych metod płatności.",
       "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych metod płatności.",
       "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych metod płatności.",
-      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych metod płatności."
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych metod płatności.",
+      "cash": "Gotówka",
+      "cashDescription": "Zamknięcie dnia zapisze na tej metodzie przeliczoną gotówkę. Tylko jedna aktywna metoda może być gotówką.",
+      "cashTakenHint": "Jako gotówka jest teraz oznaczona metoda „{{name}}”. Aby oznaczyć tę, najpierw usuń tamto oznaczenie."
     }
   },
   "categories": {

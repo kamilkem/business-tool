@@ -11,9 +11,15 @@ use Symfony\Component\Uid\Uuid;
 /** Payment methods for unit tests, as an owner adds them (ADR 0030). */
 final class PaymentMethodMother
 {
-    public static function named(string $name, int $position = 0, ?\DateTimeImmutable $createdAt = null): PaymentMethod
+    public static function named(string $name, int $position = 0, ?\DateTimeImmutable $createdAt = null, bool $cash = false): PaymentMethod
     {
-        return PaymentMethod::create(Uuid::v7(), $name, null, $position, Uuid::v7(), MembershipRole::Owner, $createdAt ?? new \DateTimeImmutable('2026-01-05 09:00:00'));
+        return PaymentMethod::create(Uuid::v7(), $name, null, $position, $cash, null, Uuid::v7(), MembershipRole::Owner, $createdAt ?? new \DateTimeImmutable('2026-01-05 09:00:00'));
+    }
+
+    /** Marked as cash (ADR 0033 §9), as the default cash method is. */
+    public static function cash(string $name = 'Cash', int $position = 0): PaymentMethod
+    {
+        return self::named($name, $position, cash: true);
     }
 
     public static function deactivated(string $name, int $position = 0): PaymentMethod

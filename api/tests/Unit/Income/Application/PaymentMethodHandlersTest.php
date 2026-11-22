@@ -12,15 +12,16 @@ use App\Income\Application\Command\DeletePaymentMethod\DeletePaymentMethodComman
 use App\Income\Application\Command\DeletePaymentMethod\DeletePaymentMethodHandler;
 use App\Income\Application\Command\ReactivatePaymentMethod\ReactivatePaymentMethodCommand;
 use App\Income\Application\Command\ReactivatePaymentMethod\ReactivatePaymentMethodHandler;
-use App\Income\Application\Command\RenamePaymentMethod\RenamePaymentMethodCommand;
-use App\Income\Application\Command\RenamePaymentMethod\RenamePaymentMethodHandler;
 use App\Income\Application\Command\ReorderPaymentMethods\ReorderPaymentMethodsCommand;
 use App\Income\Application\Command\ReorderPaymentMethods\ReorderPaymentMethodsHandler;
+use App\Income\Application\Command\UpdatePaymentMethod\UpdatePaymentMethodCommand;
+use App\Income\Application\Command\UpdatePaymentMethod\UpdatePaymentMethodHandler;
 use App\Income\Application\Query\GetPaymentMethod\GetPaymentMethodHandler;
 use App\Income\Application\Query\GetPaymentMethod\GetPaymentMethodQuery;
 use App\Income\Application\Query\GetPaymentMethod\PaymentMethodView;
 use App\Income\Application\Query\ListPaymentMethods\ListPaymentMethodsHandler;
 use App\Income\Application\Query\ListPaymentMethods\ListPaymentMethodsQuery;
+use App\Income\Domain\Exception\CashPaymentMethodTakenException;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\PaymentMethodInUseException;
 use App\Income\Domain\Exception\PaymentMethodNameTakenException;
@@ -37,7 +38,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(AddPaymentMethodHandler::class)]
-#[CoversClass(RenamePaymentMethodHandler::class)]
+#[CoversClass(UpdatePaymentMethodHandler::class)]
 #[CoversClass(DeactivatePaymentMethodHandler::class)]
 #[CoversClass(ReactivatePaymentMethodHandler::class)]
 #[CoversClass(DeletePaymentMethodHandler::class)]
@@ -96,6 +97,39 @@ final class PaymentMethodHandlersTest extends IncomeHandlerTestCase
         $this->rename($this->owner, $this->cash->getId()->toRfc4122(), 'Gift card');
     }
 
+    public function test_it_keeps_at_most_one_active_method_marked_as_cash(): void
+    {
+        self::assertSame([true, false], [$this->get($this->owner, $this->cash->getId()->toRfc4122())?->cash, $this->get($this->owner, $this->card->getId()->toRfc4122())?->cash]);
+
+        foreach ([
+            fn () => $this->add($this->manager, Uuid::v7()->toRfc4122(), 'BLIK', cash: true),
+            fn () => $this->update($this->owner, $this->card->getId()->toRfc4122(), 'Card', true),
+        ] as $attempt) {
+            try {
+                $attempt();
+                self::fail('A second active method was marked as cash.');
+            } catch (CashPaymentMethodTakenException) {
+            }
+        }
+        self::assertCount(4, $this->paymentMethods->findAll());
+
+        // Moving the mark: remove it from the cash method first, then mark the other one (renamed in the same update).
+        $this->update($this->manager, $this->cash->getId()->toRfc4122(), 'Cash', false);
+        $this->update($this->manager, $this->card->getId()->toRfc4122(), 'Card (cash)', true);
+        self::assertSame([false, true, 'Card (cash)'], [$this->cash->isCash(), $this->card->isCash(), $this->card->getName()]);
+
+        // A deactivated cash method keeps its mark and is not reactivated while another active method is cash.
+        $this->deactivate($this->owner, $this->card);
+        $this->add($this->owner, $id = Uuid::v7()->toRfc4122(), 'Gotówka', cash: true);
+        try {
+            $this->reactivate($this->owner, $this->card);
+            self::fail('A second active cash method was reactivated.');
+        } catch (CashPaymentMethodTakenException $e) {
+            self::assertSame(['paymentMethodId' => $this->card->getId()->toRfc4122(), 'name' => 'Card (cash)'], $e->errorParameters());
+        }
+        self::assertSame([false, true], [$this->card->isActive(), $this->paymentMethods->findActiveCash()?->getId()->toRfc4122() === $id]);
+    }
+
     public function test_it_deactivates_and_reactivates_a_method_at_the_end_of_the_list(): void
     {
         $this->deactivate($this->manager, $this->card);
@@ -105,9 +139,7 @@ final class PaymentMethodHandlersTest extends IncomeHandlerTestCase
         self::assertSame(['Cash', 'Transfer', 'Voucher'], $this->names($this->list($this->owner)));
         self::assertSame(['Cash', 'Transfer', 'Voucher', 'Card'], $this->names($this->list($this->owner, includeDeactivated: true)));
 
-        (new ReactivatePaymentMethodHandler($this->paymentMethods, $this->queryBus))(
-            new ReactivatePaymentMethodCommand($this->organizationId(), $this->owner->getId()->toRfc4122(), $this->card->getId()->toRfc4122()),
-        );
+        $this->reactivate($this->owner, $this->card);
 
         self::assertTrue($this->card->isActive());
         self::assertSame(['Cash', 'Transfer', 'Voucher', 'Card'], $this->names($this->list($this->owner)));
@@ -217,17 +249,30 @@ final class PaymentMethodHandlersTest extends IncomeHandlerTestCase
         return 'owner' === $actor ? $this->owner : $this->manager;
     }
 
-    private function add(User $actor, string $id, string $name): void
+    private function add(User $actor, string $id, string $name, bool $cash = false): void
     {
         (new AddPaymentMethodHandler($this->paymentMethods, $this->queryBus, $this->clock))(
-            new AddPaymentMethodCommand($this->organizationId(), $actor->getId()->toRfc4122(), $id, $name),
+            new AddPaymentMethodCommand($this->organizationId(), $actor->getId()->toRfc4122(), $id, $name, $cash),
         );
     }
 
     private function rename(User $actor, string $id, string $name): void
     {
-        (new RenamePaymentMethodHandler($this->paymentMethods, $this->queryBus))(
-            new RenamePaymentMethodCommand($this->organizationId(), $actor->getId()->toRfc4122(), $id, $name),
+        $method = Uuid::isValid($id) ? $this->paymentMethods->findById(Uuid::fromString($id)) : null;
+        $this->update($actor, $id, $name, $method?->isCash() ?? false);
+    }
+
+    private function update(User $actor, string $id, string $name, bool $cash): void
+    {
+        (new UpdatePaymentMethodHandler($this->paymentMethods, $this->queryBus))(
+            new UpdatePaymentMethodCommand($this->organizationId(), $actor->getId()->toRfc4122(), $id, $name, $cash),
+        );
+    }
+
+    private function reactivate(User $actor, PaymentMethod $method): void
+    {
+        (new ReactivatePaymentMethodHandler($this->paymentMethods, $this->queryBus))(
+            new ReactivatePaymentMethodCommand($this->organizationId(), $actor->getId()->toRfc4122(), $method->getId()->toRfc4122()),
         );
     }
 

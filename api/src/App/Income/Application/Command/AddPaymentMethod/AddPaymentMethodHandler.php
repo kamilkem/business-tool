@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Income\Application\Command\AddPaymentMethod;
 
 use App\Income\Application\IncomeActor;
+use App\Income\Domain\Exception\CashPaymentMethodTakenException;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentMethodNameException;
 use App\Income\Domain\Exception\PaymentMethodNameTakenException;
@@ -30,6 +31,7 @@ final readonly class AddPaymentMethodHandler implements CommandHandlerInterface
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws InvalidPaymentMethodNameException  when the name is blank or too long
      * @throws PaymentMethodNameTakenException    when a method of the organization, active or not, has the name
+     * @throws CashPaymentMethodTakenException    when it is to be cash and another active method is
      */
     public function __invoke(AddPaymentMethodCommand $command): void
     {
@@ -40,6 +42,8 @@ final readonly class AddPaymentMethodHandler implements CommandHandlerInterface
             $command->name,
             $this->paymentMethods->findByName(trim($command->name)),
             $this->paymentMethods->nextPosition(),
+            $command->cash,
+            $command->cash ? $this->paymentMethods->findActiveCash() : null,
             $actor->id,
             $actor->role,
             $this->clock->now(),

@@ -42,20 +42,21 @@ abstract class IncomeApiTestCase extends ApiTestCase
         if (!isset(self::$paymentMethodIds[$key])) {
             self::$paymentMethodIds[$key] = [];
             foreach (self::DEFAULT_METHODS as $default) {
-                self::addPaymentMethod($organization, $default);
+                self::addPaymentMethod($organization, $default, 'Cash' === $default);
             }
         }
 
         return self::$paymentMethodIds[$key][$name] ?? self::addPaymentMethod($organization, $name)->getId()->toRfc4122();
     }
 
-    protected static function addPaymentMethod(Organization $organization, string $name): PaymentMethod
+    /** @param bool $cash as the default "Cash" method is (ADR 0033 §9) */
+    protected static function addPaymentMethod(Organization $organization, string $name, bool $cash = false): PaymentMethod
     {
         $owner = OrganizationMother::ownerOf($organization);
         $method = null;
-        self::inTenant($organization, static function () use ($name, $owner, &$method): void {
+        self::inTenant($organization, static function () use ($name, $cash, $owner, &$method): void {
             $methods = static::getContainer()->get(PaymentMethodRepositoryInterface::class);
-            $method = PaymentMethod::create(Uuid::v7(), $name, null, $methods->nextPosition(), $owner->getId(), MembershipRole::Owner, Clock::get()->now());
+            $method = PaymentMethod::create(Uuid::v7(), $name, null, $methods->nextPosition(), $cash, null, $owner->getId(), MembershipRole::Owner, Clock::get()->now());
             $methods->add($method);
         });
         \assert($method instanceof PaymentMethod);
