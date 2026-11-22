@@ -128,7 +128,7 @@ final class DenominationHandlersTest extends TestCase
                     $attempt($user);
                     self::fail($case.' should be refused.');
                 } catch (CashFlowAccessForbiddenException|OrganizationNotFoundException $e) {
-                    self::assertInstanceOf($expected, $e, $case);
+                    self::assertSame($expected, $e::class, $case);
                 }
             }
         }
