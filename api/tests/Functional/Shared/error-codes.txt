@@ -6,6 +6,10 @@ cash_flow.denomination_not_found
 cash_flow.denomination_not_offered.deactivated
 cash_flow.denomination_not_offered.other_currency
 cash_flow.denomination_value_taken
+cash_flow.invalid_day_close_date.in_the_future
+cash_flow.invalid_day_close_date.not_chosen_by_employee
+cash_flow.invalid_day_close_date.not_today_or_yesterday
+cash_flow.invalid_day_end_time
 cash_flow.invalid_denomination_value
 cash_flow.invalid_movement.duplicate_denomination
 cash_flow.invalid_movement.note

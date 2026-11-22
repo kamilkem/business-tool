@@ -13,6 +13,12 @@
         "other_currency": "This denomination is not in the organization's currency ({{organizationCurrency}})."
       },
       "denomination_value_taken": "This denomination already exists (it may be deactivated).",
+      "invalid_day_close_date": {
+        "in_the_future": "A day can be closed up to today ({{today}}), not on a later date.",
+        "not_chosen_by_employee": "The close's date follows from the day-end time: it is {{dayCloseDate}}.",
+        "not_today_or_yesterday": "You can close today or yesterday only."
+      },
+      "invalid_day_end_time": "The day-end time must be a time from 00:00 to {{latest}}.",
       "invalid_denomination_value": "A denomination's value must be greater than zero.",
       "invalid_movement": {
         "duplicate_denomination": "Each denomination may appear only once.",

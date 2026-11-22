@@ -106,6 +106,8 @@ api_platform:
         App\CashFlow\Domain\Exception\DenominationNotOfferedException: 422
         App\CashFlow\Domain\Exception\AuditCountNeedsDepositStorageException: 409
         App\CashFlow\Domain\Exception\StorageBalanceNegativeException: 409
+        App\CashFlow\Domain\Exception\InvalidDayEndTimeException: 422
+        App\CashFlow\Domain\Exception\InvalidDayCloseDateException: 422
         App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
         App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
         App\Expenses\Domain\Exception\ExpensesManagementForbiddenException: 403
