@@ -237,13 +237,16 @@
     "error": {
       "nameTakenByDeactivated": "Dezaktywowana kasa ma już nazwę „{{name}}”. Dezaktywowane kasy zachowują nazwy, więc wybierz inną.",
       "nameTaken": "Kasa o nazwie „{{name}}” już istnieje.",
-      "deactivate": "Nie udało się dezaktywować kasy"
+      "deactivate": "Nie udało się dezaktywować kasy",
+      "delete": "Nie udało się usunąć kasy"
     },
     "title": "Kasy",
     "description": "Kasy z własną drukarką fiskalną. Przychody wpisuje się osobno dla każdej kasy, z jednego raportu dobowego.",
     "add": "Dodaj kasę",
     "rename": "Zmień nazwę",
     "deactivate": "Dezaktywuj",
+    "delete": "Usuń",
+    "unused": "Jeszcze bez wpisów",
     "added": "Dodana",
     "deactivatedOn": "Dezaktywowana",
     "noneActive": "Brak aktywnych kas. Dodaj kasę, zanim wpiszesz przychody.",
@@ -256,10 +259,15 @@
       "title": "Dezaktywować kasę {{name}}?",
       "description": "Od teraz nie przyjmie nowych wpisów. Jej dotychczasowe wpisy zostaną na stronie Przychody i nadal możesz je poprawiać. Kasy nie da się ponownie aktywować, a jej nazwa pozostanie zajęta."
     },
+    "confirmDelete": {
+      "title": "Usunąć kasę {{name}}?",
+      "description": "Nie ma żadnych wpisów przychodów, więc nic więcej się nie zmieni. Nazwa znów będzie wolna."
+    },
     "toast": {
       "added": "Dodano kasę {{name}}",
       "renamed": "Nowa nazwa kasy: {{name}}",
-      "deactivated": "Kasa {{name}} dezaktywowana"
+      "deactivated": "Kasa {{name}} dezaktywowana",
+      "deleted": "Usunięto kasę {{name}}"
     },
     "dialog": {
       "renameTitle": "Zmień nazwę: {{name}}",

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Income\Domain\Repository;
 
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RegisterNameTakenException;
 use App\Income\Domain\Model\Register;
 use Symfony\Component\Uid\Uuid;
@@ -32,4 +33,7 @@ interface RegisterRepositoryInterface
      * @throws RegisterNameTakenException when a register with the new name was stored in the meantime
      */
     public function save(Register $register): void;
+
+    /** @throws RegisterInUseException when a revenue entry was recorded for it in the meantime */
+    public function remove(Register $register): void;
 }

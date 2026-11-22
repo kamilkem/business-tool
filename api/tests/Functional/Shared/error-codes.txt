@@ -43,6 +43,7 @@ income.payment_method_name_taken
 income.payment_method_not_found
 income.payment_method_order_mismatch
 income.register_deactivated
+income.register_in_use
 income.register_name_taken
 income.register_not_found
 income.revenue_entry_already_exists

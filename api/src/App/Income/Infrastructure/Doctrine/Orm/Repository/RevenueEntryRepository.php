@@ -66,6 +66,30 @@ final class RevenueEntryRepository extends ServiceEntityRepository implements Re
         return $qb->getQuery()->getResult();
     }
 
+    public function usesRegister(Uuid $registerId): bool
+    {
+        $found = $this->createQueryBuilder('e')
+            ->select('1')
+            ->where('IDENTITY(e.register) = :registerId')
+            ->setParameter('registerId', $registerId, UuidType::NAME)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return null !== $found;
+    }
+
+    public function usedRegisterIds(): array
+    {
+        /** @var list<array{id: Uuid|string}> $rows */
+        $rows = $this->createQueryBuilder('e')
+            ->select('DISTINCT IDENTITY(e.register) AS id')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): string => $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : Uuid::fromString($row['id'])->toRfc4122(), $rows);
+    }
+
     public function usesPaymentMethod(Uuid $paymentMethodId): bool
     {
         $found = $this->getEntityManager()->createQueryBuilder()

@@ -223,13 +223,16 @@
     "error": {
       "nameTakenByDeactivated": "A deactivated register is already named “{{name}}”. Deactivated registers keep their names, so pick another one.",
       "nameTaken": "A register named “{{name}}” already exists.",
-      "deactivate": "Could not deactivate the register"
+      "deactivate": "Could not deactivate the register",
+      "delete": "Could not delete the register"
     },
     "title": "Registers",
     "description": "Tills with their own fiscal printer. Income is entered per register, one daily report each.",
     "add": "Add register",
     "rename": "Rename",
     "deactivate": "Deactivate",
+    "delete": "Delete",
+    "unused": "No entries yet",
     "added": "Added",
     "deactivatedOn": "Deactivated",
     "noneActive": "No active registers. Add one before entering income.",
@@ -240,10 +243,15 @@
       "title": "Deactivate {{name}}?",
       "description": "It takes no new entries from now on. Its existing entries stay on the Income page, and you can still correct them. Registers can't be reactivated, and the name stays taken."
     },
+    "confirmDelete": {
+      "title": "Delete {{name}}?",
+      "description": "It has no revenue entries, so nothing else changes. The name becomes free again."
+    },
     "toast": {
       "added": "Register {{name}} added",
       "renamed": "Register renamed to {{name}}",
-      "deactivated": "{{name}} deactivated"
+      "deactivated": "{{name}} deactivated",
+      "deleted": "{{name}} deleted"
     },
     "dialog": {
       "renameTitle": "Rename {{name}}",

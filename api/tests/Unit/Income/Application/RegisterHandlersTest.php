@@ -8,6 +8,8 @@ use App\Income\Application\Command\AddRegister\AddRegisterCommand;
 use App\Income\Application\Command\AddRegister\AddRegisterHandler;
 use App\Income\Application\Command\DeactivateRegister\DeactivateRegisterCommand;
 use App\Income\Application\Command\DeactivateRegister\DeactivateRegisterHandler;
+use App\Income\Application\Command\DeleteRegister\DeleteRegisterCommand;
+use App\Income\Application\Command\DeleteRegister\DeleteRegisterHandler;
 use App\Income\Application\Command\RenameRegister\RenameRegisterCommand;
 use App\Income\Application\Command\RenameRegister\RenameRegisterHandler;
 use App\Income\Application\Query\GetRegister\GetRegisterHandler;
@@ -17,6 +19,7 @@ use App\Income\Application\Query\ListRegisters\ListRegistersHandler;
 use App\Income\Application\Query\ListRegisters\ListRegistersQuery;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidRegisterNameException;
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RegisterNameTakenException;
 use App\Income\Domain\Exception\RegisterNotFoundException;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
@@ -31,6 +34,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(AddRegisterHandler::class)]
 #[CoversClass(RenameRegisterHandler::class)]
 #[CoversClass(DeactivateRegisterHandler::class)]
+#[CoversClass(DeleteRegisterHandler::class)]
 #[CoversClass(GetRegisterHandler::class)]
 #[CoversClass(ListRegistersHandler::class)]
 #[CoversClass(RegisterView::class)]
@@ -143,7 +147,7 @@ final class RegisterHandlersTest extends IncomeHandlerTestCase
     #[DataProvider('unknownIds')]
     public function test_it_reports_an_unknown_register_as_not_found(string $id): void
     {
-        foreach ([fn () => $this->rename($this->owner, $id, 'Kitchen'), fn () => $this->deactivate($this->owner, $id)] as $action) {
+        foreach ([fn () => $this->rename($this->owner, $id, 'Kitchen'), fn () => $this->deactivate($this->owner, $id), fn () => $this->delete($this->owner, $id)] as $action) {
             try {
                 $action();
                 self::fail('Not found expected.');
@@ -178,17 +182,69 @@ final class RegisterHandlersTest extends IncomeHandlerTestCase
         self::assertTrue($this->bar->isActive());
     }
 
+    #[DataProvider('managers')]
+    public function test_it_deletes_a_register_without_entries_active_or_deactivated(string $actor): void
+    {
+        $this->add($this->owner, $kitchen = Uuid::v7()->toRfc4122(), 'Kitchen');
+        $this->add($this->owner, $terrace = Uuid::v7()->toRfc4122(), 'Terrace');
+        $this->deactivate($this->owner, $terrace);
+
+        $this->delete($this->user($actor), $kitchen);
+        $this->delete($this->user($actor), $terrace);
+
+        self::assertNull($this->registers->findById(Uuid::fromString($kitchen)));
+        self::assertNull($this->registers->findById(Uuid::fromString($terrace)));
+    }
+
+    public function test_it_refuses_deleting_a_register_with_entries_even_deactivated(): void
+    {
+        $this->recorded('2026-11-10');
+
+        foreach ([false, true] as $deactivated) {
+            if ($deactivated) {
+                $this->deactivate($this->owner, $this->bar->getId()->toRfc4122());
+            }
+            try {
+                $this->delete($this->owner, $this->bar->getId()->toRfc4122());
+                self::fail('A register with entries was deleted.');
+            } catch (RegisterInUseException) {
+            }
+        }
+
+        self::assertNotNull($this->registers->findById($this->bar->getId()));
+    }
+
+    public function test_it_refuses_deleting_to_an_employee(): void
+    {
+        try {
+            $this->delete($this->employee, $this->bar->getId()->toRfc4122());
+            self::fail('Forbidden expected.');
+        } catch (IncomeManagementForbiddenException) {
+        }
+
+        self::assertNotNull($this->registers->findById($this->bar->getId()));
+    }
+
+    public function test_it_tells_which_registers_have_entries(): void
+    {
+        $this->add($this->owner, Uuid::v7()->toRfc4122(), 'Kitchen');
+        $this->recorded('2026-11-10');
+
+        self::assertSame([true, false], array_map(static fn (RegisterView $view): bool => $view->used, $this->list($this->manager) ?? []));
+        self::assertTrue($this->get($this->manager, $this->bar->getId()->toRfc4122())?->used);
+    }
+
     public function test_it_returns_a_register(): void
     {
         self::assertEquals(
-            new RegisterView($this->bar->getId()->toRfc4122(), 'Bar', true, new \DateTimeImmutable('2026-01-05 09:00:00'), null),
+            new RegisterView($this->bar->getId()->toRfc4122(), 'Bar', true, false, new \DateTimeImmutable('2026-01-05 09:00:00'), null),
             $this->get($this->manager, $this->bar->getId()->toRfc4122()),
         );
 
         $this->deactivate($this->owner, $this->bar->getId()->toRfc4122());
 
         self::assertEquals(
-            new RegisterView($this->bar->getId()->toRfc4122(), 'Bar', false, new \DateTimeImmutable('2026-01-05 09:00:00'), new \DateTimeImmutable(self::NOW)),
+            new RegisterView($this->bar->getId()->toRfc4122(), 'Bar', false, false, new \DateTimeImmutable('2026-01-05 09:00:00'), new \DateTimeImmutable(self::NOW)),
             $this->get($this->manager, $this->bar->getId()->toRfc4122()),
         );
     }
@@ -263,9 +319,16 @@ final class RegisterHandlersTest extends IncomeHandlerTestCase
         );
     }
 
+    private function delete(User $actor, string $id): void
+    {
+        (new DeleteRegisterHandler($this->registers, $this->entries, $this->queryBus))(
+            new DeleteRegisterCommand($this->organizationId(), $actor->getId()->toRfc4122(), $id),
+        );
+    }
+
     private function get(User $actor, string $id): ?RegisterView
     {
-        return (new GetRegisterHandler($this->registers, $this->queryBus))(
+        return (new GetRegisterHandler($this->registers, $this->entries, $this->queryBus))(
             new GetRegisterQuery($this->organizationId(), $actor->getId()->toRfc4122(), $id),
         );
     }
@@ -273,7 +336,7 @@ final class RegisterHandlersTest extends IncomeHandlerTestCase
     /** @return list<RegisterView>|null */
     private function list(User $actor, bool $includeDeactivated = false): ?array
     {
-        return (new ListRegistersHandler($this->registers, $this->queryBus))(
+        return (new ListRegistersHandler($this->registers, $this->entries, $this->queryBus))(
             new ListRegistersQuery($this->organizationId(), $actor->getId()->toRfc4122(), $includeDeactivated),
         );
     }

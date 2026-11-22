@@ -25,6 +25,16 @@ interface RevenueEntryRepositoryInterface
      */
     public function findInPeriod(BusinessPeriod $period, ?Uuid $registerId = null): array;
 
+    /** Whether any entry of the organization, of any date, is for the register. */
+    public function usesRegister(Uuid $registerId): bool;
+
+    /**
+     * The registers that entries of the organization are for.
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function usedRegisterIds(): array;
+
     /** Whether any entry of the organization has a line for the payment method. */
     public function usesPaymentMethod(Uuid $paymentMethodId): bool;
 

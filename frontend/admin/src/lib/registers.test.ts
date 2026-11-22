@@ -2,13 +2,14 @@ import { ApiError } from "@business-tool/api-client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { i18n } from "../i18n"
-import { type Register, registerFormErrors, splitRegisters, withRegister } from "./registers"
+import { type Register, registerFormErrors, splitRegisters, withoutRegister, withRegister } from "./registers"
 
 function register(name: string, active = true, id = `register-${name}`): Register {
   return {
     id,
     name,
     active,
+    used: false,
     createdAt: "2026-11-01T10:00:00+00:00",
     deactivatedAt: active ? null : "2026-11-10T10:00:00+00:00",
   }
@@ -22,6 +23,13 @@ describe("splitRegisters", () => {
   it("test_it_splits_active_and_deactivated_registers_keeping_their_order", () => {
     expect(splitRegisters([bar, kitchen, terrace])).toEqual({ active: [bar, kitchen], deactivated: [terrace] })
     expect(splitRegisters([])).toEqual({ active: [], deactivated: [] })
+  })
+})
+
+describe("withoutRegister", () => {
+  it("test_it_drops_a_deleted_register_and_keeps_the_order_of_the_others", () => {
+    expect(withoutRegister([bar, kitchen, terrace], kitchen.id)).toEqual([bar, terrace])
+    expect(withoutRegister([bar, terrace], "register-unknown")).toEqual([bar, terrace])
   })
 })
 

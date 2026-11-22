@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Income\Domain;
 
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidRegisterNameException;
+use App\Income\Domain\Exception\RegisterInUseException;
 use App\Income\Domain\Exception\RegisterNameTakenException;
 use App\Income\Domain\Model\IncomeAccess;
 use App\Income\Domain\Model\Register;
@@ -146,6 +147,30 @@ final class RegisterTest extends TestCase
         $register->rename('Summer terrace', null, $this->actorId, MembershipRole::Owner);
 
         self::assertSame('Summer terrace', $register->getName());
+    }
+
+    public function test_it_is_deletable_only_without_entries(): void
+    {
+        $register = $this->register('Terrace');
+
+        $register->assertDeletable(false, $this->actorId, MembershipRole::Manager);
+
+        try {
+            $register->assertDeletable(true, $this->actorId, MembershipRole::Owner);
+            self::fail('A register with entries was deletable.');
+        } catch (RegisterInUseException $e) {
+            self::assertSame('income.register_in_use', $e->errorCode());
+            self::assertSame(['registerId' => $register->getId()->toRfc4122(), 'name' => 'Terrace'], $e->errorParameters());
+        }
+    }
+
+    public function test_it_lets_an_employee_delete_no_register(): void
+    {
+        $register = $this->register('Terrace');
+
+        $this->expectException(IncomeManagementForbiddenException::class);
+
+        $register->assertDeletable(false, $this->actorId, MembershipRole::Employee);
     }
 
     private function register(string $name): Register
