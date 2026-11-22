@@ -1,5 +1,12 @@
 {
   "apiError": {
+    "cash_flow": {
+      "access_forbidden": "Tylko właściciele i menedżerowie mogą zmieniać ustawienia gotówki.",
+      "denomination_in_use": "Ten nominał jest używany w zapisach gotówki, więc nie można go usunąć. Zamiast tego go dezaktywuj.",
+      "denomination_not_found": "Ten nominał już nie istnieje. Odśwież stronę.",
+      "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
+      "invalid_denomination_value": "Wartość nominału musi być większa od zera."
+    },
     "expenses": {
       "expense_category_archived": "Kategoria „{{name}}” jest zarchiwizowana. Przywróć ją, aby ją przypisać.",
       "expense_category_name_taken": "Kategoria o nazwie „{{name}}” już istnieje.",

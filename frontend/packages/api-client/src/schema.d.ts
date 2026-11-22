@@ -76,6 +76,94 @@ export interface paths {
         patch: operations["api_day-rates_id_patch"];
         trace?: never;
     };
+    "/api/denominations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the denominations of the selected organization's currency.
+         * @description Active denominations only, unless includeDeactivated is true; active ones first, each group by value, lowest first. Any active member.
+         */
+        get: operations["api_denominations_get_collection"];
+        put?: never;
+        /**
+         * Adds a denomination in the selected organization's currency.
+         * @description Owners and managers only (403 otherwise). The value is 1 to 2147483647 minor units and the kind `coin` or `note` (422). The value is unique in the organization's currency among active and deactivated denominations (409, `cash_flow.denomination_value_taken`).
+         */
+        post: operations["api_denominations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/denominations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One denomination of the selected organization, active or deactivated.
+         * @description Any active member. A denomination that is not the selected organization's is a 404.
+         */
+        get: operations["api_denominations_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a denomination that no close or movement uses.
+         * @description Owners and managers only (403 otherwise); a denomination that is not the selected organization's is a 404. A used one cannot be deleted (409, `cash_flow.denomination_in_use`): deactivate it instead.
+         */
+        delete: operations["api_denominations_id_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/denominations/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivates a denomination.
+         * @description Owners and managers only (403 otherwise); a denomination that is not the selected organization's is a 404. It is no longer offered from now on. The request has no body. Deactivating a deactivated denomination changes nothing.
+         */
+        post: operations["api_denominations_iddeactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/denominations/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reactivates a denomination.
+         * @description Owners and managers only (403 otherwise); a denomination that is not the selected organization's is a 404. It is offered again. The request has no body. Reactivating an active denomination changes nothing.
+         */
+        post: operations["api_denominations_idreactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/expenses": {
         parameters: {
             query?: never;
@@ -1573,6 +1661,70 @@ export interface components {
              * @description When the day rate was last changed; null until then.
              */
             updatedAt: string | null;
+        };
+        /**
+         * @description A coin or note the organization selected by the X-Organization-Id header counts its cash in (ADR
+         *     0033 §2), in its currency. Every active member reads them, because the end-of-day close needs
+         *     them; owners and managers add, deactivate, reactivate and delete them (403 otherwise). One that no
+         *     close or movement uses can be deleted; a used one is deactivated instead.
+         */
+        Denomination: {
+            id: string;
+            /** @description ISO 4217: the organization's when the denomination was added. */
+            currency: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description False once deactivated: the denomination is no longer offered. */
+            active: boolean;
+            /** @description Whether a close or movement uses it: a used denomination cannot be deleted, only deactivated. */
+            used: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the denomination was deactivated; null while it is active.
+             */
+            deactivatedAt: string | null;
+        };
+        /**
+         * @description A coin or note the organization selected by the X-Organization-Id header counts its cash in (ADR
+         *     0033 §2), in its currency. Every active member reads them, because the end-of-day close needs
+         *     them; owners and managers add, deactivate, reactivate and delete them (403 otherwise). One that no
+         *     close or movement uses can be deleted; a used one is deactivated instead.
+         */
+        "Denomination.AddDenominationInput": {
+            /** @description Face value in minor units of the organization's currency (500 for 5 zł). */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+        };
+        /**
+         * @description A coin or note the organization selected by the X-Organization-Id header counts its cash in (ADR
+         *     0033 §2), in its currency. Every active member reads them, because the end-of-day close needs
+         *     them; owners and managers add, deactivate, reactivate and delete them (403 otherwise). One that no
+         *     close or movement uses can be deleted; a used one is deactivated instead.
+         */
+        "Denomination.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description ISO 4217: the organization's when the denomination was added. */
+            currency: string;
+            /** @description Face value in minor units. */
+            value: number;
+            /** @enum {string} */
+            kind: "coin" | "note";
+            /** @description False once deactivated: the denomination is no longer offered. */
+            active: boolean;
+            /** @description Whether a close or movement uses it: a used denomination cannot be deleted, only deactivated. */
+            used: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When the denomination was deactivated; null while it is active.
+             */
+            deactivatedAt: string | null;
         };
         /** @description A representation of common errors. */
         Error: {
@@ -3867,7 +4019,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_denomination_value" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -4185,6 +4337,288 @@ export interface operations {
                 content?: never;
             };
             /** @description A field is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_denominations_get_collection: {
+        parameters: {
+            query?: {
+                /** @description Also list deactivated denominations (to manage them). */
+                includeDeactivated?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Denomination collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["Denomination.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["Denomination"][];
+                };
+            };
+        };
+    };
+    api_denominations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Denomination resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Denomination.AddDenominationInput"];
+                "application/json": components["schemas"]["Denomination.AddDenominationInput"];
+            };
+        };
+        responses: {
+            /** @description The new denomination, active. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Denomination.jsonld"];
+                    "application/json": components["schemas"]["Denomination"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The organization already has a denomination of the value. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The value or the kind is missing or invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_denominations_id_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Denomination identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Denomination resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Denomination.jsonld"];
+                    "application/json": components["schemas"]["Denomination"];
+                };
+            };
+            /** @description The denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_denominations_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Denomination identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The denomination is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A close or movement uses the denomination. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_denominations_iddeactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Denomination identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The deactivated denomination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Denomination.jsonld"];
+                    "application/json": components["schemas"]["Denomination"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_denominations_idreactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Denomination identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The active denomination. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Denomination.jsonld"];
+                    "application/json": components["schemas"]["Denomination"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The denomination is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
             422: {
                 headers: {
                     [name: string]: unknown;
