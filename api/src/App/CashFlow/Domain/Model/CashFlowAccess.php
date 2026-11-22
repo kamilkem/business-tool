@@ -31,4 +31,12 @@ final class CashFlowAccess
             throw CashFlowAccessForbiddenException::toReadLedger($actorId->toRfc4122());
         }
     }
+
+    /** @throws CashFlowAccessForbiddenException when the role is employee: they see only the closes they make, in the response (ADR 0033 §6) */
+    public static function assertCanReadDayCloses(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        if (!$actorRole->canManageOrganization()) {
+            throw CashFlowAccessForbiddenException::toReadDayCloses($actorId->toRfc4122());
+        }
+    }
 }

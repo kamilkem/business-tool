@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\CashFlow;
 
+use App\CashFlow\Domain\CashLedgerInterface;
 use App\CashFlow\Domain\Exception\StorageInUseException;
 use App\CashFlow\Domain\Model\CashMovement;
 use App\CashFlow\Domain\Model\CashStorage;
@@ -16,6 +17,7 @@ use App\CashFlow\Domain\Model\MovementPieces;
 use App\CashFlow\Domain\Repository\CashMovementRepositoryInterface;
 use App\CashFlow\Domain\Repository\CashStorageRepositoryInterface;
 use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
+use App\CashFlow\Infrastructure\Doctrine\Orm\CashLedger;
 use App\CashFlow\Infrastructure\Doctrine\Orm\Repository\CashMovementRepository;
 use App\CashFlow\Infrastructure\Doctrine\Orm\Repository\CashStorageRepository;
 use App\CashFlow\Infrastructure\Doctrine\Orm\Repository\DenominationRepository;
@@ -31,11 +33,12 @@ use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
 /**
- * The ledger SQL of CashMovementRepository against PostgreSQL (ADR 0033 §4): balances from the last
+ * The ledger SQL over movements (CashLedger, CashMovementRepository) against PostgreSQL (ADR 0033 §4): balances from the last
  * count, ledger order, the entries after a position, the history, the TenantFilter, and what the
  * storages and denominations know of their use.
  */
 #[CoversClass(CashMovementRepository::class)]
+#[CoversClass(CashLedger::class)]
 #[CoversClass(CashStorageRepository::class)]
 #[CoversClass(DenominationRepository::class)]
 final class CashMovementRepositoryTest extends KernelTestCase
@@ -46,6 +49,7 @@ final class CashMovementRepositoryTest extends KernelTestCase
     private EntityManagerInterface $entityManager;
     private TenantContextInterface $tenantContext;
     private CashMovementRepositoryInterface $movements;
+    private CashLedgerInterface $ledger;
     private CashStorageRepositoryInterface $storages;
     private DenominationRepositoryInterface $denominations;
     private Uuid $owner;
@@ -59,6 +63,7 @@ final class CashMovementRepositoryTest extends KernelTestCase
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->tenantContext = self::getContainer()->get(TenantContextInterface::class);
         $this->movements = self::getContainer()->get(CashMovementRepositoryInterface::class);
+        $this->ledger = self::getContainer()->get(CashLedgerInterface::class);
         $this->storages = self::getContainer()->get(CashStorageRepositoryInterface::class);
         $this->denominations = self::getContainer()->get(DenominationRepositoryInterface::class);
 
@@ -75,17 +80,17 @@ final class CashMovementRepositoryTest extends KernelTestCase
         $this->add($this->adjust($this->safe, '11:00', [[$this->fifty, -1]]));
         $this->entityManager->clear();
 
-        $balance = $this->movements->balanceOf($this->safe->getId());
+        $balance = $this->ledger->balanceOf($this->safe->getId());
         self::assertSame(self::byId([[$this->fifty, 3], [$this->hundred, 3]]), $balance->pieces);
         self::assertEquals(self::at('09:00'), $balance->countedAt);
 
         // Just before the count: everything before it; at 10:00 (exclusive): the count only.
-        $before = $this->movements->balanceOf($this->safe->getId(), $count->position());
+        $before = $this->ledger->balanceOf($this->safe->getId(), $count->position());
         self::assertSame(self::byId([[$this->fifty, 3], [$this->hundred, 5]]), $before->pieces);
         self::assertNull($before->countedAt);
-        self::assertSame(self::byId([[$this->hundred, 2]]), $this->movements->balanceOf($this->safe->getId(), new LedgerPosition(self::at('10:00'), Uuid::fromString('00000000-0000-7000-8000-000000000000')))->pieces);
+        self::assertSame(self::byId([[$this->hundred, 2]]), $this->ledger->balanceOf($this->safe->getId(), new LedgerPosition(self::at('10:00'), Uuid::fromString('00000000-0000-7000-8000-000000000000')))->pieces);
 
-        self::assertSame([], $this->movements->balanceOf($this->box->getId())->pieces);
+        self::assertSame([], $this->ledger->balanceOf($this->box->getId())->pieces);
     }
 
     public function test_it_orders_the_ledger_by_moment_then_by_id_and_lists_the_entries_after_a_position(): void
@@ -97,14 +102,14 @@ final class CashMovementRepositoryTest extends KernelTestCase
         $this->entityManager->clear();
 
         // The count (lower id) comes first at 10:00, so the adjustment adds to it.
-        self::assertSame(self::byId([[$this->hundred, 8]]), $this->movements->balanceOf($this->safe->getId())->pieces);
+        self::assertSame(self::byId([[$this->hundred, 8]]), $this->ledger->balanceOf($this->safe->getId())->pieces);
 
-        $after = $this->movements->entriesAfter($this->safe->getId(), $backdated->position());
+        $after = $this->ledger->entriesAfter($this->safe->getId(), $backdated->position());
         self::assertEquals([
             LedgerEntry::count($sameMomentLowerId->position(), self::byId([[$this->fifty, 0], [$this->hundred, 7]])),
             LedgerEntry::delta($first->position(), self::byId([[$this->hundred, 1]])),
         ], $after);
-        self::assertEquals([LedgerEntry::delta($backdated->position(), self::byId([[$this->fifty, -2]]))], $this->movements->entriesAfter($this->box->getId(), new LedgerPosition(self::at('08:00'), Uuid::v7())));
+        self::assertEquals([LedgerEntry::delta($backdated->position(), self::byId([[$this->fifty, -2]]))], $this->ledger->entriesAfter($this->box->getId(), new LedgerPosition(self::at('08:00'), Uuid::v7())));
     }
 
     public function test_it_lists_the_movements_of_a_range_newest_first_optionally_on_one_storage(): void
@@ -133,8 +138,8 @@ final class CashMovementRepositoryTest extends KernelTestCase
 
         self::assertNull($this->movements->findById($theirs->getId()));
         self::assertSame([], $this->movements->findOccurredIn(new UtcRange(self::at('00:00'), self::at('23:59'))));
-        self::assertSame([], $this->movements->balanceOf($this->safe->getId())->pieces);
-        self::assertSame([], $this->movements->entriesAfter($this->safe->getId(), new LedgerPosition(self::at('00:00'), Uuid::v7())));
+        self::assertSame([], $this->ledger->balanceOf($this->safe->getId())->pieces);
+        self::assertSame([], $this->ledger->entriesAfter($this->safe->getId(), new LedgerPosition(self::at('00:00'), Uuid::v7())));
         self::assertSame([], $this->storages->usedIds());
         self::assertSame([], $this->denominations->findByIds([$this->hundred->getId()->toRfc4122()]));
     }

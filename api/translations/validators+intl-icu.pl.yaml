@@ -5,6 +5,7 @@
 'Each VAT rate may appear only once.': 'Każda stawka VAT może wystąpić tylko raz.'
 'Each denomination may appear only once.': 'Każdy nominał może wystąpić tylko raz.'
 'Each payment method may appear only once.': 'Każda forma płatności może wystąpić tylko raz.'
+'Each storage may appear only once.': 'Każde miejsce na gotówkę może wystąpić tylko raz.'
 'Filter either by a category or by uncategorized expenses, not both.': 'Filtruj według kategorii albo wydatków bez kategorii, nie obu naraz.'
 'Give both roundingUnit and roundingDirection, or neither.': 'Podaj roundingUnit i roundingDirection razem albo żadnego z nich.'
 'The VAT may not exceed the gross amount.': 'VAT nie może przekraczać kwoty brutto.'

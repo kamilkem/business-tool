@@ -109,6 +109,11 @@ api_platform:
         App\CashFlow\Domain\Exception\StorageBalanceNegativeException: 409
         App\CashFlow\Domain\Exception\InvalidDayEndTimeException: 422
         App\CashFlow\Domain\Exception\InvalidDayCloseDateException: 422
+        App\CashFlow\Domain\Exception\InvalidDayCloseException: 422
+        App\CashFlow\Domain\Exception\DayAlreadyClosedException: 409
+        App\CashFlow\Domain\Exception\DayCloseOutOfOrderException: 409
+        App\CashFlow\Domain\Exception\DayCloseNotFoundException: 404
+        App\CashFlow\Domain\Exception\DayClosePeriodTooLongException: 422
         App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException: 422
         App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException: 409
         App\Expenses\Domain\Exception\ExpensesManagementForbiddenException: 403

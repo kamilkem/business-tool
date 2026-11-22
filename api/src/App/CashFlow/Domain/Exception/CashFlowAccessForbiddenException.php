@@ -19,4 +19,9 @@ final class CashFlowAccessForbiddenException extends CashFlowException
     {
         return new self(\sprintf('User "%s" may not see cash balances or movements: only owners and managers do.', $userId), ['userId' => $userId], variant: __FUNCTION__);
     }
+
+    public static function toReadDayCloses(string $userId): self
+    {
+        return new self(\sprintf('User "%s" may not see end-of-day closes: only owners and managers do.', $userId), ['userId' => $userId], variant: __FUNCTION__);
+    }
 }
