@@ -2,6 +2,7 @@
   "apiError": {
     "cash_flow": {
       "access_forbidden": {
+        "to_correct_day_closes": "Only owners and managers can correct or delete end-of-day closes.",
         "to_manage": "Only owners and managers can change cash flow settings or move cash.",
         "to_read_day_closes": "Only owners and managers can see end-of-day closes.",
         "to_read_ledger": "Only owners and managers can see cash balances and movements."
@@ -31,9 +32,11 @@
         "missing_storage": "Enter the cash for “{{name}}”: every active storage is part of the close.",
         "nothing_to_book": "The day can't be booked as income: activate a payment method first (the cash one, or a non-cash one).",
         "nothing_to_close": "There is nothing to count: add a cash storage and a denomination first.",
+        "payment_method_not_in_close": "This payment method is not part of this close. Reload the page.",
         "payment_method_not_offered": "This payment method is no longer offered. Reload the page.",
         "pieces": "The number of pieces must be from {{min}} to {{max}}.",
-        "register_not_offered": "This register is no longer active. Reload the page and pick another one."
+        "register_not_offered": "This register is no longer active. Reload the page and pick another one.",
+        "storage_not_in_close": "“{{name}}” is not part of this close: a correction covers the storages the close covered."
       },
       "invalid_day_close_date": {
         "in_the_future": "A day can be closed up to today ({{today}}), not on a later date.",

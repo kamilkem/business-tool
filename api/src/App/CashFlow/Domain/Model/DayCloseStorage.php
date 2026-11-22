@@ -44,6 +44,21 @@ class DayCloseStorage implements TenantAwareInterface
     ) {
     }
 
+    /** A correction (ADR 0033 §7): what was entered, and the expected opening computed again. */
+    public function change(int $total, ?int $expectedOpening): void
+    {
+        $this->total = $total;
+        $this->expectedOpening = $expectedOpening;
+    }
+
+    /** The ledger before the close changed: a counted storage's new expected opening (ADR 0033 §7). */
+    public function recalculate(int $expectedOpening): void
+    {
+        if (CashStorageMode::Counted === $this->mode) {
+            $this->expectedOpening = $expectedOpening;
+        }
+    }
+
     public function getStorage(): CashStorage
     {
         return $this->storage;

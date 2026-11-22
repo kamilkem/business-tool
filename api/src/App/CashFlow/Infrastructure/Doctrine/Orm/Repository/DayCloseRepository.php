@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\CashFlow\Infrastructure\Doctrine\Orm\Repository;
 
 use App\CashFlow\Domain\Exception\DayAlreadyClosedException;
+use App\CashFlow\Domain\Model\CashStorageMode;
 use App\CashFlow\Domain\Model\DayClose;
+use App\CashFlow\Domain\Model\DayCloseStorage;
+use App\CashFlow\Domain\Model\LedgerPosition;
 use App\CashFlow\Domain\Repository\DayCloseRepositoryInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Domain\Time\BusinessPeriod;
 use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<DayClose> */
@@ -56,6 +61,35 @@ final class DayCloseRepository extends ServiceEntityRepository implements DayClo
             ->orderBy('c.businessDate', 'DESC')
             ->getQuery()
             ->getResult();
+    }
+
+    public function findFirstCountingAfter(Uuid $storageId, LedgerPosition $after): ?DayClose
+    {
+        return $this->createQueryBuilder('c')
+            ->join(DayCloseStorage::class, 's', 'WITH', 's.dayClose = c')
+            ->where('s.storage = :storage')
+            ->andWhere('s.mode = :counted')
+            ->andWhere('(c.closedAt > :at OR (c.closedAt = :at AND c.id > :id))')
+            ->setParameter('storage', $storageId, UuidType::NAME)
+            ->setParameter('counted', CashStorageMode::Counted->value)
+            ->setParameter('at', $after->occurredAt, Types::DATETIME_IMMUTABLE)
+            ->setParameter('id', $after->id, UuidType::NAME)
+            ->orderBy('c.closedAt', 'ASC')
+            ->addOrderBy('c.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function save(DayClose $close): void
+    {
+        $this->getEntityManager()->flush();
+    }
+
+    public function remove(DayClose $close): void
+    {
+        $this->getEntityManager()->remove($close);
+        $this->getEntityManager()->flush();
     }
 
     public function add(DayClose $close): void

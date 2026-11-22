@@ -6,6 +6,7 @@ namespace App\Tests\Unit\CashFlow\Application;
 
 use App\CashFlow\Domain\Exception\DayAlreadyClosedException;
 use App\CashFlow\Domain\Model\DayClose;
+use App\CashFlow\Domain\Model\LedgerPosition;
 use App\CashFlow\Domain\Repository\DayCloseRepositoryInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Domain\Time\BusinessPeriod;
@@ -49,6 +50,33 @@ final class InMemoryDayCloseRepository implements DayCloseRepositoryInterface
             throw DayAlreadyClosedException::concurrently($close->getBusinessDate()->toString());
         }
         $this->byId[$close->getId()->toRfc4122()] = $close;
+    }
+
+    public function findFirstCountingAfter(Uuid $storageId, LedgerPosition $after): ?DayClose
+    {
+        $first = null;
+        foreach ($this->byId as $close) {
+            if (!$after->isBefore($close->position())) {
+                continue;
+            }
+            foreach ($close->countedStorages() as $storage) {
+                if ($storage->getId()->equals($storageId) && (null === $first || $close->position()->isBefore($first->position()))) {
+                    $first = $close;
+                }
+            }
+        }
+
+        return $first;
+    }
+
+    public function save(DayClose $close): void
+    {
+        $this->byId[$close->getId()->toRfc4122()] = $close;
+    }
+
+    public function remove(DayClose $close): void
+    {
+        unset($this->byId[$close->getId()->toRfc4122()]);
     }
 
     /** @return list<DayClose> */

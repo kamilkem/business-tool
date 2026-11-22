@@ -36,6 +36,11 @@ class DayClosePayment implements TenantAwareInterface
     ) {
     }
 
+    public function changeAmount(int $amount): void
+    {
+        $this->amount = $amount;
+    }
+
     public function getPaymentMethodId(): Uuid
     {
         return $this->paymentMethodId;

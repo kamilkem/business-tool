@@ -12,6 +12,7 @@ use App\CashFlow\Application\Command\RecordDayClose\RecordDayCloseHandler;
 use App\CashFlow\Application\DayCloseOffers;
 use App\CashFlow\Application\DayCloseRules;
 use App\CashFlow\Application\DayCloseViews;
+use App\CashFlow\Application\ExpectedOpenings;
 use App\CashFlow\Application\Query\GetDayClose\DayCloseView;
 use App\CashFlow\Application\Query\GetDayClose\GetDayCloseHandler;
 use App\CashFlow\Application\Query\GetDayClose\GetDayCloseQuery;
@@ -371,9 +372,8 @@ final class DayCloseHandlersTest extends TestCase
     {
         (new RecordDayCloseHandler(
             $this->closes,
-            $this->ledger(),
+            new ExpectedOpenings($this->ledger(), $this->denominations),
             $this->writer(),
-            $this->denominations,
             $this->offers(),
             new DayCloseRules($this->settings),
             $this->events,

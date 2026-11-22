@@ -1,3 +1,4 @@
+cash_flow.access_forbidden.to_correct_day_closes
 cash_flow.access_forbidden.to_manage
 cash_flow.access_forbidden.to_read_day_closes
 cash_flow.access_forbidden.to_read_ledger
@@ -21,9 +22,11 @@ cash_flow.invalid_day_close.missing_payment_method
 cash_flow.invalid_day_close.missing_storage
 cash_flow.invalid_day_close.nothing_to_book
 cash_flow.invalid_day_close.nothing_to_close
+cash_flow.invalid_day_close.payment_method_not_in_close
 cash_flow.invalid_day_close.payment_method_not_offered
 cash_flow.invalid_day_close.pieces
 cash_flow.invalid_day_close.register_not_offered
+cash_flow.invalid_day_close.storage_not_in_close
 cash_flow.invalid_day_close_date.in_the_future
 cash_flow.invalid_day_close_date.not_chosen_by_employee
 cash_flow.invalid_day_close_date.not_today_or_yesterday

@@ -81,6 +81,9 @@ final readonly class DayCloseViews
 
         /** @var MemberNameView|null $closedBy */
         $closedBy = $this->queryBus->ask(new GetMemberNameQuery($organizationId, $actorId, $close->getClosedBy()->toRfc4122()));
+        $updatedById = $close->getUpdatedBy()?->toRfc4122();
+        /** @var MemberNameView|null $updatedBy */
+        $updatedBy = null === $updatedById ? null : $this->queryBus->ask(new GetMemberNameQuery($organizationId, $actorId, $updatedById));
 
         return new DayCloseView(
             $close->getId()->toRfc4122(),
@@ -97,6 +100,10 @@ final readonly class DayCloseViews
             $closedBy->firstName ?? '',
             $closedBy->lastName ?? '',
             $close->getClosedAt(),
+            $updatedById,
+            null === $updatedById ? null : $updatedBy->firstName ?? '',
+            null === $updatedById ? null : $updatedBy->lastName ?? '',
+            $close->getUpdatedAt(),
         );
     }
 

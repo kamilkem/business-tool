@@ -43,6 +43,11 @@ class DayCloseLine implements TenantAwareInterface
     ) {
     }
 
+    public function changePieces(int $pieces): void
+    {
+        $this->pieces = $pieces;
+    }
+
     public function getStorage(): CashStorage
     {
         return $this->storage;

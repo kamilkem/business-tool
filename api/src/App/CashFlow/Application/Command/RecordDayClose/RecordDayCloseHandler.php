@@ -8,7 +8,7 @@ use App\CashFlow\Application\CashFlowActor;
 use App\CashFlow\Application\CashLedgerWriter;
 use App\CashFlow\Application\DayCloseOffers;
 use App\CashFlow\Application\DayCloseRules;
-use App\CashFlow\Domain\CashLedgerInterface;
+use App\CashFlow\Application\ExpectedOpenings;
 use App\CashFlow\Domain\Event\DayCloseRecorded;
 use App\CashFlow\Domain\Exception\DayAlreadyClosedException;
 use App\CashFlow\Domain\Exception\DayCloseOutOfOrderException;
@@ -18,14 +18,12 @@ use App\CashFlow\Domain\Exception\InvalidDayCloseDateException;
 use App\CashFlow\Domain\Exception\InvalidDayCloseException;
 use App\CashFlow\Domain\Exception\StorageDeactivatedException;
 use App\CashFlow\Domain\Exception\StorageNotFoundException;
+use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Model\CashStorageMode;
 use App\CashFlow\Domain\Model\ClosedDay;
 use App\CashFlow\Domain\Model\DayClose;
-use App\CashFlow\Domain\Model\DayCloseOffer;
-use App\CashFlow\Domain\Model\LedgerPosition;
 use App\CashFlow\Domain\Model\StorageCount;
 use App\CashFlow\Domain\Repository\DayCloseRepositoryInterface;
-use App\CashFlow\Domain\Repository\DenominationRepositoryInterface;
 use App\Organization\Application\Query\GetMemberName\GetMemberNameQuery;
 use App\Organization\Application\Query\GetMemberName\MemberNameView;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
@@ -44,16 +42,15 @@ use Symfony\Component\Uid\Uuid;
  *
  * Two closes of the same date at the same moment are stopped by the unique constraint (409). A
  * movement recorded between reading the ledger and saving the close is not in its expected opening;
- * the buses run without transactions (ADR 0004), and #189 recomputes the close when the ledger
- * before it changes.
+ * the buses run without transactions (ADR 0004); that movement's CashLedgerChanged recomputes the
+ * close (RecalculateDayCloseHandler).
  */
 final readonly class RecordDayCloseHandler implements CommandHandlerInterface
 {
     public function __construct(
         private DayCloseRepositoryInterface $closes,
-        private CashLedgerInterface $ledger,
+        private ExpectedOpenings $openings,
         private CashLedgerWriter $lookup,
-        private DenominationRepositoryInterface $denominations,
         private DayCloseOffers $offers,
         private DayCloseRules $rules,
         private EventPublisherInterface $events,
@@ -100,7 +97,11 @@ final readonly class RecordDayCloseHandler implements CommandHandlerInterface
             $command->registerId,
             $counts,
             array_map(static fn (array $payment): array => [$payment['paymentMethodId'], $payment['amount']], $command->payments),
-            $this->expectedOpenings($offer, DayClose::positionAt($id, $now)),
+            $this->openings->at(
+                DayClose::positionAt($id, $now),
+                array_values(array_filter($offer->storages, static fn (CashStorage $storage): bool => CashStorageMode::Counted === $storage->getMode())),
+                $offer->currency,
+            ),
             $this->closedDay($date, $command->organizationId, $command->actorId),
             $this->closes->findLatest()?->getBusinessDate(),
             $actor->id,
@@ -118,35 +119,6 @@ final readonly class RecordDayCloseHandler implements CommandHandlerInterface
             $close->nonCashAmounts(),
             $actor->id->toRfc4122(),
         ));
-    }
-
-    /**
-     * The value of each counted storage's balance just before the close, in the offer's currency.
-     * Pieces in another currency (from before a currency change) have no value in it.
-     *
-     * @return array<string, int> minor units by storage id
-     */
-    private function expectedOpenings(DayCloseOffer $offer, LedgerPosition $position): array
-    {
-        $openings = [];
-        foreach ($offer->storages as $storage) {
-            if (CashStorageMode::Counted !== $storage->getMode()) {
-                continue;
-            }
-
-            $pieces = $this->ledger->balanceOf($storage->getId(), $position)->pieces;
-            $denominations = $this->denominations->findByIds(array_map(strval(...), array_keys($pieces)));
-            $value = 0;
-            foreach ($pieces as $denominationId => $count) {
-                $denomination = $denominations[(string) $denominationId] ?? throw new \LogicException('Denomination expected.');
-                if ($denomination->getCurrency() === $offer->currency) {
-                    $value += $count * $denomination->getValue();
-                }
-            }
-            $openings[$storage->getId()->toRfc4122()] = $value;
-        }
-
-        return $openings;
     }
 
     private function closedDay(BusinessDate $date, string $organizationId, string $actorId): ?ClosedDay

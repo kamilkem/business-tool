@@ -38,6 +38,12 @@ final class InvalidDayCloseException extends CashFlowException
         return new self(\sprintf('The close covers every active cash storage; "%s" is missing.', $name), ['storageId' => $storageId, 'name' => $name], variant: __FUNCTION__);
     }
 
+    /** A correction covers the storages the close covered when it was made (ADR 0033 §7). */
+    public static function storageNotInClose(string $storageId, string $name): self
+    {
+        return new self(\sprintf('The cash storage "%s" is not in this close: a correction covers the storages the close covered.', $name), ['storageId' => $storageId, 'name' => $name], variant: __FUNCTION__);
+    }
+
     public static function duplicateStorage(string $storageId): self
     {
         return new self(\sprintf('The cash storage "%s" may appear only once in a close.', $storageId), ['storageId' => $storageId], variant: __FUNCTION__);
@@ -72,6 +78,12 @@ final class InvalidDayCloseException extends CashFlowException
     public static function paymentMethodNotOffered(string $paymentMethodId): self
     {
         return new self(\sprintf('The payment method "%s" is not an active non-cash payment method of the organization.', $paymentMethodId), ['paymentMethodId' => $paymentMethodId], variant: __FUNCTION__);
+    }
+
+    /** A correction takes the non-cash payment methods the close took when it was made (ADR 0033 §7). */
+    public static function paymentMethodNotInClose(string $paymentMethodId): self
+    {
+        return new self(\sprintf('The payment method "%s" is not in this close: a correction takes the non-cash payment methods the close took.', $paymentMethodId), ['paymentMethodId' => $paymentMethodId], variant: __FUNCTION__);
     }
 
     public static function duplicatePaymentMethod(string $paymentMethodId): self

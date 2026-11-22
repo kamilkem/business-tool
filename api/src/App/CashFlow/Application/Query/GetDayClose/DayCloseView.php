@@ -27,6 +27,11 @@ final readonly class DayCloseView
         public string $closedByFirstName,
         public string $closedByLastName,
         public \DateTimeImmutable $closedAt,
+        /** The owner or manager who corrected the close last; null while nobody did. */
+        public ?string $updatedById,
+        public ?string $updatedByFirstName,
+        public ?string $updatedByLastName,
+        public ?\DateTimeImmutable $updatedAt,
     ) {
     }
 }

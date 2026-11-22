@@ -12,7 +12,10 @@ use App\CashFlow\Domain\Exception\StorageNotFoundException;
 use App\CashFlow\Domain\Model\CashMovement;
 use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Model\CashStorageMode;
+use App\CashFlow\Domain\Model\DayClose;
+use App\CashFlow\Domain\Model\Denomination;
 use App\CashFlow\Domain\Model\LedgerEntry;
+use App\CashFlow\Domain\Model\LedgerPosition;
 use App\CashFlow\Domain\Model\MovementPieces;
 use App\CashFlow\Domain\Model\StorageLedger;
 use App\CashFlow\Domain\Repository\CashMovementRepositoryInterface;
@@ -24,8 +27,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * What every write to the cash ledger shares (ADR 0033 §4): it finds the storages and denominations
  * a command names, checks that no deposit storage goes below zero from the movement's moment on,
- * stores or removes the movement, and publishes CashLedgerChanged, from which #189 recomputes the
- * first close after it on each storage.
+ * stores or removes the movement, and publishes CashLedgerChanged, from which the first close after
+ * it on each storage is recomputed (§7). A corrected or deleted close is checked the same way.
  *
  * Two writes at the same time may each pass the check alone; the buses run without transactions
  * (ADR 0004), and the volumes (a few movements a day, by owners and managers) make that unlikely.
@@ -76,11 +79,11 @@ final readonly class CashLedgerWriter
     {
         foreach ($movement->storages() as $storage) {
             $entry = $movement->ledgerEntryFor($storage) ?? throw new \LogicException('The movement has a line on the storage.');
-            $this->assertNeverNegative($storage, $movement, $entry);
+            $this->assertNeverNegative($storage, $movement->position(), $entry, $movement->denominations());
         }
 
         $this->movements->add($movement);
-        $this->published($movement, $organizationId, $actorId);
+        $this->published($organizationId, $movement->getId(), $movement->storages(), $movement->getOccurredAt(), $actorId);
     }
 
     /**
@@ -89,27 +92,59 @@ final readonly class CashLedgerWriter
     public function delete(CashMovement $movement, string $organizationId, string $actorId): void
     {
         foreach ($movement->storages() as $storage) {
-            $this->assertNeverNegative($storage, $movement, null);
+            $this->assertNeverNegative($storage, $movement->position(), null, $movement->denominations());
         }
 
         $this->movements->remove($movement);
-        $this->published($movement, $organizationId, $actorId);
+        $this->published($organizationId, $movement->getId(), $movement->storages(), $movement->getOccurredAt(), $actorId);
     }
 
     /**
-     * The ledger before the movement is unchanged; from its moment on, the deposit storage holds its
-     * balance just before it, then the movement's entry ($entry, or nothing when it is deleted), then
-     * everything after it.
+     * A corrected close, before it is saved: no deposit storage goes below zero with what it now
+     * does to it (ADR 0033 §4, §7).
      *
      * @throws StorageBalanceNegativeException
      */
-    private function assertNeverNegative(CashStorage $storage, CashMovement $movement, ?LedgerEntry $entry): void
+    public function assertCorrectedCloseNeverNegative(DayClose $close): void
+    {
+        foreach ($close->coveredStorages() as $storage) {
+            $this->assertNeverNegative($storage, $close->position(), $close->ledgerEntryFor($storage), $close->denominations());
+        }
+    }
+
+    /**
+     * A close about to be deleted: no deposit storage goes below zero without it.
+     *
+     * @throws StorageBalanceNegativeException
+     */
+    public function assertDeletedCloseNeverNegative(DayClose $close): void
+    {
+        foreach ($close->coveredStorages() as $storage) {
+            $this->assertNeverNegative($storage, $close->position(), null, $close->denominations());
+        }
+    }
+
+    /** A close was corrected or deleted, and that is saved: the next close of each of its storages is recomputed. */
+    public function closeChanged(DayClose $close, string $organizationId, string $actorId): void
+    {
+        $this->published($organizationId, $close->getId(), $close->coveredStorages(), $close->getClosedAt(), $actorId);
+    }
+
+    /**
+     * The ledger before the record is unchanged; from its position on, the deposit storage holds its
+     * balance just before it, then the record's entry ($entry, or nothing when it is deleted), then
+     * everything after it.
+     *
+     * @param list<Denomination> $denominations the record's, which the ledger may no longer have
+     *
+     * @throws StorageBalanceNegativeException
+     */
+    private function assertNeverNegative(CashStorage $storage, LedgerPosition $position, ?LedgerEntry $entry, array $denominations): void
     {
         if (CashStorageMode::Deposit !== $storage->getMode()) {
             return;
         }
 
-        $position = $movement->position();
         $opening = $this->ledger->balanceOf($storage->getId(), $position)->pieces;
         $entries = $this->ledger->entriesAfter($storage->getId(), $position);
         if (null !== $entry) {
@@ -120,21 +155,22 @@ final readonly class CashLedgerWriter
         foreach ($entries as $each) {
             $ids = [...$ids, ...array_keys($each->pieces)];
         }
-        $denominations = $this->denominations->findByIds(array_values(array_unique(array_map(strval(...), $ids))));
-        foreach ($movement->denominations() as $denomination) {
-            $denominations[$denomination->getId()->toRfc4122()] ??= $denomination;
+        $found = $this->denominations->findByIds(array_values(array_unique(array_map(strval(...), $ids))));
+        foreach ($denominations as $denomination) {
+            $found[$denomination->getId()->toRfc4122()] ??= $denomination;
         }
 
-        StorageLedger::assertNeverNegative($storage, $opening, $entries, $denominations);
+        StorageLedger::assertNeverNegative($storage, $opening, $entries, $found);
     }
 
-    private function published(CashMovement $movement, string $organizationId, string $actorId): void
+    /** @param list<CashStorage> $storages */
+    private function published(string $organizationId, Uuid $recordId, array $storages, \DateTimeImmutable $occurredAt, string $actorId): void
     {
         $this->events->publish(new CashLedgerChanged(
             $organizationId,
-            $movement->getId()->toRfc4122(),
-            array_map(static fn (CashStorage $storage): string => $storage->getId()->toRfc4122(), $movement->storages()),
-            $movement->getOccurredAt()->format(\DATE_ATOM),
+            $recordId->toRfc4122(),
+            array_map(static fn (CashStorage $storage): string => $storage->getId()->toRfc4122(), $storages),
+            $occurredAt->format(\DATE_ATOM),
             $actorId,
         ));
     }

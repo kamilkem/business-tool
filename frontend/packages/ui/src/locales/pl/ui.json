@@ -2,6 +2,7 @@
   "apiError": {
     "cash_flow": {
       "access_forbidden": {
+        "to_correct_day_closes": "Tylko właściciele i menedżerowie mogą poprawiać i usuwać zamknięcia dnia.",
         "to_manage": "Tylko właściciele i menedżerowie mogą zmieniać ustawienia gotówki i przenosić gotówkę.",
         "to_read_day_closes": "Zamknięcia dnia widzą tylko właściciele i menedżerowie.",
         "to_read_ledger": "Tylko właściciele i menedżerowie widzą stany i ruchy gotówki."
@@ -31,9 +32,11 @@
         "missing_storage": "Wpisz gotówkę dla „{{name}}”: każde aktywne miejsce należy do zamknięcia.",
         "nothing_to_book": "Dnia nie da się zaksięgować jako przychodu: najpierw aktywuj formę płatności (gotówkę albo bezgotówkową).",
         "nothing_to_close": "Nie ma czego liczyć: najpierw dodaj miejsce na gotówkę i nominał.",
+        "payment_method_not_in_close": "Ta forma płatności nie należy do tego zamknięcia. Odśwież stronę.",
         "payment_method_not_offered": "Ta forma płatności nie jest już dostępna. Odśwież stronę.",
         "pieces": "Liczba sztuk musi wynosić od {{min}} do {{max}}.",
-        "register_not_offered": "Ta kasa nie jest już aktywna. Odśwież stronę i wybierz inną."
+        "register_not_offered": "Ta kasa nie jest już aktywna. Odśwież stronę i wybierz inną.",
+        "storage_not_in_close": "„{{name}}” nie należy do tego zamknięcia: poprawka obejmuje miejsca, które obejmowało zamknięcie."
       },
       "invalid_day_close_date": {
         "in_the_future": "Dzień można zamknąć najpóźniej dzisiaj ({{today}}), nie z późniejszą datą.",
