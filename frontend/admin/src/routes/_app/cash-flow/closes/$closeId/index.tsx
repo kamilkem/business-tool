@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
-import { ArrowLeftIcon, PencilIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react"
+import { ArrowLeftIcon, HistoryIcon, PencilIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -108,6 +108,12 @@ function DayCloseDetails({ organizationId, close }: { organizationId: string; cl
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/cash-flow" search={{ from: close.date, to: close.date, storageId: undefined }}>
+                <HistoryIcon />
+                {t("dayCloses.detail.cashMovements")}
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link to="/cash-flow/closes/$closeId/correct" params={{ closeId: close.id }}>
                 <PencilIcon />

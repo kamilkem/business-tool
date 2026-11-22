@@ -1095,7 +1095,8 @@
       "deposited": "Deposited",
       "storageCashIncome": "Cash income",
       "nothingCounted": "The storage was counted empty.",
-      "nothingDeposited": "Nothing was deposited."
+      "nothingDeposited": "Nothing was deposited.",
+      "cashMovements": "Cash movements of the day"
     },
     "editor": {
       "date": "Day",
@@ -1142,9 +1143,142 @@
   },
   "cashFlow": {
     "nav": {
+      "balances": "Balances",
       "closes": "Closes",
       "storages": "Storages",
       "denominations": "Denominations"
+    },
+    "title": "Cash flow",
+    "description": "What each storage holds now, and every movement and close that changed it.",
+    "actions": {
+      "adjust": "Add or take out",
+      "transfer": "Transfer",
+      "transferFrom": "Transfer from here",
+      "count": "Audit count"
+    },
+    "kind": {
+      "adjustment": "Adjustment",
+      "transfer": "Transfer",
+      "count": "Audit count",
+      "close": "Close"
+    },
+    "balances": {
+      "title": "Balances",
+      "onHand": "{{amount}} in all storages",
+      "none": "There are no cash storages yet: add one first.",
+      "deactivated": "Deactivated",
+      "countedAt": "Last counted {{when}}",
+      "neverCounted": "Never counted",
+      "estimate": "Estimate",
+      "estimateHint": "An estimate until the next close: the day's takings are counted then.",
+      "negativeEstimate": "Below zero: cash taken out since the last count, which the next close replaces.",
+      "breakdown_one": "{{count}} denomination",
+      "breakdown_other": "{{count}} denominations",
+      "retired": "deactivated",
+      "retiredHint": "Still holds deactivated denominations ({{denominations}}). Take them out with an adjustment.",
+      "takeOut": "Take them out",
+      "actionsFor": "Actions for {{name}}",
+      "addStorage": "Add a storage"
+    },
+    "history": {
+      "title_one": "{{count}} entry for {{period}}",
+      "title_other": "{{count}} entries for {{period}}",
+      "title_month_one": "{{count}} entry in {{period}}",
+      "title_month_other": "{{count}} entries in {{period}}",
+      "description": "Movements and end-of-day closes, newest first, in the organization's time zone.",
+      "ofStorage": "Movements and closes of “{{name}}”, newest first.",
+      "storage": "Storage",
+      "allStorages": "All storages",
+      "none": "Nothing moved in this period.",
+      "by": "{{when}} · {{name}}",
+      "enteredAt": "(entered {{when}})",
+      "added": "Added to {{name}}",
+      "removed": "Taken out of {{name}}",
+      "transfer": "{{from}} → {{to}}",
+      "count": "Counted {{name}}",
+      "closeCounted": "{{name}}: counted {{amount}} (expected {{expected}})",
+      "closeDeposited": "{{name}}: {{amount}} deposited",
+      "discrepancy": "Discrepancy {{amount}}",
+      "noDiscrepancy": "No discrepancy",
+      "pieces_one": "{{count}} denomination",
+      "pieces_other": "{{count}} denominations"
+    },
+    "form": {
+      "title": {
+        "adjustment": "Add or take out cash",
+        "transfer": "Transfer cash",
+        "count": "Audit count"
+      },
+      "description": {
+        "adjustment": "Change from the bank, a bank run, an opening float: cash that comes into a storage or leaves it.",
+        "transfer": "The same pieces leave one storage and go into another. It changes no income.",
+        "count": "What a deposit storage holds, counted outside a close. It replaces the balance; the difference is shown as the discrepancy."
+      },
+      "direction": "Add or take out",
+      "add": "Add cash",
+      "remove": "Take cash out",
+      "storage": "Storage",
+      "from": "From",
+      "to": "To",
+      "chooseStorage": "Choose a storage",
+      "chooseTarget": "Choose the storage the cash goes into",
+      "sameStorage": "The cash must go into another storage.",
+      "deactivatedStorage": "This storage is deactivated: cash can only be taken out of it.",
+      "countOnlyDeposit": "Only deposit storages are audited: counted ones are counted at each close.",
+      "counted": "Counted",
+      "holds_one": "holds {{count}} piece",
+      "holds_other": "holds {{count}} pieces",
+      "expected_one": "expected {{count}} piece",
+      "expected_other": "expected {{count}} pieces",
+      "noDenominations": "There are no active denominations. Add them in Denominations first.",
+      "total": {
+        "adjustment": "Total",
+        "transfer": "Transferred",
+        "count": "Counted"
+      },
+      "discrepancy": "Discrepancy against the balance now",
+      "after": "{{name}} after",
+      "fixPieces": "Enter whole numbers of pieces, from 0 to 1,000,000.",
+      "nothing": "Enter at least one piece.",
+      "note": "Note (optional)",
+      "notePlaceholder": {
+        "adjustment": "e.g. change from the bank",
+        "transfer": "e.g. takings into the safe",
+        "count": "e.g. monthly audit",
+        "remove": "e.g. bank run"
+      },
+      "noteTooLong_one": "A note can have at most {{count}} character.",
+      "noteTooLong_other": "A note can have at most {{count}} characters.",
+      "earlier": "It happened earlier",
+      "when": "When it happened",
+      "whenHint": "In the organization's time zone ({{timeZone}}). Not later than now.",
+      "momentInvalid": "Enter a date and a time.",
+      "momentSkipped": "{{time}} doesn't exist on this day (the clocks go forward). Pick another time.",
+      "momentInFuture": "This is later than now: pick an earlier time.",
+      "submit": {
+        "adjustment": "Add cash",
+        "remove": "Take cash out",
+        "transfer": "Transfer",
+        "count": "Record the count"
+      }
+    },
+    "toast": {
+      "added": "{{amount}} added to {{name}}",
+      "removed": "{{amount}} taken out of {{name}}",
+      "transferred": "{{amount}} moved from {{from}} to {{to}}",
+      "counted": "Count of {{name}} recorded: {{amount}}"
+    },
+    "delete": {
+      "label": "Delete: {{title}}",
+      "title": "Delete this movement?",
+      "what": "{{kind}} on {{name}}, {{when}}.",
+      "checkingCloses": "Checking which close it changes…",
+      "closesUnknown": "The closes after it could not be checked.",
+      "noClose": "No end-of-day close changes.",
+      "changesClose_one": "The close of {{dates}} is recalculated: its expected opening, its cash income and the cash booked in its revenue entry.",
+      "changesClose_other": "The closes of {{dates}} are recalculated: their expected openings, cash income and the cash booked in their revenue entries.",
+      "done": "Movement deleted",
+      "failed": "The movement couldn't be deleted"
     }
   },
   "cashStorages": {

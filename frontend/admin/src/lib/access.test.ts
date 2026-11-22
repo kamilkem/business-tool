@@ -120,8 +120,8 @@ describe("modulesFor", () => {
   })
 
   it("test_it_links_cash_flow_to_the_end_of_day_closes_for_owners_and_managers_only", () => {
-    expect(modulesFor("manager").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow/closes")
-    expect(modulesFor("owner").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow/closes")
+    expect(modulesFor("manager").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow")
+    expect(modulesFor("owner").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow")
     expect(modulesFor("employee").some((m) => m.key === "cashFlow")).toBe(false)
   })
 

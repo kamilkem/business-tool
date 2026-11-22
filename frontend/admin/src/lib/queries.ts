@@ -267,12 +267,44 @@ export const dayCloseSettingsQuery = (organizationId: string) =>
 
 /**
  * After a storage, denomination or the close-of-day settings change: the close form offers the
- * active ones and the proposed date, and the closes show the storages under their current names.
+ * active ones and the proposed date, and the closes, balances and movements show the storages
+ * under their current names and flag deactivated denominations still held.
  */
 export function invalidateDayCloseForm(queryClient: QueryClient, organizationId: string) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ["day-close-form", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["cash-balances", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["cash-movements", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["day-closes", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["day-close", organizationId] }),
+  ])
+}
+
+/** What each storage holds now (GET /cash-balances), by its last count plus the movements since; owners and managers only. */
+export const cashBalancesQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["cash-balances", organizationId],
+    queryFn: () => unwrap(api.GET("/api/cash-balances")),
+  })
+
+/** The cash movements of the period (GET /cash-movements), newest first, on one storage or all of them. */
+export const cashMovementsQuery = (organizationId: string, period: BusinessPeriod, storageId?: string) =>
+  queryOptions({
+    queryKey: ["cash-movements", organizationId, period, storageId ?? null],
+    queryFn: () => unwrap(api.GET("/api/cash-movements", { params: { query: { ...period, storageId } } })),
+  })
+
+/**
+ * After a cash movement is added or deleted: the balances and the history; the closes after it,
+ * whose expected openings are recalculated, with the revenue entries they book (ADR 0033 §7); and
+ * whether its storages and denominations are used (they can no longer be deleted).
+ */
+export function invalidateCashLedger(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["cash-balances", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["cash-movements", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["cash-storages", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["denominations", organizationId] }),
+    invalidateDayCloses(queryClient, organizationId),
   ])
 }

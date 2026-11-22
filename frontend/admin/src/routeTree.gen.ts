@@ -19,6 +19,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
+import { Route as AppCashFlowIndexRouteImport } from './routes/_app/cash-flow/index'
 import { Route as AppCashFlowDenominationsRouteImport } from './routes/_app/cash-flow/denominations'
 import { Route as AppCashFlowStoragesRouteImport } from './routes/_app/cash-flow/storages'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
@@ -80,6 +81,11 @@ const AppTeamRoute = AppTeamRouteImport.update({
 const AppTimeRoute = AppTimeRouteImport.update({
   id: '/time',
   path: '/time',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCashFlowIndexRoute = AppCashFlowIndexRouteImport.update({
+  id: '/cash-flow/',
+  path: '/cash-flow/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCashFlowDenominationsRoute =
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
+  '/cash-flow/': typeof AppCashFlowIndexRoute
   '/expenses/': typeof AppExpensesIndexRoute
   '/income/': typeof AppIncomeIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
+  '/cash-flow': typeof AppCashFlowIndexRoute
   '/expenses': typeof AppExpensesIndexRoute
   '/income': typeof AppIncomeIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_app/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
   '/_app/payroll/rates': typeof AppPayrollRatesRoute
+  '/_app/cash-flow/': typeof AppCashFlowIndexRoute
   '/_app/expenses/': typeof AppExpensesIndexRoute
   '/_app/income/': typeof AppIncomeIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
+    | '/cash-flow/'
     | '/expenses/'
     | '/income/'
     | '/payroll/'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
+    | '/cash-flow'
     | '/expenses'
     | '/income'
     | '/payroll'
@@ -292,6 +303,7 @@ export interface FileRouteTypes {
     | '/_app/income/payment-methods'
     | '/_app/income/registers'
     | '/_app/payroll/rates'
+    | '/_app/cash-flow/'
     | '/_app/expenses/'
     | '/_app/income/'
     | '/_app/payroll/'
@@ -378,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/time'
       fullPath: '/time'
       preLoaderRoute: typeof AppTimeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cash-flow/': {
+      id: '/_app/cash-flow/'
+      path: '/cash-flow'
+      fullPath: '/cash-flow/'
+      preLoaderRoute: typeof AppCashFlowIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cash-flow/denominations': {
@@ -487,6 +506,7 @@ interface AppRouteChildren {
   AppIncomePaymentMethodsRoute: typeof AppIncomePaymentMethodsRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
   AppPayrollRatesRoute: typeof AppPayrollRatesRoute
+  AppCashFlowIndexRoute: typeof AppCashFlowIndexRoute
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
@@ -509,6 +529,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIncomePaymentMethodsRoute: AppIncomePaymentMethodsRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,
   AppPayrollRatesRoute: AppPayrollRatesRoute,
+  AppCashFlowIndexRoute: AppCashFlowIndexRoute,
   AppExpensesIndexRoute: AppExpensesIndexRoute,
   AppIncomeIndexRoute: AppIncomeIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
