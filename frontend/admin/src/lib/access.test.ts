@@ -104,6 +104,11 @@ describe("modulesFor", () => {
     expect(modulesFor("employee").some((m) => m.key === "payroll")).toBe(false)
   })
 
+  it("test_it_groups_modules_into_finances_and_staff", () => {
+    expect(modulesFor("owner", "finances").map((m) => m.key)).toEqual(["income", "expenses", "payroll"])
+    expect(modulesFor("owner", "staff").map((m) => m.key)).toEqual(["time"])
+  })
+
   it("test_it_links_income_to_its_page_for_owners_and_managers_only", () => {
     expect(modulesFor("owner").find((m) => m.key === "income")?.to).toBe("/income")
     expect(modulesFor("employee").some((m) => m.key === "income")).toBe(false)
