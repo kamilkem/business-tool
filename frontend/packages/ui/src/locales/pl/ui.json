@@ -5,7 +5,11 @@
       "denomination_in_use": "Ten nominał jest używany w zapisach gotówki, więc nie można go usunąć. Zamiast tego go dezaktywuj.",
       "denomination_not_found": "Ten nominał już nie istnieje. Odśwież stronę.",
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
-      "invalid_denomination_value": "Wartość nominału musi być większa od zera."
+      "invalid_denomination_value": "Wartość nominału musi być większa od zera.",
+      "invalid_storage_name": "Nazwa miejsca na gotówkę musi mieć od 1 do {{maxLength}} znaków.",
+      "storage_in_use": "Miejsce na gotówkę „{{name}}” jest używane w zapisach gotówki, więc nie można go usunąć. Zamiast tego je dezaktywuj.",
+      "storage_name_taken": "Miejsce na gotówkę o nazwie „{{name}}” już istnieje (może być dezaktywowane).",
+      "storage_not_found": "To miejsce na gotówkę już nie istnieje. Odśwież stronę."
     },
     "expenses": {
       "expense_category_archived": "Kategoria „{{name}}” jest zarchiwizowana. Przywróć ją, aby ją przypisać.",
