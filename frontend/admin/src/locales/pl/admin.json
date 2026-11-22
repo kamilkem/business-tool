@@ -61,6 +61,9 @@
     "payroll": "Wynagrodzenia"
   },
   "modules": {
+    "cashFlow": {
+      "title": "Gotówka"
+    },
     "expenses": {
       "title": "Wydatki"
     },
@@ -661,7 +664,8 @@
       "managePaymentMethods": "Dodaj metodę lub aktywuj ją ponownie",
       "deactivatedMethod": "Dezaktywowana: ten wpis ją zachowuje, ale nowe wpisy nie mogą jej używać.",
       "bookedFromClose": "Zaksięgowane z zamknięcia dnia: kasa i dzień się nie zmieniają, a płatności zmieniają się tylko przy korekcie zamknięcia. Możesz dodać rozbicie VAT i notatkę.",
-      "bookedPaymentsDescription": "Z zamknięcia dnia: gotówka to zmiana w miejscach na gotówkę, pozostałe formy tak, jak wpisano je przy zamknięciu."
+      "bookedPaymentsDescription": "Z zamknięcia dnia: gotówka to zmiana w miejscach na gotówkę, pozostałe formy tak, jak wpisano je przy zamknięciu.",
+      "openClose": "Otwórz zamknięcie"
     }
   },
   "payroll": {
@@ -1102,5 +1106,106 @@
       "comma": "Przecinek , i kropka dziesiętna (1234.56)"
     },
     "csvDescription": "Wybierz to, czego oczekuje Twój arkusz kalkulacyjny, np. przy eksporcie wynagrodzeń. Polski i niemiecki Excel używa średników."
+  },
+  "dayCloses": {
+    "title": "Zamknięcia dnia",
+    "description": "Gotówka policzona na koniec każdego dnia i to, ile miało być w miejscach na gotówkę. Zamknięcie zapisuje wpis przychodu z dnia.",
+    "record": "Zapisz zamknięcie",
+    "backToList": "Zamknięcia dnia",
+    "backToClose": "Wróć do zamknięcia",
+    "cashIncome": "Przychód gotówkowy",
+    "nonCash": "Płatności bezgotówkowe",
+    "shortage": "Niedobór",
+    "shortageTitle": "Niedobór: {{amount}}",
+    "shortageDescription": "W miejscach na gotówkę jest mniej, niż powinno: pomyłka w liczeniu albo gotówka wyjęta bez zapisu. Gotówka we wpisie przychodu jest zapisana jako 0.",
+    "denomination": "Nominał",
+    "pieces": "Sztuki",
+    "amount": "Kwota",
+    "total": "Razem",
+    "unknownMethod": "Forma płatności, której już nie ma",
+    "unknownRegister": "Kasa, której już nie ma",
+    "mode": {
+      "counted": "Liczone",
+      "deposit": "Wpłaty"
+    },
+    "list": {
+      "count_one": "{{count}} zamknięcie: {{period}}",
+      "count_few": "{{count}} zamknięcia: {{period}}",
+      "count_many": "{{count}} zamknięć: {{period}}",
+      "count_other": "{{count}} zamknięcia: {{period}}",
+      "count_month_one": "{{count}} zamknięcie: {{period}}",
+      "count_month_few": "{{count}} zamknięcia: {{period}}",
+      "count_month_many": "{{count}} zamknięć: {{period}}",
+      "count_month_other": "{{count}} zamknięcia: {{period}}",
+      "none": "W tym okresie nie zamknięto żadnego dnia. Pracownicy zamykają dzień w aplikacji do rejestracji czasu pracy, możesz też zapisać zamknięcie tutaj.",
+      "bookedCash": "{{amount}} zapisane jako gotówka",
+      "shortages_one": "{{count}} niedobór do sprawdzenia",
+      "shortages_few": "{{count}} niedobory do sprawdzenia",
+      "shortages_many": "{{count}} niedoborów do sprawdzenia",
+      "shortages_other": "{{count}} niedoboru do sprawdzenia",
+      "date": "Dzień",
+      "register": "Kasa",
+      "closedBy": "Zamknięte przez",
+      "corrected": "Poprawione"
+    },
+    "detail": {
+      "title": "Zamknięcie dnia: {{date}}",
+      "closedBy": "{{register}}. Zamknięte przez: {{name}}, {{when}}.",
+      "correctedBy": "Ostatnia poprawka: {{name}}, {{when}}.",
+      "bookedAsCash": "Zapisane jako gotówka we wpisie przychodu: {{amount}}.",
+      "noNonCash": "W chwili zamknięcia nie było aktywnej formy płatności bezgotówkowej.",
+      "revenueEntry": "Wpis przychodu",
+      "revenueEntryOf": "Zapisany dla kasy {{register}}, z gotówką i płatnościami bezgotówkowymi.",
+      "openInIncome": "Otwórz w Przychodach",
+      "noRevenueEntry": "Z tego zamknięcia nie zapisano wpisu przychodu. Popraw zamknięcie i zapisz je, aby zapisać wpis ponownie.",
+      "expectedOpening": "Oczekiwany stan na początek",
+      "counted": "Policzone",
+      "deposited": "Wpłacone",
+      "storageCashIncome": "Przychód gotówkowy",
+      "nothingCounted": "Przy liczeniu miejsce było puste.",
+      "nothingDeposited": "Nic nie wpłacono."
+    },
+    "editor": {
+      "date": "Dzień",
+      "dateHint": "Dowolny dzień do dzisiaj, późniejszy niż ostatni zamknięty.",
+      "dateUpToToday": "Wybierz dzień nie późniejszy niż dzisiaj.",
+      "register": "Kasa",
+      "registerHint": "Kasa, dla której zamknięcie zapisuje wpis przychodu.",
+      "chooseRegister": "Wybierz kasę",
+      "countedHint": "To, co zostaje po zamknięciu, każdy nominał. Puste pole oznacza zero.",
+      "depositHint": "Tylko to, co włożono przy zamknięciu. Puste pole oznacza zero.",
+      "piecesOf": "Liczba sztuk: {{denomination}}",
+      "nonCashHint": "Kwota z całego dnia dla każdej formy, tak jak pokazuje terminal lub raport. Puste pole oznacza zero.",
+      "cashIncomeLater": "Wyliczany przy zapisie",
+      "shortage": "Brakuje {{amount}}: zamknięcie zostanie oznaczone, a gotówka zapisana jako 0.",
+      "fixFields": "Niektóre pola nie zawierają liczby sztuk albo kwoty. Popraw je, aby zapisać."
+    },
+    "correct": {
+      "action": "Popraw",
+      "title": "Popraw zamknięcie dnia: {{date}}",
+      "description": "Zmień policzone kwoty, wpłaty, płatności bezgotówkowe albo kasę. Dzień się nie zmienia: aby zamknąć inny dzień, usuń to zamknięcie i zapisz nowe.",
+      "save": "Zapisz poprawkę",
+      "confirmTitle": "Poprawić zamknięcie dnia: {{date}}?",
+      "confirmIncome": "Przychód gotówkowy zmieni się z {{from}} na {{to}} ({{booked}} zapisane jako gotówka).",
+      "confirmDescription": "Wpis przychodu z tego zamknięcia zmieni się razem z nim, tak samo jak następne zamknięcie każdego liczonego miejsca.",
+      "confirm": "Popraw",
+      "done": "Zamknięcie dnia {{date}} jest poprawione."
+    },
+    "delete": {
+      "title": "Usunąć zamknięcie dnia: {{date}}?",
+      "description": "Jego wpis przychodu też zostanie usunięty, razem z rozbiciem VAT i notatką. Policzona w nim gotówka trafi do następnego zamknięcia każdego miejsca, które zostanie przeliczone. Tego nie da się cofnąć.",
+      "confirm": "Usuń zamknięcie",
+      "done": "Zamknięcie dnia {{date}} jest usunięte.",
+      "failed": "Nie udało się usunąć zamknięcia"
+    },
+    "recordPage": {
+      "title": "Zapisz zamknięcie dnia",
+      "description": "Policz każde liczone miejsce, wpisz, co trafiło do każdego miejsca na wpłaty, i kwoty bezgotówkowe z dnia, tak jak pracownik w aplikacji do rejestracji czasu pracy.",
+      "cannotClose": "Nie ma jeszcze czego zamknąć: organizacja potrzebuje aktywnego miejsca na gotówkę, nominału w swojej walucie i aktywnej kasy.",
+      "proposedClosed": "{{date}} jest już zamknięty przez: {{name}}, {{when}}.",
+      "openClosed": "Otwórz to zamknięcie",
+      "save": "Zapisz zamknięcie",
+      "done": "Zamknięcie dnia {{date}} jest zapisane."
+    }
   }
 }

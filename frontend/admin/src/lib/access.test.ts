@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "dashboard", "team", "time", "shiftRequests", "settings", "income", "expenses", "payroll", "ksef"]
+const CAPABILITIES: Capability[] = ["admin", "dashboard", "team", "time", "shiftRequests", "settings", "income", "expenses", "cashFlow", "payroll", "ksef"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {
@@ -105,7 +105,7 @@ describe("modulesFor", () => {
   })
 
   it("test_it_groups_modules_into_finances_and_staff", () => {
-    expect(modulesFor("owner", "finances").map((m) => m.key)).toEqual(["income", "expenses", "payroll"])
+    expect(modulesFor("owner", "finances").map((m) => m.key)).toEqual(["income", "expenses", "cashFlow", "payroll"])
     expect(modulesFor("owner", "staff").map((m) => m.key)).toEqual(["time"])
   })
 
@@ -117,6 +117,12 @@ describe("modulesFor", () => {
   it("test_it_links_payroll_to_its_page_for_owners_and_managers_only", () => {
     expect(modulesFor("manager").find((m) => m.key === "payroll")?.to).toBe("/payroll")
     expect(modulesFor("owner").find((m) => m.key === "payroll")?.to).toBe("/payroll")
+  })
+
+  it("test_it_links_cash_flow_to_the_end_of_day_closes_for_owners_and_managers_only", () => {
+    expect(modulesFor("manager").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow/closes")
+    expect(modulesFor("owner").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow/closes")
+    expect(modulesFor("employee").some((m) => m.key === "cashFlow")).toBe(false)
   })
 
   it("test_it_links_expenses_to_its_categories_for_owners_and_managers_only", () => {

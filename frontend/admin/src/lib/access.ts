@@ -27,6 +27,8 @@ export type Capability =
   | "income"
   /** Expenses: purchase invoices and the categories they are sorted into. */
   | "expenses"
+  /** Cash flow: review, correct, delete and record end-of-day closes (ADR 0033 §6, §7). */
+  | "cashFlow"
   /** Payroll: rates, and runs that are generated, reviewed and adjusted (ADR 0027 §10). */
   | "payroll"
   /** Payroll: approve and reopen a run, and mark paychecks paid; owners only (ADR 0027 §7, §9). */
@@ -47,6 +49,7 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   settings: OWNERS_AND_MANAGERS,
   income: OWNERS_AND_MANAGERS,
   expenses: OWNERS_AND_MANAGERS,
+  cashFlow: OWNERS_AND_MANAGERS,
   payroll: OWNERS_AND_MANAGERS,
   payrollApprove: ["owner"],
   ksef: OWNERS_AND_MANAGERS,

@@ -57,6 +57,9 @@
     "payroll": "Payroll"
   },
   "modules": {
+    "cashFlow": {
+      "title": "Cash flow"
+    },
     "expenses": {
       "title": "Expenses"
     },
@@ -621,7 +624,8 @@
       "managePaymentMethods": "Add or reactivate one",
       "deactivatedMethod": "Deactivated: this entry keeps it, but new entries can't use it.",
       "bookedFromClose": "Booked from the end-of-day close: the register and the day don't change, and the payments change only when the close is corrected. You can add the VAT breakdown and a note.",
-      "bookedPaymentsDescription": "From the end-of-day close: cash is the change in the cash storages, the other methods as entered at the close."
+      "bookedPaymentsDescription": "From the end-of-day close: cash is the change in the cash storages, the other methods as entered at the close.",
+      "openClose": "Open the close"
     }
   },
   "payroll": {
@@ -1040,5 +1044,100 @@
       "comma": "Comma , with a decimal point (1234.56)"
     },
     "csvDescription": "Pick what your spreadsheet expects, e.g. for the payroll export. Excel in Polish or German uses semicolons."
+  },
+  "dayCloses": {
+    "title": "End-of-day closes",
+    "description": "The cash counted at the end of each day, with what the storages were expected to hold. A close books the day's revenue entry.",
+    "record": "Record a close",
+    "backToList": "End-of-day closes",
+    "backToClose": "Back to the close",
+    "cashIncome": "Cash income",
+    "nonCash": "Non-cash payments",
+    "shortage": "Shortage",
+    "shortageTitle": "Shortage of {{amount}}",
+    "shortageDescription": "The storages hold less cash than expected: a mistake in the count, or cash taken out that nobody recorded. The cash line of the revenue entry is booked as 0.",
+    "denomination": "Denomination",
+    "pieces": "Pieces",
+    "amount": "Amount",
+    "total": "Total",
+    "unknownMethod": "A payment method no longer offered",
+    "unknownRegister": "A register no longer offered",
+    "mode": {
+      "counted": "Counted",
+      "deposit": "Deposit"
+    },
+    "list": {
+      "count_one": "{{count}} close for {{period}}",
+      "count_other": "{{count}} closes for {{period}}",
+      "count_month_one": "{{count}} close in {{period}}",
+      "count_month_other": "{{count}} closes in {{period}}",
+      "none": "No day was closed in this period. Employees close the day in the time clock, or you can record a close here.",
+      "bookedCash": "{{amount}} booked as cash",
+      "shortages_one": "{{count}} shortage to review",
+      "shortages_other": "{{count}} shortages to review",
+      "date": "Day",
+      "register": "Register",
+      "closedBy": "Closed by",
+      "corrected": "Corrected"
+    },
+    "detail": {
+      "title": "Close of {{date}}",
+      "closedBy": "{{register}}. Closed by {{name}}, {{when}}.",
+      "correctedBy": "Last corrected by {{name}}, {{when}}.",
+      "bookedAsCash": "Booked as cash in the revenue entry: {{amount}}.",
+      "noNonCash": "No non-cash payment method was active at the close.",
+      "revenueEntry": "Revenue entry",
+      "revenueEntryOf": "Booked for {{register}}, with the cash and the non-cash payments.",
+      "openInIncome": "Open in Income",
+      "noRevenueEntry": "No revenue entry is booked from this close. Correct the close and save it to book it again.",
+      "expectedOpening": "Expected opening",
+      "counted": "Counted",
+      "deposited": "Deposited",
+      "storageCashIncome": "Cash income",
+      "nothingCounted": "The storage was counted empty.",
+      "nothingDeposited": "Nothing was deposited."
+    },
+    "editor": {
+      "date": "Day",
+      "dateHint": "Any day up to today, after the last closed day.",
+      "dateUpToToday": "Pick a day up to today.",
+      "register": "Register",
+      "registerHint": "The register whose revenue entry the close books.",
+      "chooseRegister": "Choose a register",
+      "countedHint": "What stays in it after the close, every denomination. An empty field is zero.",
+      "depositHint": "Only what was put into it at the close. An empty field is zero.",
+      "piecesOf": "Pieces of {{denomination}}",
+      "nonCashHint": "The day's amount for each method, as the terminal or the report shows it. An empty field is zero.",
+      "cashIncomeLater": "Computed when saved",
+      "shortage": "{{amount}} short: the close will be flagged, and its cash booked as 0.",
+      "fixFields": "Some fields hold something that is not a number of pieces or an amount. Fix them to save."
+    },
+    "correct": {
+      "action": "Correct",
+      "title": "Correct the close of {{date}}",
+      "description": "Change the counts, the deposits, the non-cash amounts or the register. The day doesn't change: to close another day, delete this close and record a new one.",
+      "save": "Save the correction",
+      "confirmTitle": "Correct the close of {{date}}?",
+      "confirmIncome": "The cash income goes from {{from}} to {{to}} ({{booked}} booked as cash).",
+      "confirmDescription": "The revenue entry booked from the close follows, and so does the next close of each counted storage.",
+      "confirm": "Correct",
+      "done": "The close of {{date}} is corrected."
+    },
+    "delete": {
+      "title": "Delete the close of {{date}}?",
+      "description": "Its revenue entry is deleted too, with its VAT breakdown and note. The cash it counted then counts in the next close of each storage, which is computed again. This can't be undone.",
+      "confirm": "Delete the close",
+      "done": "The close of {{date}} is deleted.",
+      "failed": "The close could not be deleted"
+    },
+    "recordPage": {
+      "title": "Record an end-of-day close",
+      "description": "Count every counted storage, enter what went into each deposit storage and the day's non-cash amounts, as an employee would in the time clock.",
+      "cannotClose": "There is nothing to close yet: the organization needs an active cash storage, a denomination of its currency and an active register.",
+      "proposedClosed": "{{date}} is already closed, by {{name}}, {{when}}.",
+      "openClosed": "Open that close",
+      "save": "Record the close",
+      "done": "The close of {{date}} is recorded."
+    }
   }
 }

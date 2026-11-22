@@ -209,3 +209,37 @@ export const businessSummaryQuery = (organizationId: string, range: { from: stri
     staleTime: 0,
     queryFn: () => unwrap(api.GET("/api/business-summary", { params: { query: range } })),
   })
+
+/** The end-of-day closes of the period (GET /day-closes), latest first; owners and managers only. */
+export const dayClosesQuery = (organizationId: string, period: BusinessPeriod) =>
+  queryOptions({
+    queryKey: ["day-closes", organizationId, period],
+    queryFn: () => unwrap(api.GET("/api/day-closes", { params: { query: period } })),
+  })
+
+/** One end-of-day close, with what the ledger expected (GET /day-closes/{id}). */
+export const dayCloseQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["day-close", organizationId, id],
+    queryFn: () => unwrap(api.GET("/api/day-closes/{id}", { params: { path: { id } } })),
+  })
+
+/** What a close covers now: the active storages, denominations, registers and non-cash methods (GET /day-close-form). */
+export const dayCloseFormQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["day-close-form", organizationId],
+    queryFn: () => unwrap(api.GET("/api/day-close-form")),
+  })
+
+/**
+ * After a close is recorded, corrected or deleted: every close (a correction or delete recalculates
+ * the next one), the form's proposed date, and the revenue entries the closes book (ADR 0033 §9).
+ */
+export function invalidateDayCloses(queryClient: QueryClient, organizationId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["day-closes", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["day-close", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["day-close-form", organizationId] }),
+    invalidateRevenue(queryClient, organizationId),
+  ])
+}
