@@ -33,7 +33,7 @@ GitHub Environment and in the owner's password manager, never in the repository.
 
 ## Images
 
-`make prod-image TIMECLOCK_URL=https://app.<domain>` builds the image for one stage: the admin bundle
+`make prod-image TIMECLOCK_URL=https://app.tooltipp.com` (staging: `https://app.staging.tooltipp.com`) builds the image for one stage: the admin bundle
 embeds the time clock's address (ADR 0021), so each stage has its own image from the same commit.
 `make prod-smoke` starts it without a database and checks both apps, `/api` and the caching headers;
 `make deploy-check` validates the files in this folder. CI runs all three.

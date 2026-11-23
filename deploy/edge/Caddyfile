@@ -23,3 +23,10 @@
 	import common
 	reverse_proxy staging-php:80
 }
+
+# The bare domain and www have no site of their own yet: they send visitors to the production time
+# clock. 302 (temporary), so browsers do not keep it once a landing page exists (#213).
+{$REDIRECT_HOSTS} {
+	import common
+	redir https://{$PRODUCTION_TIMECLOCK_HOST}/ 302
+}
