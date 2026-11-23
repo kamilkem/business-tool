@@ -313,3 +313,110 @@ function fieldOf(path: string, lines: EntryLines): string {
 export function isDuplicateEntry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 409
 }
+
+// --- Closed months and change history (ADR 0034) ---------------------------------------------------
+
+export type RevenueMonth = components["schemas"]["RevenueMonth"]
+export type RevenueEntryChange = components["schemas"]["RevenueEntryChange"]
+type Snapshot = NonNullable<RevenueEntryChange["after"]>
+
+/** The month of a business date, `YYYY-MM`. */
+export function monthKey(date: BusinessDate): string {
+  return date.slice(0, 7)
+}
+
+/** The months a period touches, `YYYY-MM`, oldest first. */
+export function monthsOf(period: BusinessPeriod): string[] {
+  const months: string[] = []
+  let year = Number(period.from.slice(0, 4))
+  let month = Number(period.from.slice(5, 7))
+  const last = monthKey(period.to)
+  for (;;) {
+    const key = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`
+    if (key > last) return months
+    months.push(key)
+    month += 1
+    if (month > 12) {
+      month = 1
+      year += 1
+    }
+  }
+}
+
+/** Whether the date is in one of the closed months (`YYYY-MM`). */
+export function isInClosedMonth(date: BusinessDate, closedMonths: ReadonlySet<string>): boolean {
+  return closedMonths.has(monthKey(date))
+}
+
+/** One line of what a change did: an amount, a VAT line or the note, before and after (null: none). */
+export type ChangeLine =
+  | { kind: "payment"; name: string; before: MinorUnits | null; after: MinorUnits | null }
+  | { kind: "total"; before: MinorUnits | null; after: MinorUnits | null }
+  | {
+      kind: "vat"
+      rate: string
+      before: { gross: MinorUnits; vat: MinorUnits } | null
+      after: { gross: MinorUnits; vat: MinorUnits } | null
+    }
+  | { kind: "note"; before: string | null; after: string | null }
+
+/**
+ * What a change did, line by line: only what differs between before and after. A created entry
+ * shows everything it got, a deleted one everything it had (the other side null). Payment methods
+ * are matched by id and named as they were after the change (before it, for a delete).
+ */
+export function changeLines(change: Pick<RevenueEntryChange, "before" | "after">): ChangeLine[] {
+  const before = change.before
+  const after = change.after
+  const lines: ChangeLine[] = []
+
+  const methodIds: string[] = []
+  for (const line of [...(before?.payments ?? []), ...(after?.payments ?? [])]) {
+    if (!methodIds.includes(line.paymentMethodId)) methodIds.push(line.paymentMethodId)
+  }
+  for (const id of methodIds) {
+    const was = before?.payments.find((line) => line.paymentMethodId === id)
+    const is = after?.payments.find((line) => line.paymentMethodId === id)
+    if (was?.amount === is?.amount) continue
+    lines.push({ kind: "payment", name: (is ?? was)?.paymentMethodName ?? "", before: was?.amount ?? null, after: is?.amount ?? null })
+  }
+  const total = (snapshot: Snapshot | null) => (snapshot ? snapshot.total : null)
+  if (total(before) !== total(after)) lines.push({ kind: "total", before: total(before), after: total(after) })
+
+  const rates: string[] = []
+  for (const line of [...(before?.vatLines ?? []), ...(after?.vatLines ?? [])]) {
+    if (!rates.includes(line.rate)) rates.push(line.rate)
+  }
+  for (const rate of rates) {
+    const was = before?.vatLines.find((line) => line.rate === rate)
+    const is = after?.vatLines.find((line) => line.rate === rate)
+    if (was?.gross === is?.gross && was?.vat === is?.vat) continue
+    lines.push({
+      kind: "vat",
+      rate,
+      before: was ? { gross: was.gross, vat: was.vat } : null,
+      after: is ? { gross: is.gross, vat: is.vat } : null,
+    })
+  }
+
+  const note = (snapshot: Snapshot | null) => snapshot?.note ?? null
+  if (note(before) !== note(after)) lines.push({ kind: "note", before: note(before), after: note(after) })
+
+  return lines
+}
+
+/** The headline of a change: created, changed, deleted (by hand or with its close) or booked by a close. */
+export function changeKindKey(
+  change: Pick<RevenueEntryChange, "kind" | "dayCloseId" | "before">,
+): "created" | "changed" | "deleted" | "deletedWithClose" | "booked" | "bookedOver" {
+  switch (change.kind) {
+    case "deleted":
+      return change.dayCloseId === null ? "deleted" : "deletedWithClose"
+    case "booked":
+      return change.before === null ? "booked" : "bookedOver"
+    case "changed":
+      return "changed"
+    default:
+      return "created"
+  }
+}

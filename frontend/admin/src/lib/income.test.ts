@@ -6,6 +6,8 @@ import {
   type EntryFormValues,
   type RevenueEntry,
   type VatRate,
+  changeKindKey,
+  changeLines,
   emptyEntryForm,
   entryFormErrors,
   entryFormFrom,
@@ -14,6 +16,8 @@ import {
   formPaymentsTotal,
   formVatGross,
   incomeGrid,
+  isInClosedMonth,
+  monthsOf,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
@@ -54,6 +58,7 @@ function entry(registerName: string, businessDate: string, paymentsTotal: number
     vatTotal: 0,
     note: null,
     dayCloseId: null,
+    monthClosed: false,
     createdBy: "owner",
     createdAt: `${businessDate}T22:00:00+00:00`,
     updatedBy: null,
@@ -324,5 +329,60 @@ describe("in Polish", () => {
         payments: "Podaj co najmniej jedną kwotę. Dla kasy bez sprzedaży wpisz 0.",
       },
     })
+  })
+})
+
+describe("closed months (ADR 0034)", () => {
+  it("test_it_lists_the_months_a_period_touches_across_a_year_end", () => {
+    expect(monthsOf({ from: "2026-11-01", to: "2026-11-30" })).toEqual(["2026-11"])
+    expect(monthsOf({ from: "2026-11-15", to: "2027-01-10" })).toEqual(["2026-11", "2026-12", "2027-01"])
+  })
+
+  it("test_it_tells_whether_a_date_is_in_a_closed_month", () => {
+    const closed = new Set(["2026-10"])
+    expect(isInClosedMonth("2026-10-31", closed)).toBe(true)
+    expect(isInClosedMonth("2026-11-01", closed)).toBe(false)
+  })
+})
+
+describe("change history (ADR 0034 §4)", () => {
+  const cash = (amount: number) => ({ paymentMethodId: "m-cash", paymentMethodName: "Cash", amount })
+  const card = (amount: number) => ({ paymentMethodId: "m-card", paymentMethodName: "Card", amount })
+
+  it("test_it_shows_only_what_a_change_changed", () => {
+    expect(
+      changeLines({
+        before: { payments: [cash(100_00), card(50_00)], total: 150_00, vatLines: [{ rate: "23", gross: 100_00, vat: 18_70 }], note: null },
+        after: { payments: [cash(120_00), card(50_00)], total: 170_00, vatLines: [{ rate: "23", gross: 100_00, vat: 18_70 }], note: "Recount" },
+      }),
+    ).toEqual([
+      { kind: "payment", name: "Cash", before: 100_00, after: 120_00 },
+      { kind: "total", before: 150_00, after: 170_00 },
+      { kind: "note", before: null, after: "Recount" },
+    ])
+  })
+
+  it("test_it_shows_everything_a_created_entry_got_and_a_deleted_one_had", () => {
+    const snapshot = { payments: [cash(100_00)], total: 100_00, vatLines: [{ rate: "8", gross: 100_00, vat: 7_41 }], note: null }
+
+    expect(changeLines({ before: null, after: snapshot })).toEqual([
+      { kind: "payment", name: "Cash", before: null, after: 100_00 },
+      { kind: "total", before: null, after: 100_00 },
+      { kind: "vat", rate: "8", before: null, after: { gross: 100_00, vat: 7_41 } },
+    ])
+    expect(changeLines({ before: snapshot, after: null })).toEqual([
+      { kind: "payment", name: "Cash", before: 100_00, after: null },
+      { kind: "total", before: 100_00, after: null },
+      { kind: "vat", rate: "8", before: { gross: 100_00, vat: 7_41 }, after: null },
+    ])
+  })
+
+  it("test_it_names_a_change_by_what_made_it", () => {
+    expect(changeKindKey({ kind: "created", dayCloseId: null, before: null })).toBe("created")
+    expect(changeKindKey({ kind: "deleted", dayCloseId: null, before: null })).toBe("deleted")
+    expect(changeKindKey({ kind: "deleted", dayCloseId: "c1", before: null })).toBe("deletedWithClose")
+    const before = { payments: [cash(1)], total: 1, vatLines: [], note: null }
+    expect(changeKindKey({ kind: "booked", dayCloseId: "c1", before: null })).toBe("booked")
+    expect(changeKindKey({ kind: "booked", dayCloseId: "c1", before })).toBe("bookedOver")
   })
 })

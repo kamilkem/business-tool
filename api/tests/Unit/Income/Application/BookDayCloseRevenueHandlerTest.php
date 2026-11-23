@@ -185,13 +185,13 @@ final class BookDayCloseRevenueHandlerTest extends IncomeHandlerTestCase
 
     private function remove(): void
     {
-        (new RemoveDayCloseRevenueHandler($this->entries))(new RemoveDayCloseRevenueCommand($this->organizationId(), $this->manager->getId()->toRfc4122(), $this->closeId));
+        (new RemoveDayCloseRevenueHandler($this->entries, $this->months, $this->history, $this->clock))(new RemoveDayCloseRevenueCommand($this->organizationId(), $this->manager->getId()->toRfc4122(), $this->closeId));
     }
 
     /** @param array<string, int>|null $nonCash */
     private function book(int $cashIncome = 0, ?array $nonCash = null, ?string $entryId = null, ?string $actor = null, ?string $registerId = null): void
     {
-        (new BookDayCloseRevenueHandler($this->entries, $this->registers, $this->paymentMethods, $this->clock))(new BookDayCloseRevenueCommand(
+        (new BookDayCloseRevenueHandler($this->entries, $this->registers, $this->paymentMethods, $this->months, $this->history, $this->clock))(new BookDayCloseRevenueCommand(
             $this->organizationId(),
             $actor ?? $this->employee->getId()->toRfc4122(),
             $this->closeId,

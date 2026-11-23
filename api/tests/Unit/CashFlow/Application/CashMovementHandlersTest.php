@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CashFlow\Application;
 
 use App\CashFlow\Application\CashLedgerWriter;
+use App\CashFlow\Application\ExpectedOpenings;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\Income\Application\Query\ListClosedRevenueMonths\ListClosedRevenueMonthsQuery;
+use App\Income\Domain\Model\RevenueMonthLocks;
 use App\CashFlow\Application\CashMovementViews;
 use App\CashFlow\Application\Command\DeleteCashMovement\DeleteCashMovementCommand;
 use App\CashFlow\Application\Command\DeleteCashMovement\DeleteCashMovementHandler;
@@ -113,6 +117,7 @@ final class CashMovementHandlersTest extends TestCase
             $query instanceof GetMemberQuery => (new GetMemberHandler($organizations))($query),
             $query instanceof GetOrganizationQuery => (new GetOrganizationHandler($organizations))($query),
             $query instanceof ListMembersQuery => (new ListMembersHandler($organizations))($query),
+            $query instanceof ListClosedRevenueMonthsQuery => RevenueMonthLocks::none(),
             default => throw new \LogicException(\sprintf('Unexpected query %s.', $query::class)),
         });
 
@@ -422,7 +427,9 @@ final class CashMovementHandlersTest extends TestCase
 
     private function writer(): CashLedgerWriter
     {
-        return new CashLedgerWriter($this->movements, new InMemoryCashLedger($this->movements), $this->storages, $this->denominations, $this->events);
+        $ledger = new InMemoryCashLedger($this->movements);
+
+        return new CashLedgerWriter($this->movements, $ledger, $this->storages, $this->denominations, $this->events, new IncomeMonthLock($this->queryBus, new InMemoryDayCloseRepository(), $ledger, new ExpectedOpenings($ledger, $this->denominations)));
     }
 
     private function views(): CashMovementViews

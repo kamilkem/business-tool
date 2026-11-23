@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Income\Application\Command\BookDayCloseRevenue;
 
+use App\Income\Application\RevenueEntryHistory;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
+use App\Income\Domain\Exception\RevenueMonthClosedException;
+use App\Income\Domain\Model\RevenueEntrySnapshot;
+use App\Income\Domain\Repository\RevenueMonthRepositoryInterface;
 use App\Income\Domain\Exception\RegisterNotFoundException;
 use App\Income\Domain\Exception\RevenueEntryAlreadyExistsException;
 use App\Income\Domain\Model\PaymentAmount;
@@ -36,11 +40,14 @@ final readonly class BookDayCloseRevenueHandler implements CommandHandlerInterfa
         private RevenueEntryRepositoryInterface $entries,
         private RegisterRepositoryInterface $registers,
         private PaymentMethodRepositoryInterface $paymentMethods,
+        private RevenueMonthRepositoryInterface $months,
+        private RevenueEntryHistory $history,
         private ClockInterface $clock,
     ) {
     }
 
     /**
+     * @throws RevenueMonthClosedException        when the date is in a closed month (Cash flow refuses it up front; ADR 0034 §3)
      * @throws RegisterNotFoundException          when the register is not one of the organization's
      * @throws InvalidPaymentLinesException       when a method is not one of the organization's, or no line is left
      * @throws RevenueEntryAlreadyExistsException when a manual entry of the register and date was recorded concurrently
@@ -50,6 +57,7 @@ final readonly class BookDayCloseRevenueHandler implements CommandHandlerInterfa
         $dayCloseId = Uuid::fromString($command->dayCloseId);
         $actorId = Uuid::fromString($command->actorId);
         $date = BusinessDate::fromString($command->businessDate);
+        $this->months->locks()->assertOpen($date);
         $register = $this->registers->findById(Uuid::fromString($command->registerId))
             ?? throw RegisterNotFoundException::withId($command->registerId);
         $payments = $this->payments($command);
@@ -58,18 +66,22 @@ final readonly class BookDayCloseRevenueHandler implements CommandHandlerInterfa
         $entry = $this->entries->findByDayCloseId($dayCloseId);
         if (null !== $entry && !$entry->getRegister()->getId()->equals($register->getId())) {
             $this->entries->remove($entry);
+            $this->history->deleted($entry, $dayCloseId, $actorId, $now);
             $entry = null;
         }
         $entry ??= $this->entries->findByRegisterAndDate($register->getId(), $date);
 
         if (null !== $entry) {
+            $before = RevenueEntrySnapshot::of($entry);
+            $takeover = null === $entry->getDayCloseId();
             $entry->bookDayClose($dayCloseId, $payments, $actorId, $now);
             $this->entries->save($entry);
+            $this->history->booked($before, $entry, $dayCloseId, $actorId, $now, $takeover);
 
             return;
         }
 
-        $this->entries->add(RevenueEntry::bookFromDayClose(
+        $entry = RevenueEntry::bookFromDayClose(
             Uuid::fromString($command->newEntryId),
             $dayCloseId,
             $register,
@@ -78,7 +90,9 @@ final readonly class BookDayCloseRevenueHandler implements CommandHandlerInterfa
             $payments,
             $actorId,
             $now,
-        ));
+        );
+        $this->entries->add($entry);
+        $this->history->booked(null, $entry, $dayCloseId, $actorId, $now);
     }
 
     /**

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CashFlow\Application;
 
 use App\CashFlow\Application\CashLedgerWriter;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\Income\Application\Query\ListClosedRevenueMonths\ListClosedRevenueMonthsQuery;
+use App\Income\Domain\Model\RevenueMonthLocks;
 use App\CashFlow\Application\Command\RecordCashAdjustment\RecordCashAdjustmentCommand;
 use App\CashFlow\Application\Command\RecordCashAdjustment\RecordCashAdjustmentHandler;
 use App\CashFlow\Application\Command\RecordDayClose\RecordDayCloseCommand;
@@ -150,6 +153,7 @@ final class DayCloseHandlersTest extends TestCase
                 $query instanceof GetMemberQuery => (new GetMemberHandler($organizations))($query),
                 $query instanceof GetMemberNameQuery => (new GetMemberNameHandler($organizations))($query),
                 $query instanceof GetOrganizationQuery => (new GetOrganizationHandler($organizations))($query),
+                $query instanceof ListClosedRevenueMonthsQuery => RevenueMonthLocks::none(),
                 $query instanceof ListBookableRegistersQuery => (new ListBookableRegistersHandler($registers, $entries))($query),
                 $query instanceof ListBookablePaymentMethodsQuery => (new ListBookablePaymentMethodsHandler($paymentMethods, $entries))($query),
                 $query instanceof ListRegistersQuery => (new ListRegistersHandler($registers, $entries, $bus))($query),
@@ -376,6 +380,7 @@ final class DayCloseHandlersTest extends TestCase
             $this->writer(),
             $this->offers(),
             new DayCloseRules($this->settings),
+            $this->incomeMonths(),
             $this->events,
             $this->queryBus,
             $this->clock,
@@ -450,7 +455,12 @@ final class DayCloseHandlersTest extends TestCase
 
     private function writer(): CashLedgerWriter
     {
-        return new CashLedgerWriter($this->movements, $this->ledger(), $this->storages, $this->denominations, $this->events);
+        return new CashLedgerWriter($this->movements, $this->ledger(), $this->storages, $this->denominations, $this->events, $this->incomeMonths());
+    }
+
+    private function incomeMonths(): IncomeMonthLock
+    {
+        return new IncomeMonthLock($this->queryBus, $this->closes, $this->ledger(), new ExpectedOpenings($this->ledger(), $this->denominations));
     }
 
     private function offers(): DayCloseOffers

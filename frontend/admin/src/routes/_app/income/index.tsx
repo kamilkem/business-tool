@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
-import { PlusIcon, TriangleAlertIcon } from "lucide-react"
+import { LockIcon, PlusIcon, TriangleAlertIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
@@ -24,7 +24,9 @@ import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 
 import { IncomeNav } from "@/components/income-nav"
 import { RevenueEntryDialog, type RevenueEntryTarget } from "@/components/revenue-entry-dialog"
-import { requireCapability } from "@/lib/access"
+import { RevenueChangeItem } from "@/components/revenue-entry-history"
+import { RevenueMonthCard } from "@/components/revenue-month-card"
+import { can, requireCapability } from "@/lib/access"
 import {
   type IncomeGrid,
   type IncomeSearch,
@@ -33,16 +35,28 @@ import {
   type RevenueEntry,
   type RevenueSummary,
   incomeGrid,
+  isInClosedMonth,
+  monthsOf,
   validateIncomeSearch,
   vatDifference,
   vatRateLabel,
 } from "@/lib/income"
 import { fullName } from "@/lib/members"
-import { membersQuery, paymentMethodsQuery, registersQuery, revenueEntriesQuery, revenueSummaryQuery, vatRatesQuery } from "@/lib/queries"
+import {
+  membersQuery,
+  paymentMethodsQuery,
+  registersQuery,
+  revenueEntriesQuery,
+  revenueEntryChangesQuery,
+  revenueMonthQuery,
+  revenueSummaryQuery,
+  vatRatesQuery,
+} from "@/lib/queries"
 
 /*
  * Income (ADR 0022): a month of daily reports, one per register and business date, with the
- * month's totals per payment method and VAT rate.
+ * month's totals per payment method and VAT rate. An owner closes a month once it has ended, which
+ * locks its entries; every write of an entry is kept in its history (ADR 0034).
  */
 export const Route = createFileRoute("/_app/income/")({
   validateSearch: (search: Record<string, unknown>): IncomeSearch => validateIncomeSearch(search),
@@ -60,6 +74,8 @@ export const Route = createFileRoute("/_app/income/")({
       queryClient.ensureQueryData(vatRatesQuery(organization.id)),
       queryClient.ensureQueryData(paymentMethodsQuery(organization.id)),
       queryClient.ensureQueryData(membersQuery(organization.id, true)),
+      queryClient.ensureQueryData(revenueEntryChangesQuery(organization.id, period)),
+      ...monthsOf(period).map((month) => queryClient.ensureQueryData(revenueMonthQuery(organization.id, month))),
     ])
   },
   component: IncomePage,
@@ -91,6 +107,9 @@ function IncomePage() {
   const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
   const { data: paymentMethods } = useSuspenseQuery(paymentMethodsQuery(organizationId))
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, true))
+  const months = monthsOf(period)
+  const revenueMonths = useSuspenseQueries({ queries: months.map((month) => revenueMonthQuery(organizationId, month)) })
+  const closedMonths = new Set(revenueMonths.filter(({ data }) => data.closed).map(({ data }) => data.month))
   const [dialog, setDialog] = useState<RevenueEntryTarget | null>(null)
   const { t } = useTranslation("admin")
 
@@ -143,13 +162,24 @@ function IncomePage() {
         </Alert>
       )}
 
+      {isWholeMonth(period) && months[0] && (
+        <RevenueMonthCard
+          organizationId={organizationId}
+          month={months[0]}
+          canClose={can(membership.role, "incomeClose")}
+          nameOf={nameOf}
+        />
+      )}
+
       {/* No register, active or with entries in the period: the prompt above is all there is to say. */}
       {grid.columns.length > 0 && (
         <>
           <SummaryCards summary={summary} period={period} grid={grid} />
-          <DaysCard grid={grid} period={period} onOpen={setDialog} />
+          <DaysCard grid={grid} period={period} closedMonths={closedMonths} onOpen={setDialog} />
         </>
       )}
+
+      <ChangesCard organizationId={organizationId} period={period} nameOf={nameOf} />
 
       <RevenueEntryDialog
         organizationId={organizationId}
@@ -157,6 +187,7 @@ function IncomePage() {
         paymentMethods={paymentMethods}
         vatRates={vatRates}
         nameOf={nameOf}
+        closedMonths={closedMonths}
         target={dialog}
         onTargetChange={setDialog}
         onClose={() => setDialog(null)}
@@ -168,10 +199,13 @@ function IncomePage() {
 function DaysCard({
   grid,
   period,
+  closedMonths,
   onOpen,
 }: {
   grid: IncomeGrid
   period: BusinessPeriod
+  /** YYYY-MM: their days take no new entry. */
+  closedMonths: ReadonlySet<string>
   onOpen: (target: RevenueEntryTarget) => void
 }) {
   const format = useDateTimeFormat()
@@ -211,6 +245,9 @@ function DaysCard({
                 <TableRow key={row.date} className={row.total.length === 0 ? "text-muted-foreground" : undefined}>
                   <TableCell className="pl-6 tabular-nums">
                     {format.businessDate(row.date, { weekday: "short", day: "numeric", month: "short" })}
+                    {isInClosedMonth(row.date, closedMonths) && (
+                      <LockIcon className="ml-1.5 inline size-3.5 text-muted-foreground" aria-label={t("income.days.locked")} />
+                    )}
                   </TableCell>
                   {row.cells.map((entry, index) => {
                     const column = grid.columns[index]
@@ -219,7 +256,7 @@ function DaysCard({
                       <TableCell key={column.registerId} className="py-1 text-right">
                         {entry ? (
                           <EntryCell entry={entry} onOpen={() => onOpen({ kind: "edit", entry })} />
-                        ) : column.active ? (
+                        ) : column.active && !isInClosedMonth(row.date, closedMonths) ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -388,5 +425,52 @@ function SummaryCards({
         )
       })}
     </>
+  )
+}
+
+/** How many changes the card shows before "Show all". */
+const CHANGES_SHOWN = 10
+
+/** The change history of the entries dated in the period, newest first, deleted ones included (ADR 0034 §4). */
+function ChangesCard({
+  organizationId,
+  period,
+  nameOf,
+}: {
+  organizationId: string
+  period: BusinessPeriod
+  nameOf: (userId: string) => string | null
+}) {
+  const { t } = useTranslation("admin")
+  const format = useDateTimeFormat()
+  const { data: changes } = useSuspenseQuery(revenueEntryChangesQuery(organizationId, period))
+  const [all, setAll] = useState(false)
+  const shown = all ? changes : changes.slice(0, CHANGES_SHOWN)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("income.changes.title")}</CardTitle>
+        <CardDescription>
+          {changes.length === 0
+            ? t("income.changes.none", { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) })
+            : t("income.changes.description", { count: changes.length })}
+        </CardDescription>
+      </CardHeader>
+      {changes.length > 0 && (
+        <CardContent className="flex flex-col gap-3">
+          <ol className="flex flex-col gap-3">
+            {shown.map((change) => (
+              <RevenueChangeItem key={change.id} change={change} nameOf={nameOf} showEntry />
+            ))}
+          </ol>
+          {changes.length > CHANGES_SHOWN && (
+            <Button variant="outline" className="self-start" onClick={() => setAll((value) => !value)}>
+              {all ? t("income.changes.showFewer") : t("income.changes.showAll", { count: changes.length })}
+            </Button>
+          )}
+        </CardContent>
+      )}
+    </Card>
   )
 }

@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Income\Application\Command\ChangeRevenueEntry;
 
 use App\Income\Application\IncomeActor;
+use App\Income\Application\RevenueEntryHistory;
+use App\Income\Domain\Exception\RevenueMonthClosedException;
+use App\Income\Domain\Model\RevenueEntrySnapshot;
+use App\Income\Domain\Repository\RevenueMonthRepositoryInterface;
 use App\Income\Application\RevenueLines;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
@@ -25,6 +29,8 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
     public function __construct(
         private RevenueEntryRepositoryInterface $entries,
         private PaymentMethodRepositoryInterface $paymentMethods,
+        private RevenueMonthRepositoryInterface $months,
+        private RevenueEntryHistory $history,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
     ) {
@@ -34,6 +40,7 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
      * @throws OrganizationNotFoundException      when the actor is not an active member of the organization
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws RevenueEntryNotFoundException      when the entry is not one of the organization's
+     * @throws RevenueMonthClosedException        when the entry's business date is in a closed month
      * @throws RevenueEntryBookedByDayCloseException when the entry is booked from a close and the payment lines differ
      * @throws InvalidPaymentLinesException       when the payment lines break a rule
      * @throws InvalidVatLinesException           when the VAT lines break a rule
@@ -44,7 +51,10 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
 
         $entry = Uuid::isValid($command->entryId) ? $this->entries->findById(Uuid::fromString($command->entryId)) : null;
         $entry ??= throw RevenueEntryNotFoundException::withId($command->entryId);
+        $this->months->locks()->assertOpen($entry->getBusinessDate());
 
+        $before = RevenueEntrySnapshot::of($entry);
+        $now = $this->clock->now();
         $entry->change(
             RevenueLines::payments($command->payments, $this->paymentMethods),
             RevenueLines::vat($command->vatLines),
@@ -52,9 +62,10 @@ final readonly class ChangeRevenueEntryHandler implements CommandHandlerInterfac
             $actor->organization->countryCode,
             $actor->id,
             $actor->role,
-            $this->clock->now(),
+            $now,
         );
 
         $this->entries->save($entry);
+        $this->history->changed($before, $entry, $actor->id, $now);
     }
 }

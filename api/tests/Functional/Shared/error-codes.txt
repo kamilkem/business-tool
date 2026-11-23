@@ -13,6 +13,8 @@ cash_flow.denomination_not_found
 cash_flow.denomination_not_offered.deactivated
 cash_flow.denomination_not_offered.other_currency
 cash_flow.denomination_value_taken
+cash_flow.income_month_closed.for_date
+cash_flow.income_month_closed.recalculated_close
 cash_flow.invalid_day_close.amount
 cash_flow.invalid_day_close.cash_income
 cash_flow.invalid_day_close.duplicate_denomination
@@ -99,6 +101,11 @@ income.revenue_entry_already_exists
 income.revenue_entry_booked_by_day_close
 income.revenue_entry_in_the_future
 income.revenue_entry_not_found
+income.revenue_month_already_closed
+income.revenue_month_close_forbidden
+income.revenue_month_closed
+income.revenue_month_not_closed
+income.revenue_month_not_ended
 income.revenue_period_too_long
 ksef.connection_forbidden.to_manage_token
 ksef.connection_forbidden.to_use

@@ -164,7 +164,7 @@ final class RecordRevenueEntryHandlerTest extends IncomeHandlerTestCase
     private function handle(User $actor, string $businessDate, ?array $payments = null, array $vatLines = [], ?string $note = null, ?string $registerId = null): string
     {
         $entryId = Uuid::v7()->toRfc4122();
-        $handler = new RecordRevenueEntryHandler($this->entries, $this->paymentMethods, $this->registers, $this->queryBus, $this->clock);
+        $handler = new RecordRevenueEntryHandler($this->entries, $this->paymentMethods, $this->registers, $this->months, $this->history, $this->queryBus, $this->clock);
         $handler(new RecordRevenueEntryCommand(
             $this->organizationId(),
             $actor->getId()->toRfc4122(),

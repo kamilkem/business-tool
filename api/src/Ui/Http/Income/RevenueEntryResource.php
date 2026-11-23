@@ -84,12 +84,12 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             uriTemplate: '/revenue-entries',
             openapi: new Operation(
                 summary: "Records a register's daily report for a business date.",
-                description: 'Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization\'s (404) and active (422); the business date may not be after today in the organization\'s time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422); the methods are the organization\'s (GET /payment-methods, 422 otherwise) and active (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization\'s.',
+                description: 'Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization\'s (404) and active (422); the business date may not be after today in the organization\'s time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422); the methods are the organization\'s (GET /payment-methods, 422 otherwise) and active (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization\'s. A business date in a closed month is a 409 (ADR 0034). Every write is kept in the change history (GET /revenue-entry-changes).',
                 responses: [
                     '201' => new Response('The recorded entry.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The register is not one of the selected organization\'s.'),
-                    '409' => new Response('The register already has an entry for the business date.'),
+                    '409' => new Response('The register already has an entry for the business date, or the business date is in a closed month.'),
                     '422' => new Response('A field is missing or invalid, the register is deactivated, the date is in the future, or a line breaks a rule.'),
                 ],
             ),
@@ -103,11 +103,11 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: "Corrects an entry's payment lines, VAT lines and note.",
-                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing. An entry booked from an end-of-day close (dayCloseId) keeps the payment lines the close wrote: changing them is a 409, while its VAT lines and note may be corrected.',
+                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing. An entry booked from an end-of-day close (dayCloseId) keeps the payment lines the close wrote: changing them is a 409, while its VAT lines and note may be corrected. An entry of a closed month cannot change at all (409), even with the values it has.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The entry is not one of the selected organization\'s.'),
-                    '409' => new Response('The entry is booked from an end-of-day close and the payment lines differ from the close\'s.'),
+                    '409' => new Response('The entry\'s month is closed, or the entry is booked from an end-of-day close and the payment lines differ from the close\'s.'),
                     '422' => new Response('A field is invalid or a line breaks a rule.'),
                 ],
             ),
@@ -121,12 +121,12 @@ use Ui\Http\Income\Provider\UpdateRevenueEntryInputProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: 'Deletes a revenue entry.',
-                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. The entry and its lines are removed and no trace is kept (ADR 0022 §8). An entry booked from an end-of-day close (dayCloseId) goes only with its close (409).',
+                description: 'Owners and managers only (403 otherwise); an entry that is not the selected organization\'s is a 404. The entry and its lines are removed. An entry booked from an end-of-day close (dayCloseId) goes only with its close (409), and an entry of a closed month stays (409). The change history keeps the deleted entry (GET /revenue-entry-changes).',
                 responses: [
                     '204' => new Response('The entry was deleted.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The entry is not one of the selected organization\'s.'),
-                    '409' => new Response('The entry is booked from an end-of-day close.'),
+                    '409' => new Response('The entry\'s month is closed, or the entry is booked from an end-of-day close.'),
                 ],
             ),
             read: false,
@@ -164,6 +164,8 @@ final readonly class RevenueEntryResource
          * entry. Its payment lines change only through the close; its VAT lines and note stay editable.
          */
         public ?string $dayCloseId,
+        /** Whether the entry's month is closed (GET /revenue-months/{month}): it cannot change until an owner reopens it (ADR 0034). */
+        public bool $monthClosed,
         /** Who recorded the entry: an owner or manager, or the member of any role who closed the day. */
         public string $createdBy,
         public \DateTimeImmutable $createdAt,
@@ -194,6 +196,7 @@ final readonly class RevenueEntryResource
             vatTotal: $view->vatTotal,
             note: $view->note,
             dayCloseId: $view->dayCloseId,
+            monthClosed: $view->monthClosed,
             createdBy: $view->createdBy,
             createdAt: $view->createdAt,
             updatedBy: $view->updatedBy,

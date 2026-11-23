@@ -32,18 +32,30 @@ final readonly class ExpectedOpenings
     {
         $openings = [];
         foreach ($storages as $storage) {
-            $pieces = $this->ledger->balanceOf($storage->getId(), $position)->pieces;
-            $denominations = $this->denominations->findByIds(array_map(strval(...), array_keys($pieces)));
-            $value = 0;
-            foreach ($pieces as $denominationId => $count) {
-                $denomination = $denominations[(string) $denominationId] ?? throw new \LogicException('Denomination expected.');
-                if ($denomination->getCurrency() === $currency) {
-                    $value += $count * $denomination->getValue();
-                }
-            }
-            $openings[$storage->getId()->toRfc4122()] = $value;
+            $openings[$storage->getId()->toRfc4122()] = $this->valueOf($this->ledger->balanceOf($storage->getId(), $position)->pieces, $currency);
         }
 
         return $openings;
+    }
+
+    /**
+     * The value of pieces in the currency; pieces of another currency count as nothing.
+     *
+     * @param array<array-key, int> $pieces by denomination id
+     *
+     * @return int minor units
+     */
+    public function valueOf(array $pieces, string $currency): int
+    {
+        $denominations = $this->denominations->findByIds(array_map(strval(...), array_keys($pieces)));
+        $value = 0;
+        foreach ($pieces as $denominationId => $count) {
+            $denomination = $denominations[(string) $denominationId] ?? throw new \LogicException('Denomination expected.');
+            if ($denomination->getCurrency() === $currency) {
+                $value += $count * $denomination->getValue();
+            }
+        }
+
+        return $value;
     }
 }

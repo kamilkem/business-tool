@@ -6,6 +6,8 @@ namespace App\CashFlow\Application\Command\DeleteDayClose;
 
 use App\CashFlow\Application\CashFlowActor;
 use App\CashFlow\Application\CashLedgerWriter;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\CashFlow\Domain\Exception\IncomeMonthClosedException;
 use App\CashFlow\Domain\Event\DayCloseDeleted;
 use App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException;
 use App\CashFlow\Domain\Exception\DayCloseNotFoundException;
@@ -27,6 +29,7 @@ final readonly class DeleteDayCloseHandler implements CommandHandlerInterface
     public function __construct(
         private DayCloseRepositoryInterface $closes,
         private CashLedgerWriter $ledger,
+        private IncomeMonthLock $incomeMonths,
         private EventPublisherInterface $events,
         private QueryBusInterface $queryBus,
     ) {
@@ -36,6 +39,7 @@ final readonly class DeleteDayCloseHandler implements CommandHandlerInterface
      * @throws OrganizationNotFoundException    when the actor is not an active member of the organization
      * @throws CashFlowAccessForbiddenException when the actor is not an owner or manager
      * @throws DayCloseNotFoundException        when the close is not one of the organization's
+     * @throws IncomeMonthClosedException       when the close is in a closed Income month, or deleting it changes the cash income of one that is
      * @throws StorageBalanceNegativeException  when a deposit storage would go below zero without it
      */
     public function __invoke(DeleteDayCloseCommand $command): void
@@ -44,6 +48,7 @@ final readonly class DeleteDayCloseHandler implements CommandHandlerInterface
         $close = (Uuid::isValid($command->dayCloseId) ? $this->closes->findById(Uuid::fromString($command->dayCloseId)) : null)
             ?? throw DayCloseNotFoundException::withId($command->dayCloseId);
         $close->assertCanDelete($actor->id, $actor->role);
+        $this->incomeMonths->assertOpen($close->getBusinessDate());
         $this->ledger->assertDeletedCloseNeverNegative($close);
 
         $this->closes->remove($close);

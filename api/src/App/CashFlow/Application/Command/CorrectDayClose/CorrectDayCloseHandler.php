@@ -8,6 +8,8 @@ use App\CashFlow\Application\CashFlowActor;
 use App\CashFlow\Application\CashLedgerWriter;
 use App\CashFlow\Application\DayCloseBooking;
 use App\CashFlow\Application\ExpectedOpenings;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\CashFlow\Domain\Exception\IncomeMonthClosedException;
 use App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException;
 use App\CashFlow\Domain\Exception\DayCloseNotFoundException;
 use App\CashFlow\Domain\Exception\DenominationNotFoundException;
@@ -41,6 +43,7 @@ final readonly class CorrectDayCloseHandler implements CommandHandlerInterface
         private DenominationRepositoryInterface $denominations,
         private ExpectedOpenings $openings,
         private CashLedgerWriter $ledger,
+        private IncomeMonthLock $incomeMonths,
         private DayCloseBooking $booking,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
@@ -55,6 +58,7 @@ final readonly class CorrectDayCloseHandler implements CommandHandlerInterface
      * @throws DenominationNotFoundException    when a denomination is not one of the organization's
      * @throws DenominationNotOfferedException  when a denomination is in another currency, or deactivated and not in the close
      * @throws InvalidDayCloseException         when the correction does not cover what the close covers
+     * @throws IncomeMonthClosedException       when the close is in a closed Income month, or the correction changes the cash income of one that is
      * @throws StorageBalanceNegativeException  when a deposit storage would go below zero
      */
     public function __invoke(CorrectDayCloseCommand $command): void
@@ -62,6 +66,7 @@ final readonly class CorrectDayCloseHandler implements CommandHandlerInterface
         $actor = CashFlowActor::managing($this->queryBus, $command->organizationId, $command->actorId);
         $close = (Uuid::isValid($command->dayCloseId) ? $this->closes->findById(Uuid::fromString($command->dayCloseId)) : null)
             ?? throw DayCloseNotFoundException::withId($command->dayCloseId);
+        $this->incomeMonths->assertOpen($close->getBusinessDate());
 
         $counts = array_map(
             fn (array $storage): StorageCount => new StorageCount($this->ledger->storage($storage['storageId']), $this->ledger->pieces($storage['lines'])),

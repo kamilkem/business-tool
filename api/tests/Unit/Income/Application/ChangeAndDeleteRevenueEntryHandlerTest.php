@@ -130,14 +130,14 @@ final class ChangeAndDeleteRevenueEntryHandlerTest extends IncomeHandlerTestCase
      */
     private function change(User $actor, string $entryId, array $payments, array $vatLines = [], ?string $note = null): void
     {
-        (new ChangeRevenueEntryHandler($this->entries, $this->paymentMethods, $this->queryBus, $this->clock))(
+        (new ChangeRevenueEntryHandler($this->entries, $this->paymentMethods, $this->months, $this->history, $this->queryBus, $this->clock))(
             new ChangeRevenueEntryCommand($this->organizationId(), $actor->getId()->toRfc4122(), $entryId, $payments, $vatLines, $note),
         );
     }
 
     private function delete(User $actor, string $entryId): void
     {
-        (new DeleteRevenueEntryHandler($this->entries, $this->queryBus))(
+        (new DeleteRevenueEntryHandler($this->entries, $this->queryBus, $this->months, $this->history, $this->clock))(
             new DeleteRevenueEntryCommand($this->organizationId(), $actor->getId()->toRfc4122(), $entryId),
         );
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Income\Domain\Model;
 
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
+use App\Income\Domain\Exception\RevenueMonthCloseForbiddenException;
 use App\Organization\Domain\Model\MembershipRole;
 use Symfony\Component\Uid\Uuid;
 
@@ -20,6 +21,14 @@ final class IncomeAccess
     {
         if (!$actorRole->canManageOrganization()) {
             throw IncomeManagementForbiddenException::forUser($actorId->toRfc4122());
+        }
+    }
+
+    /** @throws RevenueMonthCloseForbiddenException when the role is not owner (ADR 0034 §1) */
+    public static function assertCanCloseMonths(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        if (MembershipRole::Owner !== $actorRole) {
+            throw RevenueMonthCloseForbiddenException::forUser($actorId->toRfc4122());
         }
     }
 }

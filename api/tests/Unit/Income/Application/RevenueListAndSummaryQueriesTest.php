@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Income\Application;
 
 use App\Income\Application\Query\GetRevenueEntry\RevenueEntryView;
+use App\Income\Domain\Model\RevenueMonthLocks;
 use App\Income\Application\Query\GetRevenueEntry\RevenueVatLineView;
 use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryHandler;
 use App\Income\Application\Query\GetRevenueSummary\GetRevenueSummaryQuery;
@@ -54,7 +55,7 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
 
         $views = $this->list($this->manager->getId()->toRfc4122(), '2026-10-01', '2026-10-31');
 
-        self::assertEquals([RevenueEntryView::fromEntry($inPeriod)], $views);
+        self::assertEquals([RevenueEntryView::fromEntry($inPeriod, RevenueMonthLocks::none())], $views);
     }
 
     public function test_it_lists_one_registers_entries(): void
@@ -213,7 +214,7 @@ final class RevenueListAndSummaryQueriesTest extends IncomeHandlerTestCase
     /** @return list<RevenueEntryView>|null */
     private function list(string $actorId, string $from, string $to, ?string $registerId = null): ?array
     {
-        return (new ListRevenueEntriesHandler($this->entries, $this->registers, $this->queryBus))(
+        return (new ListRevenueEntriesHandler($this->entries, $this->months, $this->registers, $this->queryBus))(
             new ListRevenueEntriesQuery($this->organizationId(), $actorId, $from, $to, $registerId),
         );
     }

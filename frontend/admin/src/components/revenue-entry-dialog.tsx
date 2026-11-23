@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Trash2Icon, TriangleAlertIcon } from "lucide-react"
+import { LockIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -41,9 +41,11 @@ import { Textarea } from "@business-tool/ui/components/textarea"
 import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useOrganizationCurrency } from "@business-tool/ui/hooks/use-organization-currency"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { monthOf } from "@business-tool/ui/lib/date-time"
 import { type MinorUnits, type MoneyParseError, formatMoney, moneyErrorMessage } from "@business-tool/ui/lib/money"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { RevenueEntryHistory } from "@/components/revenue-entry-history"
 import { api } from "@/lib/api"
 import {
   type EntryFormErrors,
@@ -61,6 +63,7 @@ import {
   formPaymentsTotal,
   formVatGross,
   isDuplicateEntry,
+  isInClosedMonth,
   vatDifference,
   vatRateLabel,
 } from "@/lib/income"
@@ -86,6 +89,8 @@ interface RevenueEntryDialogProps {
   vatRates: VatRate[]
   /** Who recorded or changed an entry: a name, or null for the signed-in user. */
   nameOf: (userId: string) => string | null
+  /** The closed months (YYYY-MM) the page knows of: a new entry is not offered in them (ADR 0034 §2). */
+  closedMonths: ReadonlySet<string>
   /** The dialog is open while there is a target. */
   target: RevenueEntryTarget | null
   /** Switches the dialog to another target (the existing entry after a 409). */
@@ -117,6 +122,7 @@ function EntryForm({
   paymentMethods,
   vatRates,
   nameOf,
+  closedMonths,
   target,
   onTargetChange,
   onDone,
@@ -129,6 +135,8 @@ function EntryForm({
   const editing = target.kind === "edit" ? target.entry : null
   // An entry booked from an end-of-day close keeps the close's payment lines (ADR 0033 §9).
   const booked = editing !== null && editing.dayCloseId !== null
+  // An entry of a closed month cannot change until an owner reopens the month (ADR 0034 §2).
+  const locked = editing?.monthClosed === true
   // An entry keeps the currency it was recorded in (ADR 0022 §5).
   const currency = editing?.currency ?? organizationCurrency
   const money = (minor: MinorUnits) => formatMoney(minor, currency, locale)
@@ -266,6 +274,9 @@ function EntryForm({
     setDuplicate(false)
     if (Object.keys(parseErrors).length > 0) return
 
+    if (!editing && isInClosedMonth(values.businessDate, closedMonths)) {
+      return setErrors({ businessDate: t("income.entry.dateInClosedMonth", { month: format.period(monthOf(values.businessDate)) }) })
+    }
     const result = entryLines(values, methods, vatRates, today)
     if (!result.ok) return setErrors(result.errors)
     setErrors({})
@@ -298,7 +309,7 @@ function EntryForm({
             <>
               {by(editing.createdBy, format.dateTime(editing.createdAt), "createdBy")}
               {editing.updatedBy && editing.updatedAt && `; ${by(editing.updatedBy, format.dateTime(editing.updatedAt), "updatedBy")}`}
-              . {booked ? t("income.entry.bookedFromClose") : t("income.entry.fixed")}
+              . {locked ? "" : booked ? t("income.entry.bookedFromClose") : t("income.entry.fixed")}
               {editing.dayCloseId !== null && (
                 <>
                   {" "}
@@ -318,7 +329,14 @@ function EntryForm({
         </DialogDescription>
       </DialogHeader>
 
-      <fieldset disabled={pending} className="py-4">
+      {locked && editing && (
+        <div role="status" className="mt-4 flex items-start gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
+          <LockIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <span>{t("income.entry.monthClosed", { month: format.period(monthOf(editing.businessDate)) })}</span>
+        </div>
+      )}
+
+      <fieldset disabled={pending || locked} className="py-4">
         <FieldGroup>
           {!editing && (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -507,8 +525,10 @@ function EntryForm({
         </FieldGroup>
       </fieldset>
 
-      <DialogFooter className="sm:justify-between">
-        {editing && !booked ? (
+      {editing && <RevenueEntryHistory organizationId={organizationId} entryId={editing.id} nameOf={nameOf} />}
+
+      <DialogFooter className="mt-4 sm:justify-between">
+        {editing && !booked && !locked ? (
           <Button type="button" variant="ghost" className="text-destructive" disabled={pending} onClick={() => setConfirmDelete(true)}>
             <Trash2Icon />
             {t("common.delete")}
@@ -516,9 +536,15 @@ function EntryForm({
         ) : (
           <span />
         )}
+        {locked ? (
+          <Button type="button" variant="outline" onClick={onDone}>
+            {t("income.entry.closeDialog")}
+          </Button>
+        ) : (
         <Button type="submit" disabled={pending}>
           {record.isPending || update.isPending ? t("common.saving", { ns: "ui" }) : editing ? t("common.save") : t("income.addEntry")}
         </Button>
+        )}
       </DialogFooter>
 
       {editing && !booked && (

@@ -95,6 +95,11 @@ api_platform:
         App\Income\Domain\Exception\PaymentMethodInUseException: 409
         App\Income\Domain\Exception\PaymentMethodOrderMismatchException: 409
         App\Income\Domain\Exception\CashPaymentMethodTakenException: 409
+        App\Income\Domain\Exception\RevenueMonthClosedException: 409
+        App\Income\Domain\Exception\RevenueMonthCloseForbiddenException: 403
+        App\Income\Domain\Exception\RevenueMonthNotEndedException: 409
+        App\Income\Domain\Exception\RevenueMonthAlreadyClosedException: 409
+        App\Income\Domain\Exception\RevenueMonthNotClosedException: 409
         App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException: 403
         App\CashFlow\Domain\Exception\InvalidDenominationValueException: 422
         App\CashFlow\Domain\Exception\DenominationValueTakenException: 409
@@ -113,6 +118,7 @@ api_platform:
         App\CashFlow\Domain\Exception\AuditCountNeedsDepositStorageException: 409
         App\CashFlow\Domain\Exception\StorageBalanceNegativeException: 409
         App\CashFlow\Domain\Exception\InvalidDayEndTimeException: 422
+        App\CashFlow\Domain\Exception\IncomeMonthClosedException: 409
         App\CashFlow\Domain\Exception\InvalidDayCloseDateException: 422
         App\CashFlow\Domain\Exception\InvalidDayCloseException: 422
         App\CashFlow\Domain\Exception\DayAlreadyClosedException: 409

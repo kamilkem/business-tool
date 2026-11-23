@@ -133,6 +133,23 @@ export const revenueSummaryQuery = (organizationId: string, period: BusinessPeri
     queryFn: () => unwrap(api.GET("/api/revenue-summary", { params: { query: period } })),
   })
 
+/** One month of income (GET /revenue-months/{month}, YYYY-MM): open or closed, and every close and reopen (ADR 0034). */
+export const revenueMonthQuery = (organizationId: string, month: string) =>
+  queryOptions({
+    queryKey: ["revenue-months", organizationId, month],
+    queryFn: () => unwrap(api.GET("/api/revenue-months/{month}", { params: { path: { month } } })),
+  })
+
+/**
+ * The change history of revenue entries, newest first (GET /revenue-entry-changes): one entry's, or
+ * that of the entries dated in a period, deleted ones included (ADR 0034 §4).
+ */
+export const revenueEntryChangesQuery = (organizationId: string, scope: { entryId: string } | BusinessPeriod) =>
+  queryOptions({
+    queryKey: ["revenue-entry-changes", organizationId, scope],
+    queryFn: () => unwrap(api.GET("/api/revenue-entry-changes", { params: { query: scope } })),
+  })
+
 /** The VAT rates of the organization's country (ADR 0022 §6); empty when the country has none. */
 export const vatRatesQuery = (organizationId: string) =>
   queryOptions({
@@ -146,6 +163,7 @@ export function invalidateRevenue(queryClient: QueryClient, organizationId: stri
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ["revenue-entries", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["revenue-summary", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["revenue-entry-changes", organizationId] }),
     // Whether a payment method is used (and so can be deleted) follows the entries.
     queryClient.invalidateQueries({ queryKey: ["payment-methods", organizationId] }),
     // So does whether a register has entries.

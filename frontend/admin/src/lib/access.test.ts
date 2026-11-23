@@ -34,7 +34,7 @@ describe("can", () => {
   })
 
   it("test_it_lets_employees_use_no_admin_screen", () => {
-    for (const capability of [...CAPABILITIES, "ksefToken" as const, "payrollApprove" as const]) {
+    for (const capability of [...CAPABILITIES, "ksefToken" as const, "payrollApprove" as const, "incomeClose" as const]) {
       expect(can("employee", capability)).toBe(false)
     }
   })
@@ -50,6 +50,13 @@ describe("can", () => {
     expect(can("manager", "payrollApprove")).toBe(false)
     expect(can("manager", "payroll")).toBe(true)
     expect(can(null, "payrollApprove")).toBe(false)
+  })
+
+  it("test_it_lets_only_owners_close_and_reopen_an_income_month", () => {
+    expect(can("owner", "incomeClose")).toBe(true)
+    expect(can("manager", "incomeClose")).toBe(false)
+    expect(can("manager", "income")).toBe(true)
+    expect(can(null, "incomeClose")).toBe(false)
   })
 
   it("test_it_lets_no_role_use_anything_when_no_organization_is_selected", () => {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Income\Application\Query\GetRevenueEntry;
 
 use App\Income\Domain\Model\RevenueEntry;
+use App\Income\Domain\Model\RevenueMonthLocks;
 use App\Income\Domain\Model\VatAmount;
 
 /**
@@ -31,6 +32,8 @@ final readonly class RevenueEntryView
         public ?string $note,
         /** The end-of-day close the entry is booked from (ADR 0033 §9); null for a manual entry. */
         public ?string $dayCloseId,
+        /** Whether the entry's month is closed, which locks it (ADR 0034 §2). */
+        public bool $monthClosed,
         public string $createdBy,
         public \DateTimeImmutable $createdAt,
         public ?string $updatedBy,
@@ -38,7 +41,7 @@ final readonly class RevenueEntryView
     ) {
     }
 
-    public static function fromEntry(RevenueEntry $entry): self
+    public static function fromEntry(RevenueEntry $entry, RevenueMonthLocks $locks): self
     {
         $vatLines = $entry->getVatLines();
 
@@ -55,6 +58,7 @@ final readonly class RevenueEntryView
             array_sum(array_map(static fn (VatAmount $line): int => $line->vat, $vatLines)),
             $entry->getNote(),
             $entry->getDayCloseId()?->toRfc4122(),
+            $locks->isClosed($entry->getBusinessDate()),
             $entry->getCreatedBy()->toRfc4122(),
             $entry->getCreatedAt(),
             $entry->getUpdatedBy()?->toRfc4122(),

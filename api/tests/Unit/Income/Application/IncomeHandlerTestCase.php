@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Income\Application;
 
 use App\Income\Application\Query\GetRevenueEntry\RevenuePaymentLineView;
+use App\Income\Application\RevenueEntryHistory;
+use App\Income\Domain\Model\RevenueMonth;
+use App\Shared\Domain\Time\BusinessPeriod;
 use App\Income\Domain\Model\PaymentAmount;
 use App\Income\Domain\Model\PaymentMethod;
 use App\Income\Domain\Model\Register;
@@ -42,6 +45,9 @@ abstract class IncomeHandlerTestCase extends TestCase
     protected InMemoryOrganizationRepository $organizations;
     protected InMemoryRegisterRepository $registers;
     protected InMemoryRevenueEntryRepository $entries;
+    protected InMemoryRevenueMonthRepository $months;
+    protected InMemoryRevenueEntryChangeRepository $changes;
+    protected RevenueEntryHistory $history;
     protected InMemoryPaymentMethodRepository $paymentMethods;
     protected PaymentMethod $cash;
     protected PaymentMethod $card;
@@ -60,6 +66,9 @@ abstract class IncomeHandlerTestCase extends TestCase
         $this->organizations = new InMemoryOrganizationRepository();
         $this->registers = new InMemoryRegisterRepository();
         $this->entries = new InMemoryRevenueEntryRepository();
+        $this->months = new InMemoryRevenueMonthRepository();
+        $this->changes = new InMemoryRevenueEntryChangeRepository();
+        $this->history = new RevenueEntryHistory($this->changes);
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -82,6 +91,15 @@ abstract class IncomeHandlerTestCase extends TestCase
             $query instanceof GetOrganizationQuery => (new GetOrganizationHandler($organizations))($query),
             default => throw new \LogicException(\sprintf('Unexpected query %s.', $query::class)),
         });
+    }
+
+    /** An owner closed the month (YYYY-MM) on 2026-11-05. */
+    protected function closeMonth(string $month): RevenueMonth
+    {
+        $closed = RevenueMonth::closeFirst(Uuid::v7(), BusinessPeriod::monthFromString($month), $this->owner->getId(), MembershipRole::Owner, BusinessDate::fromString(self::TODAY_IN_WARSAW), new \DateTimeImmutable('2026-11-05 10:00:00'));
+        $this->months->add($closed);
+
+        return $closed;
     }
 
     protected function organizationId(): string

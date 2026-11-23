@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Income\Application\Command\RecordRevenueEntry;
 
 use App\Income\Application\IncomeActor;
+use App\Income\Application\RevenueEntryHistory;
+use App\Income\Domain\Exception\RevenueMonthClosedException;
+use App\Income\Domain\Repository\RevenueMonthRepositoryInterface;
 use App\Income\Application\RevenueLines;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\InvalidPaymentLinesException;
@@ -35,6 +38,8 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
         private RevenueEntryRepositoryInterface $entries,
         private PaymentMethodRepositoryInterface $paymentMethods,
         private RegisterRepositoryInterface $registers,
+        private RevenueMonthRepositoryInterface $months,
+        private RevenueEntryHistory $history,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
     ) {
@@ -45,6 +50,7 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws RegisterNotFoundException          when the register is not one of the organization's
      * @throws InvalidBusinessDateException       when the business date is not a YYYY-MM-DD calendar date
+     * @throws RevenueMonthClosedException        when the business date is in a closed month
      * @throws RegisterDeactivatedException       when the register is deactivated
      * @throws RevenueEntryInTheFutureException   when the business date is after today
      * @throws InvalidPaymentLinesException       when the payment lines break a rule
@@ -58,11 +64,14 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
         $register = Uuid::isValid($command->registerId) ? $this->registers->findById(Uuid::fromString($command->registerId)) : null;
         $register ??= throw RegisterNotFoundException::withId($command->registerId);
 
+        $businessDate = BusinessDate::fromString($command->businessDate);
+        $this->months->locks()->assertOpen($businessDate);
+
         $now = $this->clock->now();
         $entry = RevenueEntry::record(
             Uuid::fromString($command->entryId),
             $register,
-            BusinessDate::fromString($command->businessDate),
+            $businessDate,
             $actor->organization->currency,
             $actor->organization->countryCode,
             RevenueLines::payments($command->payments, $this->paymentMethods),
@@ -80,5 +89,6 @@ final readonly class RecordRevenueEntryHandler implements CommandHandlerInterfac
         }
 
         $this->entries->add($entry);
+        $this->history->created($entry, $actor->id, $now);
     }
 }

@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Income\Application\Command\DeleteRevenueEntry;
 
 use App\Income\Application\IncomeActor;
+use App\Income\Application\RevenueEntryHistory;
+use App\Income\Domain\Exception\RevenueMonthClosedException;
+use App\Income\Domain\Repository\RevenueMonthRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\RevenueEntryBookedByDayCloseException;
 use App\Income\Domain\Exception\RevenueEntryNotFoundException;
@@ -19,6 +23,9 @@ final readonly class DeleteRevenueEntryHandler implements CommandHandlerInterfac
     public function __construct(
         private RevenueEntryRepositoryInterface $entries,
         private QueryBusInterface $queryBus,
+        private RevenueMonthRepositoryInterface $months,
+        private RevenueEntryHistory $history,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -26,6 +33,7 @@ final readonly class DeleteRevenueEntryHandler implements CommandHandlerInterfac
      * @throws OrganizationNotFoundException      when the actor is not an active member of the organization
      * @throws IncomeManagementForbiddenException when the actor is not an owner or manager
      * @throws RevenueEntryNotFoundException         when the entry is not one of the organization's
+     * @throws RevenueMonthClosedException           when the entry's business date is in a closed month
      * @throws RevenueEntryBookedByDayCloseException when the entry is booked from an end-of-day close
      */
     public function __invoke(DeleteRevenueEntryCommand $command): void
@@ -34,8 +42,10 @@ final readonly class DeleteRevenueEntryHandler implements CommandHandlerInterfac
 
         $entry = Uuid::isValid($command->entryId) ? $this->entries->findById(Uuid::fromString($command->entryId)) : null;
         $entry ??= throw RevenueEntryNotFoundException::withId($command->entryId);
+        $this->months->locks()->assertOpen($entry->getBusinessDate());
         $entry->assertCanDelete($actor->id, $actor->role);
 
         $this->entries->remove($entry);
+        $this->history->deleted($entry, null, $actor->id, $this->clock->now());
     }
 }
