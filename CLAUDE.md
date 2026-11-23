@@ -157,6 +157,7 @@ GitHub Actions in `.github/workflows/`; guard logic in `.github/scripts/`, runna
 | `pr-guards.yaml` | every PR | no new suppressions (`@phpstan-ignore`, `ignoreErrors`, baselines, lint/TS disables, skipped tests, Deptrac `skip_violations`), no net drop in tests (PHPUnit methods plus Vitest cases); merged migrations are never edited | `make guards` |
 | `secret-scan.yaml` | PRs, `main` | gitleaks on the PR's commits | — |
 | `adr-hygiene.yaml` | changes under `adr/` | ADR numbering, statuses, index | `make adr-check` |
+| `deploy.yaml` | CI passed on `main` (staging); `v*` tags, with the owner's approval (production); manual | builds the stage's image, smoke-tests and pushes it, deploys it over SSH and checks it over HTTPS (ADR 0035, `deploy/README.md`) | `make deploy` |
 
 - The only way past `pr-guards` is the `intentional-exception` label on the PR, with the reason in the PR description and in a comment next to the suppression.
 - CI runs on the runner, not in Docker (except the production-image job): when bumping PHP, Node or PostgreSQL in `api/Dockerfile`, `compose.yaml` or `deploy/`, bump `.github/workflows/ci.yaml` too.

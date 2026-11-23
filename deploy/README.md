@@ -15,21 +15,45 @@ Each folder has a `.env` with its Compose variables (from `.env.example`); a sta
 (from `app.env.example`, root-only) and `jwt/` with its keypair. Real values live in the stage's
 GitHub Environment and in the owner's password manager, never in the repository.
 
-## Order
+## Deploys
 
-1. Edge: `docker compose -p business-tool-edge up -d` in `/srv/business-tool/edge`. The scripts in
-   `edge/initdb` create the stages' databases and roles the first time only (empty data directory).
-2. A stage, from its folder (`<stage>` is `production` or `staging`):
+`.github/workflows/deploy.yaml` (#36) deploys:
 
-   ```bash
-   docker compose -p business-tool-<stage> pull
-   docker compose -p business-tool-<stage> run --rm php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
-   docker compose -p business-tool-<stage> up -d
-   docker compose -p business-tool-<stage> exec php bin/console messenger:stop-workers
-   ```
+- **staging** after CI passes for a push to `main`;
+- **production** for a `v*` tag on `main` whose CI passed, once the owner approves it in the
+  `production` GitHub Environment (`git tag v0.1.0 && git push origin v0.1.0`);
+- either stage from the Actions tab (*Run workflow*).
 
-   Migrations run once per deploy, as their own step; the image's entrypoint never runs them.
-3. Staging can be stopped when not in use: `docker compose -p business-tool-staging stop`.
+Each run builds the stage's image (`ghcr.io/kamilkem/business-tool-api:<stage>-<commit>`), smoke-tests
+it, pushes it, and runs [`deploy.sh`](deploy.sh) over SSH as `deploy`:
+
+1. writes `compose.yaml`, `.env`, `app.env` (mode 600, from [`stage/<stage>.env`](stage) plus the
+   stage's secrets) and `jwt/` into `/srv/business-tool/<stage>`;
+2. pulls the image and runs `doctrine:migrations:migrate --all-or-nothing` once, in a one-off container;
+3. starts the stage and restarts both workers so they run the new code (they finish the current message
+   first; this is what `messenger:stop-workers` is for elsewhere);
+4. waits for `php` to be healthy, prunes images older than three days;
+5. checks over HTTPS that both apps answer and that a login with unknown credentials gets `401` (PHP and
+   the database work). A failed check fails the job.
+
+The edge project (`edge/`) is not part of a deploy: it changes rarely and by hand
+([`host/README.md`](host/README.md)).
+
+**From a workstation**, with the secrets folder of `host/generate-secrets.sh` and the deploy key:
+
+```bash
+make deploy STAGE=staging API_IMAGE=ghcr.io/kamilkem/business-tool-api:staging-<commit> SECRETS_DIR=$HOME/business-tool-secrets
+```
+
+**Staging can be stopped** when not in use: `docker compose -p business-tool-staging stop` in
+`/srv/business-tool/staging` (as `deploy`).
+
+## Rollback
+
+Run the workflow again for the previous good commit or tag (*Run workflow* on that ref, or re-run its
+old deploy job): the image is rebuilt from that commit. Migrations only go forward, so rolling back
+across a migration means fixing forward instead: a new migration, or a revert of the change in a new
+commit. Images stay in the registry, so `make deploy` with an older `API_IMAGE` works too.
 
 ## Images
 
