@@ -6,3 +6,10 @@
 var/
 vendor/
 config/jwt/*.pem
+
+# Not needed at runtime: the production image runs no tests or static analysis (adr/0035).
+tests/
+phpunit.dist.xml
+phpstan.dist.neon
+deptrac.yaml
+.deptrac.cache

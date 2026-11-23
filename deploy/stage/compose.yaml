@@ -1,0 +1,55 @@
+# One stage (staging or production) of adr/0035: the API and both SPAs (`php`) and the two workers,
+# all from one image. Lives at /srv/business-tool/<stage>/compose.yaml next to:
+#   .env      Compose variables: STAGE and API_IMAGE (deploy/stage/.env.example)
+#   app.env   the app's configuration and secrets, root-only (deploy/stage/app.env.example)
+#   jwt/      the stage's JWT keypair, private.pem and public.pem
+# Run as `docker compose -p business-tool-<stage> up -d` from that folder. The edge project
+# (deploy/edge) must be up first: it owns the network, the database and ports 80/443.
+
+x-logging: &logging
+    driver: json-file
+    options:
+        max-size: "10m"
+        max-file: "3"
+
+x-app: &app
+    image: ${API_IMAGE:?set API_IMAGE in .env}
+    restart: unless-stopped
+    env_file: [ app.env ]
+    logging: *logging
+    networks: [ business-tool ]
+
+services:
+    php:
+        <<: *app
+        volumes:
+            - ./jwt:/app/config/jwt:ro
+        networks:
+            business-tool:
+                # The edge Caddy proxies to `<stage>-php` (deploy/edge/Caddyfile).
+                aliases: [ "${STAGE:?set STAGE in .env}-php" ]
+        mem_limit: 320m
+
+    # E-mails and the scheduler's ticks (adr/0012, adr/0025 §6). --memory-limit and --time-limit are
+    # checked between messages; the restart policy brings the worker back.
+    worker:
+        <<: *app
+        command: [ bin/console, messenger:consume, async, scheduler_default, --time-limit=3600, --memory-limit=128M ]
+        healthcheck:
+            disable: true
+        stop_grace_period: 30s
+        mem_limit: 192m
+
+    # Jobs, one at a time (adr/0025 §5–6). --keepalive keeps a long job from being redelivered; the
+    # grace period lets it finish its current unit on SIGTERM.
+    jobs-worker:
+        <<: *app
+        command: [ bin/console, messenger:consume, jobs, --keepalive, --time-limit=3600, --memory-limit=128M ]
+        healthcheck:
+            disable: true
+        stop_grace_period: 60s
+        mem_limit: 192m
+
+networks:
+    business-tool:
+        external: true

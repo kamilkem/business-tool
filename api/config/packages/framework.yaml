@@ -2,6 +2,12 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    # Staging and production sit behind the edge Caddy (adr/0035 §3). Trusting it gives rate limits
+    # the client's IP (adr/0013) and tells Symfony the request came in over HTTPS. Empty (no proxy)
+    # unless TRUSTED_PROXIES is set; the stages set `private_ranges` (the Docker network).
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+
     # Note that the session will be started ONLY if you read or write from it.
     session: true
 

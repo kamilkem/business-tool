@@ -1,0 +1,4 @@
+# The production image's `spa` stage (api/Dockerfile) uses this folder as a named build context.
+**/node_modules
+**/dist
+**/*.local
