@@ -1,6 +1,7 @@
 # Limits for the public endpoints that change an account (ADR 0013), keyed by client IP (and by
 # e-mail for the reset request).
-# Behind a reverse proxy, the client IP needs framework.trusted_proxies (hosting, #35).
+# Behind a reverse proxy, the client IP needs framework.trusted_proxies: production and staging sit
+# behind the edge Caddy and set TRUSTED_PROXIES (adr/0035 §3).
 framework:
     rate_limiter:
         # POST /api/auth/set-password. Tokens are 256-bit random, so this guards against floods, not
