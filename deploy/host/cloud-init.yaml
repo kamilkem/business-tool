@@ -1,0 +1,125 @@
+#cloud-config
+# Host setup for the single OVHcloud instance of adr/0035 (#212). Paste this file as the instance's
+# post-installation script (cloud-init user data) when creating it; it runs once on first boot.
+# Written for Debian 13 or Ubuntu 24.04 LTS images. Afterwards the host has:
+#   - SSH with keys only, no root login; the image's default user (debian/ubuntu) keeps sudo;
+#   - a `deploy` user in the docker group, for the deploy pipeline (#36), with no keys yet;
+#   - a firewall allowing only 22, 80 and 443 (ufw; Docker publishes only the edge's 80/443);
+#   - automatic security updates, a 2 GB swap file, Docker Engine with the Compose plugin and rotated
+#     container logs;
+#   - /srv/business-tool/{edge,staging,production}, owned by `deploy`, mode 700.
+# Check with `cloud-init status --wait` and `sudo business-tool-host-check` (deploy/host/README.md).
+
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - ufw
+  - unattended-upgrades
+  - apt-listchanges
+
+users:
+  - default
+  - name: deploy
+    gecos: Business Tool deploy (CI over SSH, #36)
+    shell: /bin/bash
+    lock_passwd: true
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-business-tool.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      X11Forwarding no
+
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+  # Security updates only, no automatic reboot: a reboot is the owner's call (both stages share the
+  # host). `needrestart`/`/var/run/reboot-required` tell when one is due.
+  - path: /etc/apt/apt.conf.d/52business-tool-unattended
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+  # Every container's json-file logs are rotated, also those started by hand.
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+
+  # Swap is a cushion, not working memory (adr/0035 §6).
+  - path: /etc/sysctl.d/90-business-tool.conf
+    permissions: "0644"
+    content: |
+      vm.swappiness = 10
+
+  # Only SSH listens on a public address: no LLMNR responder (systemd-resolved, port 5355).
+  - path: /etc/systemd/resolved.conf.d/90-business-tool.conf
+    permissions: "0644"
+    content: |
+      [Resolve]
+      LLMNR=no
+
+  - path: /usr/local/sbin/business-tool-host-check
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      # Prints the state that cloud-init.yaml should have produced; exits 1 if something is missing.
+      status=0
+      check() { if eval "$2" >/dev/null 2>&1; then echo "ok:   $1"; else echo "FAIL: $1"; status=1; fi; }
+      check "cloud-init finished" "cloud-init status | grep -q 'status: done'"
+      check "docker running" "systemctl is-active --quiet docker"
+      check "compose plugin" "docker compose version"
+      check "deploy user in docker group" "id -nG deploy | grep -qw docker"
+      check "2 GB swap active" "swapon --show=NAME --noheadings | grep -q /swapfile"
+      check "firewall active (22, 80, 443)" "ufw status | grep -q 'Status: active'"
+      check "password SSH logins off" "sshd -T | grep -qx 'passwordauthentication no'"
+      check "root SSH login off" "sshd -T | grep -qx 'permitrootlogin no'"
+      check "automatic security updates on" "grep -q 'Unattended-Upgrade \"1\"' /etc/apt/apt.conf.d/20auto-upgrades"
+      check "only SSH, HTTP and HTTPS listen publicly" "! ss -tlnH | awk '{print \$4}' | grep -vE '^(127\\.|\\[::1\\]|0\\.0\\.0\\.0:(22|80|443)\$|\\[::\\]:(22|80|443)\$)'"
+      check "/srv/business-tool layout" "test -d /srv/business-tool/edge -a -d /srv/business-tool/staging -a -d /srv/business-tool/production"
+      echo "public IPv4 (KSeF outbound address, adr/0035 §10): $(curl -4 -fsS https://ifconfig.me 2>/dev/null || echo unknown)"
+      free -m | sed -n '1,3p'
+      df -h / | tail -1
+      exit $status
+
+runcmd:
+  # Swap file.
+  - fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - sysctl --system
+  # Docker Engine and the Compose plugin from Docker's apt repository.
+  - install -m 0755 -d /etc/apt/keyrings
+  - . /etc/os-release && curl -fsSL "https://download.docker.com/linux/$ID/gpg" -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - . /etc/os-release && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$ID $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - usermod -aG docker deploy
+  # Firewall: SSH and the edge's HTTP(S). PostgreSQL and the stages publish no port.
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw allow 443/udp
+  - ufw --force enable
+  # Folders of the three Compose projects (deploy/README.md).
+  - install -d -m 700 -o deploy -g deploy /srv/business-tool /srv/business-tool/edge /srv/business-tool/staging /srv/business-tool/production
+  - systemctl restart systemd-resolved || true
+  - systemctl restart ssh || systemctl restart sshd
