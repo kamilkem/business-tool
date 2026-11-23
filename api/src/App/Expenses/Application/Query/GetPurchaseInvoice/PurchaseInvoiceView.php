@@ -28,6 +28,8 @@ final readonly class PurchaseInvoiceView
         public array $vatLines,
         public ?string $categoryId,
         public ?string $categoryName,
+        /** True while the category was pre-filled from the seller's history and nobody confirmed it (#55). */
+        public bool $categorySuggested,
         /** The format of the original document; null when the invoice has none. */
         public ?string $documentFormat,
         public \DateTimeImmutable $createdAt,
@@ -54,6 +56,7 @@ final readonly class PurchaseInvoiceView
             array_map(PurchaseInvoiceVatLineView::fromAmount(...), $invoice->getVatLines()),
             $invoice->getCategoryId()?->toRfc4122(),
             $categoryName,
+            $invoice->isCategorySuggested(),
             $documentFormat,
             $invoice->getCreatedAt(),
         );

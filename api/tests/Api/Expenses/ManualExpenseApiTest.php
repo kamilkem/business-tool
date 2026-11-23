@@ -71,6 +71,7 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
             'vatLines' => [['rate' => '8', 'net' => 5_000, 'vat' => 400, 'vatInTaxCurrency' => null]],
             'categoryId' => $food->getId()->toRfc4122(),
             'categoryName' => 'Food',
+            'categorySuggested' => false,
             'hasDocument' => false,
             'documentFormat' => null,
             'createdAt' => '2026-11-20T10:00:00+00:00',

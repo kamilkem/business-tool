@@ -149,6 +149,8 @@ final readonly class ExpenseResource
         public ?string $categoryId,
         /** The category's name (it may be archived); null when uncategorized. */
         public ?string $categoryName,
+        /** True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
+        public bool $categorySuggested,
         /** True when the original document is stored (GET /expenses/{id}/document). */
         public bool $hasDocument,
         /** What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -178,6 +180,7 @@ final readonly class ExpenseResource
             vatLines: array_map(ExpenseVatLine::fromView(...), $view->vatLines),
             categoryId: $view->categoryId,
             categoryName: $view->categoryName,
+            categorySuggested: $view->categorySuggested,
             hasDocument: null !== $view->documentFormat,
             documentFormat: $view->documentFormat,
             createdAt: $view->createdAt,

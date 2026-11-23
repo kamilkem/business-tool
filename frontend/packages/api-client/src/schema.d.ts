@@ -641,6 +641,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/expense-category-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggests a category for an expense of a seller from the selected organization's history.
+         * @description Owners and managers only (403 otherwise). The seller is matched by sellerTaxId (spaces and dashes ignored) when given, else by sellerName (case and surrounding spaces ignored). The suggestion is the active category that owners and managers chose most often for that seller's expenses; pre-filled categories nobody confirmed do not count, and a tie goes to the category of the seller's latest expense by issue date. Both fields are null when there is nothing to suggest.
+         */
+        get: operations["api_expense-category-suggestion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hourly-rates": {
         parameters: {
             query?: never;
@@ -2945,6 +2965,8 @@ export interface components {
             categoryId: string | null;
             /** @description The category's name (it may be archived); null when uncategorized. */
             categoryName: string | null;
+            /** @description True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
+            categorySuggested: boolean;
             /** @description True when the original document is stored (GET /expenses/{id}/document). */
             hasDocument: boolean;
             /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -3063,6 +3085,8 @@ export interface components {
             categoryId: string | null;
             /** @description The category's name (it may be archived); null when uncategorized. */
             categoryName: string | null;
+            /** @description True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
+            categorySuggested: boolean;
             /** @description True when the original document is stored (GET /expenses/{id}/document). */
             hasDocument: boolean;
             /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -3110,6 +3134,8 @@ export interface components {
             categoryId: string | null;
             /** @description The category's name (it may be archived); null when uncategorized. */
             categoryName: string | null;
+            /** @description True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
+            categorySuggested: boolean;
             /** @description True when the original document is stored (GET /expenses/{id}/document). */
             hasDocument: boolean;
             /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -3157,6 +3183,8 @@ export interface components {
             categoryId: string | null;
             /** @description The category's name (it may be archived); null when uncategorized. */
             categoryName: string | null;
+            /** @description True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
+            categorySuggested: boolean;
             /** @description True when the original document is stored (GET /expenses/{id}/document). */
             hasDocument: boolean;
             /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -3224,6 +3252,28 @@ export interface components {
              * @description When the category was archived; null while it is active.
              */
             archivedAt: string | null;
+        };
+        /**
+         * @description The category to suggest for an expense of a seller from the selected organization's history
+         *     (#55), e.g. while an owner or manager enters one by hand. Imported invoices get the same
+         *     suggestion stored, marked `categorySuggested`.
+         */
+        ExpenseCategorySuggestion: {
+            /** @description The suggested category; null when there is nothing to suggest. */
+            categoryId: string | null;
+            /** @description Its name; null when there is nothing to suggest. */
+            categoryName: string | null;
+        };
+        /**
+         * @description The category to suggest for an expense of a seller from the selected organization's history
+         *     (#55), e.g. while an owner or manager enters one by hand. Imported invoices get the same
+         *     suggestion stored, marked `categorySuggested`.
+         */
+        "ExpenseCategorySuggestion.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description The suggested category; null when there is nothing to suggest. */
+            categoryId: string | null;
+            /** @description Its name; null when there is nothing to suggest. */
+            categoryName: string | null;
         };
         ExpenseCurrencyTotal: {
             /** @description ISO 4217 code. */
@@ -7592,6 +7642,57 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_expense-category-suggestion_get": {
+        parameters: {
+            query?: {
+                /** @description The seller's tax ID. */
+                sellerTaxId?: string;
+                /** @description The seller's name, used when there is no tax ID. */
+                sellerName?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ExpenseCategorySuggestion resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ExpenseCategorySuggestion.jsonld"];
+                    "application/json": components["schemas"]["ExpenseCategorySuggestion"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A parameter is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

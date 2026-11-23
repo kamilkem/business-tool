@@ -26,6 +26,7 @@ import { cn } from "@business-tool/ui/lib/utils"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { ExpenseCategorySelect } from "@/components/expense-category-select"
+import { needsConfirmation } from "@/lib/category-suggestion"
 import { api } from "@/lib/api"
 import type { ExpenseCategory } from "@/lib/expense-categories"
 import { isEditable } from "@/lib/expense-form"
@@ -116,6 +117,7 @@ function ExpenseDetails({
             onChange={(categoryId) => onCategorize(expense, categoryId)}
             className="w-full"
           />
+          {needsConfirmation(expense) && <p className="text-xs text-muted-foreground">{t("expenses.suggestedHint")}</p>}
         </section>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">

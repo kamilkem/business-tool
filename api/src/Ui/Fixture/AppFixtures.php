@@ -271,21 +271,25 @@ final class AppFixtures extends Fixture
 
         $imported = [
             // [days ago, number, seller, kind, currency, lines [rate, net, vat, vatInTaxCurrency], category, corrected]
-            [2, 'FV/HN/0412', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 184_500, 42_435, null], ['8', 22_000, 1_760, null]], null, null],
+            [2, 'FV/HN/0412', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 184_500, 42_435, null], ['8', 22_000, 1_760, null]], 'Napoje', null],
             [5, 'FV/HN/0398', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 312_040, 71_769, null]], 'Napoje', null],
             [6, 'KOR/HN/0021', $wholesaler, PurchaseInvoiceKind::Correction, 'PLN', [['23', -12_000, -2_760, null]], 'Napoje', 'DEMO-KSEF-FV-HN-0398'],
-            [9, '118/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 96_380, 4_819, null]], null, null],
+            [9, '118/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 96_380, 4_819, null]], 'Żywność', null],
             [12, 'FA/2026/77', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
             [10, 'INV-DE-5521', ['DE811234567', 'Weinhandel Demo GmbH'], PurchaseInvoiceKind::Regular, 'EUR', [['23', 48_000, 11_040, 47_472]], 'Napoje', null],
             [36, 'FV/HN/0351', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 278_900, 64_147, null], ['8', 18_500, 1_480, null]], 'Napoje', null],
             [44, 'FA/2026/71', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
             [61, '097/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 88_210, 4_411, null]], 'Żywność', null],
         ];
+        // Pre-filled from the seller's history, as the import does, and not confirmed yet (#55).
+        $suggested = ['FV/HN/0412', '118/MS/2026'];
         foreach ($imported as [$days, $number, [$taxId, $name], $kind, $invoiceCurrency, $lines, $category, $corrected]) {
             $details = self::invoiceDetails($number, $taxId, $name, $daysAgo($days), $kind, $invoiceCurrency, $lines, $corrected);
             $externalId = 'DEMO-KSEF-'.strtoupper((string) preg_replace('/\W+/', '-', $number));
             $invoice = PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, $country, $currency, $now);
-            if (null !== $category) {
+            if (\in_array($number, $suggested, true)) {
+                $invoice->suggestCategory($categories[$category]);
+            } else {
                 $invoice->categorize($categories[$category], $ownerId, MembershipRole::Owner);
             }
             $manager->persist($invoice);

@@ -246,6 +246,7 @@ final class PurchaseInvoiceHandlersTest extends TestCase
             [new PurchaseInvoiceVatLineView('23', 10_000, 2_300, null), new PurchaseInvoiceVatLineView('8', 10_000, 800, null)],
             $this->beverages->getId()->toRfc4122(),
             'Beverages',
+            false,
             'FA (3)',
             new \DateTimeImmutable(PurchaseInvoiceMother::IMPORTED_AT),
         ), $view);

@@ -484,6 +484,11 @@
     "archivedCategory": "Zarchiwizowana kategoria",
     "categorized": "Kategoria: {{category}}",
     "categoryCleared": "Usunięto kategorię",
+    "categoryConfirmed": "Zatwierdzono kategorię {{category}}",
+    "suggested": "Sugerowana",
+    "suggestedHint": "Podpowiedź na podstawie wcześniejszych wydatków u tego sprzedawcy. Zatwierdź ją lub wybierz inną kategorię.",
+    "confirmCategory": "Zatwierdź",
+    "confirmCategoryOf": "Zatwierdź kategorię {{category}} dla {{expense}}",
     "categorizeFailed": "Nie udało się zmienić kategorii",
     "categoryOf": "Kategoria: {{expense}}",
     "uncategorized": "Bez kategorii",
@@ -578,7 +583,8 @@
     "totalsEmpty": "Sumy są puste.",
     "useBreakdown": "Użyj sum z rozbicia",
     "netAt": "Netto, stawka {{rate}}",
-    "vatInAt": "VAT w {{currency}}, stawka {{rate}}"
+    "vatInAt": "VAT w {{currency}}, stawka {{rate}}",
+    "categorySuggested": "Podpowiedź na podstawie wcześniejszych wydatków u tego sprzedawcy."
   },
   "income": {
     "nav": {

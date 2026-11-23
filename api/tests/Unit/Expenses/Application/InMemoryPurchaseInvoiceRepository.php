@@ -8,6 +8,7 @@ use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
+use App\Expenses\Domain\Model\SellerKey;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
@@ -23,6 +24,11 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
     private array $documents = [];
 
     public int $saveCallCount = 0;
+
+    /** @param ?InMemoryExpenseCategoryRepository $categories tells which categories are archived (findMostUsedCategoryIdOfSeller()) */
+    public function __construct(private readonly ?InMemoryExpenseCategoryRepository $categories = null)
+    {
+    }
 
     public function findById(Uuid $id): ?PurchaseInvoice
     {
@@ -71,6 +77,35 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
             <=> [$a->getIssueDate()->toString(), $b->getSellerName(), null === $b->getInvoiceNumber(), (string) $b->getInvoiceNumber(), $b->getId()->toRfc4122()]);
 
         return $invoices;
+    }
+
+    public function findMostUsedCategoryIdOfSeller(?string $sellerTaxIdKey, string $sellerNameKey): ?Uuid
+    {
+        /** @var array<string, array{uses: int, lastIssued: string, lastStored: \DateTimeImmutable}> $byCategory */
+        $byCategory = [];
+        foreach ($this->byId as $invoice) {
+            $categoryId = $invoice->getCategoryId();
+            if (null === $categoryId || $invoice->isCategorySuggested()) {
+                continue;
+            }
+            $sameSeller = null !== $sellerTaxIdKey
+                ? SellerKey::ofTaxId($invoice->getSellerTaxId()) === $sellerTaxIdKey
+                : SellerKey::ofName($invoice->getSellerName()) === $sellerNameKey;
+            if (!$sameSeller || true === $this->categories?->findById($categoryId)?->isArchived()) {
+                continue;
+            }
+            $key = $categoryId->toRfc4122();
+            $seen = $byCategory[$key] ?? ['uses' => 0, 'lastIssued' => '', 'lastStored' => new \DateTimeImmutable('@0')];
+            $byCategory[$key] = [
+                'uses' => $seen['uses'] + 1,
+                'lastIssued' => max($seen['lastIssued'], $invoice->getIssueDate()->toString()),
+                'lastStored' => max($seen['lastStored'], $invoice->getCreatedAt()),
+            ];
+        }
+        uasort($byCategory, static fn (array $a, array $b): int => [$b['uses'], $b['lastIssued'], $b['lastStored']] <=> [$a['uses'], $a['lastIssued'], $a['lastStored']]);
+        $first = array_key_first($byCategory);
+
+        return null === $first ? null : Uuid::fromString($first);
     }
 
     public function add(PurchaseInvoice $invoice, ?PurchaseInvoiceDocument $document = null): void

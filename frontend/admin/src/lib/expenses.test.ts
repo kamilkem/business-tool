@@ -42,6 +42,7 @@ function expense(overrides: Partial<Expense> = {}): Expense {
     vatLines: [{ rate: "23", net: 100000, vat: 23000, vatInTaxCurrency: null }],
     categoryId: null,
     categoryName: null,
+    categorySuggested: false,
     hasDocument: true,
     documentFormat: "FA (3)",
     createdAt: "2026-11-04T03:00:00+00:00",
