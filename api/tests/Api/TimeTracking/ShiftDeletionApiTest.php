@@ -198,6 +198,25 @@ final class ShiftDeletionApiTest extends ApiTestCase
         self::assertSame(['rejected', $shiftId, null, null], [$request['status'], $request['shiftId'], $request['shiftStartedAt'], $request['shiftEndedAt']]);
     }
 
+    public function test_it_deletes_a_shift_once_its_change_request_is_withdrawn(): void
+    {
+        [$manager, $organization] = self::memberWithRole(MembershipRole::Manager);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        $shiftId = self::workShift($employee, $organization, '2026-11-12 16:00:00', '2026-11-12 23:00:00');
+        self::mockTime(self::NOW);
+        $requestId = self::submitted($employee, $organization, [
+            'shiftId' => $shiftId,
+            'startedAt' => '2026-11-12T15:30:00Z',
+            'endedAt' => '2026-11-12T23:00:00Z',
+        ]);
+
+        static::clientFor($employee, $organization)->request('POST', '/api/shift-change-requests/'.$requestId.'/withdraw');
+        self::assertResponseStatusCodeSame(200);
+
+        self::delete($manager, $organization, $shiftId);
+        self::assertResponseStatusCodeSame(204);
+    }
+
     public function test_it_keeps_another_organizations_shifts_invisible_and_undeleted(): void
     {
         [$owner, $here] = self::memberWithRole(MembershipRole::Owner);

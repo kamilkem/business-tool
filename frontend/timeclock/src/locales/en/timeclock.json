@@ -116,11 +116,19 @@
     "sent": "Sent {{when}}",
     "approvedOn": "Approved {{when}}",
     "rejectedOn": "Rejected {{when}}",
+    "withdrawnOn": "Withdrawn {{when}}",
     "status": {
       "pending": "Pending",
       "approved": "Approved",
-      "rejected": "Rejected"
-    }
+      "rejected": "Rejected",
+      "withdrawn": "Withdrawn"
+    },
+    "withdraw": "Withdraw",
+    "withdrawFor": "Withdraw the request for {{range}}",
+    "withdrawTitle": "Withdraw this request?",
+    "withdrawDescription": "Your manager will no longer see it. You can send a new request at any time.",
+    "keep": "Keep it",
+    "withdrawing": "Withdrawing…"
   },
   "pay": {
     "title": "My pay",

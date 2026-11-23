@@ -282,6 +282,8 @@
       "shift_change_request_decision_forbidden": "Tylko właściciele i menedżerowie mogą zatwierdzać i odrzucać wnioski.",
       "shift_change_request_not_found": "Ten wniosek już nie istnieje.",
       "shift_change_request_note_required": "Dodaj notatkę wyjaśniającą zmianę.",
+      "shift_change_request_withdrawal_forbidden": "Prośbę może wycofać tylko osoba, która ją wysłała. Zamiast tego ją odrzuć.",
+      "shift_change_request_withdrawn": "Ta prośba została wycofana.",
       "shift_end_not_after_start": {
         "of": "Zmiana nie może się kończyć {{endedAt}}, skoro zaczęła się {{startedAt}}.",
         "requested": "Zmiana nie może się kończyć {{endedAt}}, jeśli zaczyna się {{startedAt}}."

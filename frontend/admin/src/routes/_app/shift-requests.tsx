@@ -213,12 +213,25 @@ function RequestRow({
   )
 }
 
-/** "Approved by you, 12 Nov 2026, 09:14", with the reason of a rejection. */
+/** "Approved by you, 12 Nov 2026, 09:14", with the reason of a rejection; or withdrawn by the requester. */
 function Decided({ request, nameOf }: { request: ShiftChangeRequest; nameOf: NameOf }) {
   const format = useDateTimeFormat()
   const { t } = useTranslation("admin")
   const approved = request.status === "approved"
   const decidedBy = request.decidedBy === null ? null : nameOf(request.decidedBy)
+
+  if (request.status === "withdrawn") {
+    return (
+      <div className="flex flex-col items-end gap-1 text-right">
+        <Badge variant="outline" className="text-muted-foreground">
+          {t("shiftRequests.withdrawn")}
+        </Badge>
+        {request.withdrawnAt !== null && (
+          <div className="text-xs text-muted-foreground">{t("shiftRequests.withdrawnBy", { when: format.dateTime(request.withdrawnAt) })}</div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-end gap-1 text-right">

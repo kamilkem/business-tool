@@ -12,6 +12,8 @@ use App\TimeTracking\Domain\Exception\ShiftChangeRequestAlreadyDecidedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestDecisionForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException;
+use App\TimeTracking\Domain\Exception\ShiftChangeRequestWithdrawalForbiddenException;
+use App\TimeTracking\Domain\Exception\ShiftChangeRequestWithdrawnException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
@@ -27,6 +29,8 @@ use Symfony\Component\Uid\Uuid;
  *
  * Any active member submits requests, for themselves only. Owners and managers approve or reject
  * them, their own included (as they correct their own shifts directly). A decision is final.
+ * While a request is pending, the requester, and nobody else, may withdraw it (a mistake, a request
+ * sent twice); a withdrawn request is kept as history and is never decided.
  *
  * The request checks only what does not depend on other shifts when it is submitted: the end is
  * after the start, nothing is in the future, the shift is the requester's, and an ended shift is
@@ -95,6 +99,10 @@ class ShiftChangeRequest implements TenantAwareInterface
     /** Why the request was rejected, if the owner or manager said. */
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $rejectionReason = null;
+
+    /** When the requester withdrew the request; null unless it is withdrawn. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $withdrawnAt = null;
 
     private function __construct(
         Uuid $id,
@@ -211,7 +219,8 @@ class ShiftChangeRequest implements TenantAwareInterface
      * The caller passes the actor's role in an organization they are an active member of (ADR 0014).
      *
      * @throws ShiftChangeRequestDecisionForbiddenException when the actor is an employee
-     * @throws ShiftChangeRequestAlreadyDecidedException    when the request is not pending
+     * @throws ShiftChangeRequestWithdrawnException         when the requester withdrew the request
+     * @throws ShiftChangeRequestAlreadyDecidedException    when the request was approved or rejected
      */
     public function assertCanBeDecidedBy(Uuid $actorId, MembershipRole $actorRole): void
     {
@@ -219,9 +228,7 @@ class ShiftChangeRequest implements TenantAwareInterface
             throw ShiftChangeRequestDecisionForbiddenException::forUser($actorId->toRfc4122());
         }
 
-        if (ShiftChangeRequestStatus::Pending !== $this->status) {
-            throw ShiftChangeRequestAlreadyDecidedException::of($this->id->toRfc4122(), $this->status->value);
-        }
+        $this->assertPending();
     }
 
     /**
@@ -229,7 +236,8 @@ class ShiftChangeRequest implements TenantAwareInterface
      * the shift entered for a missing shift, or the shift that got the new times.
      *
      * @throws ShiftChangeRequestDecisionForbiddenException when the actor is an employee
-     * @throws ShiftChangeRequestAlreadyDecidedException    when the request is not pending
+     * @throws ShiftChangeRequestWithdrawnException         when the requester withdrew the request
+     * @throws ShiftChangeRequestAlreadyDecidedException    when the request was approved or rejected
      */
     public function approve(Uuid $actorId, MembershipRole $actorRole, Uuid $shiftId, \DateTimeImmutable $now): void
     {
@@ -248,7 +256,8 @@ class ShiftChangeRequest implements TenantAwareInterface
      * Rejects the request, optionally saying why; the shifts stay as they are.
      *
      * @throws ShiftChangeRequestDecisionForbiddenException when the actor is an employee
-     * @throws ShiftChangeRequestAlreadyDecidedException    when the request is not pending
+     * @throws ShiftChangeRequestWithdrawnException         when the requester withdrew the request
+     * @throws ShiftChangeRequestAlreadyDecidedException    when the request was approved or rejected
      */
     public function reject(Uuid $actorId, MembershipRole $actorRole, ?string $reason, \DateTimeImmutable $now): void
     {
@@ -257,6 +266,27 @@ class ShiftChangeRequest implements TenantAwareInterface
         $reason = null === $reason ? null : trim($reason);
         $this->rejectionReason = '' === $reason ? null : $reason;
         $this->decide(ShiftChangeRequestStatus::Rejected, $actorId, $now);
+    }
+
+    /**
+     * The requester takes back their pending request; the shifts stay as they are. The actor is an
+     * active member (ADR 0014); the caller answers "not found" for a request they may not see
+     * (isVisibleTo()), so an owner or manager is the only one refused here.
+     *
+     * @throws ShiftChangeRequestWithdrawalForbiddenException when the actor is not the requester
+     * @throws ShiftChangeRequestWithdrawnException           when the request is already withdrawn
+     * @throws ShiftChangeRequestAlreadyDecidedException      when the request was approved or rejected
+     */
+    public function withdraw(Uuid $actorId, \DateTimeImmutable $now): void
+    {
+        if (!$this->userId->equals($actorId)) {
+            throw ShiftChangeRequestWithdrawalForbiddenException::forUser($this->id->toRfc4122(), $actorId->toRfc4122());
+        }
+
+        $this->assertPending();
+
+        $this->status = ShiftChangeRequestStatus::Withdrawn;
+        $this->withdrawnAt = $now;
     }
 
     public function getId(): Uuid
@@ -317,6 +347,26 @@ class ShiftChangeRequest implements TenantAwareInterface
     public function getRejectionReason(): ?string
     {
         return $this->rejectionReason;
+    }
+
+    public function getWithdrawnAt(): ?\DateTimeImmutable
+    {
+        return $this->withdrawnAt;
+    }
+
+    /**
+     * @throws ShiftChangeRequestWithdrawnException      when the requester withdrew the request
+     * @throws ShiftChangeRequestAlreadyDecidedException when the request was approved or rejected
+     */
+    private function assertPending(): void
+    {
+        if (ShiftChangeRequestStatus::Withdrawn === $this->status) {
+            throw ShiftChangeRequestWithdrawnException::of($this->id->toRfc4122());
+        }
+
+        if (ShiftChangeRequestStatus::Pending !== $this->status) {
+            throw ShiftChangeRequestAlreadyDecidedException::of($this->id->toRfc4122(), $this->status->value);
+        }
     }
 
     private function decide(ShiftChangeRequestStatus $status, Uuid $actorId, \DateTimeImmutable $now): void

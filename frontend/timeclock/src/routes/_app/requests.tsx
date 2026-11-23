@@ -12,9 +12,11 @@ import { browserTimeZone } from "@business-tool/ui/lib/date-time"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { cn } from "@business-tool/ui/lib/utils"
 
+import { WithdrawRequestButton } from "@/components/withdraw-request-dialog"
 import { myShiftChangeRequestsQuery } from "@/lib/queries"
 import {
   type ShiftChangeRequest,
+  canWithdraw,
   previousTimes,
   requestTitle,
   requestWhen,
@@ -98,7 +100,7 @@ function Requests({ organizationId, userId }: { organizationId: string; userId: 
   return (
     <ul className="flex flex-col gap-2">
       {requests.data.map((request) => (
-        <RequestItem key={request.id} request={request} />
+        <RequestItem key={request.id} organizationId={organizationId} request={request} />
       ))}
     </ul>
   )
@@ -108,9 +110,10 @@ const STATUS_CLASS: Record<ShiftChangeRequest["status"], string> = {
   pending: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
   approved: "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200",
   rejected: "bg-destructive/10 text-destructive dark:bg-destructive/20",
+  withdrawn: "bg-muted text-muted-foreground",
 }
 
-function RequestItem({ request }: { request: ShiftChangeRequest }) {
+function RequestItem({ organizationId, request }: { organizationId: string; request: ShiftChangeRequest }) {
   const { t } = useTranslation("timeclock")
   const format = useDateTimeFormat()
   const before = previousTimes(format, request)
@@ -127,7 +130,10 @@ function RequestItem({ request }: { request: ShiftChangeRequest }) {
       {request.status === "rejected" && request.rejectionReason && (
         <p className="mt-1 text-sm break-words text-destructive">{t("requests.rejectionReason", { reason: request.rejectionReason })}</p>
       )}
-      <div className="mt-1 text-xs text-muted-foreground">{requestWhen(format, request)}</div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <span className="text-xs text-muted-foreground">{requestWhen(format, request)}</span>
+        {canWithdraw(request) && <WithdrawRequestButton organizationId={organizationId} request={request} />}
+      </div>
     </li>
   )
 }

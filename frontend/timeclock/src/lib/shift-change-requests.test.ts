@@ -5,6 +5,7 @@ import { i18n } from "../i18n"
 
 import {
   type ShiftChangeRequest,
+  canWithdraw,
   previousTimes,
   requestTitle,
   requestWhen,
@@ -35,6 +36,7 @@ function request(overrides: Partial<ShiftChangeRequest> = {}): ShiftChangeReques
     decidedBy: null,
     decidedAt: null,
     rejectionReason: null,
+    withdrawnAt: null,
     shiftStartedAt: "2026-11-10T21:00:00+00:00",
     shiftEndedAt: "2026-11-11T01:00:00+00:00",
     ...overrides,
@@ -86,6 +88,26 @@ describe("requests", () => {
       "Rejected 12 Nov 2026, 09:00",
     )
   })
+
+  it("test_it_says_when_it_was_withdrawn", () => {
+    expect(requestWhen(warsaw, request({ status: "withdrawn", withdrawnAt: "2026-11-11T10:00:00+00:00" }))).toBe(
+      "Withdrawn 11 Nov 2026, 11:00",
+    )
+    expect(statusLabel("withdrawn")).toBe("Withdrawn")
+  })
+
+  it("test_it_keeps_showing_the_shifts_times_now_after_a_withdrawal", () => {
+    expect(previousTimes(warsaw, request({ status: "withdrawn", withdrawnAt: "2026-11-11T10:00:00+00:00" }))).toBe(
+      "Now Tue 10 Nov, 22:00 – 02:00",
+    )
+  })
+
+  it("test_it_offers_to_withdraw_only_a_pending_request", () => {
+    expect(canWithdraw(request())).toBe(true)
+    expect(canWithdraw(request({ status: "approved", decidedAt: "2026-11-12T08:00:00+00:00" }))).toBe(false)
+    expect(canWithdraw(request({ status: "rejected", decidedAt: "2026-11-12T08:00:00+00:00" }))).toBe(false)
+    expect(canWithdraw(request({ status: "withdrawn", withdrawnAt: "2026-11-11T10:00:00+00:00" }))).toBe(false)
+  })
 })
 
 describe("in Polish", () => {
@@ -99,6 +121,10 @@ describe("in Polish", () => {
     expect(timeRange(warsawPl, "2026-11-10T21:00:00Z", null)).toBe("wt., 10 lis, 22:00 – otwarta")
     expect(requestWhen(warsawPl, request({ status: "rejected", decidedAt: "2026-11-12T08:00:00+00:00" }))).toBe(
       "Odrzucona 12 lis 2026, 09:00",
+    )
+    expect(statusLabel("withdrawn")).toBe("Wycofana")
+    expect(requestWhen(warsawPl, request({ status: "withdrawn", withdrawnAt: "2026-11-11T10:00:00+00:00" }))).toBe(
+      "Wycofana 11 lis 2026, 11:00",
     )
   })
 })

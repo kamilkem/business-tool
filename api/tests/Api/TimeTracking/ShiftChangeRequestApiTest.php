@@ -70,6 +70,7 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             'decidedBy' => null,
             'decidedAt' => null,
             'rejectionReason' => null,
+            'withdrawnAt' => null,
             'shiftStartedAt' => null,
             'shiftEndedAt' => null,
         ], $request);
@@ -370,6 +371,103 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
         self::assertSame([], self::shifts($owner, $organization, '2026-11-12'));
     }
 
+    public function test_it_lets_the_requester_withdraw_their_pending_request_and_tells_nobody(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        $shiftId = self::workShift($employee, $organization, '2026-11-12 16:00:00', null);
+        self::mockTime('2026-11-13 11:00:00');
+        $requestId = self::submitted($employee, $organization, $shiftId, '2026-11-12T16:00:00Z', '2026-11-12T23:30:00Z');
+        self::mockTime(self::NOW);
+
+        $response = self::withdraw($employee, $organization, $requestId);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertQueuedEmailCount(0);
+        $request = $response->toArray();
+        self::assertSame(
+            ['withdrawn', '2026-11-13T12:00:00+00:00', null, null, $shiftId, null],
+            [$request['status'], $request['withdrawnAt'], $request['decidedBy'], $request['decidedAt'], $request['shiftId'], $request['shiftEndedAt']],
+        );
+        self::assertSame($request, self::get($employee, $organization, $requestId)->toArray());
+        self::assertSame([], self::list($owner, $organization, 'pending'));
+        self::assertSame([$requestId], array_column(self::list($owner, $organization, 'withdrawn'), 'id'));
+        $shifts = self::shifts($owner, $organization, '2026-11-12');
+        self::assertSame([[$shiftId, null]], array_map(static fn (array $shift): array => [$shift['id'], $shift['endedAt']], $shifts), 'Withdrawing changes no shift.');
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_lets_owners_and_managers_withdraw_their_own_requests(MembershipRole $role): void
+    {
+        [$actor, $organization] = self::memberWithRole($role);
+        self::mockTime(self::NOW);
+        $requestId = self::submitted($actor, $organization, null, '2026-11-12T08:00:00Z', '2026-11-12T16:00:00Z');
+
+        self::assertSame('withdrawn', self::withdraw($actor, $organization, $requestId)->toArray()['status']);
+    }
+
+    public function test_it_lets_nobody_but_the_requester_withdraw_a_request(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $manager = self::addMember($organization, MembershipRole::Manager);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        $colleague = self::addMember($organization, MembershipRole::Employee);
+        self::mockTime(self::NOW);
+        $requestId = self::submitted($employee, $organization, null, '2026-11-12T08:00:00Z', '2026-11-12T16:00:00Z');
+        $managersRequest = self::submitted($manager, $organization, null, '2026-11-11T08:00:00Z', '2026-11-11T16:00:00Z');
+
+        // Owners and managers see the request (they reject it instead); a colleague does not.
+        foreach ([[$owner, $requestId, 403], [$manager, $requestId, 403], [$owner, $managersRequest, 403], [$colleague, $requestId, 404], [$employee, $managersRequest, 404]] as [$actor, $id, $status]) {
+            $problem = self::withdraw($actor, $organization, $id)->toArray(false);
+            self::assertResponseStatusCodeSame($status);
+            self::assertSame(403 === $status ? 'time_tracking.shift_change_request_withdrawal_forbidden' : 'time_tracking.shift_change_request_not_found', $problem['code']);
+        }
+
+        self::assertSame(['pending', 'pending'], array_column(self::list($owner, $organization), 'status'));
+    }
+
+    public function test_it_answers_409_for_withdrawing_a_request_that_is_no_longer_pending(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        self::mockTime(self::NOW);
+        $approved = self::submitted($employee, $organization, null, '2026-11-10T08:00:00Z', '2026-11-10T16:00:00Z');
+        $rejected = self::submitted($employee, $organization, null, '2026-11-11T08:00:00Z', '2026-11-11T16:00:00Z');
+        $withdrawn = self::submitted($employee, $organization, null, '2026-11-12T08:00:00Z', '2026-11-12T16:00:00Z');
+        self::approve($owner, $organization, $approved);
+        self::reject($owner, $organization, $rejected, []);
+        self::withdraw($employee, $organization, $withdrawn);
+
+        foreach ([
+            [$approved, 'time_tracking.shift_change_request_already_decided'],
+            [$rejected, 'time_tracking.shift_change_request_already_decided'],
+            [$withdrawn, 'time_tracking.shift_change_request_withdrawn'],
+        ] as [$requestId, $code]) {
+            $problem = self::withdraw($employee, $organization, $requestId)->toArray(false);
+            self::assertResponseStatusCodeSame(409);
+            self::assertSame($code, $problem['code']);
+        }
+
+        self::assertSame(['withdrawn', 'rejected', 'approved'], array_column(self::list($employee, $organization), 'status'));
+    }
+
+    public function test_it_answers_409_for_deciding_a_withdrawn_request(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        self::mockTime(self::NOW);
+        $requestId = self::submitted($employee, $organization, null, '2026-11-12T08:00:00Z', '2026-11-12T16:00:00Z');
+        self::withdraw($employee, $organization, $requestId);
+
+        foreach ([self::approve($owner, $organization, $requestId), self::reject($owner, $organization, $requestId, [])] as $response) {
+            self::assertSame(409, $response->getStatusCode());
+            self::assertSame(['code' => 'time_tracking.shift_change_request_withdrawn', 'parameters' => ['requestId' => $requestId]], array_intersect_key($response->toArray(false), ['code' => true, 'parameters' => true]));
+        }
+
+        self::assertQueuedEmailCount(0); // the requester is not told about a refused decision
+        self::assertSame([], self::shifts($owner, $organization, '2026-11-12'));
+    }
+
     public function test_it_lists_requests_newest_first_and_by_status(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
@@ -407,6 +505,8 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             self::assertResponseStatusCodeSame(404);
             self::reject($owner, $organization, $requestId, []);
             self::assertResponseStatusCodeSame(404);
+            self::withdraw($owner, $organization, $requestId);
+            self::assertResponseStatusCodeSame(404);
         }
     }
 
@@ -431,6 +531,8 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             self::approve($user, $organization, $requestId);
             self::assertResponseStatusCodeSame(403);
             self::reject($user, $organization, $requestId, []);
+            self::assertResponseStatusCodeSame(403);
+            self::withdraw($user, $organization, $requestId);
             self::assertResponseStatusCodeSame(403);
         }
 
@@ -463,6 +565,8 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             self::assertResponseStatusCodeSame(404);
             self::reject($owner, $organization, $requestId, []);
             self::assertResponseStatusCodeSame(404);
+            self::withdraw($owner, $organization, $requestId);
+            self::assertResponseStatusCodeSame(404);
         }
 
         // A shift elsewhere cannot be asked about here.
@@ -493,6 +597,8 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
             $client->request('POST', '/api/shift-change-requests/'.$requestId.'/approve');
             self::assertResponseStatusCodeSame($status);
             $client->request('POST', '/api/shift-change-requests/'.$requestId.'/reject', ['json' => []]);
+            self::assertResponseStatusCodeSame($status);
+            $client->request('POST', '/api/shift-change-requests/'.$requestId.'/withdraw');
             self::assertResponseStatusCodeSame($status);
         }
     }
@@ -539,6 +645,11 @@ final class ShiftChangeRequestApiTest extends ApiTestCase
     private static function approve(User $user, Organization $organization, string $requestId): ResponseInterface
     {
         return static::clientFor($user, $organization)->request('POST', '/api/shift-change-requests/'.$requestId.'/approve');
+    }
+
+    private static function withdraw(User $user, Organization $organization, string $requestId): ResponseInterface
+    {
+        return static::clientFor($user, $organization)->request('POST', '/api/shift-change-requests/'.$requestId.'/withdraw');
     }
 
     /** @param array<string, mixed> $body */
