@@ -48,6 +48,21 @@ make deploy STAGE=staging API_IMAGE=ghcr.io/kamilkem/business-tool-api:staging-<
 **Staging can be stopped** when not in use: `docker compose -p business-tool-staging stop` in
 `/srv/business-tool/staging` (as `deploy`).
 
+## A new organization
+
+There is no sign-up (ADR 0021): each organization, with its first owner, is created on the host with
+`app:organization:create` (#219). A new owner gets an e-mail with a one-time link to set their
+password and lands in the admin; an existing user simply becomes the owner. Without options it asks
+for what it needs and shows a summary before creating anything.
+
+```bash
+ssh deploy@54.37.131.250
+cd /srv/business-tool/production   # or staging
+docker compose -p business-tool-production exec php bin/console app:organization:create \
+  --owner-email=owner@example.com --owner-first-name=… --owner-last-name=… --owner-language=pl \
+  --name="…" --country=PL --currency=PLN --timezone=Europe/Warsaw --tax-id=…
+```
+
 ## Rollback
 
 Run the workflow again for the previous good commit or tag (*Run workflow* on that ref, or re-run its

@@ -47,7 +47,7 @@ src/Ui/
     Http/<Module>/          <Name>Resource, <UseCase>Input, Provider/, Processor/
     Http/Listener/          request listeners (SelectOrganizationFromHeaderListener)
     Http/Shared/            Ui helpers (CurrentUser, OpenAPI metadata)
-    Console/<Module>/       console commands for manual runs; they queue jobs (ADR 0025)
+    Console/<Module>/       console commands for manual runs: they queue jobs (ADR 0025); operator tasks such as app:organization:create send commands directly
     Scheduler/              the `default` Symfony Scheduler schedule: cron entries that queue jobs (ADR 0025)
     Fixture/                dev data fixtures
 ```

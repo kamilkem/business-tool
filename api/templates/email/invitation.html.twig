@@ -1,10 +1,18 @@
 {# Invitation for a new member to set their first password (ADR 0013). Context: firstName,
-   organizationName, inviterName, link, validForDays. Rendered by the queue worker (adr/0012) in the
+   organizationName, inviterName (null for an account set up from the console, #219), link, validForDays. Rendered by the queue worker (adr/0012) in the
    recipient's language (ADR 0028 §6): texts in translations/email+intl-icu.*. #}
 {% trans_default_domain 'email' %}
 <p>{{ 'common.hello_name'|trans({firstName: firstName}) }}</p>
+{% if inviterName %}
 <p>{{ 'invitation.intro'|trans({inviterName: inviterName, organizationName: organizationName}) }}</p>
+{% else %}
+<p>{{ 'invitation.intro_set_up'|trans({organizationName: organizationName}) }}</p>
+{% endif %}
 <p>{{ 'invitation.set_password_prompt'|trans }}</p>
 <p><a href="{{ link }}">{{ 'invitation.set_password_link'|trans }}</a></p>
+{% if inviterName %}
 <p>{{ 'invitation.expiry'|trans({validForDays: validForDays, inviterName: inviterName}) }}</p>
+{% else %}
+<p>{{ 'invitation.expiry_set_up'|trans({validForDays: validForDays}) }}</p>
+{% endif %}
 <p>{{ 'invitation.not_expected'|trans }}</p>

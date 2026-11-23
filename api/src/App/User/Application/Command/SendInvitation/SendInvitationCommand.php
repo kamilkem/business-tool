@@ -19,8 +19,11 @@ final readonly class SendInvitationCommand implements CommandInterface
         public string $organizationId,
         /** Their role there: it decides whether the link opens the admin panel or the time clock. */
         public string $role,
-        /** The owner or manager who invited them, named in the e-mail. */
-        public string $invitedById,
+        /**
+         * The owner or manager who invited them, named in the e-mail; null when the account was set up
+         * from the console with its organization (app:organization:create, #219).
+         */
+        public ?string $invitedById,
     ) {
     }
 }
