@@ -1,8 +1,9 @@
 # The `make qa` gates, run on GitHub (adr/0011-continuous-integration-on-github-actions.md).
 #
 # Jobs run on the runner (setup-php, setup-node), not in the compose stack: same PHP, Node and
-# PostgreSQL majors as compose.yaml and api/Dockerfile, without building the FrankenPHP image.
-# Keep the versions below in step with those files.
+# PostgreSQL majors as compose.yaml and api/Dockerfile, without building the FrankenPHP image. The
+# one exception is `production-image`, which builds and smoke-tests the image that is deployed
+# (adr/0035). Keep the versions below in step with those files.
 name: CI
 
 on:
@@ -39,6 +40,7 @@ jobs:
         outputs:
             api: ${{ steps.filter.outputs.api }}
             frontend: ${{ steps.filter.outputs.frontend }}
+            deploy: ${{ steps.filter.outputs.deploy }}
         steps:
             -   name: Checkout
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,6 +59,11 @@ jobs:
                         frontend:
                             - *workflow
                             - "frontend/**"
+                        deploy:
+                            - *workflow
+                            - "deploy/**"
+                            - ".github/scripts/smoke-prod-image.sh"
+                            - ".github/scripts/check-deploy-config.sh"
 
     api-static:
         name: "API: static checks"
@@ -249,6 +256,27 @@ jobs:
                         echo "::error::routeTree.gen.ts is out of date: run 'pnpm build' (or the dev server) in frontend/ and commit the result"
                         exit 1
                     }
+
+    production-image:
+        name: "Production image: build and smoke test"
+        needs: changes
+        # The image holds the API and both SPAs (adr/0035 §7), so any of them can break it.
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.deploy == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            -   # Built, never pushed: publishing images is the deploy pipeline's job (#36).
+                name: Build the production image
+                run: make prod-image
+
+            -   name: Smoke test (SPAs, /api, caching headers, refuses to start without keys)
+                run: make prod-smoke
+
+            -   name: Validate the deploy/ Compose files and the edge Caddyfile
+                run: make deploy-check
 
     api-types:
         name: "API client types match the OpenAPI document"

@@ -1,0 +1,73 @@
+# The shared part of adr/0035: the edge Caddy (TLS for every app host, proxying to each stage) and
+# one PostgreSQL 17 server with a database and role per stage. Lives at /srv/business-tool/edge/ with
+# its .env (deploy/edge/.env.example), and is started before the stages:
+# `docker compose -p business-tool-edge up -d`.
+
+x-logging: &logging
+    driver: json-file
+    options:
+        max-size: "10m"
+        max-file: "3"
+
+services:
+    caddy:
+        image: caddy:2.10-alpine
+        restart: unless-stopped
+        ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp"
+        environment:
+            ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+            PRODUCTION_ADMIN_HOST: ${PRODUCTION_ADMIN_HOST:?}
+            PRODUCTION_TIMECLOCK_HOST: ${PRODUCTION_TIMECLOCK_HOST:?}
+            STAGING_ADMIN_HOST: ${STAGING_ADMIN_HOST:?}
+            STAGING_TIMECLOCK_HOST: ${STAGING_TIMECLOCK_HOST:?}
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+        logging: *logging
+        mem_limit: 96m
+
+    database:
+        image: postgres:17-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+            PRODUCTION_DB_PASSWORD: ${PRODUCTION_DB_PASSWORD:?set PRODUCTION_DB_PASSWORD in .env}
+            STAGING_DB_PASSWORD: ${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD in .env}
+        # Sized for a 2 GB host shared with two stages (adr/0035 §5–6).
+        command:
+            - postgres
+            - -c
+            - shared_buffers=128MB
+            - -c
+            - effective_cache_size=512MB
+            - -c
+            - work_mem=4MB
+            - -c
+            - maintenance_work_mem=64MB
+            - -c
+            - max_connections=50
+        healthcheck:
+            test: [ "CMD", "pg_isready", "-U", "postgres" ]
+            interval: 5s
+            timeout: 5s
+            retries: 30
+        volumes:
+            - database_data:/var/lib/postgresql/data
+            # Runs once, on an empty data directory.
+            - ./initdb:/docker-entrypoint-initdb.d:ro
+        logging: *logging
+        mem_limit: 384m
+
+networks:
+    default:
+        name: business-tool
+
+volumes:
+    caddy_data:
+    caddy_config:
+    database_data:

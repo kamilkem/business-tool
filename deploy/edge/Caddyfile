@@ -1,0 +1,25 @@
+# Edge of adr/0035 §3: TLS (Let's Encrypt) for every app host, proxied by host name to the stage's
+# FrankenPHP, which serves the SPA and /api on the same origin. Caddy replaces any X-Forwarded-* the
+# client sent, and the stages trust it (TRUSTED_PROXIES). A stopped stage answers 502.
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+{$PRODUCTION_ADMIN_HOST}, {$PRODUCTION_TIMECLOCK_HOST} {
+	import common
+	reverse_proxy production-php:80
+}
+
+{$STAGING_ADMIN_HOST}, {$STAGING_TIMECLOCK_HOST} {
+	import common
+	reverse_proxy staging-php:80
+}

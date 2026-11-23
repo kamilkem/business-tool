@@ -1,0 +1,48 @@
+# Production (adr/0035 §3–4): one stage's two apps, each with the API on its own origin at /api
+# (adr/0020). Plain HTTP on :80 inside the Docker network; the edge Caddy terminates TLS and proxies
+# by host name, keeping the Host header. ADMIN_HOST and TIMECLOCK_HOST come from the stage's env file.
+{
+	{$CADDY_GLOBAL_OPTIONS}
+	auto_https off
+	frankenphp {
+		# Few PHP threads: two stages share a 2 GB host (adr/0035 §6).
+		num_threads {$FRANKENPHP_NUM_THREADS:4}
+	}
+}
+
+(app) {
+	encode zstd br gzip
+
+	# The API, its docs and the docs' assets (public/bundles) go to Symfony.
+	@api path /api /api/* /bundles/*
+	handle @api {
+		root * /app/public
+		php_server
+	}
+
+	# Everything else is the SPA: a file if it exists, otherwise index.html (client-side routes).
+	handle {
+		root * {args[0]}
+		# Hashed bundles never change; the entry point, the manifest and the service worker must be
+		# revalidated, or a deploy would not reach installed time clocks.
+		@immutable path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+		@revalidate not path /assets/*
+		header @revalidate Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+http://{$ADMIN_HOST} {
+	import app /app/spa/admin
+}
+
+http://{$TIMECLOCK_HOST} {
+	import app /app/spa/timeclock
+}
+
+# Any other host gets nothing (Caddy would answer an unmatched host with an empty 200).
+http:// {
+	respond 404
+}
