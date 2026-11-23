@@ -97,6 +97,9 @@ prod-smoke: ## Smoke-test the production image without a database (after make pr
 deploy-check: ## Validate the deploy/ Compose files and the edge Caddyfile
 	.github/scripts/check-deploy-config.sh
 
+deploy: ## Deploy a stage from here, as CI does: make deploy STAGE=staging API_IMAGE=ghcr.io/... SECRETS_DIR=$$HOME/business-tool-secrets [DEPLOY_SSH_KEY_FILE=...]
+	deploy/deploy.sh $(STAGE)
+
 ## —— Quality ————————————————————————————————————————————————————
 adr-check: ## Check ADR numbering, statuses and index (adr/)
 	.github/scripts/check-adr-hygiene.sh
@@ -114,4 +117,4 @@ qa: adr-check guards db-validate translations-check deptrac phpstan test ## Run 
 help:
 	@grep -hE '(^[a-zA-Z_-]+:.*?## .*$$)|(^## )' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-14s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m## /\n[33m/'
 
-.PHONY: up down build logs worker-restart mail sh install setup console migration migrate db-reset db-validate translations-check deptrac test phpstan admin timeclock types prod-image prod-smoke deploy-check adr-check guards qa help
+.PHONY: up down build logs worker-restart mail sh install setup console migration migrate db-reset db-validate translations-check deptrac test phpstan admin timeclock types prod-image prod-smoke deploy-check deploy adr-check guards qa help

@@ -1,0 +1,156 @@
+# Deploys the stages of adr/0035 (#36): staging after CI passes on main, production for a v* tag after
+# the owner approves it in the `production` GitHub Environment. The image is built here, once per
+# stage (the admin embeds the time clock's address, adr/0021), pushed to GitHub Container Registry,
+# and deployed over SSH by deploy/deploy.sh, which also runs from a workstation (`make deploy`).
+#
+# Per stage, the GitHub Environment holds the secrets (APP_SECRET, DATABASE_URL, JWT_PASSPHRASE,
+# JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, SECRETS_ENCRYPTION_KEYS, MAILER_DSN). The repository holds
+# DEPLOY_SSH_KEY (secret) and DEPLOY_KNOWN_HOSTS (variable); the configuration is in deploy/stage/.
+name: Deploy
+
+on:
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+        branches: [main]
+    push:
+        tags: ["v*"]
+    workflow_dispatch:
+        inputs:
+            stage:
+                description: Stage to deploy from the selected ref (production needs a v* tag)
+                type: choice
+                options: [staging, production]
+
+permissions:
+    contents: read
+
+jobs:
+    target:
+        name: Choose stage and commit
+        runs-on: ubuntu-latest
+        # Staging only follows a green CI run of a push to main, never a PR's.
+        if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+        permissions:
+            actions: read
+            contents: read
+        outputs:
+            stage: ${{ steps.target.outputs.stage }}
+            sha: ${{ steps.target.outputs.sha }}
+            image: ${{ steps.target.outputs.image }}
+            url: ${{ steps.target.outputs.url }}
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    fetch-depth: 0
+
+            -   id: target
+                env:
+                    EVENT: ${{ github.event_name }}
+                    REF: ${{ github.ref }}
+                    INPUT_STAGE: ${{ inputs.stage }}
+                    RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    case "$EVENT" in
+                        workflow_run) stage=staging; sha="$RUN_SHA" ;;
+                        push) stage=production; sha="$GITHUB_SHA" ;;
+                        workflow_dispatch) stage="$INPUT_STAGE"; sha="$GITHUB_SHA" ;;
+                    esac
+                    if [ "$stage" = production ]; then
+                        case "$REF" in refs/tags/v*) ;; *) echo "::error::Production deploys a v* tag only (got $REF)"; exit 1 ;; esac
+                        # The tag must point at a commit of main whose CI passed.
+                        git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
+                        passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yaml --commit "$sha" --status success --json databaseId --jq length)
+                        [ "$passed" -gt 0 ] || { echo "::error::CI has not passed for $sha"; exit 1; }
+                    fi
+                    admin_host=$(sed -n 's/^ADMIN_HOST=//p' "deploy/stage/$stage.env")
+                    {
+                        echo "stage=$stage"
+                        echo "sha=$sha"
+                        echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-api:$stage-$sha"
+                        echo "url=https://$admin_host"
+                    } >> "$GITHUB_OUTPUT"
+                    echo "Deploying $sha to $stage"
+
+    build:
+        name: Build the ${{ needs.target.outputs.stage }} image
+        needs: target
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    ref: ${{ needs.target.outputs.sha }}
+
+            -   name: Build
+                env:
+                    STAGE: ${{ needs.target.outputs.stage }}
+                    IMAGE: ${{ needs.target.outputs.image }}
+                run: |
+                    timeclock_host=$(sed -n 's/^TIMECLOCK_HOST=//p' "deploy/stage/$STAGE.env")
+                    make prod-image PROD_IMAGE="$IMAGE" TIMECLOCK_URL="https://$timeclock_host"
+
+            -   name: Smoke test
+                env:
+                    IMAGE: ${{ needs.target.outputs.image }}
+                run: make prod-smoke PROD_IMAGE="$IMAGE"
+
+            -   name: Push
+                env:
+                    IMAGE: ${{ needs.target.outputs.image }}
+                    TOKEN: ${{ github.token }}
+                run: |
+                    echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+                    docker push "$IMAGE"
+                    docker logout ghcr.io
+
+    deploy:
+        name: Deploy to ${{ needs.target.outputs.stage }}
+        needs: [target, build]
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment:
+            name: ${{ needs.target.outputs.stage }}
+            url: ${{ needs.target.outputs.url }}
+        # One deploy per stage at a time; a newer one waits instead of cutting the running one short.
+        concurrency:
+            group: deploy-${{ needs.target.outputs.stage }}
+            cancel-in-progress: false
+        permissions:
+            contents: read
+            packages: read
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    ref: ${{ needs.target.outputs.sha }}
+
+            -   name: SSH key and known host
+                env:
+                    DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                    DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+                run: |
+                    install -d -m 700 ~/.ssh
+                    printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+                    printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+            -   name: Deploy
+                env:
+                    API_IMAGE: ${{ needs.target.outputs.image }}
+                    REGISTRY_USER: ${{ github.actor }}
+                    REGISTRY_TOKEN: ${{ github.token }}
+                    APP_SECRET: ${{ secrets.APP_SECRET }}
+                    DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                    JWT_PASSPHRASE: ${{ secrets.JWT_PASSPHRASE }}
+                    JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+                    JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+                    SECRETS_ENCRYPTION_KEYS: ${{ secrets.SECRETS_ENCRYPTION_KEYS }}
+                    MAILER_DSN: ${{ secrets.MAILER_DSN }}
+                    STAGE: ${{ needs.target.outputs.stage }}
+                run: deploy/deploy.sh "$STAGE"

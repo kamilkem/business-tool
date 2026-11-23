@@ -46,6 +46,8 @@ RUN test -n "$VITE_TIMECLOCK_URL" || { echo 'Build argument VITE_TIMECLOCK_URL i
 # terminates TLS. Dependencies, cache and assets are baked in; keys, secrets and migrations are not.
 FROM base AS prod
 ENV APP_ENV=prod
+# Links the image in GitHub Container Registry to the repository (deploy workflow, #36).
+LABEL org.opencontainers.image.source="https://github.com/kamilkem/business-tool"
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/frankenphp/conf.d/app.prod.ini "$PHP_INI_DIR/conf.d/zz-app.prod.ini"
 COPY docker/frankenphp/Caddyfile.prod /etc/frankenphp/Caddyfile
