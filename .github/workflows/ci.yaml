@@ -270,6 +270,9 @@ jobs:
 
             -   # Built, never pushed: publishing images is the deploy pipeline's job (#36).
                 name: Build the production image
+                # Authenticated GitHub downloads for composer, as a build secret (api/Dockerfile).
+                env:
+                    COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ github.token }}"}}'
                 run: make prod-image
 
             -   name: Smoke test (SPAs, /api, caching headers, refuses to start without keys)
