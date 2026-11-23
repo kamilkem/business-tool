@@ -60,7 +60,10 @@
       "tooSoon": "You clocked in a moment ago. Wait a few seconds and try again.",
       "noAccess": "You no longer have access to this organization. Ask your manager."
     },
-    "closeDay": "Close the day"
+    "closeDay": "Close the day",
+    "longShift_one": "You've been clocked in for {{count}} hour. Did you forget to clock out?",
+    "longShift_other": "You've been clocked in for {{count}} hours. Did you forget to clock out?",
+    "longShiftHint": "If you finished earlier, clock out now, then ask for a correction in My shifts with the time you really finished."
   },
   "shifts": {
     "title": "My shifts",

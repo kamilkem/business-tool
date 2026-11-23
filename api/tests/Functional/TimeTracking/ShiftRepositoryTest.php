@@ -10,6 +10,7 @@ use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Domain\Time\UtcRange;
 use App\Tests\Factory\OrganizationFactory;
 use App\TimeTracking\Domain\Exception\ShiftAlreadyOpenException;
+use App\TimeTracking\Domain\Model\MaxShiftLength;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
 use App\TimeTracking\Domain\Model\ShiftSource;
@@ -260,6 +261,46 @@ final class ShiftRepositoryTest extends KernelTestCase
 
         self::assertNull($this->shifts->findById(Uuid::fromString($removed)));
         self::assertNotNull($this->shifts->findById(Uuid::fromString($kept)));
+    }
+
+    public function test_it_finds_the_open_shifts_not_yet_reported_that_started_before_a_moment(): void
+    {
+        $organization = OrganizationFactory::createOne();
+        $this->switchTo($organization);
+        $old = $this->add(Uuid::v7(), '2026-11-11 08:00:00', null);
+        $older = $this->add(Uuid::v7(), '2026-11-11 06:00:00', null);
+        $this->add(Uuid::v7(), '2026-11-11 12:00:00', null);
+        $this->add(Uuid::v7(), '2026-11-11 05:00:00', '2026-11-11 23:00:00');
+        $reported = $this->shifts->findById(Uuid::fromString($this->add(Uuid::v7(), '2026-11-11 07:00:00', null))) ?? throw new \LogicException();
+        $reported->reportAsLong(MaxShiftLength::ofHours(1), new \DateTimeImmutable('2026-11-11 10:00:00'));
+        $this->shifts->save($reported);
+
+        $other = OrganizationFactory::createOne();
+        $this->switchTo($other);
+        $this->add(Uuid::v7(), '2026-11-11 06:00:00', null);
+        $this->switchTo($organization);
+        $this->entityManager->clear();
+
+        self::assertSame([$older, $old], self::ids($this->shifts->findOpenToReport(new \DateTimeImmutable('2026-11-11 12:00:00'))));
+    }
+
+    public function test_it_lists_the_organizations_with_open_shifts_to_report_across_tenants(): void
+    {
+        $withOne = OrganizationFactory::createOne();
+        $this->switchTo($withOne);
+        $this->add(Uuid::v7(), '2026-11-11 06:00:00', null);
+        $withRecentOnly = OrganizationFactory::createOne();
+        $this->switchTo($withRecentOnly);
+        $this->add(Uuid::v7(), '2026-11-11 12:00:00', null);
+        $withEndedOnly = OrganizationFactory::createOne();
+        $this->switchTo($withEndedOnly);
+        $this->add(Uuid::v7(), '2026-11-11 05:00:00', '2026-11-11 23:00:00');
+        $this->tenantContext->reset();
+
+        self::assertSame(
+            [$withOne->getId()->toRfc4122()],
+            $this->shifts->findOrganizationIdsWithOpenShiftsToReport(new \DateTimeImmutable('2026-11-11 12:00:00')),
+        );
     }
 
     /** @return string the shift's id */

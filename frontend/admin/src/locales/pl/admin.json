@@ -1079,7 +1079,12 @@
       "enteredBy": "Wpisana przez: {{name}}, {{when}}",
       "enteredByYou": "Wpisana przez Ciebie, {{when}}",
       "correctedBy": "Poprawiona przez: {{name}}, {{when}}",
-      "correctedByYou": "Poprawiona przez Ciebie, {{when}}"
+      "correctedByYou": "Poprawiona przez Ciebie, {{when}}",
+      "longerThanMax_one": "Ponad {{count}} godz.",
+      "longerThanMax_few": "Ponad {{count}} godz.",
+      "longerThanMax_many": "Ponad {{count}} godz.",
+      "longerThanMax_other": "Ponad {{count}} godz.",
+      "longerThanMaxHint": "Dłużej niż maksymalna długość zmiany: może nie została zakończona na czas."
     }
   },
   "shiftDialog": {
@@ -1512,5 +1517,15 @@
       "day_end_time": "Zamknięcie przed {{time}} należy do poprzedniego dnia: przy 05:00 zamknięcie w sobotę o 02:30 jest piątkowe. Od 00:00 do {{latest}}.",
       "employee_picks": "Zamknięcie przed {{time}} podpowiada poprzedni dzień. Od 00:00 do {{latest}}."
     }
+  },
+  "timeTrackingSettings": {
+    "title": "Rejestracja czasu",
+    "description": "Kiedy zmiana wygląda na niezakończoną przez pomyłkę.",
+    "changedAt": "Ostatnia zmiana: {{at}}.",
+    "defaults": "To ustawienia domyślne.",
+    "saved": "Zapisano ustawienia rejestracji czasu",
+    "maxShiftHours": "Maksymalna długość zmiany",
+    "hours": "godz.",
+    "maxShiftHoursDescription": "Dłuższa zmiana jest oznaczona na stronie Czas pracy. Dopóki trwa, ta osoba oraz właściciele i menedżerowie dostają o niej jeden e-mail. Nic nie kończy zmiany za nich. Od {{min}} do {{max}} godzin."
   }
 }

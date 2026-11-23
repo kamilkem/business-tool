@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Ui\Scheduler;
 
 use App\Ksef\Application\Job\StartKsefImports\StartKsefImportsJob;
 use App\Shared\Application\Job\ScheduledJob;
+use App\TimeTracking\Application\Job\StartLongShiftReports\StartLongShiftReportsJob;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -16,17 +17,33 @@ use Symfony\Component\Scheduler\Generator\MessageContext;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Ui\Scheduler\DefaultSchedule;
 
-/** The `default` schedule's entries and their next run times, across both DST changes in Warsaw (ADR 0025 §7). */
+/** The `default` schedule's entries and their next run times, across DST changes (ADR 0025 §7). */
 #[CoversClass(DefaultSchedule::class)]
 final class DefaultScheduleTest extends TestCase
 {
-    public function test_it_queues_the_ksef_fan_out_and_nothing_else(): void
+    public function test_it_queues_the_ksef_and_the_long_shift_fan_outs_and_nothing_else(): void
     {
-        $message = $this->ksefImport();
+        $messages = [];
+        foreach ($this->entries() as $entry) {
+            array_push($messages, ...iterator_to_array($entry->getMessages(new MessageContext('default', $entry->getId(), $entry->getTrigger(), new \DateTimeImmutable())), false));
+        }
 
-        $messages = iterator_to_array($message->getMessages(new MessageContext('default', $message->getId(), $message->getTrigger(), new \DateTimeImmutable())), false);
+        self::assertEquals([new ScheduledJob(new StartKsefImportsJob()), new ScheduledJob(new StartLongShiftReportsJob())], $messages);
+    }
 
-        self::assertEquals([new ScheduledJob(new StartKsefImportsJob())], $messages);
+    public function test_it_reports_long_shifts_hourly_on_the_hour_also_across_a_dst_change(): void
+    {
+        $trigger = $this->entries()[1]->getTrigger();
+
+        $runs = [];
+        $run = new \DateTimeImmutable('2026-10-25 00:30:00 UTC');
+        for ($i = 0; $i < 4; ++$i) {
+            $run = $trigger->getNextRunDate($run) ?? self::fail('Next run expected.');
+            $runs[] = $run->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i P');
+        }
+
+        // Warsaw's 02:00-03:00 happens twice that night; in UTC the runs stay one hour apart.
+        self::assertSame(['2026-10-25 01:00 +00:00', '2026-10-25 02:00 +00:00', '2026-10-25 03:00 +00:00', '2026-10-25 04:00 +00:00'], $runs);
     }
 
     /** @return iterable<string, array{string, list<string>}> */
@@ -69,10 +86,16 @@ final class DefaultScheduleTest extends TestCase
 
     private function ksefImport(): RecurringMessage
     {
-        $schedule = (new DefaultSchedule(new ArrayAdapter(), new LockFactory(new InMemoryStore())))->getSchedule();
-        $messages = $schedule->getRecurringMessages();
-        self::assertCount(1, $messages);
+        return $this->entries()[0];
+    }
 
-        return $messages[0];
+    /** @return list<RecurringMessage> */
+    private function entries(): array
+    {
+        $schedule = (new DefaultSchedule(new ArrayAdapter(), new LockFactory(new InMemoryStore())))->getSchedule();
+        $messages = array_values($schedule->getRecurringMessages());
+        self::assertCount(2, $messages);
+
+        return $messages;
     }
 }

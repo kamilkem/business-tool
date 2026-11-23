@@ -55,3 +55,17 @@ shift_change_request_decided:
     reason: 'Reason:'
     note: 'Your note:'
     link: 'See your shifts'
+
+long_shift_employee:
+    subject: 'Did you forget to clock out?'
+    body: 'You have been clocked in at {organizationName} since {startedAt}, for {hours, plural, one {# hour} other {# hours}}: longer than the usual maximum of {maxShiftHours, plural, one {# hour} other {# hours}}.'
+    clock_out_prompt: 'If you have finished, clock out now in the time clock. If you finished earlier, clock out and then ask for a correction with the time you really finished.'
+    times_in: 'Times are in {timeZone}.'
+    link: 'Open the time clock'
+
+long_shift_manager:
+    subject: '{employeeName} may have forgotten to clock out'
+    body: '{employeeName} has been clocked in at {organizationName} since {startedAt}, for {hours, plural, one {# hour} other {# hours}}: longer than the maximum shift length of {maxShiftHours, plural, one {# hour} other {# hours}}.'
+    check_prompt: 'The shift stays open until they clock out or you correct its end in the admin panel. They have been asked whether they forgot to clock out.'
+    times_in: 'Times are in {timeZone}.'
+    link: 'Open the shifts'

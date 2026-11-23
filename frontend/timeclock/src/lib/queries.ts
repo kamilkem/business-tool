@@ -90,3 +90,14 @@ export function dayCloseFormQuery(organizationId: string) {
     queryFn: () => unwrap(api.GET("/api/day-close-form")),
   })
 }
+
+/**
+ * The organization's time tracking settings (#33): the maximum shift length, after which the clock
+ * asks whether the person forgot to clock out. Any member may read them.
+ */
+export function timeTrackingSettingsQuery(organizationId: string) {
+  return queryOptions({
+    queryKey: ["time-tracking-settings", organizationId],
+    queryFn: () => unwrap(api.GET("/api/time-tracking-settings")),
+  })
+}

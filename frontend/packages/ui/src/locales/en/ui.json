@@ -258,8 +258,10 @@
       }
     },
     "time_tracking": {
+      "invalid_max_shift_length": "The maximum shift length must be from {{min}} to {{max}} hours.",
       "not_clocked_in": "You are not clocked in. Clock in first.",
       "open_shift_cannot_be_deleted": "This shift is still open: it can be deleted once it has ended.",
+      "settings_change_forbidden": "Only owners and managers change the time tracking settings.",
       "shift_already_closed": "This shift has already ended.",
       "shift_already_open": "{{user}} is already clocked in. Clock out first.",
       "shift_already_open_self": "You are already clocked in. Clock out first.",

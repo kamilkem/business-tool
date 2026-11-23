@@ -1015,7 +1015,10 @@
       "enteredBy": "Entered by {{name}}, {{when}}",
       "enteredByYou": "Entered by you, {{when}}",
       "correctedBy": "Corrected by {{name}}, {{when}}",
-      "correctedByYou": "Corrected by you, {{when}}"
+      "correctedByYou": "Corrected by you, {{when}}",
+      "longerThanMax_one": "Longer than {{count}} h",
+      "longerThanMax_other": "Longer than {{count}} h",
+      "longerThanMaxHint": "Longer than the maximum shift length: maybe a forgotten clock-out."
     }
   },
   "shiftDialog": {
@@ -1416,5 +1419,15 @@
       "day_end_time": "A close before {{time}} belongs to the previous day: with 05:00, a close at 02:30 on Saturday is Friday's. From 00:00 to {{latest}}.",
       "employee_picks": "A close before {{time}} suggests the previous day. From 00:00 to {{latest}}."
     }
+  },
+  "timeTrackingSettings": {
+    "title": "Time tracking",
+    "description": "When a shift counts as a possibly forgotten clock-out.",
+    "changedAt": "Last changed {{at}}.",
+    "defaults": "These are the defaults.",
+    "saved": "Time tracking settings saved",
+    "maxShiftHours": "Maximum shift length",
+    "hours": "hours",
+    "maxShiftHoursDescription": "A shift longer than this is flagged on the Time page. While it is open, the person and the owners and managers get one e-mail about it. Nothing ends the shift for them. From {{min}} to {{max}} hours."
   }
 }

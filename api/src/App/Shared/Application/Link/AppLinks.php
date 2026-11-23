@@ -50,6 +50,12 @@ final readonly class AppLinks
         return $this->baseUrl($app).'/';
     }
 
+    /** The admin's shifts page (#31), for owners and managers. */
+    public function adminShifts(): string
+    {
+        return $this->adminUrl.'/time';
+    }
+
     private function baseUrl(ClientApp $app): string
     {
         return match ($app) {

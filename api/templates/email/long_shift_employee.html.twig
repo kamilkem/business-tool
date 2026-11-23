@@ -1,0 +1,10 @@
+{# To the person whose open shift runs longer than the organization's maximum shift length (#33),
+   once per shift. Context: firstName, organizationName, startedAt (formatted in the organization's
+   time zone and the recipient's language), hours (whole hours so far), maxShiftHours, timeZone,
+   link (the time clock). Rendered by the queue worker (adr/0012) in the recipient's language
+   (ADR 0028 §6): texts in translations/email+intl-icu.*. #}
+{% trans_default_domain 'email' %}
+<p>{{ 'common.hello_name'|trans({firstName: firstName}) }}</p>
+<p>{{ 'long_shift_employee.body'|trans({organizationName: organizationName, startedAt: startedAt, hours: hours, maxShiftHours: maxShiftHours}) }}</p>
+<p>{{ 'long_shift_employee.clock_out_prompt'|trans }} {{ 'long_shift_employee.times_in'|trans({timeZone: timeZone}) }}</p>
+<p><a href="{{ link }}">{{ 'long_shift_employee.link'|trans }}</a></p>

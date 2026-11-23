@@ -54,3 +54,17 @@ shift_change_request_decided:
     reason: 'Powód:'
     note: 'Twoja notatka:'
     link: 'Zobacz swoje zmiany'
+
+long_shift_employee:
+    subject: 'Czy Twoja zmiana nadal trwa?'
+    body: 'Twoja zmiana w {organizationName} trwa od {startedAt}, czyli już {hours, plural, one {# godzinę} few {# godziny} many {# godzin} other {# godziny}}: dłużej niż dopuszczalne {maxShiftHours, plural, one {# godzina} few {# godziny} many {# godzin} other {# godziny}}. Może zakończenie zmiany zostało pominięte?'
+    clock_out_prompt: 'Jeśli praca jest już skończona, zakończ zmianę teraz w aplikacji Timeclock. Jeśli skończyła się wcześniej, zakończ zmianę, a potem poproś o korektę z prawdziwą godziną końca.'
+    times_in: 'Godziny podano w strefie {timeZone}.'
+    link: 'Otwórz Timeclock'
+
+long_shift_manager:
+    subject: 'Zmiana osoby {employeeName} trwa za długo'
+    body: 'Zmiana osoby {employeeName} w {organizationName} trwa od {startedAt}, czyli już {hours, plural, one {# godzinę} few {# godziny} many {# godzin} other {# godziny}}: dłużej niż maksymalna długość zmiany, {maxShiftHours, plural, one {# godzina} few {# godziny} many {# godzin} other {# godziny}}. Możliwe, że zakończenie zmiany zostało pominięte.'
+    check_prompt: 'Zmiana pozostaje otwarta, dopóki ta osoba jej nie zakończy albo nie poprawisz jej końca w panelu administracyjnym. Ta osoba też dostała e-mail z pytaniem, czy zmiana nadal trwa.'
+    times_in: 'Godziny podano w strefie {timeZone}.'
+    link: 'Otwórz zmiany'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { canBeDeleted, grandTotal, type Shift, totalsPerEmployee } from "./shifts"
+import { canBeDeleted, grandTotal, hoursSince, isLongerThanMax, type Shift, totalsPerEmployee } from "./shifts"
 
 const ANNA = "0193a1b2-0000-7000-8000-000000000001"
 const BOB = "0193a1b2-0000-7000-8000-000000000002"
@@ -88,5 +88,42 @@ describe("canBeDeleted", () => {
 
   it("test_it_does_not_offer_to_delete_a_running_shift", () => {
     expect(canBeDeleted(shift(ANNA, "Anna", "Nowak", null))).toBe(false)
+  })
+})
+
+describe("isLongerThanMax", () => {
+  const start = "2026-11-22T18:00:00+00:00"
+
+  it("test_it_flags_an_open_shift_only_once_it_runs_past_the_limit", () => {
+    const open = { startedAt: start, endedAt: null }
+
+    expect(isLongerThanMax(open, 12, new Date("2026-11-23T06:00:00Z"))).toBe(false)
+    expect(isLongerThanMax(open, 12, new Date("2026-11-23T06:00:01Z"))).toBe(true)
+  })
+
+  it("test_it_flags_a_finished_shift_by_its_own_end_whatever_the_time_now", () => {
+    const later = new Date("2026-11-30T12:00:00Z")
+
+    expect(isLongerThanMax({ startedAt: start, endedAt: "2026-11-23T06:00:00+00:00" }, 12, later)).toBe(false)
+    expect(isLongerThanMax({ startedAt: start, endedAt: "2026-11-23T07:30:00+00:00" }, 12, later)).toBe(true)
+    expect(isLongerThanMax({ startedAt: start, endedAt: "2026-11-23T07:30:00+00:00" }, 14, later)).toBe(false)
+  })
+
+  it("test_it_compares_instants_whatever_the_offset", () => {
+    const warsaw = { startedAt: "2026-11-22T19:00:00+01:00", endedAt: "2026-11-23T08:00:00+01:00" }
+
+    expect(isLongerThanMax(warsaw, 12, new Date())).toBe(true)
+    expect(isLongerThanMax(warsaw, 13, new Date())).toBe(false)
+  })
+})
+
+describe("hoursSince", () => {
+  it("test_it_counts_whole_hours_from_the_start", () => {
+    expect(hoursSince("2026-11-22T18:00:00+00:00", new Date("2026-11-23T07:59:59Z"))).toBe(13)
+    expect(hoursSince("2026-11-22T18:00:00+00:00", new Date("2026-11-23T08:00:00Z"))).toBe(14)
+  })
+
+  it("test_it_never_goes_below_zero", () => {
+    expect(hoursSince("2026-11-22T18:00:00+00:00", new Date("2026-11-22T17:00:00Z"))).toBe(0)
   })
 })

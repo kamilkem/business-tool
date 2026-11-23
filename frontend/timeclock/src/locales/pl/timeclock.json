@@ -62,7 +62,12 @@
       "tooSoon": "Zmiana rozpoczęła się przed chwilą. Odczekaj kilka sekund i spróbuj ponownie.",
       "noAccess": "Nie masz już dostępu do tej organizacji. Zapytaj przełożonego."
     },
-    "closeDay": "Zamknij dzień"
+    "closeDay": "Zamknij dzień",
+    "longShift_one": "Twoja zmiana trwa już {{count}} godzinę. Czy zapomniano ją zakończyć?",
+    "longShift_few": "Twoja zmiana trwa już {{count}} godziny. Czy zapomniano ją zakończyć?",
+    "longShift_many": "Twoja zmiana trwa już {{count}} godzin. Czy zapomniano ją zakończyć?",
+    "longShift_other": "Twoja zmiana trwa już {{count}} godziny. Czy zapomniano ją zakończyć?",
+    "longShiftHint": "Jeśli praca skończyła się wcześniej, zakończ zmianę teraz, a potem poproś o korektę w Moich zmianach z prawdziwą godziną końca."
   },
   "shifts": {
     "title": "Moje zmiany",
