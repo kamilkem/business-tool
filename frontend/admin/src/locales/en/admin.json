@@ -366,6 +366,7 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected",
+      "withdrawn": "Withdrawn",
       "all": "All"
     },
     "openRange": "{{start}} – open",
@@ -385,6 +386,7 @@
       "pending": "Pending requests",
       "approved": "Approved requests",
       "rejected": "Rejected requests",
+      "withdrawn": "Withdrawn requests",
       "all": "All requests"
     },
     "cardDescription": "Newest first. Approving gives the shift the requested times; the shift rules (no overlap, nothing in the future) are checked then.",
@@ -392,6 +394,7 @@
       "pending": "No requests are waiting for a decision.",
       "approved": "No approved requests yet.",
       "rejected": "No rejected requests yet.",
+      "withdrawn": "No withdrawn requests.",
       "all": "Nobody has asked for a shift change yet."
     },
     "now": "Now",
@@ -405,6 +408,8 @@
     "approveFor": "Approve {{name}}'s request for {{day}}",
     "approved": "Approved",
     "rejected": "Rejected",
+    "withdrawn": "Withdrawn",
+    "withdrawnBy": "by the requester, {{when}}",
     "decidedBy": "by {{name}}, {{when}}",
     "decidedByYou": "by you, {{when}}",
     "quoted": "“{{text}}”",

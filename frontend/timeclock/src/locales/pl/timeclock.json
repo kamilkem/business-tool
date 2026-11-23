@@ -120,11 +120,19 @@
     "sent": "Wysłana {{when}}",
     "approvedOn": "Zatwierdzona {{when}}",
     "rejectedOn": "Odrzucona {{when}}",
+    "withdrawnOn": "Wycofana {{when}}",
     "status": {
       "pending": "Oczekuje",
       "approved": "Zatwierdzona",
-      "rejected": "Odrzucona"
-    }
+      "rejected": "Odrzucona",
+      "withdrawn": "Wycofana"
+    },
+    "withdraw": "Wycofaj",
+    "withdrawFor": "Wycofaj prośbę o {{range}}",
+    "withdrawTitle": "Wycofać tę prośbę?",
+    "withdrawDescription": "Twój menedżer przestanie ją widzieć. W każdej chwili możesz wysłać nową prośbę.",
+    "keep": "Zostaw",
+    "withdrawing": "Wycofywanie…"
   },
   "pay": {
     "title": "Moja wypłata",

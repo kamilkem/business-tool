@@ -7,7 +7,7 @@ import { i18n } from "../i18n"
 export type ShiftChangeRequest = components["schemas"]["ShiftChangeRequest"]
 export type ShiftChangeRequestStatus = ShiftChangeRequest["status"]
 
-/** "Pending", "Approved" or "Rejected", in the language shown. */
+/** "Pending", "Approved", "Rejected" or "Withdrawn", in the language shown. */
 export function statusLabel(status: ShiftChangeRequestStatus): string {
   return i18n.t(`requests.status.${status}`, { ns: "timeclock" })
 }
@@ -44,11 +44,22 @@ export function previousTimes(format: DateTimeFormat, request: ShiftChangeReques
   return i18n.t("requests.now", { ns: "timeclock", range: timeRange(format, request.shiftStartedAt, request.shiftEndedAt) })
 }
 
-/** "Sent 12 Nov 2026, 01:00" or "Approved 12 Nov 2026, 09:15", in the organization's time zone. */
+/**
+ * "Sent 12 Nov 2026, 01:00", "Approved 12 Nov 2026, 09:15" or "Withdrawn 12 Nov 2026, 10:00", in the
+ * organization's time zone.
+ */
 export function requestWhen(format: DateTimeFormat, request: ShiftChangeRequest): string {
+  if (request.status === "withdrawn" && request.withdrawnAt !== null) {
+    return i18n.t("requests.withdrawnOn", { ns: "timeclock", when: format.dateTime(request.withdrawnAt) })
+  }
   if (request.status !== "pending" && request.decidedAt !== null) {
     const when = format.dateTime(request.decidedAt)
     return i18n.t(request.status === "approved" ? "requests.approvedOn" : "requests.rejectedOn", { ns: "timeclock", when })
   }
   return i18n.t("requests.sent", { ns: "timeclock", when: format.dateTime(request.submittedAt) })
+}
+
+/** Only a pending request can be withdrawn, by the person who sent it (the screen lists their own only). */
+export function canWithdraw(request: ShiftChangeRequest): boolean {
+  return request.status === "pending"
 }

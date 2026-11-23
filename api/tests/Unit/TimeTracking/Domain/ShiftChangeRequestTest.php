@@ -10,6 +10,8 @@ use App\TimeTracking\Domain\Exception\ShiftChangeRequestAlreadyDecidedException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestChangesNothingException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestDecisionForbiddenException;
 use App\TimeTracking\Domain\Exception\ShiftChangeRequestNoteRequiredException;
+use App\TimeTracking\Domain\Exception\ShiftChangeRequestWithdrawalForbiddenException;
+use App\TimeTracking\Domain\Exception\ShiftChangeRequestWithdrawnException;
 use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftNotFoundException;
@@ -277,6 +279,82 @@ final class ShiftChangeRequestTest extends TestCase
 
         self::assertSame(ShiftChangeRequestStatus::Rejected, $request->getStatus());
         self::assertSame('No', $request->getRejectionReason());
+    }
+
+    public function test_it_is_withdrawn_by_the_requester_and_kept_without_a_decision(): void
+    {
+        $request = $this->missingShiftRequest();
+
+        $request->withdraw($this->userId, new \DateTimeImmutable('2026-11-13 12:30:00'));
+
+        self::assertSame(ShiftChangeRequestStatus::Withdrawn, $request->getStatus());
+        self::assertEquals(new \DateTimeImmutable('2026-11-13 12:30:00'), $request->getWithdrawnAt());
+        self::assertSame([null, null, null], [$request->getDecidedBy(), $request->getDecidedAt(), $request->getShiftId()]);
+    }
+
+    public function test_it_is_withdrawn_by_nobody_but_the_requester(): void
+    {
+        $request = $this->missingShiftRequest();
+
+        try {
+            $request->withdraw($this->managerId, new \DateTimeImmutable(self::NOW));
+            self::fail('Someone else withdrew the request.');
+        } catch (ShiftChangeRequestWithdrawalForbiddenException $e) {
+            self::assertSame('time_tracking.shift_change_request_withdrawal_forbidden', $e->errorCode());
+        }
+
+        self::assertSame(ShiftChangeRequestStatus::Pending, $request->getStatus());
+        self::assertNull($request->getWithdrawnAt());
+    }
+
+    /** @return iterable<string, array{\Closure(ShiftChangeRequest, Uuid): void, class-string<\Throwable>}> */
+    public static function settledRequests(): iterable
+    {
+        $now = new \DateTimeImmutable(self::NOW);
+
+        yield 'approved' => [static fn (ShiftChangeRequest $request, Uuid $managerId) => $request->approve($managerId, MembershipRole::Manager, Uuid::v7(), $now), ShiftChangeRequestAlreadyDecidedException::class];
+        yield 'rejected' => [static fn (ShiftChangeRequest $request, Uuid $managerId) => $request->reject($managerId, MembershipRole::Manager, null, $now), ShiftChangeRequestAlreadyDecidedException::class];
+        yield 'withdrawn' => [static fn (ShiftChangeRequest $request) => $request->withdraw($request->getUserId(), $now), ShiftChangeRequestWithdrawnException::class];
+    }
+
+    /**
+     * @param \Closure(ShiftChangeRequest, Uuid): void $settle
+     * @param class-string<\Throwable>                $expected
+     */
+    #[DataProvider('settledRequests')]
+    public function test_it_refuses_to_withdraw_a_request_that_is_no_longer_pending(\Closure $settle, string $expected): void
+    {
+        $request = $this->missingShiftRequest();
+        $settle($request, $this->managerId);
+        $status = $request->getStatus();
+
+        $this->expectException($expected);
+
+        try {
+            $request->withdraw($this->userId, new \DateTimeImmutable('2026-11-13 13:00:00'));
+        } finally {
+            self::assertSame($status, $request->getStatus());
+        }
+    }
+
+    public function test_it_refuses_to_decide_a_withdrawn_request(): void
+    {
+        $request = $this->missingShiftRequest();
+        $request->withdraw($this->userId, new \DateTimeImmutable(self::NOW));
+
+        foreach ([
+            fn () => $request->approve($this->managerId, MembershipRole::Owner, Uuid::v7(), new \DateTimeImmutable(self::NOW)),
+            fn () => $request->reject($this->managerId, MembershipRole::Manager, null, new \DateTimeImmutable(self::NOW)),
+        ] as $decide) {
+            try {
+                $decide();
+                self::fail('A withdrawn request was decided.');
+            } catch (ShiftChangeRequestWithdrawnException $e) {
+                self::assertSame('time_tracking.shift_change_request_withdrawn', $e->errorCode());
+            }
+        }
+
+        self::assertSame([ShiftChangeRequestStatus::Withdrawn, null], [$request->getStatus(), $request->getDecidedBy()]);
     }
 
     public function test_it_refuses_to_ask_for_a_missing_shift_in_a_locked_month(): void

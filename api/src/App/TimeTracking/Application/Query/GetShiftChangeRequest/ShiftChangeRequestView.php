@@ -24,12 +24,13 @@ final readonly class ShiftChangeRequestView
         public \DateTimeImmutable $startedAt,
         public ?\DateTimeImmutable $endedAt,
         public string $note,
-        /** ShiftChangeRequestStatus: `pending`, `approved` or `rejected`. */
+        /** ShiftChangeRequestStatus: `pending`, `approved`, `rejected` or `withdrawn`. */
         public string $status,
         public \DateTimeImmutable $submittedAt,
         public ?string $decidedBy,
         public ?\DateTimeImmutable $decidedAt,
         public ?string $rejectionReason,
+        public ?\DateTimeImmutable $withdrawnAt,
         /** The shift's times now (null when there is no shift yet, or it no longer exists). */
         public ?\DateTimeImmutable $shiftStartedAt,
         public ?\DateTimeImmutable $shiftEndedAt,
@@ -54,6 +55,7 @@ final readonly class ShiftChangeRequestView
             $request->getDecidedBy()?->toRfc4122(),
             $request->getDecidedAt(),
             $request->getRejectionReason(),
+            $request->getWithdrawnAt(),
             $shift?->getStartedAt(),
             $shift?->getEndedAt(),
         );

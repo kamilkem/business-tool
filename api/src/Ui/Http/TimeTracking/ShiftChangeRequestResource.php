@@ -18,6 +18,7 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\TimeTracking\Processor\ApproveShiftChangeRequestProcessor;
 use Ui\Http\TimeTracking\Processor\RejectShiftChangeRequestProcessor;
 use Ui\Http\TimeTracking\Processor\SubmitShiftChangeRequestProcessor;
+use Ui\Http\TimeTracking\Processor\WithdrawShiftChangeRequestProcessor;
 use Ui\Http\TimeTracking\Provider\ShiftChangeRequestCollectionProvider;
 use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
 
@@ -25,7 +26,8 @@ use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
  * A member's request to an owner or manager to change their shifts, in the organization selected by
  * the X-Organization-Id header: to enter a shift they worked but did not clock, or to give one of
  * their own shifts new times (ADR 0016 §5: people never change shift times themselves). Any member
- * submits requests for themselves; owners and managers approve or reject them, their own included.
+ * submits requests for themselves, and may withdraw them while they are pending; owners and managers
+ * approve or reject them, their own included.
  * Approving applies the change to the shift with the approver as the corrector, under the shift
  * rules as they hold at that moment.
  */
@@ -39,7 +41,7 @@ use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
                 summary: 'Lists shift change requests in the selected organization.',
                 description: 'Newest first. Owners and managers see everyone\'s requests, deactivated members\' too; employees see their own only. An unknown status is a 422.',
                 responses: [
-                    '422' => new Response('The status is not one of pending, approved, rejected.'),
+                    '422' => new Response('The status is not one of pending, approved, rejected, withdrawn.'),
                 ],
             ),
             // ListShiftChangeRequestsInput validates the parameters; the schema below only documents them.
@@ -47,7 +49,7 @@ use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
             provider: ShiftChangeRequestCollectionProvider::class,
             parameters: [
                 'status' => new QueryParameter(
-                    schema: ['type' => 'string', 'enum' => ['pending', 'approved', 'rejected']],
+                    schema: ['type' => 'string', 'enum' => ['pending', 'approved', 'rejected', 'withdrawn']],
                     description: 'Only requests in this status.',
                 ),
             ],
@@ -87,12 +89,12 @@ use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
             status: 200,
             openapi: new Operation(
                 summary: 'Approves a pending shift change request and applies it to the shift.',
-                description: 'Owners and managers only (403 otherwise), their own requests included. The request has no body. The missing shift is entered, or the shift gets the new times (it keeps its own note), with the approver as the corrector (correctedBy), under the shift rules as they hold now: an overlap with another shift of the person is a 409; a time in the future, an end not after the start or a reopened shift is a 422. Then the request stays pending. A request already decided is a 409. The requester is e-mailed.',
+                description: 'Owners and managers only (403 otherwise), their own requests included. The request has no body. The missing shift is entered, or the shift gets the new times (it keeps its own note), with the approver as the corrector (correctedBy), under the shift rules as they hold now: an overlap with another shift of the person is a 409; a time in the future, an end not after the start or a reopened shift is a 422. Then the request stays pending. A request already decided or withdrawn is a 409. The requester is e-mailed.',
                 responses: [
                     '200' => new Response('The approved request; shiftId is the shift that was entered or changed.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The request, or the shift it is about, is not in the selected organization.'),
-                    '409' => new Response('The request was already decided, or the shift would overlap another shift of the person.'),
+                    '409' => new Response('The request was already decided or withdrawn, or the shift would overlap another shift of the person.'),
                     '422' => new Response('The shift would not end after it starts, would be in the future, or would lose its end.'),
                 ],
             ),
@@ -107,18 +109,37 @@ use Ui\Http\TimeTracking\Provider\ShiftChangeRequestProvider;
             status: 200,
             openapi: new Operation(
                 summary: 'Rejects a pending shift change request.',
-                description: 'Owners and managers only (403 otherwise), their own requests included; the reason is optional. The shifts stay as they are. A request already decided is a 409. The requester is e-mailed.',
+                description: 'Owners and managers only (403 otherwise), their own requests included; the reason is optional. The shifts stay as they are. A request already decided or withdrawn is a 409. The requester is e-mailed.',
                 responses: [
                     '200' => new Response('The rejected request.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The request is not in the selected organization.'),
-                    '409' => new Response('The request was already decided.'),
+                    '409' => new Response('The request was already decided or withdrawn.'),
                     '422' => new Response('The reason is too long.'),
                 ],
             ),
             input: RejectShiftChangeRequestInput::class,
             read: false,
             processor: RejectShiftChangeRequestProcessor::class,
+        ),
+        new Post(
+            uriTemplate: '/shift-change-requests/{id}/withdraw',
+            uriVariables: ['id'],
+            requirements: ['id' => Requirement::UUID],
+            status: 200,
+            openapi: new Operation(
+                summary: 'Withdraws the signed-in member\'s own pending shift change request.',
+                description: 'The member who asked only; the request has no body. The shifts stay as they are, the request is kept with the status withdrawn and is never decided. An owner or manager withdrawing someone else\'s request is a 403 (they reject it instead); an employee\'s colleague\'s request is a 404. A request already decided or withdrawn is a 409. Nobody is e-mailed.',
+                responses: [
+                    '200' => new Response('The withdrawn request.'),
+                    '403' => new Response('The signed-in user is an owner or manager and did not ask for the change.'),
+                    '404' => new Response('The request is not one the signed-in user may see in the selected organization.'),
+                    '409' => new Response('The request was already decided or withdrawn.'),
+                ],
+            ),
+            input: false,
+            read: false,
+            processor: WithdrawShiftChangeRequestProcessor::class,
         ),
     ],
 )]
@@ -147,6 +168,8 @@ final readonly class ShiftChangeRequestResource
         public ?\DateTimeImmutable $decidedAt,
         /** Why it was rejected, if the owner or manager said. */
         public ?string $rejectionReason,
+        /** When the member who asked withdrew it; null unless withdrawn. */
+        public ?\DateTimeImmutable $withdrawnAt,
         /** The shift's start now, to compare with the times asked for; null when there is no shift (yet). */
         public ?\DateTimeImmutable $shiftStartedAt,
         /** The shift's end now; null when the shift is open or there is no shift (yet). */
@@ -171,6 +194,7 @@ final readonly class ShiftChangeRequestResource
             decidedBy: $view->decidedBy,
             decidedAt: $view->decidedAt,
             rejectionReason: $view->rejectionReason,
+            withdrawnAt: $view->withdrawnAt,
             shiftStartedAt: $view->shiftStartedAt,
             shiftEndedAt: $view->shiftEndedAt,
         );

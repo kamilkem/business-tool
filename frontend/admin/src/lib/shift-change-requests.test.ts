@@ -37,6 +37,7 @@ function request(overrides: Partial<ShiftChangeRequest> = {}): ShiftChangeReques
     decidedBy: null,
     decidedAt: null,
     rejectionReason: null,
+    withdrawnAt: null,
     shiftStartedAt: "2026-11-10T21:00:37+00:00",
     shiftEndedAt: "2026-11-11T01:00:00+00:00",
     ...overrides,
@@ -49,6 +50,7 @@ describe("validateRequestsSearch", () => {
   it("test_it_keeps_a_known_status_other_than_pending", () => {
     expect(validateRequestsSearch({ status: "approved" })).toEqual({ status: "approved" })
     expect(validateRequestsSearch({ status: "rejected" })).toEqual({ status: "rejected" })
+    expect(validateRequestsSearch({ status: "withdrawn" })).toEqual({ status: "withdrawn" })
     expect(validateRequestsSearch({ status: "all" })).toEqual({ status: "all" })
   })
 
@@ -150,6 +152,14 @@ describe("decisionError", () => {
     })
   })
 
+  it("test_it_reports_a_request_the_requester_withdrew", () => {
+    const error = coded(409, "time_tracking.shift_change_request_withdrawn", { requestId: REQUEST_ID })
+    expect(decisionError(error, format, { names })).toEqual({
+      message: "This request was withdrawn.",
+      stillPending: false,
+    })
+  })
+
   it("test_it_reports_a_request_that_is_gone", () => {
     const error = coded(404, "time_tracking.shift_change_request_not_found", { requestId: REQUEST_ID })
     expect(decisionError(error, format, { names })).toEqual({
@@ -203,6 +213,6 @@ describe("in Polish", () => {
   it("test_it_shows_an_open_shift_and_the_filters_in_polish", () => {
     const pl = createDateTimeFormat("Europe/Warsaw", "pl-PL")
     expect(timeRange("2026-11-10T21:00:00Z", null, pl, "2026-11-10")).toBe("22:00 – otwarta")
-    expect(REQUEST_FILTERS.map(requestsFilterLabel)).toEqual(["Oczekujące", "Zatwierdzone", "Odrzucone", "Wszystkie"])
+    expect(REQUEST_FILTERS.map(requestsFilterLabel)).toEqual(["Oczekujące", "Zatwierdzone", "Odrzucone", "Wycofane", "Wszystkie"])
   })
 })

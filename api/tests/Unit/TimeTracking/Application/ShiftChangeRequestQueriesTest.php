@@ -42,6 +42,7 @@ final class ShiftChangeRequestQueriesTest extends ShiftChangeRequestTestCase
             decidedBy: null,
             decidedAt: null,
             rejectionReason: null,
+            withdrawnAt: null,
             shiftStartedAt: new \DateTimeImmutable('2026-11-12 16:00:00'),
             shiftEndedAt: null,
         ), $view);

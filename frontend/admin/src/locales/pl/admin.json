@@ -394,6 +394,7 @@
       "pending": "Oczekujące",
       "approved": "Zatwierdzone",
       "rejected": "Odrzucone",
+      "withdrawn": "Wycofane",
       "all": "Wszystkie"
     },
     "openRange": "{{start}} – otwarta",
@@ -413,6 +414,7 @@
       "pending": "Oczekujące prośby",
       "approved": "Zatwierdzone prośby",
       "rejected": "Odrzucone prośby",
+      "withdrawn": "Wycofane prośby",
       "all": "Wszystkie prośby"
     },
     "cardDescription": "Od najnowszych. Zatwierdzenie nadaje zmianie godziny z prośby. Wtedy też sprawdzane są zasady zmian: nie mogą na siebie nachodzić ani wypadać w przyszłości.",
@@ -420,6 +422,7 @@
       "pending": "Żadna prośba nie czeka na decyzję.",
       "approved": "Nie ma jeszcze zatwierdzonych próśb.",
       "rejected": "Nie ma jeszcze odrzuconych próśb.",
+      "withdrawn": "Nie ma wycofanych próśb.",
       "all": "Nikt jeszcze nie poprosił o zmianę."
     },
     "now": "Teraz",
@@ -433,6 +436,8 @@
     "approveFor": "Zatwierdź prośbę: {{name}}, {{day}}",
     "approved": "Zatwierdzona",
     "rejected": "Odrzucona",
+    "withdrawn": "Wycofana",
+    "withdrawnBy": "przez autora prośby, {{when}}",
     "decidedBy": "przez: {{name}}, {{when}}",
     "decidedByYou": "przez Ciebie, {{when}}",
     "quoted": "„{{text}}”",

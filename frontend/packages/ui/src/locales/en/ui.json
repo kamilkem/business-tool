@@ -272,6 +272,8 @@
       "shift_change_request_decision_forbidden": "Only owners and managers can approve or reject requests.",
       "shift_change_request_not_found": "This request no longer exists.",
       "shift_change_request_note_required": "Add a note explaining the change.",
+      "shift_change_request_withdrawal_forbidden": "Only the person who sent a request can withdraw it. Reject it instead.",
+      "shift_change_request_withdrawn": "This request was withdrawn.",
       "shift_end_not_after_start": {
         "of": "The shift cannot end at {{endedAt}}: it started at {{startedAt}}.",
         "requested": "A shift cannot end at {{endedAt}} if it starts at {{startedAt}}."

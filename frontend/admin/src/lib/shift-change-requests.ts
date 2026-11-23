@@ -13,7 +13,7 @@ export type RejectShiftChangeRequestInput = components["schemas"]["ShiftChangeRe
 export type RequestsFilter = ShiftChangeRequestStatus | "all"
 
 /** The filter's options, in the order the page shows them; `requestsFilterLabel()` names them. */
-export const REQUEST_FILTERS: readonly RequestsFilter[] = ["pending", "approved", "rejected", "all"]
+export const REQUEST_FILTERS: readonly RequestsFilter[] = ["pending", "approved", "rejected", "withdrawn", "all"]
 
 export function requestsFilterLabel(filter: RequestsFilter): string {
   return i18n.t(`shiftRequests.filter.${filter}`, { ns: "admin" })
@@ -31,7 +31,7 @@ export interface RequestsSearch {
  */
 export function validateRequestsSearch(search: Record<string, unknown>): RequestsSearch {
   const { status } = search
-  if (status === "approved" || status === "rejected" || status === "all") return { status }
+  if (status === "approved" || status === "rejected" || status === "withdrawn" || status === "all") return { status }
   return { status: undefined }
 }
 
@@ -106,7 +106,8 @@ export interface DecisionError {
 /**
  * Why approving or rejecting failed, for people. The shift rules (409 overlap, 422 end before start
  * or in the future, 422 a shift that has ended since) leave the request pending; "already decided"
- * means someone else was quicker, and a 404 that the request is gone. Times are shown in the
+ * means someone else was quicker, "withdrawn" that the requester took it back, and a 404 that the
+ * request is gone. Times are shown in the
  * organization's zone (`format`), user ids as names.
  */
 export function decisionError(
@@ -116,6 +117,9 @@ export function decisionError(
 ): DecisionError {
   const message = requestErrorMessage(error, { ...options, format })
   if (!(error instanceof ApiError)) return { message, stillPending: true }
-  const settled = error.code === "time_tracking.shift_change_request_already_decided" || error.status === 404
+  const settled =
+    error.code === "time_tracking.shift_change_request_already_decided" ||
+    error.code === "time_tracking.shift_change_request_withdrawn" ||
+    error.status === 404
   return { message, stillPending: !settled }
 }
