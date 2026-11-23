@@ -117,6 +117,19 @@ final class SendInvitationHandlerTest extends TestCase
         self::assertSame('pl', $this->onlyEmail()->locale);
     }
 
+    public function test_it_invites_without_an_inviter_when_the_account_was_set_up_from_the_console(): void
+    {
+        $this->invitee->changeLanguage(Language::Polish);
+
+        $this->handle('owner', invitedById: null);
+
+        $email = $this->onlyEmail();
+        self::assertSame('pl', $email->locale);
+        self::assertNull($email->context['inviterName']);
+        self::assertSame('Corner Pub', $email->context['organizationName']);
+        self::assertStringStartsWith('https://admin.example/set-password#token=', (string) $email->context['link']);
+    }
+
     public function test_it_invalidates_the_previous_invitation_but_not_a_password_reset(): void
     {
         $issuedAt = new \DateTimeImmutable('2026-11-10 12:00:00');
@@ -155,11 +168,14 @@ final class SendInvitationHandlerTest extends TestCase
         $this->handle('employee');
     }
 
-    private function handle(string $role, ?string $tokenId = null): void
+    private function handle(string $role, ?string $tokenId = null, ?string $invitedById = 'inviter'): void
     {
+        $invitedById = 'inviter' === $invitedById ? $this->inviter->getId()->toRfc4122() : $invitedById;
+        // The organization is read as the inviter, or as the invitee when nobody invited them.
+        $viewerId = $invitedById ?? $this->invitee->getId()->toRfc4122();
         $queryBus = new StubQueryBus(fn (QueryInterface $query): ?OrganizationView => $query instanceof GetOrganizationQuery
             && $query->organizationId === $this->organizationId
-            && $query->userId === $this->inviter->getId()->toRfc4122() ? $this->organization : null);
+            && $query->userId === $viewerId ? $this->organization : null);
 
         new SendInvitationHandler(
             $this->users,
@@ -173,7 +189,7 @@ final class SendInvitationHandlerTest extends TestCase
             userId: $this->invitee->getId()->toRfc4122(),
             organizationId: $this->organizationId,
             role: $role,
-            invitedById: $this->inviter->getId()->toRfc4122(),
+            invitedById: $invitedById,
         ));
     }
 

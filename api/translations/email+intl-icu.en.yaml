@@ -11,9 +11,11 @@ common:
 invitation:
     subject: 'You are invited to {organizationName}'
     intro: '{inviterName} invited you to join {organizationName} in Business Tool.'
+    intro_set_up: 'An account has been set up for you to manage {organizationName} in Business Tool.'
     set_password_prompt: 'To get started, set your password:'
     set_password_link: 'Set your password'
     expiry: 'The link works once and expires in {validForDays, plural, one {# day} other {# days}}. If it has expired, ask {inviterName} to send a new one.'
+    expiry_set_up: 'The link works once and expires in {validForDays, plural, one {# day} other {# days}}. If it has expired, use "Forgot your password?" on the sign-in page.'
     not_expected: 'If you were not expecting this invitation, you can ignore this e-mail.'
 
 added_to_organization:

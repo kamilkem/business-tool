@@ -48,13 +48,14 @@ final readonly class SendInvitationHandler implements CommandHandlerInterface
             throw PasswordAlreadySetException::forUser($command->userId);
         }
 
+        // Without an inviter (an account set up from the console), the invitee must belong to it.
         /** @var OrganizationView|null $organization */
-        $organization = $this->queryBus->ask(new GetOrganizationQuery($command->organizationId, $command->invitedById));
+        $organization = $this->queryBus->ask(new GetOrganizationQuery($command->organizationId, $command->invitedById ?? $command->userId));
         if (null === $organization) {
             throw OrganizationNotFoundException::forId($command->organizationId);
         }
-        $inviter = $this->users->findById(Uuid::fromString($command->invitedById))
-            ?? throw UserNotFoundException::forId($command->invitedById);
+        $inviter = null === $command->invitedById ? null : ($this->users->findById(Uuid::fromString($command->invitedById))
+            ?? throw UserNotFoundException::forId($command->invitedById));
 
         $now = $this->clock->now();
         foreach ($this->tokens->findUnusedByUser($user->getId(), PasswordTokenPurpose::Invitation) as $previous) {
@@ -68,13 +69,13 @@ final readonly class SendInvitationHandler implements CommandHandlerInterface
         // in the language chosen for the invitee on add-member, else the inviter's own (ADR 0028 §6).
         $this->mailer->send(new TransactionalEmail(
             to: $user->getEmail(),
-            locale: TransactionalEmail::localeOf($user->getLanguage() ?? $inviter->getLanguage()),
+            locale: TransactionalEmail::localeOf($user->getLanguage() ?? $inviter?->getLanguage()),
             subject: 'invitation.subject',
             template: 'email/invitation.html.twig',
             context: [
                 'firstName' => $user->getFirstName(),
                 'organizationName' => $organization->name,
-                'inviterName' => trim($inviter->getFirstName().' '.$inviter->getLastName()),
+                'inviterName' => null === $inviter ? null : trim($inviter->getFirstName().' '.$inviter->getLastName()),
                 'link' => $this->links->setPassword(AppLinks::appFor(MembershipRole::from($command->role)), $secret),
                 'validForDays' => PasswordTokenPurpose::Invitation->lifetime()->d,
             ],

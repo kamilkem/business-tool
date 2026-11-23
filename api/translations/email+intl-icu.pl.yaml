@@ -10,9 +10,11 @@ common:
 invitation:
     subject: 'Zaproszenie do {organizationName}'
     intro: '{inviterName} zaprasza Cię do {organizationName} w Business Tool.'
+    intro_set_up: 'Utworzyliśmy dla Ciebie konto do zarządzania {organizationName} w Business Tool.'
     set_password_prompt: 'Na początek ustaw swoje hasło:'
     set_password_link: 'Ustaw hasło'
     expiry: 'Link działa jeden raz i wygasa za {validForDays, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}. Jeśli wygasł, poproś o nowe zaproszenie. Zaprasza Cię: {inviterName}.'
+    expiry_set_up: 'Link działa jeden raz i wygasa za {validForDays, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}. Jeśli wygasł, użyj opcji „Nie pamiętasz hasła?” na stronie logowania.'
     not_expected: 'Jeśli nie spodziewasz się tego zaproszenia, zignoruj tę wiadomość.'
 
 added_to_organization:
