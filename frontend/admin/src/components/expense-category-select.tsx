@@ -1,7 +1,11 @@
+import { Badge } from "@business-tool/ui/components/badge"
+import { Button } from "@business-tool/ui/components/button"
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { cn } from "@business-tool/ui/lib/utils"
+import { CheckIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { needsConfirmation } from "@/lib/category-suggestion"
 import type { ExpenseCategory } from "@/lib/expense-categories"
 import { type Expense, categoryOptions } from "@/lib/expenses"
 
@@ -10,7 +14,9 @@ const NONE = "none"
 
 /**
  * The category picker of one expense: the active categories, or none. An archived category the
- * expense still has is shown, but cannot be picked again.
+ * expense still has is shown, but cannot be picked again. A category the import pre-filled from the
+ * seller's history (#55) is marked "Suggested", with a button that confirms it; picking any
+ * category confirms too.
  */
 export function ExpenseCategorySelect({
   expense,
@@ -28,8 +34,9 @@ export function ExpenseCategorySelect({
   const { t } = useTranslation("admin")
   const options = categoryOptions(activeCategories, expense)
   const label = expense.invoiceNumber ? `${expense.sellerName}, ${expense.invoiceNumber}` : expense.sellerName
+  const suggested = needsConfirmation(expense)
 
-  return (
+  const select = (
     <Select
       value={expense.categoryId ?? NONE}
       disabled={disabled}
@@ -41,7 +48,7 @@ export function ExpenseCategorySelect({
       <SelectTrigger
         size="sm"
         aria-label={t("expenses.categoryOf", { expense: label })}
-        className={cn("w-44 max-w-full", !expense.categoryId && "border-dashed text-muted-foreground", className)}
+        className={cn("w-44 max-w-full", (!expense.categoryId || suggested) && "border-dashed", !expense.categoryId && "text-muted-foreground", className)}
         onClick={(event) => event.stopPropagation()}
       >
         <SelectValue />
@@ -57,5 +64,27 @@ export function ExpenseCategorySelect({
         ))}
       </SelectContent>
     </Select>
+  )
+  if (!suggested || !expense.categoryId) return select
+
+  const categoryId = expense.categoryId
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
+      {select}
+      <Badge variant="outline" title={t("expenses.suggestedHint")}>
+        {t("expenses.suggested")}
+      </Badge>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        aria-label={t("expenses.confirmCategoryOf", { category: expense.categoryName ?? "", expense: label })}
+        onClick={() => onChange(categoryId)}
+      >
+        <CheckIcon aria-hidden />
+        {t("expenses.confirmCategory")}
+      </Button>
+    </div>
   )
 }

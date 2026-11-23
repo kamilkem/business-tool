@@ -31,12 +31,17 @@ abstract class ExpensesApiTestCase extends ApiTestCase
         return static::clientFor($user, $organization)->request('GET', '/api/expenses/'.$id);
     }
 
-    protected static function addInvoice(Organization $organization, PurchaseInvoice $invoice, bool $document = false, ?ExpenseCategory $category = null): PurchaseInvoice
+    /** @param bool $suggested the category is pre-filled as an import suggests it (#55) instead of chosen by the owner */
+    protected static function addInvoice(Organization $organization, PurchaseInvoice $invoice, bool $document = false, ?ExpenseCategory $category = null, bool $suggested = false): PurchaseInvoice
     {
-        self::inTenant($organization, static function () use ($organization, $invoice, $document, $category): void {
+        self::inTenant($organization, static function () use ($organization, $invoice, $document, $category, $suggested): void {
             if (null !== $category) {
                 $managed = static::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->findById($category->getId()) ?? throw new \LogicException('Category expected.');
-                $invoice->categorize($managed, OrganizationMother::ownerOf($organization)->getId(), MembershipRole::Owner);
+                if ($suggested) {
+                    $invoice->suggestCategory($managed);
+                } else {
+                    $invoice->categorize($managed, OrganizationMother::ownerOf($organization)->getId(), MembershipRole::Owner);
+                }
             }
             static::getContainer()->get(PurchaseInvoiceRepositoryInterface::class)->add(
                 $invoice,

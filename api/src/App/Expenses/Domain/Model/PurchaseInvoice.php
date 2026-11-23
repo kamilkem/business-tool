@@ -38,12 +38,18 @@ use Symfony\Component\Uid\Uuid;
  *   foreign invoice, which may lack an invoice number or a seller tax ID. Only such an invoice can be
  *   changed (change()) or deleted (assertCanBeDeleted()); an imported one stays as its source says,
  *   except for its category.
+ * - When it is imported without a category, the importer may suggest one from the seller's history
+ *   (suggestCategory(), #55): it is stored like any category but marked as suggested until an owner
+ *   or manager sets or confirms a category (categorize()).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchase_invoice')]
 #[ORM\UniqueConstraint(name: self::ONE_PER_EXTERNAL_ID, columns: ['organization_id', 'source', 'external_id'])]
 // Lists by issue date (#53) within one organization.
 #[ORM\Index(name: 'purchase_invoice_organization_issue_date', columns: ['organization_id', 'issue_date'])]
+// The seller's history (#55) within one organization.
+#[ORM\Index(name: 'purchase_invoice_organization_seller_tax_id_key', columns: ['organization_id', 'seller_tax_id_key'])]
+#[ORM\Index(name: 'purchase_invoice_organization_seller_name_key', columns: ['organization_id', 'seller_name_key'])]
 class PurchaseInvoice implements TenantAwareInterface
 {
     use TenantAwareTrait;
@@ -77,6 +83,14 @@ class PurchaseInvoice implements TenantAwareInterface
 
     #[ORM\Column(length: self::MAX_SELLER_NAME_LENGTH)]
     private string $sellerName;
+
+    /** The seller's tax ID as SellerKey::ofTaxId() matches it; null when there is none. */
+    #[ORM\Column(length: self::MAX_SELLER_TAX_ID_LENGTH, nullable: true)]
+    private ?string $sellerTaxIdKey;
+
+    /** The seller's name as SellerKey::ofName() matches it. */
+    #[ORM\Column(length: self::MAX_SELLER_NAME_LENGTH)]
+    private string $sellerNameKey;
 
     /** A DATE column through App\Shared\Infrastructure\Doctrine\Type\BusinessDateType (ADR 0017). */
     #[ORM\Column(type: 'business_date')]
@@ -114,6 +128,10 @@ class PurchaseInvoice implements TenantAwareInterface
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     private ?Uuid $categoryId = null;
 
+    /** True while the category is one the importer suggested (suggestCategory()) and nobody has confirmed it. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $categorySuggested = false;
+
     /** When the invoice was imported or entered. */
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -130,8 +148,7 @@ class PurchaseInvoice implements TenantAwareInterface
         $this->source = $source;
         $this->externalId = $externalId;
         $this->invoiceNumber = $details->invoiceNumber;
-        $this->sellerTaxId = $details->sellerTaxId;
-        $this->sellerName = $details->sellerName;
+        $this->setSeller($details);
         $this->issueDate = $details->issueDate;
         $this->kind = $details->kind;
         $this->correctedExternalId = $details->correctedExternalId;
@@ -197,8 +214,7 @@ class PurchaseInvoice implements TenantAwareInterface
 
         $details = self::normalized($details, $countryCode, $this->taxCurrency, imported: false);
         $this->invoiceNumber = $details->invoiceNumber;
-        $this->sellerTaxId = $details->sellerTaxId;
-        $this->sellerName = $details->sellerName;
+        $this->setSeller($details);
         $this->issueDate = $details->issueDate;
         $this->kind = $details->kind;
         $this->currency = $details->currency;
@@ -334,7 +350,8 @@ class PurchaseInvoice implements TenantAwareInterface
     /**
      * Sets the expense category, or clears it with null. Whatever the source, an invoice's category
      * can always be changed. An archived category cannot be newly assigned, but an invoice that has
-     * it keeps it, so assigning its current category again changes nothing.
+     * it keeps it, so assigning its current category again changes only this: a suggested category
+     * (suggestCategory()) is confirmed.
      *
      * @param ?ExpenseCategory $category a category of the invoice's organization
      *                                   (ExpenseCategoryRepositoryInterface::findById()), or null
@@ -345,6 +362,8 @@ class PurchaseInvoice implements TenantAwareInterface
     public function categorize(?ExpenseCategory $category, Uuid $actorId, MembershipRole $actorRole): void
     {
         ExpensesAccess::assertCanManage($actorId, $actorRole);
+        // Whatever the category, an owner or manager chose it: a suggestion is now confirmed.
+        $this->categorySuggested = false;
         if (null === $category) {
             $this->categoryId = null;
 
@@ -365,9 +384,43 @@ class PurchaseInvoice implements TenantAwareInterface
         return $this->categoryId;
     }
 
+    /**
+     * Gives an invoice that has no category yet the category its importer suggests (#55), marked as
+     * suggested. Nothing changes for an invoice that already has one, so a suggestion never replaces
+     * a person's choice.
+     *
+     * @throws ExpenseCategoryArchivedException when the category is archived
+     */
+    public function suggestCategory(ExpenseCategory $category): void
+    {
+        if (null !== $this->categoryId) {
+            return;
+        }
+        if ($category->isArchived()) {
+            throw ExpenseCategoryArchivedException::of($category->getName());
+        }
+
+        $this->categoryId = $category->getId();
+        $this->categorySuggested = true;
+    }
+
+    /** True while the category was suggested (suggestCategory()) and not yet confirmed (categorize()). */
+    public function isCategorySuggested(): bool
+    {
+        return $this->categorySuggested;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    private function setSeller(PurchaseInvoiceDetails $details): void
+    {
+        $this->sellerTaxId = $details->sellerTaxId;
+        $this->sellerName = $details->sellerName;
+        $this->sellerTaxIdKey = SellerKey::ofTaxId($details->sellerTaxId);
+        $this->sellerNameKey = SellerKey::ofName($details->sellerName);
     }
 
     /**

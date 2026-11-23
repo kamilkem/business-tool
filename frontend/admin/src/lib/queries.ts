@@ -3,6 +3,7 @@ import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
+import type { SuggestionSeller } from "./category-suggestion"
 import type { ExpensesFilter } from "./expenses"
 import type { RequestsFilter } from "./shift-change-requests"
 
@@ -83,6 +84,15 @@ export const expenseCategoriesQuery = (organizationId: string, includeArchived: 
     queryKey: ["expense-categories", organizationId, { includeArchived }],
     queryFn: () =>
       unwrap(api.GET("/api/expense-categories", { params: { query: includeArchived ? { includeArchived: true } : {} } })),
+  })
+
+/** The category to suggest for an expense of this seller (#55); disabled without one. */
+export const expenseCategorySuggestionQuery = (organizationId: string, seller: SuggestionSeller | null) =>
+  queryOptions({
+    queryKey: ["expense-category-suggestion", organizationId, seller],
+    queryFn: () => unwrap(api.GET("/api/expense-category-suggestion", { params: { query: seller ?? {} } })),
+    enabled: seller !== null,
+    staleTime: 60_000,
   })
 
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */

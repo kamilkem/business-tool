@@ -1,6 +1,6 @@
-import { type FormEvent, useState } from "react"
+import { type FormEvent, useEffect, useState } from "react"
 import { unwrap } from "@business-tool/api-client"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { TriangleAlertIcon } from "lucide-react"
 import { Trans, useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -32,6 +32,7 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 import { type MinorUnits, type MoneyParseError, formatMoney, moneyErrorMessage } from "@business-tool/ui/lib/money"
 
 import { api } from "@/lib/api"
+import { type SuggestionSeller, formCategory, suggestionSeller } from "@/lib/category-suggestion"
 import type { ExpenseCategory } from "@/lib/expense-categories"
 import {
   EXPENSE_KINDS,
@@ -55,6 +56,7 @@ import {
 } from "@/lib/expense-form"
 import { type Expense, categoryOptions, isCorrection, kindLabel, vatRateLabel } from "@/lib/expenses"
 import type { VatRate } from "@/lib/income"
+import { expenseCategorySuggestionQuery } from "@/lib/queries"
 
 /** A new expense, or a manual one to change. */
 export type ExpenseTarget = { kind: "add" } | { kind: "edit"; expense: Expense }
@@ -106,6 +108,20 @@ function ExpenseForm({
     editing ? expenseFormFrom(editing) : emptyExpenseForm(organizationCurrency, format.today()),
   )
   const [errors, setErrors] = useState<ExpenseFormErrors>({})
+  // Until a person picks a category (an edited expense with one counts), the seller's usual one is
+  // pre-filled (#55) and saved with the form, which confirms it.
+  const [categoryChosen, setCategoryChosen] = useState(editing?.categoryId != null)
+  const seller = useDebounced(suggestionSeller(values), 400)
+  const { data: suggestion } = useQuery({
+    ...expenseCategorySuggestionQuery(organizationId, seller),
+    enabled: seller !== null && !categoryChosen,
+  })
+  const category = formCategory({
+    chosen: categoryChosen,
+    categoryId: values.categoryId,
+    suggestion: seller === null ? null : suggestion,
+    activeCategories,
+  })
   // Text in a money field that is not an amount, by field; the form is not sent while there is any.
   const [parseErrors, setParseErrors] = useState<Record<string, MoneyParseError>>({})
 
@@ -186,7 +202,7 @@ function ExpenseForm({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (Object.keys(parseErrors).length > 0) return
-    const result = expenseBody(values, vatRates, organizationCurrency)
+    const result = expenseBody({ ...values, categoryId: category.categoryId }, vatRates, organizationCurrency)
     if (!result.ok) return setErrors(result.errors)
     setErrors({})
     if (editing) change.mutate({ id: editing.id, body: result.body })
@@ -300,8 +316,11 @@ function ExpenseForm({
             <Field data-invalid={textError("categoryId") ? true : undefined}>
               <FieldLabel htmlFor="expense-category">{t("expenses.category")}</FieldLabel>
               <Select
-                value={values.categoryId ?? NONE}
-                onValueChange={(value) => set("categoryId", value === NONE ? null : value)}
+                value={category.categoryId ?? NONE}
+                onValueChange={(value) => {
+                  setCategoryChosen(true)
+                  set("categoryId", value === NONE ? null : value)
+                }}
               >
                 <SelectTrigger id="expense-category" className="w-full" aria-invalid={textError("categoryId") ? true : undefined}>
                   <SelectValue />
@@ -317,6 +336,7 @@ function ExpenseForm({
                   ))}
                 </SelectContent>
               </Select>
+              {category.suggested && <FieldDescription>{t("expenseForm.categorySuggested")}</FieldDescription>}
               {textError("categoryId") && <FieldError>{textError("categoryId")}</FieldError>}
             </Field>
           </div>
@@ -493,4 +513,15 @@ function VatRow({
       {foreign && cell("vatInTaxCurrency", t("expenseForm.vatInAt", { currency: taxCurrency, rate: label }), taxCurrency, zero(line.vatInTaxCurrency), rate.zeroVat)}
     </>
   )
+}
+
+/** The seller to ask about once typing has paused for the delay; compared by value, not identity. */
+function useDebounced(seller: SuggestionSeller | null, delayMs: number): SuggestionSeller | null {
+  const key = JSON.stringify(seller)
+  const [debounced, setDebounced] = useState(key)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(key), delayMs)
+    return () => window.clearTimeout(timer)
+  }, [key, delayMs])
+  return JSON.parse(debounced) as SuggestionSeller | null
 }

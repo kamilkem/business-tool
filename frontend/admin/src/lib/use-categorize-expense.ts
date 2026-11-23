@@ -8,9 +8,9 @@ import { api } from "./api"
 import { type Expense, type ExpenseList, withExpense } from "./expenses"
 
 /**
- * Assigns or clears an expense's category (PATCH /expenses/{id}, merge-patch). Every cached list
- * shows the change at once; the lists are then refetched, so a filtered one (uncategorized, one
- * category) drops or gains the expense.
+ * Assigns, confirms (a suggested one, #55) or clears an expense's category (PATCH /expenses/{id},
+ * merge-patch). Every cached list shows the change at once; the lists are then refetched, so a
+ * filtered one (uncategorized, one category) drops or gains the expense.
  */
 export function useCategorizeExpense(organizationId: string, onSaved?: (expense: Expense) => void) {
   const queryClient = useQueryClient()
@@ -24,15 +24,25 @@ export function useCategorizeExpense(organizationId: string, onSaved?: (expense:
           headers: { "Content-Type": "application/merge-patch+json" },
         }),
       ),
-    onSuccess: async (saved) => {
+    onSuccess: async (saved, { expense }) => {
       queryClient.setQueriesData<ExpenseList>({ queryKey: ["expenses", organizationId] }, (list) =>
         list ? withExpense(list, saved) : list,
       )
       onSaved?.(saved)
-      toast.success(saved.categoryName ? t("expenses.categorized", { category: saved.categoryName }) : t("expenses.categoryCleared"), {
+      const confirmed = expense.categorySuggested && saved.categoryId === expense.categoryId
+      const message = !saved.categoryName
+        ? t("expenses.categoryCleared")
+        : confirmed
+          ? t("expenses.categoryConfirmed", { category: saved.categoryName })
+          : t("expenses.categorized", { category: saved.categoryName })
+      toast.success(message, {
         description: saved.invoiceNumber ? `${saved.sellerName}, ${saved.invoiceNumber}` : saved.sellerName,
       })
-      await queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["expenses", organizationId] }),
+        // The seller's history changed (#55).
+        queryClient.invalidateQueries({ queryKey: ["expense-category-suggestion", organizationId] }),
+      ])
     },
     onError: async (error) => {
       toast.error(t("expenses.categorizeFailed"), { description: requestErrorMessage(error) })

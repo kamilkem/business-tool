@@ -454,6 +454,11 @@
     "archivedCategory": "Archived category",
     "categorized": "Categorized as {{category}}",
     "categoryCleared": "Category cleared",
+    "categoryConfirmed": "Confirmed {{category}}",
+    "suggested": "Suggested",
+    "suggestedHint": "Suggested from this seller's earlier expenses. Confirm it or pick another category.",
+    "confirmCategory": "Confirm",
+    "confirmCategoryOf": "Confirm {{category}} for {{expense}}",
     "categorizeFailed": "Could not change the category",
     "categoryOf": "Category of {{expense}}",
     "uncategorized": "Uncategorized",
@@ -544,7 +549,8 @@
     "totalsEmpty": "The totals are empty.",
     "useBreakdown": "Use the breakdown's totals",
     "netAt": "Net at {{rate}}",
-    "vatInAt": "VAT in {{currency}} at {{rate}}"
+    "vatInAt": "VAT in {{currency}} at {{rate}}",
+    "categorySuggested": "Suggested from this seller's earlier expenses."
   },
   "income": {
     "nav": {
