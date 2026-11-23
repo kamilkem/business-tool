@@ -587,7 +587,8 @@
       "day": "Day",
       "add": "Add {{register}}, {{date}}",
       "edit": "{{register}}, {{date}}: {{amount}}. Edit",
-      "vatDiffers": "The VAT breakdown differs from the payments by {{amount}}"
+      "vatDiffers": "The VAT breakdown differs from the payments by {{amount}}",
+      "locked": "Closed month"
     },
     "summary": {
       "payments": "Payments",
@@ -649,7 +650,59 @@
       "deactivatedMethod": "Deactivated: this entry keeps it, but new entries can't use it.",
       "bookedFromClose": "Booked from the end-of-day close: the register and the day don't change, and the payments change only when the close is corrected. You can add the VAT breakdown and a note.",
       "bookedPaymentsDescription": "From the end-of-day close: cash is the change in the cash storages, the other methods as entered at the close.",
-      "openClose": "Open the close"
+      "openClose": "Open the close",
+      "monthClosed": "{{month}} is closed, so this entry can't change. An owner can reopen the month on the Income page.",
+      "dateInClosedMonth": "{{month}} is closed. An owner can reopen it to add entries.",
+      "closeDialog": "Close"
+    },
+    "history": {
+      "title": "History",
+      "loading": "Loading the history…",
+      "none": "No changes recorded yet. The history starts with the first change after it was introduced.",
+      "you": "you",
+      "vatAt": "VAT {{rate}}",
+      "vatValue": "gross {{gross}}, VAT {{vat}}",
+      "kind": {
+        "created": "Entered by {{name}}",
+        "changed": "Changed by {{name}}",
+        "deleted": "Deleted by {{name}}",
+        "deletedWithClose": "Removed with its end-of-day close by {{name}}",
+        "booked": "Booked from the end-of-day close of {{name}}",
+        "bookedOver": "Payments booked from the end-of-day close of {{name}}"
+      }
+    },
+    "month": {
+      "title": "{{month}}",
+      "closed": "Closed",
+      "open": "Open",
+      "closedBy": "Closed by {{name}}, {{when}}. Its entries can't be added, changed or deleted until an owner reopens it.",
+      "openEnded": "Close the month once its income is complete: its entries are then locked, also against end-of-day closes.",
+      "openEndedManager": "An owner can close the month once its income is complete.",
+      "openNotEnded": "The month can be closed from {{date}}.",
+      "close": "Close month",
+      "reopen": "Reopen month",
+      "log_one": "{{count}} close or reopen",
+      "log_other": "{{count}} closes and reopens",
+      "logClosed": "Closed by {{name}}, {{when}}",
+      "logReopened": "Reopened by {{name}}, {{when}}",
+      "confirmCloseTitle": "Close {{month}}?",
+      "confirmCloseDescription": "No entry of {{month}} can then be added, changed or deleted, and end-of-day closes of {{month}} can't be recorded, corrected or deleted. You can reopen the month.",
+      "confirmReopenTitle": "Reopen {{month}}?",
+      "confirmReopenDescription": "Its entries can be changed again, also by end-of-day closes. Close the month again when you're done.",
+      "toast": {
+        "closed": "{{month}} closed",
+        "reopened": "{{month}} reopened"
+      }
+    },
+    "changes": {
+      "title": "Changes",
+      "none": "No changes recorded for entries of {{period}}.",
+      "none_month": "No changes recorded for entries in {{period}}.",
+      "description_one": "{{count}} change to the entries of this period, newest first, deleted entries included.",
+      "description_other": "{{count}} changes to the entries of this period, newest first, deleted entries included.",
+      "showAll_one": "Show all {{count}} changes",
+      "showAll_other": "Show all {{count}} changes",
+      "showFewer": "Show fewer"
     }
   },
   "payroll": {

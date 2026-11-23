@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\CashFlow\Application;
 
+use App\CashFlow\Domain\Exception\IncomeMonthClosedException;
 use App\CashFlow\Domain\CashLedgerInterface;
 use App\CashFlow\Domain\Event\CashLedgerChanged;
 use App\CashFlow\Domain\Exception\DenominationNotFoundException;
@@ -41,6 +42,7 @@ final readonly class CashLedgerWriter
         private CashStorageRepositoryInterface $storages,
         private DenominationRepositoryInterface $denominations,
         private EventPublisherInterface $events,
+        private IncomeMonthLock $incomeMonths,
     ) {
     }
 
@@ -74,9 +76,11 @@ final readonly class CashLedgerWriter
 
     /**
      * @throws StorageBalanceNegativeException when a deposit storage would go below zero
+     * @throws IncomeMonthClosedException      when it would change the cash income of a close in a closed Income month
      */
     public function record(CashMovement $movement, string $organizationId, string $actorId): void
     {
+        $this->incomeMonths->assertNoClosedCloseChanges($movement->position(), $movement->storages(), $movement->ledgerEntryFor(...));
         foreach ($movement->storages() as $storage) {
             $entry = $movement->ledgerEntryFor($storage) ?? throw new \LogicException('The movement has a line on the storage.');
             $this->assertNeverNegative($storage, $movement->position(), $entry, $movement->denominations());
@@ -88,9 +92,11 @@ final readonly class CashLedgerWriter
 
     /**
      * @throws StorageBalanceNegativeException when a deposit storage would go below zero without it
+     * @throws IncomeMonthClosedException      when it would change the cash income of a close in a closed Income month
      */
     public function delete(CashMovement $movement, string $organizationId, string $actorId): void
     {
+        $this->incomeMonths->assertNoClosedCloseChanges($movement->position(), $movement->storages(), static fn (): ?LedgerEntry => null);
         foreach ($movement->storages() as $storage) {
             $this->assertNeverNegative($storage, $movement->position(), null, $movement->denominations());
         }
@@ -101,24 +107,30 @@ final readonly class CashLedgerWriter
 
     /**
      * A corrected close, before it is saved: no deposit storage goes below zero with what it now
-     * does to it (ADR 0033 §4, §7).
+     * does to it (ADR 0033 §4, §7), and no close of a closed Income month gets another cash income
+     * (ADR 0034 §3).
      *
      * @throws StorageBalanceNegativeException
+     * @throws IncomeMonthClosedException
      */
     public function assertCorrectedCloseNeverNegative(DayClose $close): void
     {
+        $this->incomeMonths->assertNoClosedCloseChanges($close->position(), $close->coveredStorages(), $close->ledgerEntryFor(...));
         foreach ($close->coveredStorages() as $storage) {
             $this->assertNeverNegative($storage, $close->position(), $close->ledgerEntryFor($storage), $close->denominations());
         }
     }
 
     /**
-     * A close about to be deleted: no deposit storage goes below zero without it.
+     * A close about to be deleted: no deposit storage goes below zero without it, and no close of a
+     * closed Income month gets another cash income (ADR 0034 §3).
      *
      * @throws StorageBalanceNegativeException
+     * @throws IncomeMonthClosedException
      */
     public function assertDeletedCloseNeverNegative(DayClose $close): void
     {
+        $this->incomeMonths->assertNoClosedCloseChanges($close->position(), $close->coveredStorages(), static fn (): ?LedgerEntry => null);
         foreach ($close->coveredStorages() as $storage) {
             $this->assertNeverNegative($storage, $close->position(), null, $close->denominations());
         }

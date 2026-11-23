@@ -22,6 +22,10 @@
         "other_currency": "Ten nominał nie jest w walucie organizacji ({{organizationCurrency}})."
       },
       "denomination_value_taken": "Taki nominał już istnieje (może być dezaktywowany).",
+      "income_month_closed": {
+        "for_date": "Przychody za {{month}} są zamknięte, więc zamknięcia dnia {{businessDate}} nie można zapisać, poprawić ani usunąć. Właściciel może otworzyć miesiąc w Przychodach.",
+        "recalculated_close": "To zmieniłoby gotówkę z zamknięcia dnia {{businessDate}}, a przychody za {{month}} są zamknięte. Zapisz to z późniejszą datą albo poproś właściciela o otwarcie miesiąca w Przychodach."
+      },
       "invalid_day_close": {
         "amount": "Kwota musi wynosić od 0 do {{max}}.",
         "cash_income": "Policzona gotówka jest większa, niż może wynieść przychód z dnia: sprawdź liczbę sztuk.",
@@ -124,6 +128,11 @@
       "revenue_entry_booked_by_day_close": "Ten wpis pochodzi z zamknięcia dnia: jego płatności zmieniają się tylko przy korekcie zamknięcia i nie można go usunąć ręcznie.",
       "revenue_entry_in_the_future": "{{businessDate}} to dzień późniejszy niż dziś ({{today}}).",
       "revenue_entry_not_found": "Ten wpis już nie istnieje. Odśwież stronę.",
+      "revenue_month_already_closed": "{{month}} jest już zamknięty. Odśwież stronę.",
+      "revenue_month_close_forbidden": "Tylko właściciele zamykają i otwierają miesiące.",
+      "revenue_month_closed": "{{month}} jest zamknięty: przychodów z tego miesiąca nie można zmienić, dopóki właściciel go nie otworzy.",
+      "revenue_month_not_closed": "{{month}} nie jest zamknięty. Odśwież stronę.",
+      "revenue_month_not_ended": "{{month}} jeszcze się nie skończył: miesiąc można zamknąć od dnia po jego ostatnim dniu.",
       "revenue_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni."
     },
     "ksef": {

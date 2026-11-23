@@ -10,7 +10,9 @@ use App\Income\Domain\Exception\IncomeManagementForbiddenException;
 use App\Income\Domain\Exception\RegisterNotFoundException;
 use App\Income\Domain\Exception\RevenuePeriodTooLongException;
 use App\Income\Domain\Repository\RegisterRepositoryInterface;
+use App\Income\Domain\Model\RevenueEntry;
 use App\Income\Domain\Repository\RevenueEntryRepositoryInterface;
+use App\Income\Domain\Repository\RevenueMonthRepositoryInterface;
 use App\Shared\Application\Query\QueryBusInterface;
 use App\Shared\Application\Query\QueryHandlerInterface;
 use App\Shared\Domain\Time\BusinessPeriod;
@@ -21,6 +23,7 @@ final readonly class ListRevenueEntriesHandler implements QueryHandlerInterface
 {
     public function __construct(
         private RevenueEntryRepositoryInterface $entries,
+        private RevenueMonthRepositoryInterface $months,
         private RegisterRepositoryInterface $registers,
         private QueryBusInterface $queryBus,
     ) {
@@ -51,6 +54,8 @@ final readonly class ListRevenueEntriesHandler implements QueryHandlerInterface
             $registerId = ($register ?? throw RegisterNotFoundException::withId($query->registerId))->getId();
         }
 
-        return array_map(RevenueEntryView::fromEntry(...), $this->entries->findInPeriod($period, $registerId));
+        $locks = $this->months->locks();
+
+        return array_map(static fn (RevenueEntry $entry): RevenueEntryView => RevenueEntryView::fromEntry($entry, $locks), $this->entries->findInPeriod($period, $registerId));
     }
 }

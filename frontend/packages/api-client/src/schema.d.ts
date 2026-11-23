@@ -1488,7 +1488,7 @@ export interface paths {
         put?: never;
         /**
          * Records a register's daily report for a business date.
-         * @description Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization's (404) and active (422); the business date may not be after today in the organization's time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422); the methods are the organization's (GET /payment-methods, 422 otherwise) and active (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization's.
+         * @description Owners and managers only (403 otherwise). One entry per register and business date: a second one is a 409 (correct the existing entry instead). The register must be the selected organization's (404) and active (422); the business date may not be after today in the organization's time zone (422). At least one payment line, each method once, amounts non-negative integer minor units (422); the methods are the organization's (GET /payment-methods, 422 otherwise) and active (422). VAT lines are optional, use the rates of GET /vat-rates, each once, with 0 <= vat <= gross and vat 0 at a 0% or exempt rate (422); an organization whose country has no rates takes none (422). The currency is the organization's. A business date in a closed month is a 409 (ADR 0034). Every write is kept in the change history (GET /revenue-entry-changes).
          */
         post: operations["api_revenue-entries_post"];
         delete?: never;
@@ -1513,16 +1513,96 @@ export interface paths {
         post?: never;
         /**
          * Deletes a revenue entry.
-         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. The entry and its lines are removed and no trace is kept (ADR 0022 §8). An entry booked from an end-of-day close (dayCloseId) goes only with its close (409).
+         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. The entry and its lines are removed. An entry booked from an end-of-day close (dayCloseId) goes only with its close (409), and an entry of a closed month stays (409). The change history keeps the deleted entry (GET /revenue-entry-changes).
          */
         delete: operations["api_revenue-entries_id_delete"];
         options?: never;
         head?: never;
         /**
          * Corrects an entry's payment lines, VAT lines and note.
-         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing. An entry booked from an end-of-day close (dayCloseId) keeps the payment lines the close wrote: changing them is a 409, while its VAT lines and note may be corrected.
+         * @description Owners and managers only (403 otherwise); an entry that is not the selected organization's is a 404. A list that is sent replaces the current one whole: `vatLines: []` (or null) removes the breakdown. The register and the business date do not change: delete the entry and record it again. An entry of a deactivated register may be corrected, and may keep the lines of deactivated payment methods it already has. The rules of POST apply to the lines (422). A change records who made it and when (updatedBy, updatedAt); sending what the entry already has changes nothing. An entry booked from an end-of-day close (dayCloseId) keeps the payment lines the close wrote: changing them is a 409, while its VAT lines and note may be corrected. An entry of a closed month cannot change at all (409), even with the values it has.
          */
         patch: operations["api_revenue-entries_id_patch"];
+        trace?: never;
+    };
+    "/api/revenue-entry-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The change history of one revenue entry, or of the entries dated in a period, newest first.
+         * @description Owners and managers only (403 otherwise). Give entryId (also of a deleted entry), or from and to (business dates of the entries, inclusive, at most 92 days), or all three; otherwise 422. History starts with the first write after it was introduced.
+         */
+        get: operations["api_revenue-entry-changes_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/revenue-months/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One month of income: open or closed, with every close and reopen.
+         * @description Owners and managers only (403 otherwise). A month nobody ever closed is open, with no actions.
+         */
+        get: operations["api_revenue-months_month_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/revenue-months/{month}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Closes a month, which locks its revenue entries.
+         * @description Owners only (403 otherwise). The month must have ended in the organization's time zone (409) and be open (409); days or registers without an entry do not matter. Once closed, no revenue entry of the month is recorded, changed or deleted (409), and Cash flow refuses end-of-day closes of the month and cash writes that would change their cash income (409).
+         */
+        post: operations["api_revenue-months_monthclose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/revenue-months/{month}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopens a closed month, which unlocks its revenue entries.
+         * @description Owners only (403 otherwise). The month must be closed (409). It can be closed again later.
+         */
+        post: operations["api_revenue-months_monthreopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/revenue-summary": {
@@ -4668,6 +4748,8 @@ export interface components {
              *     entry. Its payment lines change only through the close; its VAT lines and note stay editable.
              */
             dayCloseId: string | null;
+            /** @description Whether the entry's month is closed (GET /revenue-months/{month}): it cannot change until an owner reopens it (ADR 0034). */
+            monthClosed: boolean;
             /** @description Who recorded the entry: an owner or manager, or the member of any role who closed the day. */
             createdBy: string;
             /** Format: date-time */
@@ -4744,6 +4826,8 @@ export interface components {
              *     entry. Its payment lines change only through the close; its VAT lines and note stay editable.
              */
             dayCloseId: string | null;
+            /** @description Whether the entry's month is closed (GET /revenue-months/{month}): it cannot change until an owner reopens it (ADR 0034). */
+            monthClosed: boolean;
             /** @description Who recorded the entry: an owner or manager, or the member of any role who closed the day. */
             createdBy: string;
             /** Format: date-time */
@@ -4752,6 +4836,100 @@ export interface components {
             updatedBy: string | null;
             /** Format: date-time */
             updatedAt: string | null;
+        };
+        /**
+         * @description One write of a revenue entry in the organization selected by the X-Organization-Id header, kept for
+         *     good (ADR 0034 §4): who, when, and what the entry held before and after. Deleted entries keep their
+         *     history. Owners and managers only.
+         */
+        RevenueEntryChange: {
+            id: string;
+            /** @description The entry, which may since have been deleted. */
+            entryId: string;
+            registerId: string;
+            /** @description The register's name at the time. */
+            registerName: string;
+            /** @description YYYY-MM-DD */
+            businessDate: string;
+            currency: string;
+            /** @description `created` and `changed` by hand, `deleted` by hand or with its close, `booked` by an end-of-day close. */
+            kind: string;
+            /** @description The end-of-day close the write came from; null for a write by hand. */
+            dayCloseId: string | null;
+            /** @description Null for a created entry, and for one a close booked new. */
+            before: components["schemas"]["RevenueEntryChangeSnapshot"] | null;
+            /** @description Null for a deleted entry. */
+            after: components["schemas"]["RevenueEntryChangeSnapshot"] | null;
+            /** @description Who made the change, a user id (GET /members). */
+            changedBy: string;
+            /** Format: date-time */
+            changedAt: string;
+        };
+        /**
+         * @description One write of a revenue entry in the organization selected by the X-Organization-Id header, kept for
+         *     good (ADR 0034 §4): who, when, and what the entry held before and after. Deleted entries keep their
+         *     history. Owners and managers only.
+         */
+        "RevenueEntryChange.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            id: string;
+            /** @description The entry, which may since have been deleted. */
+            entryId: string;
+            registerId: string;
+            /** @description The register's name at the time. */
+            registerName: string;
+            /** @description YYYY-MM-DD */
+            businessDate: string;
+            currency: string;
+            /** @description `created` and `changed` by hand, `deleted` by hand or with its close, `booked` by an end-of-day close. */
+            kind: string;
+            /** @description The end-of-day close the write came from; null for a write by hand. */
+            dayCloseId: string | null;
+            /** @description Null for a created entry, and for one a close booked new. */
+            before: components["schemas"]["RevenueEntryChangeSnapshot.jsonld"] | null;
+            /** @description Null for a deleted entry. */
+            after: components["schemas"]["RevenueEntryChangeSnapshot.jsonld"] | null;
+            /** @description Who made the change, a user id (GET /members). */
+            changedBy: string;
+            /** Format: date-time */
+            changedAt: string;
+        };
+        RevenueEntryChangePayment: {
+            paymentMethodId: string;
+            paymentMethodName: string;
+            /** @description Minor units. */
+            amount: number;
+        };
+        "RevenueEntryChangePayment.jsonld": {
+            paymentMethodId: string;
+            paymentMethodName: string;
+            /** @description Minor units. */
+            amount: number;
+        };
+        RevenueEntryChangeSnapshot: {
+            payments: components["schemas"]["RevenueEntryChangePayment"][];
+            /** @description The sum of the payment lines, in minor units. */
+            total: number;
+            vatLines: components["schemas"]["RevenueEntryChangeVatLine"][];
+            note: string | null;
+        };
+        "RevenueEntryChangeSnapshot.jsonld": {
+            payments: components["schemas"]["RevenueEntryChangePayment.jsonld"][];
+            /** @description The sum of the payment lines, in minor units. */
+            total: number;
+            vatLines: components["schemas"]["RevenueEntryChangeVatLine.jsonld"][];
+            note: string | null;
+        };
+        RevenueEntryChangeVatLine: {
+            /** @description A rate code: "23", "zw". */
+            rate: string;
+            gross: number;
+            vat: number;
+        };
+        "RevenueEntryChangeVatLine.jsonld": {
+            /** @description A rate code: "23", "zw". */
+            rate: string;
+            gross: number;
+            vat: number;
         };
         RevenueEntryPayment: {
             paymentMethodId: string;
@@ -4780,6 +4958,66 @@ export interface components {
             vat: number;
             /** @description gross − vat. */
             net: number;
+        };
+        /**
+         * @description A calendar month of Income in the organization selected by the X-Organization-Id header (ADR 0034):
+         *     an owner closes it once it has ended, which locks its revenue entries, and reopens it to correct
+         *     them. Every close and reopen is kept. Owners and managers read it; only owners close and reopen.
+         */
+        RevenueMonth: {
+            /** @description YYYY-MM */
+            month: string;
+            /** @description The month's first business date, YYYY-MM-DD. */
+            firstDate: string;
+            /** @description The month's last business date, YYYY-MM-DD. */
+            lastDate: string;
+            /** @description Whether the month has ended in the organization's time zone: only then can it be closed. */
+            ended: boolean;
+            closed: boolean;
+            /** @description The owner who closed the month, while it is closed. */
+            closedBy: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** @description Every close and reopen, oldest first. */
+            actions: components["schemas"]["RevenueMonthAction"][];
+        };
+        /**
+         * @description A calendar month of Income in the organization selected by the X-Organization-Id header (ADR 0034):
+         *     an owner closes it once it has ended, which locks its revenue entries, and reopens it to correct
+         *     them. Every close and reopen is kept. Owners and managers read it; only owners close and reopen.
+         */
+        "RevenueMonth.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description YYYY-MM */
+            month: string;
+            /** @description The month's first business date, YYYY-MM-DD. */
+            firstDate: string;
+            /** @description The month's last business date, YYYY-MM-DD. */
+            lastDate: string;
+            /** @description Whether the month has ended in the organization's time zone: only then can it be closed. */
+            ended: boolean;
+            closed: boolean;
+            /** @description The owner who closed the month, while it is closed. */
+            closedBy: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** @description Every close and reopen, oldest first. */
+            actions: components["schemas"]["RevenueMonthAction.jsonld"][];
+        };
+        RevenueMonthAction: {
+            /** @description `closed` or `reopened`. */
+            action: string;
+            /** @description The owner, a user id (GET /members). */
+            actorId: string;
+            /** Format: date-time */
+            at: string;
+        };
+        "RevenueMonthAction.jsonld": {
+            /** @description `closed` or `reopened`. */
+            action: string;
+            /** @description The owner, a user id (GET /members). */
+            actorId: string;
+            /** Format: date-time */
+            at: string;
         };
         /**
          * @description The revenue of the organization selected by the X-Organization-Id header for a period of business
@@ -5287,7 +5525,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_archived" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_expense_filter" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -10668,7 +10906,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The register already has an entry for the business date. */
+            /** @description The register already has an entry for the business date, or the business date is in a closed month. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10759,7 +10997,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The entry is booked from an end-of-day close. */
+            /** @description The entry's month is closed, or the entry is booked from an end-of-day close. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10820,7 +11058,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The entry is booked from an end-of-day close and the payment lines differ from the close's. */
+            /** @description The entry's month is closed, or the entry is booked from an end-of-day close and the payment lines differ from the close's. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10828,6 +11066,229 @@ export interface operations {
                 content?: never;
             };
             /** @description A field is invalid or a line breaks a rule. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_revenue-entry-changes_get_collection": {
+        parameters: {
+            query?: {
+                /** @description Only this entry's changes. */
+                entryId?: string;
+                /** @description First business date, inclusive (YYYY-MM-DD). */
+                from?: string;
+                /** @description Last business date, inclusive (YYYY-MM-DD). */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RevenueEntryChange collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchemaNoPagination"] & {
+                        member: components["schemas"]["RevenueEntryChange.jsonld"][];
+                    };
+                    "application/json": components["schemas"]["RevenueEntryChange"][];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Neither entryId nor a period is given, a date is invalid, to is before from, or the period is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_revenue-months_month_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The month, YYYY-MM. */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RevenueMonth resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueMonth.jsonld"];
+                    "application/json": components["schemas"]["RevenueMonth"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month is not YYYY-MM. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month does not exist (e.g. 2026-13). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_revenue-months_monthclose_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The month, YYYY-MM. */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The closed month. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueMonth.jsonld"];
+                    "application/json": components["schemas"]["RevenueMonth"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month is not YYYY-MM. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month has not ended, or is closed already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month does not exist (e.g. 2026-13). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_revenue-months_monthreopen_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The month, YYYY-MM. */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The reopened month. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["RevenueMonth.jsonld"];
+                    "application/json": components["schemas"]["RevenueMonth"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month is not YYYY-MM. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month is not closed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The month does not exist (e.g. 2026-13). */
             422: {
                 headers: {
                     [name: string]: unknown;

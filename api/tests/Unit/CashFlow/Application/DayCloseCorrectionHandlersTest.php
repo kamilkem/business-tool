@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CashFlow\Application;
 
 use App\CashFlow\Application\CashLedgerWriter;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\Income\Application\Query\ListClosedRevenueMonths\ListClosedRevenueMonthsQuery;
+use App\Income\Domain\Model\RevenueMonthLocks;
 use App\CashFlow\Application\Command\CorrectDayClose\CorrectDayCloseCommand;
 use App\CashFlow\Application\Command\CorrectDayClose\CorrectDayCloseHandler;
 use App\CashFlow\Application\Command\DeleteCashMovement\DeleteCashMovementCommand;
@@ -28,6 +31,7 @@ use App\CashFlow\Domain\Event\DayCloseDeleted;
 use App\CashFlow\Domain\Exception\CashFlowAccessForbiddenException;
 use App\CashFlow\Domain\Exception\DayCloseNotFoundException;
 use App\CashFlow\Domain\Exception\DenominationNotOfferedException;
+use App\CashFlow\Domain\Exception\IncomeMonthClosedException;
 use App\CashFlow\Domain\Exception\InvalidDayCloseException;
 use App\CashFlow\Domain\Exception\StorageBalanceNegativeException;
 use App\CashFlow\Domain\Model\CashStorage;
@@ -114,6 +118,8 @@ final class DayCloseCorrectionHandlersTest extends TestCase
     private Denomination $twoHundred;
     private Register $bar;
     private PaymentMethod $card;
+    /** @var list<string> YYYY-MM: the Income months closed */
+    private array $closedMonths = [];
 
     protected function setUp(): void
     {
@@ -141,13 +147,15 @@ final class DayCloseCorrectionHandlersTest extends TestCase
         $registers = $this->registers;
         $paymentMethods = $this->paymentMethods;
         $queryBus = null;
-        $queryBus = new StubQueryBus(static function (QueryInterface $query) use ($organizations, $registers, $paymentMethods, $entries, &$queryBus): mixed {
+        $closedMonths = &$this->closedMonths;
+        $queryBus = new StubQueryBus(static function (QueryInterface $query) use ($organizations, $registers, $paymentMethods, $entries, &$queryBus, &$closedMonths): mixed {
             \assert($queryBus instanceof StubQueryBus);
 
             return match (true) {
                 $query instanceof GetMemberQuery => (new GetMemberHandler($organizations))($query),
                 $query instanceof GetMemberNameQuery => (new GetMemberNameHandler($organizations))($query),
                 $query instanceof GetOrganizationQuery => (new GetOrganizationHandler($organizations))($query),
+                $query instanceof ListClosedRevenueMonthsQuery => new RevenueMonthLocks($closedMonths),
                 $query instanceof ListBookableRegistersQuery => (new ListBookableRegistersHandler($registers, $entries))($query),
                 $query instanceof ListBookablePaymentMethodsQuery => (new ListBookablePaymentMethodsHandler($paymentMethods, $entries))($query),
                 $query instanceof ListPaymentMethodsQuery => (new ListPaymentMethodsHandler($paymentMethods, $entries, $queryBus))($query),
@@ -391,6 +399,54 @@ final class DayCloseCorrectionHandlersTest extends TestCase
         self::assertNotNull($this->closes->findById(Uuid::fromString($a)));
     }
 
+    public function test_it_refuses_to_record_correct_or_delete_a_close_in_a_closed_income_month(): void
+    {
+        [$a] = $this->threeCloses();
+        $this->closedMonths = ['2026-11'];
+
+        $this->expectIncomeMonthClosed('cash_flow.income_month_closed.for_date', fn () => $this->correct($a, box: [[$this->hundred, 2]]));
+        $this->expectIncomeMonthClosed('cash_flow.income_month_closed.for_date', fn () => $this->delete($a));
+        $this->expectIncomeMonthClosed('cash_flow.income_month_closed.for_date', fn () => $this->close(box: [[$this->hundred, 7]]));
+        self::assertSame(30_000, $this->closeOf($a)->getCashIncome());
+        self::assertSame([], $this->changedCloses());
+    }
+
+    public function test_it_refuses_a_backdated_movement_or_its_delete_that_changes_a_closed_months_close(): void
+    {
+        [, $b] = $this->threeCloses();
+        $movement = $this->adjust($this->box, [[$this->hundred, 1]], occurredAt: '2026-11-19T12:00:00+00:00');
+        $this->events->events = [];
+        $this->closedMonths = ['2026-11'];
+
+        try {
+            $this->adjust($this->box, [[$this->hundred, 1]], occurredAt: '2026-11-19T13:00:00+00:00');
+            self::fail('IncomeMonthClosedException expected.');
+        } catch (IncomeMonthClosedException $e) {
+            self::assertSame('cash_flow.income_month_closed.recalculated_close', $e->errorCode());
+            self::assertSame(['dayCloseId' => $b, 'businessDate' => '2026-11-19', 'month' => '2026-11'], $e->errorParameters());
+        }
+        $this->expectIncomeMonthClosed('cash_flow.income_month_closed.recalculated_close', fn () => $this->deleteMovement($movement));
+        self::assertNotNull($this->movements->findById(Uuid::fromString($movement)));
+        self::assertCount(1, $this->movements->inLedgerOrder());
+        self::assertSame([], $this->changedCloses());
+    }
+
+    public function test_it_lets_through_cash_writes_that_change_no_closed_months_close(): void
+    {
+        [, $b] = $this->threeCloses();
+        $this->closedMonths = ['2026-10'];
+
+        // Another month is closed: the close of 19 November is recalculated as before.
+        $this->adjust($this->box, [[$this->hundred, 1]], occurredAt: '2026-11-19T12:00:00+00:00');
+        self::assertSame(10_000, $this->closeOf($b)->getCashIncome());
+
+        $this->closedMonths = ['2026-10', '2026-11'];
+        // The safe is no close's counted storage, and nothing is closed after now.
+        $this->adjust($this->safe, [[$this->twoHundred, 1]], occurredAt: '2026-11-19T12:00:00+00:00');
+        $this->adjust($this->box, [[$this->hundred, -1]]);
+        self::assertSame(10_000, $this->closeOf($b)->getCashIncome());
+    }
+
     public function test_it_lets_only_owners_and_managers_correct_or_delete_a_close(): void
     {
         [$a, $b] = $this->threeCloses();
@@ -442,6 +498,7 @@ final class DayCloseCorrectionHandlersTest extends TestCase
             $this->writer(),
             new DayCloseOffers($this->storages, $this->denominations, $this->queryBus),
             new DayCloseRules(new InMemoryDayCloseSettingsRepository()),
+            $this->incomeMonths(),
             $this->events,
             $this->queryBus,
             $this->clock,
@@ -496,6 +553,7 @@ final class DayCloseCorrectionHandlersTest extends TestCase
             $this->denominations,
             $this->openings(),
             $this->writer(),
+            $this->incomeMonths(),
             new DayCloseBooking($this->events),
             $this->queryBus,
             $this->clock,
@@ -504,7 +562,7 @@ final class DayCloseCorrectionHandlersTest extends TestCase
 
     private function delete(string $id, ?User $actor = null): void
     {
-        (new DeleteDayCloseHandler($this->closes, $this->writer(), $this->events, $this->queryBus))(
+        (new DeleteDayCloseHandler($this->closes, $this->writer(), $this->incomeMonths(), $this->events, $this->queryBus))(
             new DeleteDayCloseCommand($this->organizationId(), ($actor ?? $this->manager)->getId()->toRfc4122(), $id),
         );
     }
@@ -591,12 +649,28 @@ final class DayCloseCorrectionHandlersTest extends TestCase
 
     private function writer(): CashLedgerWriter
     {
-        return new CashLedgerWriter($this->movements, new InMemoryCashLedger($this->movements, $this->closes), $this->storages, $this->denominations, $this->events);
+        return new CashLedgerWriter($this->movements, new InMemoryCashLedger($this->movements, $this->closes), $this->storages, $this->denominations, $this->events, $this->incomeMonths());
+    }
+
+    private function incomeMonths(): IncomeMonthLock
+    {
+        return new IncomeMonthLock($this->queryBus, $this->closes, new InMemoryCashLedger($this->movements, $this->closes), $this->openings());
     }
 
     private function organizationId(): string
     {
         return $this->organization->getId()->toRfc4122();
+    }
+
+    /** @param \Closure(): mixed $call */
+    private function expectIncomeMonthClosed(string $code, \Closure $call): void
+    {
+        try {
+            $call();
+            self::fail(\sprintf('%s expected.', $code));
+        } catch (IncomeMonthClosedException $e) {
+            self::assertSame($code, $e->errorCode(), $e->getMessage());
+        }
     }
 
     /** @param \Closure(): mixed $call */

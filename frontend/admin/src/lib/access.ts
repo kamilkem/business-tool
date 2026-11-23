@@ -25,6 +25,8 @@ export type Capability =
   | "settings"
   /** Income: revenue entries and the registers they are entered for (ADR 0022 §7). */
   | "income"
+  /** Income: close and reopen a month, which locks its entries; owners only (ADR 0034 §1). */
+  | "incomeClose"
   /** Expenses: purchase invoices and the categories they are sorted into. */
   | "expenses"
   /** Cash flow: review, correct, delete and record end-of-day closes (ADR 0033 §6, §7). */
@@ -48,6 +50,7 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   shiftRequests: OWNERS_AND_MANAGERS,
   settings: OWNERS_AND_MANAGERS,
   income: OWNERS_AND_MANAGERS,
+  incomeClose: ["owner"],
   expenses: OWNERS_AND_MANAGERS,
   cashFlow: OWNERS_AND_MANAGERS,
   payroll: OWNERS_AND_MANAGERS,

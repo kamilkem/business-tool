@@ -53,6 +53,7 @@ final class RevenueEntryQueriesTest extends IncomeHandlerTestCase
             20_180,
             'Event',
             null,
+            false,
             $this->owner->getId()->toRfc4122(),
             new \DateTimeImmutable('2026-11-12 08:00:00'),
             $this->manager->getId()->toRfc4122(),
@@ -103,7 +104,7 @@ final class RevenueEntryQueriesTest extends IncomeHandlerTestCase
 
     private function get(string $actorId, string $entryId): ?RevenueEntryView
     {
-        return (new GetRevenueEntryHandler($this->entries, $this->queryBus))(new GetRevenueEntryQuery($this->organizationId(), $actorId, $entryId));
+        return (new GetRevenueEntryHandler($this->entries, $this->months, $this->queryBus))(new GetRevenueEntryQuery($this->organizationId(), $actorId, $entryId));
     }
 
     /** @return list<VatRateView>|null */

@@ -9,6 +9,8 @@ use App\CashFlow\Application\CashLedgerWriter;
 use App\CashFlow\Application\DayCloseOffers;
 use App\CashFlow\Application\DayCloseRules;
 use App\CashFlow\Application\ExpectedOpenings;
+use App\CashFlow\Application\IncomeMonthLock;
+use App\CashFlow\Domain\Exception\IncomeMonthClosedException;
 use App\CashFlow\Domain\Event\DayCloseRecorded;
 use App\CashFlow\Domain\Exception\DayAlreadyClosedException;
 use App\CashFlow\Domain\Exception\DayCloseOutOfOrderException;
@@ -53,6 +55,7 @@ final readonly class RecordDayCloseHandler implements CommandHandlerInterface
         private CashLedgerWriter $lookup,
         private DayCloseOffers $offers,
         private DayCloseRules $rules,
+        private IncomeMonthLock $incomeMonths,
         private EventPublisherInterface $events,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
@@ -63,6 +66,7 @@ final readonly class RecordDayCloseHandler implements CommandHandlerInterface
      * @throws OrganizationNotFoundException   when the actor is not an active member of the organization
      * @throws TimeException                   when the date is not a Y-m-d date
      * @throws InvalidDayCloseDateException    when the date is not one the actor may close
+     * @throws IncomeMonthClosedException       when the date is in a closed Income month
      * @throws DayAlreadyClosedException       when the date is already closed
      * @throws DayCloseOutOfOrderException     when a later date is already closed
      * @throws StorageNotFoundException        when a storage is not one of the organization's
@@ -82,6 +86,8 @@ final readonly class RecordDayCloseHandler implements CommandHandlerInterface
             $now,
             new \DateTimeZone($actor->organization->timezone),
         );
+
+        $this->incomeMonths->assertOpen($date);
 
         $id = Uuid::fromString($command->dayCloseId);
         $offer = $this->offers->current($actor);

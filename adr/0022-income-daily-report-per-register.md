@@ -1,6 +1,6 @@
 # 0022. Income is one entry per register and business date: gross amounts per payment method, and a VAT breakdown chosen by the organization's country
 
-Status: Accepted (point 2 superseded in part by [0032](0032-delete-registers-without-entries.md), point 4 superseded by [0030](0030-payment-methods-per-organization.md), points 7 and 8 superseded in part by [0033](0033-cash-flow-storages-and-day-close.md))
+Status: Accepted (point 2 superseded in part by [0032](0032-delete-registers-without-entries.md), point 4 superseded by [0030](0030-payment-methods-per-organization.md), points 7 and 8 superseded in part by [0033](0033-cash-flow-storages-and-day-close.md), point 8 superseded by [0034](0034-income-month-close-and-entry-history.md))
 
 Date: 2026-11-12
 

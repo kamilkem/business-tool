@@ -117,6 +117,40 @@ final class DayCloseCorrectionApiTest extends IncomeApiTestCase
         self::assertSame([$cash['cash'] => 20_000, $cash['card'] => 50_00], self::entries($manager, $organization)['2026-11-21'][1]);
     }
 
+    public function test_it_refuses_close_and_cash_writes_that_income_would_book_in_a_closed_month(): void
+    {
+        [$owner, $organization, $cash, $first, $second] = self::twoNights(MembershipRole::Owner);
+        self::mockTime('2026-12-02 09:00:00');
+        static::clientFor($owner, $organization)->request('POST', '/api/revenue-months/2026-11/close');
+        self::assertResponseStatusCodeSame(200);
+
+        self::assertSame('cash_flow.income_month_closed.for_date', self::correct($owner, $organization, $first, $cash, box: [[$cash[100], 2]], card: 100_00)->toArray(false)['code']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('cash_flow.income_month_closed.for_date', static::clientFor($owner, $organization)->request('DELETE', '/api/day-closes/'.$second)->toArray(false)['code']);
+        self::assertResponseStatusCodeSame(409);
+
+        $adjustment = static::clientFor($owner, $organization)->request('POST', '/api/cash-movements/adjustments', ['json' => [
+            'storageId' => $cash['box'],
+            'lines' => [['denominationId' => $cash[100], 'pieces' => 1]],
+            'occurredAt' => '2026-11-21T15:00:00+01:00',
+        ]])->toArray(false);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('cash_flow.income_month_closed.recalculated_close', $adjustment['code']);
+        self::assertSame(['dayCloseId' => $second, 'businessDate' => '2026-11-21', 'month' => '2026-11'], $adjustment['parameters']);
+
+        // After the last close, nothing is recalculated.
+        static::clientFor($owner, $organization)->request('POST', '/api/cash-movements/adjustments', ['json' => [
+            'storageId' => $cash['box'],
+            'lines' => [['denominationId' => $cash[100], 'pieces' => 1]],
+        ]]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(20_000, self::details($owner, $organization, $second)->toArray()['cashIncome']);
+
+        static::clientFor($owner, $organization)->request('POST', '/api/revenue-months/2026-11/reopen');
+        static::clientFor($owner, $organization)->request('DELETE', '/api/day-closes/'.$second);
+        self::assertResponseStatusCodeSame(204);
+    }
+
     public function test_it_books_a_shortage_from_a_correction_as_no_cash(): void
     {
         [$owner, $organization, $cash, , $second] = self::twoNights(MembershipRole::Owner);

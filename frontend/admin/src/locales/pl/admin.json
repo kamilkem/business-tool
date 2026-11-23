@@ -623,7 +623,8 @@
       "day": "Dzień",
       "add": "Dodaj: {{register}}, {{date}}",
       "edit": "{{register}}, {{date}}: {{amount}}. Edytuj",
-      "vatDiffers": "Rozbicie VAT różni się od płatności o {{amount}}"
+      "vatDiffers": "Rozbicie VAT różni się od płatności o {{amount}}",
+      "locked": "Zamknięty miesiąc"
     },
     "summary": {
       "payments": "Płatności",
@@ -691,7 +692,65 @@
       "deactivatedMethod": "Dezaktywowana: ten wpis ją zachowuje, ale nowe wpisy nie mogą jej używać.",
       "bookedFromClose": "Zaksięgowane z zamknięcia dnia: kasa i dzień się nie zmieniają, a płatności zmieniają się tylko przy korekcie zamknięcia. Możesz dodać rozbicie VAT i notatkę.",
       "bookedPaymentsDescription": "Z zamknięcia dnia: gotówka to zmiana w miejscach na gotówkę, pozostałe formy tak, jak wpisano je przy zamknięciu.",
-      "openClose": "Otwórz zamknięcie"
+      "openClose": "Otwórz zamknięcie",
+      "monthClosed": "{{month}} jest zamknięty, więc tego wpisu nie można zmienić. Właściciel może otworzyć miesiąc na stronie Przychody.",
+      "dateInClosedMonth": "{{month}} jest zamknięty. Właściciel może go otworzyć, aby dodać wpisy.",
+      "closeDialog": "Zamknij"
+    },
+    "history": {
+      "title": "Historia",
+      "loading": "Wczytywanie historii…",
+      "none": "Nie zapisano jeszcze zmian. Historia zaczyna się od pierwszej zmiany po jej wprowadzeniu.",
+      "you": "Ciebie",
+      "vatAt": "VAT {{rate}}",
+      "vatValue": "brutto {{gross}}, VAT {{vat}}",
+      "kind": {
+        "created": "Wpisane przez: {{name}}",
+        "changed": "Zmienione przez: {{name}}",
+        "deleted": "Usunięte przez: {{name}}",
+        "deletedWithClose": "Usunięte razem z zamknięciem dnia przez: {{name}}",
+        "booked": "Zaksięgowane z zamknięcia dnia, które zrobił(a): {{name}}",
+        "bookedOver": "Płatności zaksięgowane z zamknięcia dnia, które zrobił(a): {{name}}"
+      }
+    },
+    "month": {
+      "title": "{{month}}",
+      "closed": "Zamknięty",
+      "open": "Otwarty",
+      "closedBy": "Zamknięty przez: {{name}}, {{when}}. Nie można dodawać, zmieniać ani usuwać jego wpisów, dopóki właściciel go nie otworzy.",
+      "openEnded": "Zamknij miesiąc, gdy jego przychody są kompletne: jego wpisy zostaną zablokowane, także dla zamknięć dnia.",
+      "openEndedManager": "Właściciel może zamknąć miesiąc, gdy jego przychody są kompletne.",
+      "openNotEnded": "Miesiąc można zamknąć od {{date}}.",
+      "close": "Zamknij miesiąc",
+      "reopen": "Otwórz miesiąc",
+      "log_one": "{{count}} zamknięcie lub otwarcie",
+      "log_few": "{{count}} zamknięcia i otwarcia",
+      "log_many": "{{count}} zamknięć i otwarć",
+      "log_other": "{{count}} zamknięcia i otwarcia",
+      "logClosed": "Zamknięty przez: {{name}}, {{when}}",
+      "logReopened": "Otwarty ponownie przez: {{name}}, {{when}}",
+      "confirmCloseTitle": "Zamknąć {{month}}?",
+      "confirmCloseDescription": "Nie będzie można dodać, zmienić ani usunąć żadnego wpisu z okresu {{month}}, ani zapisać, poprawić lub usunąć zamknięć dnia z okresu {{month}}. Miesiąc można otworzyć ponownie.",
+      "confirmReopenTitle": "Otworzyć {{month}}?",
+      "confirmReopenDescription": "Jego wpisy będzie można znowu zmieniać, także przez zamknięcia dnia. Zamknij miesiąc ponownie, gdy skończysz.",
+      "toast": {
+        "closed": "{{month}}: miesiąc zamknięty",
+        "reopened": "{{month}}: miesiąc otwarty"
+      }
+    },
+    "changes": {
+      "title": "Zmiany",
+      "none": "{{period}}: brak zapisanych zmian wpisów.",
+      "none_month": "{{period}}: brak zapisanych zmian wpisów.",
+      "description_one": "{{count}} zmiana wpisów z tego okresu, od najnowszej, z usuniętymi wpisami.",
+      "description_few": "{{count}} zmiany wpisów z tego okresu, od najnowszej, z usuniętymi wpisami.",
+      "description_many": "{{count}} zmian wpisów z tego okresu, od najnowszej, z usuniętymi wpisami.",
+      "description_other": "{{count}} zmiany wpisów z tego okresu, od najnowszej, z usuniętymi wpisami.",
+      "showAll_one": "Pokaż wszystkie zmiany ({{count}})",
+      "showAll_few": "Pokaż wszystkie zmiany ({{count}})",
+      "showAll_many": "Pokaż wszystkie zmiany ({{count}})",
+      "showAll_other": "Pokaż wszystkie zmiany ({{count}})",
+      "showFewer": "Pokaż mniej"
     }
   },
   "payroll": {
