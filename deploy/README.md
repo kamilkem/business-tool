@@ -2,8 +2,8 @@
 
 How staging and production run is decided in [ADR 0035](../adr/0035-staging-and-production-on-one-ovh-instance.md):
 one OVHcloud instance, three Compose projects. This folder holds their files. Provisioning the host
-is [#212](https://github.com/kamilkem/business-tool/issues/212); the pipeline that ships images and
-runs these steps is [#36](https://github.com/kamilkem/business-tool/issues/36).
+is [`host/README.md`](host/README.md) (#212); the pipeline that ships images and runs these steps is
+[#36](https://github.com/kamilkem/business-tool/issues/36).
 
 | On the host | From | What |
 |---|---|---|
