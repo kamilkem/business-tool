@@ -6,6 +6,7 @@ namespace Ui\Scheduler;
 
 use App\Ksef\Application\Job\StartKsefImports\StartKsefImportsJob;
 use App\Shared\Application\Job\ScheduledJob;
+use App\TimeTracking\Application\Job\StartLongShiftReports\StartLongShiftReportsJob;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -27,6 +28,13 @@ final readonly class DefaultSchedule implements ScheduleProviderInterface
     public const string KSEF_IMPORT_CRON = '0 20-23,0-6 * * *';
     public const string KSEF_IMPORT_TIME_ZONE = 'Europe/Warsaw';
 
+    /**
+     * Long shifts (#33): hourly, in UTC. The fan-out picks the organizations with an open shift that
+     * may be past their own maximum shift length, so it needs no local time.
+     */
+    public const string LONG_SHIFT_REPORT_CRON = '0 * * * *';
+    public const string LONG_SHIFT_REPORT_TIME_ZONE = 'UTC';
+
     public function __construct(
         #[Autowire(service: 'cache.scheduler')]
         private CacheInterface $cache,
@@ -40,6 +48,7 @@ final readonly class DefaultSchedule implements ScheduleProviderInterface
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true)
             ->lock($this->lockFactory->createLock('scheduler-default'))
-            ->add(RecurringMessage::cron(self::KSEF_IMPORT_CRON, new ScheduledJob(new StartKsefImportsJob()), self::KSEF_IMPORT_TIME_ZONE));
+            ->add(RecurringMessage::cron(self::KSEF_IMPORT_CRON, new ScheduledJob(new StartKsefImportsJob()), self::KSEF_IMPORT_TIME_ZONE))
+            ->add(RecurringMessage::cron(self::LONG_SHIFT_REPORT_CRON, new ScheduledJob(new StartLongShiftReportsJob()), self::LONG_SHIFT_REPORT_TIME_ZONE));
     }
 }

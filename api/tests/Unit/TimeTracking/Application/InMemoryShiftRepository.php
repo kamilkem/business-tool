@@ -18,6 +18,9 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
 
     public int $saveCallCount = 0;
 
+    /** The one organization findOrganizationIdsWithOpenShiftsToReport() answers with. */
+    public string $organizationId = '0193a000-0000-7000-8000-000000000001';
+
     public int $removeCallCount = 0;
 
     /**
@@ -61,6 +64,23 @@ final class InMemoryShiftRepository implements ShiftRepositoryInterface
                 && (null === $shift->getEndedAt() || $shift->getEndedAt() > $from)
                 && (null === $to || $shift->getStartedAt() < $to),
         ));
+    }
+
+    public function findOpenToReport(\DateTimeImmutable $startedBefore): array
+    {
+        $shifts = array_values(array_filter(
+            $this->byId,
+            static fn (Shift $shift): bool => $shift->isOpen() && null === $shift->getLongShiftReportedAt() && $shift->getStartedAt() < $startedBefore,
+        ));
+        usort($shifts, static fn (Shift $a, Shift $b): int => [$a->getStartedAt(), $a->getId()->toRfc4122()] <=> [$b->getStartedAt(), $b->getId()->toRfc4122()]);
+
+        return $shifts;
+    }
+
+    /** One organization only: its id when it has a shift to report (organizationId). */
+    public function findOrganizationIdsWithOpenShiftsToReport(\DateTimeImmutable $startedBefore): array
+    {
+        return [] === $this->findOpenToReport($startedBefore) ? [] : [$this->organizationId];
     }
 
     public function add(Shift $shift): void

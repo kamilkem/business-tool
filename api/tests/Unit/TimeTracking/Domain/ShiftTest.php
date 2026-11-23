@@ -14,6 +14,7 @@ use App\TimeTracking\Domain\Exception\ShiftEndNotAfterStartException;
 use App\TimeTracking\Domain\Exception\ShiftHasPendingChangeRequestException;
 use App\TimeTracking\Domain\Exception\ShiftInTheFutureException;
 use App\TimeTracking\Domain\Exception\ShiftOverlapException;
+use App\TimeTracking\Domain\Model\MaxShiftLength;
 use App\TimeTracking\Domain\Model\Shift;
 use App\TimeTracking\Domain\Model\ShiftChangeRequest;
 use App\TimeTracking\Domain\Model\ShiftPeriodLocks;
@@ -558,5 +559,30 @@ final class ShiftTest extends TestCase
     private function openShift(): Shift
     {
         return Shift::clockIn(Uuid::v7(), $this->userId, new \DateTimeImmutable(self::START), null);
+    }
+
+    public function test_it_reports_an_open_shift_past_the_maximum_length_once(): void
+    {
+        $shift = Shift::clockIn(Uuid::v7(), Uuid::v7(), new \DateTimeImmutable('2026-11-22 18:00:00'), null);
+        $max = MaxShiftLength::ofHours(12);
+
+        self::assertFalse($shift->reportAsLong($max, new \DateTimeImmutable('2026-11-23 06:00:00')), 'Exactly 12 hours is within the limit.');
+        self::assertNull($shift->getLongShiftReportedAt());
+
+        self::assertTrue($shift->reportAsLong($max, new \DateTimeImmutable('2026-11-23 07:00:00')));
+        self::assertEquals(new \DateTimeImmutable('2026-11-23 07:00:00'), $shift->getLongShiftReportedAt());
+        self::assertTrue($shift->isOpen(), 'Reporting never ends the shift.');
+
+        self::assertFalse($shift->reportAsLong($max, new \DateTimeImmutable('2026-11-23 08:00:00')), 'Reported once.');
+        self::assertEquals(new \DateTimeImmutable('2026-11-23 07:00:00'), $shift->getLongShiftReportedAt());
+    }
+
+    public function test_it_does_not_report_a_shift_that_has_ended(): void
+    {
+        $shift = Shift::clockIn(Uuid::v7(), Uuid::v7(), new \DateTimeImmutable('2026-11-22 18:00:00'), null);
+        $shift->clockOut(new \DateTimeImmutable('2026-11-23 09:00:00'));
+
+        self::assertFalse($shift->reportAsLong(MaxShiftLength::ofHours(12), new \DateTimeImmutable('2026-11-23 10:00:00')));
+        self::assertNull($shift->getLongShiftReportedAt());
     }
 }

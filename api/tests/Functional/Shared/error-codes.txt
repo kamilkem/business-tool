@@ -179,8 +179,10 @@ time.invalid_business_date.not_ymd
 time.invalid_business_period.ends_before_it_starts
 time.invalid_business_period.not_a_month
 time.invalid_business_period.not_a_month_string
+time_tracking.invalid_max_shift_length
 time_tracking.not_clocked_in
 time_tracking.open_shift_cannot_be_deleted
+time_tracking.settings_change_forbidden
 time_tracking.shift_already_closed
 time_tracking.shift_already_open
 time_tracking.shift_cannot_be_reopened

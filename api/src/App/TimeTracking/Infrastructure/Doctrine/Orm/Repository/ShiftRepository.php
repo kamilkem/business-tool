@@ -82,6 +82,36 @@ final class ShiftRepository extends ServiceEntityRepository implements ShiftRepo
         return $qb->getQuery()->getResult();
     }
 
+    public function findOpenToReport(\DateTimeImmutable $startedBefore): array
+    {
+        /** @var list<Shift> */
+        return $this->createQueryBuilder('s')
+            ->where('s.endedAt IS NULL')
+            ->andWhere('s.longShiftReportedAt IS NULL')
+            ->andWhere('s.startedAt < :before')
+            ->setParameter('before', $startedBefore, Types::DATETIME_IMMUTABLE)
+            ->orderBy('s.startedAt', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOrganizationIdsWithOpenShiftsToReport(\DateTimeImmutable $startedBefore): array
+    {
+        // Plain SQL on purpose: the TenantFilter applies to ORM queries only, and this list spans
+        // organizations. It returns ids and nothing else.
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT organization_id FROM shift
+             WHERE ended_at IS NULL AND long_shift_reported_at IS NULL AND started_at < :before
+             ORDER BY organization_id',
+            ['before' => $startedBefore->setTimezone(new \DateTimeZone('UTC'))],
+            ['before' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return $ids;
+    }
+
     public function add(Shift $shift): void
     {
         $this->getEntityManager()->persist($shift);

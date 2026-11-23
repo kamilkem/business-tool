@@ -258,6 +258,13 @@ export const denominationsQuery = (organizationId: string) =>
     queryFn: () => unwrap(api.GET("/api/denominations", { params: { query: { includeDeactivated: true } } })),
   })
 
+/** The maximum shift length (GET /time-tracking-settings, #33): the defaults until an owner or manager saves them. */
+export const timeTrackingSettingsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["time-tracking-settings", organizationId],
+    queryFn: () => unwrap(api.GET("/api/time-tracking-settings")),
+  })
+
 /** How a close gets its date (GET /day-close-settings): the defaults until an owner or manager saves them. */
 export const dayCloseSettingsQuery = (organizationId: string) =>
   queryOptions({

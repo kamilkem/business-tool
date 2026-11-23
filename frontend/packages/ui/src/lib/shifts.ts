@@ -20,6 +20,30 @@ export function canBeDeleted(shift: Shift): boolean {
   return !isOpen(shift)
 }
 
+/** The maximum shift length while an organization has not set one (MaxShiftLength::DEFAULT_HOURS). */
+export const DEFAULT_MAX_SHIFT_HOURS = 12
+
+/**
+ * Whether a shift runs longer than the organization's maximum shift length (#33): a possibly
+ * forgotten clock-out. An open shift counts up to `now`; exactly the limit is still within it, as
+ * on the API (MaxShiftLength::isExceededBy()).
+ */
+export function isLongerThanMax(
+  shift: { startedAt: string; endedAt: string | null },
+  maxShiftHours: number,
+  now: Date,
+): boolean {
+  const end = shift.endedAt === null ? now.getTime() : Date.parse(shift.endedAt)
+  // The API counts whole seconds.
+  const seconds = Math.floor(end / 1000) - Math.floor(Date.parse(shift.startedAt) / 1000)
+  return seconds > maxShiftHours * 3600
+}
+
+/** Whole hours from the shift's start to `now`, for "clocked in for N h". */
+export function hoursSince(startedAt: string, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - Date.parse(startedAt)) / 3_600_000))
+}
+
 export interface EmployeeTotal {
   userId: string
   firstName: string

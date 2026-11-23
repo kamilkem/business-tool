@@ -44,6 +44,22 @@ interface ShiftRepositoryInterface
     public function findOverlapping(Uuid $userId, \DateTimeImmutable $from, ?\DateTimeImmutable $to): array;
 
     /**
+     * Open shifts not yet reported as too long (Shift::reportAsLong()) that started before the moment,
+     * oldest first.
+     *
+     * @return list<Shift>
+     */
+    public function findOpenToReport(\DateTimeImmutable $startedBefore): array;
+
+    /**
+     * The organizations, of all of them, with an open shift not yet reported as too long that started
+     * before the moment: for the scheduled fan-out (#33), which sees no tenant data (ADR 0025 §4).
+     *
+     * @return list<string>
+     */
+    public function findOrganizationIdsWithOpenShiftsToReport(\DateTimeImmutable $startedBefore): array;
+
+    /**
      * @throws ShiftAlreadyOpenException when another open shift of the person was stored in the
      *                                   meantime (the partial unique index caught a concurrent clock-in)
      */

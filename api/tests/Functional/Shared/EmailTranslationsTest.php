@@ -33,6 +33,13 @@ final class EmailTranslationsTest extends KernelTestCase
         'invitation' => [
             ['firstName' => 'Eve', 'organizationName' => 'Corner Pub', 'inviterName' => 'Olivia Owner', 'link' => 'https://example.com/set-password', 'validForDays' => 7],
         ],
+        'long_shift_employee' => [
+            ['firstName' => 'Eve', 'organizationName' => 'Corner Pub', 'startedAt' => 'Thu 12 Nov 2026, 17:00', 'hours' => 1, 'maxShiftHours' => 1, 'timeZone' => 'Europe/Warsaw', 'link' => 'https://example.com/'],
+            ['firstName' => 'Eve', 'organizationName' => 'Corner Pub', 'startedAt' => 'Thu 12 Nov 2026, 17:00', 'hours' => 22, 'maxShiftHours' => 12, 'timeZone' => 'Europe/Warsaw', 'link' => 'https://example.com/'],
+        ],
+        'long_shift_manager' => [
+            ['firstName' => 'Mark', 'employeeName' => 'Eve Nowak', 'organizationName' => 'Corner Pub', 'startedAt' => 'Thu 12 Nov 2026, 17:00', 'hours' => 25, 'maxShiftHours' => 24, 'timeZone' => 'Europe/Warsaw', 'link' => 'https://example.com/time'],
+        ],
         'password_changed' => [['firstName' => 'Eve'], ['firstName' => '']],
         'password_reset' => [
             ['firstName' => 'Eve', 'link' => 'https://example.com/set-password', 'validForMinutes' => 60],

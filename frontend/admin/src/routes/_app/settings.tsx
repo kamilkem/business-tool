@@ -13,12 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { DayCloseSettingsCard } from "@/components/day-close-settings-card"
+import { TimeTrackingSettingsCard } from "@/components/time-tracking-settings-card"
 import { KsefConnectionCard } from "@/components/ksef-connection-card"
 import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { can, requireCapability } from "@/lib/access"
 import { ksefAvailableIn } from "@/lib/ksef"
-import { dayCloseSettingsQuery, organizationQuery, refetchMe } from "@/lib/queries"
+import { dayCloseSettingsQuery, organizationQuery, refetchMe, timeTrackingSettingsQuery } from "@/lib/queries"
 
 type OrganizationPatch = components["schemas"]["Organization.UpdateOrganizationInput.jsonMergePatch"]
 type CsvSeparator = components["schemas"]["Organization"]["csvSeparator"]
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_app/settings")({
     const { membership, queryClient } = context
     await Promise.all([
       queryClient.ensureQueryData(organizationQuery(membership.organization.id)),
+      can(membership.role, "time") ? queryClient.ensureQueryData(timeTrackingSettingsQuery(membership.organization.id)) : null,
       can(membership.role, "cashFlow") ? queryClient.ensureQueryData(dayCloseSettingsQuery(membership.organization.id)) : null,
     ])
   },
@@ -141,6 +143,7 @@ function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      {can(membership.role, "time") && <TimeTrackingSettingsCard organizationId={id} />}
       {can(membership.role, "cashFlow") && <DayCloseSettingsCard organizationId={id} />}
       {ksefAvailableIn(organization.countryCode) && can(membership.role, "ksef") && (
         <KsefConnectionCard membership={membership} />

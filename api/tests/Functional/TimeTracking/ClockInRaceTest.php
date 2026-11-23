@@ -88,6 +88,16 @@ final class ClockInRaceTest extends KernelTestCase
                 return $this->inner->findOverlapping($userId, $from, $to);
             }
 
+            public function findOpenToReport(\DateTimeImmutable $startedBefore): array
+            {
+                return $this->inner->findOpenToReport($startedBefore);
+            }
+
+            public function findOrganizationIdsWithOpenShiftsToReport(\DateTimeImmutable $startedBefore): array
+            {
+                return $this->inner->findOrganizationIdsWithOpenShiftsToReport($startedBefore);
+            }
+
             public function add(Shift $shift): void
             {
                 $this->inner->add($shift);

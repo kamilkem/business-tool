@@ -90,6 +90,13 @@ class Shift implements TenantAwareInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $correctedAt = null;
 
+    /**
+     * When the open shift was reported as running longer than the maximum shift length (#33), so it
+     * is reported once; null while it was not.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $longShiftReportedAt = null;
+
     private function __construct(Uuid $id, Uuid $userId, \DateTimeImmutable $startedAt, ?string $note, ShiftSource $source)
     {
         $this->id = $id;
@@ -274,6 +281,28 @@ class Shift implements TenantAwareInterface
         }
 
         $this->endedAt = $now;
+    }
+
+    /**
+     * Marks an open shift that runs longer than the maximum shift length at $now as reported (#33),
+     * so the person and the owners and managers are told once. Nothing else changes: the shift stays
+     * open until the person clocks out or a manager corrects it. Returns whether it was marked now;
+     * a shift that is closed, within the limit or already reported is left as it is.
+     */
+    public function reportAsLong(MaxShiftLength $maxShiftLength, \DateTimeImmutable $now): bool
+    {
+        if (!$this->isOpen() || null !== $this->longShiftReportedAt || !$maxShiftLength->isExceededBy($this->startedAt, $now)) {
+            return false;
+        }
+
+        $this->longShiftReportedAt = $now;
+
+        return true;
+    }
+
+    public function getLongShiftReportedAt(): ?\DateTimeImmutable
+    {
+        return $this->longShiftReportedAt;
     }
 
     public function isOpen(): bool

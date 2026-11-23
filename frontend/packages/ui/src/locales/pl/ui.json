@@ -268,8 +268,10 @@
       }
     },
     "time_tracking": {
+      "invalid_max_shift_length": "Maksymalna długość zmiany musi wynosić od {{min}} do {{max}} godzin.",
       "not_clocked_in": "Nie masz rozpoczętej zmiany. Najpierw ją rozpocznij.",
       "open_shift_cannot_be_deleted": "Ta zmiana wciąż trwa: można ją usunąć dopiero po jej zakończeniu.",
+      "settings_change_forbidden": "Ustawienia rejestracji czasu zmieniają tylko właściciele i menedżerowie.",
       "shift_already_closed": "Ta zmiana już się zakończyła.",
       "shift_already_open": "{{user}} ma już rozpoczętą zmianę. Najpierw trzeba ją zakończyć.",
       "shift_already_open_self": "Masz już rozpoczętą zmianę. Najpierw ją zakończ.",

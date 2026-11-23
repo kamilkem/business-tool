@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LockKeyholeIcon, WalletIcon, WifiOffIcon } from "lucide-react"
+import { CalendarDaysIcon, CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon, LockKeyholeIcon, TriangleAlertIcon, WalletIcon, WifiOffIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { Alert, AlertDescription } from "@business-tool/ui/components/alert"
+import { Alert, AlertDescription, AlertTitle } from "@business-tool/ui/components/alert"
 import { Button } from "@business-tool/ui/components/button"
 import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { browserTimeZone, type DateTimeFormat } from "@business-tool/ui/lib/date-time"
 
-import { currentShiftQuery, dayCloseFormQuery, type Shift } from "@/lib/queries"
+import { longShiftHours } from "@/lib/long-shift"
+import { currentShiftQuery, dayCloseFormQuery, type Shift, timeTrackingSettingsQuery } from "@/lib/queries"
 import { elapsedMs, formatClockTime, formatElapsed, formatWorked } from "@/lib/format"
 import { clockErrorMessage, useClockMutation, useNow, useOnline } from "@/lib/shifts"
 
@@ -35,6 +36,9 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
   const canCloseDay = useQuery(dayCloseFormQuery(organizationId)).data?.canClose === true
 
   const shift = current.data
+  // #33: a shift past the organization's maximum length may be a forgotten clock-out.
+  const maxShiftHours = useQuery({ ...timeTrackingSettingsQuery(organizationId), enabled: Boolean(shift) }).data?.maxShiftHours
+  const longShift = longShiftHours(shift, maxShiftHours, now)
   const action = shift ? "out" : "in"
   const lastAction = clock.variables
   const endedShift = clock.isSuccess && lastAction === "out" ? clock.data : null
@@ -65,6 +69,13 @@ function ClockPanel({ organizationId }: { organizationId: string }) {
           <Alert>
             <WifiOffIcon />
             <AlertDescription>{t("clock.offline")}</AlertDescription>
+          </Alert>
+        )}
+        {longShift !== null && !clock.isPending && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("clock.longShift", { count: longShift })}</AlertTitle>
+            <AlertDescription className="text-amber-900 dark:text-amber-200">{t("clock.longShiftHint")}</AlertDescription>
           </Alert>
         )}
         {current.isError && (

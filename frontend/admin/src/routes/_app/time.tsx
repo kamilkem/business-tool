@@ -31,6 +31,7 @@ import {
   SHIFTS_MAX_DAYS,
   type Shift,
   grandTotal,
+  isLongerThanMax,
   isOpen,
   totalsPerEmployee,
 } from "@business-tool/ui/lib/shifts"
@@ -38,7 +39,7 @@ import {
 import { ShiftDialog, type ShiftDialogTarget } from "@/components/shift-dialog"
 import { requireCapability } from "@/lib/access"
 import { type Member, fullName, isActive } from "@/lib/members"
-import { membersQuery, shiftsQuery } from "@/lib/queries"
+import { membersQuery, shiftsQuery, timeTrackingSettingsQuery } from "@/lib/queries"
 import { type ShiftsSearch, periodOf, validateShiftsSearch } from "@/lib/shifts"
 
 const EVERYONE = "everyone"
@@ -52,7 +53,10 @@ export const Route = createFileRoute("/_app/time")({
     const organizationId = membership.organization.id
     const members = await context.queryClient.ensureQueryData(membersQuery(organizationId, true))
     const period = periodOf(deps, thisMonth(membership.organization.timezone))
-    await context.queryClient.ensureQueryData(shiftsQuery(organizationId, period, knownUserId(deps.userId, members)))
+    await Promise.all([
+      context.queryClient.ensureQueryData(shiftsQuery(organizationId, period, knownUserId(deps.userId, members))),
+      context.queryClient.ensureQueryData(timeTrackingSettingsQuery(organizationId)),
+    ])
   },
   component: TimePage,
 })
@@ -80,6 +84,7 @@ function Shifts({ organizationId }: { organizationId: string }) {
   const period = periodOf(search, format.thisMonth())
   const userId = knownUserId(search.userId, members)
   const { data: shifts } = useSuspenseQuery(shiftsQuery(organizationId, period, userId))
+  const { maxShiftHours } = useSuspenseQuery(timeTrackingSettingsQuery(organizationId)).data
   const [dialog, setDialog] = useState<ShiftDialogTarget | null>(null)
   const { t } = useTranslation("admin")
 
@@ -139,7 +144,13 @@ function Shifts({ organizationId }: { organizationId: string }) {
       </div>
 
       <TotalsCard totals={totals} period={period} onSelect={userId ? undefined : setUserId} />
-      <ShiftsCard shifts={shifts} period={period} nameOf={nameOf} onEdit={(shift) => setDialog({ kind: "edit", shift })} />
+      <ShiftsCard
+        shifts={shifts}
+        period={period}
+        nameOf={nameOf}
+        maxShiftHours={maxShiftHours}
+        onEdit={(shift) => setDialog({ kind: "edit", shift })}
+      />
       <ShiftDialog
         organizationId={organizationId}
         actorId={me.id}
@@ -245,11 +256,14 @@ function ShiftsCard({
   shifts,
   period,
   nameOf,
+  maxShiftHours,
   onEdit,
 }: {
   shifts: Shift[]
   period: BusinessPeriod
   nameOf: NameOf
+  /** The organization's maximum shift length (#33): longer shifts are flagged. */
+  maxShiftHours: number
   onEdit: (shift: Shift) => void
 }) {
   const format = useDateTimeFormat()
@@ -284,7 +298,7 @@ function ShiftsCard({
             </TableHeader>
             <TableBody>
               {shifts.map((shift) => (
-                <ShiftRow key={shift.id} shift={shift} now={now} nameOf={nameOf} onEdit={() => onEdit(shift)} />
+                <ShiftRow key={shift.id} shift={shift} now={now} nameOf={nameOf} maxShiftHours={maxShiftHours} onEdit={() => onEdit(shift)} />
               ))}
             </TableBody>
           </Table>
@@ -294,10 +308,23 @@ function ShiftsCard({
   )
 }
 
-function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nameOf: NameOf; onEdit: () => void }) {
+function ShiftRow({
+  shift,
+  now,
+  nameOf,
+  maxShiftHours,
+  onEdit,
+}: {
+  shift: Shift
+  now: Date
+  nameOf: NameOf
+  maxShiftHours: number
+  onEdit: () => void
+}) {
   const format = useDateTimeFormat()
   const { t } = useTranslation("admin")
   const open = isOpen(shift)
+  const tooLong = isLongerThanMax(shift, maxShiftHours, now)
 
   return (
     <TableRow
@@ -326,6 +353,13 @@ function ShiftRow({ shift, now, nameOf, onEdit }: { shift: Shift; now: Date; nam
           <span className="text-muted-foreground">{t("time.shifts.soFar", { duration: formatDuration(minutesBetween(shift.startedAt, now)) })}</span>
         ) : (
           formatDuration(shift.durationMinutes)
+        )}
+        {tooLong && (
+          <div>
+            <Badge variant="destructive" title={t("time.shifts.longerThanMaxHint")}>
+              {t("time.shifts.longerThanMax", { count: maxShiftHours })}
+            </Badge>
+          </div>
         )}
       </TableCell>
       <TableCell className="max-w-56 truncate text-muted-foreground" title={shift.note ?? undefined}>
