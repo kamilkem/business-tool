@@ -42,3 +42,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0032](0032-delete-registers-without-entries.md) | A register is deleted only while no revenue entry refers to it; one with entries is deactivated | Accepted |
 | [0033](0033-cash-flow-storages-and-day-close.md) | Cash flow tracks cash by denomination in storages; an end-of-day close by any member counts it and books the day's revenue entry | Accepted |
 | [0034](0034-income-month-close-and-entry-history.md) | An owner closes an Income month, which locks its revenue entries; every entry write is kept in an append-only change history | Accepted |
+| [0035](0035-staging-and-production-on-one-ovh-instance.md) | Staging and production start on one OVHcloud Public Cloud instance in Warsaw: two Compose projects behind one Caddy, with one shared PostgreSQL | Accepted |
