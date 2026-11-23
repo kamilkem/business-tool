@@ -88,7 +88,7 @@ translations-frontend: ## Check every frontend catalog has every English key, pl
 ## —— Production (adr/0035) ——————————————————————————————————————
 PROD_IMAGE ?= business-tool-api:prod
 prod-image: ## Build the production image, API + both SPAs (TIMECLOCK_URL=https://app.tooltipp.com)
-	docker build --target prod --build-context frontend=frontend \
+	docker build --target prod --build-context frontend=frontend --secret id=composer_auth,env=COMPOSER_AUTH \
 		--build-arg VITE_TIMECLOCK_URL=$(or $(TIMECLOCK_URL),http://app.localhost) -t $(PROD_IMAGE) api
 
 prod-smoke: ## Smoke-test the production image without a database (after make prod-image)

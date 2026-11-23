@@ -53,7 +53,10 @@ COPY docker/frankenphp/conf.d/app.prod.ini "$PHP_INI_DIR/conf.d/zz-app.prod.ini"
 COPY docker/frankenphp/Caddyfile.prod /etc/frankenphp/Caddyfile
 COPY --chmod=755 docker/frankenphp/docker-entrypoint.prod.sh /usr/local/bin/docker-entrypoint
 COPY composer.json composer.lock symfony.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-progress
+# COMPOSER_AUTH (optional, a build secret, never in a layer): authenticated GitHub downloads, which
+# shared CI runners need to stay clear of GitHub's limits for anonymous ones (#36).
+RUN --mount=type=secret,id=composer_auth,env=COMPOSER_AUTH \
+    composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-progress
 COPY . .
 RUN composer dump-autoload --classmap-authoritative --no-dev \
     && composer run-script --no-dev post-install-cmd \

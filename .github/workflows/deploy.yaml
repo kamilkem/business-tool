@@ -92,6 +92,8 @@ jobs:
                 env:
                     STAGE: ${{ needs.target.outputs.stage }}
                     IMAGE: ${{ needs.target.outputs.image }}
+                    # Authenticated GitHub downloads for composer, as a build secret (api/Dockerfile).
+                    COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ github.token }}"}}'
                 run: |
                     timeclock_host=$(sed -n 's/^TIMECLOCK_HOST=//p' "deploy/stage/$STAGE.env")
                     make prod-image PROD_IMAGE="$IMAGE" TIMECLOCK_URL="https://$timeclock_host"
