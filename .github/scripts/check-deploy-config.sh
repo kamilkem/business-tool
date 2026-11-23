@@ -23,7 +23,7 @@ set -a
 . "$work/edge/.env"
 set +a
 docker run --rm -v "$work/edge/Caddyfile:/etc/caddy/Caddyfile:ro" \
-	-e ACME_EMAIL -e PRODUCTION_ADMIN_HOST -e PRODUCTION_TIMECLOCK_HOST -e STAGING_ADMIN_HOST -e STAGING_TIMECLOCK_HOST \
+	-e ACME_EMAIL -e PRODUCTION_ADMIN_HOST -e PRODUCTION_TIMECLOCK_HOST -e STAGING_ADMIN_HOST -e STAGING_TIMECLOCK_HOST -e REDIRECT_HOSTS \
 	"$caddy_image" caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>"$work/caddy.log" \
 	&& echo "ok: deploy/edge/Caddyfile" \
 	|| { cat "$work/caddy.log" >&2; exit 1; }

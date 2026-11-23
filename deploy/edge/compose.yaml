@@ -23,6 +23,7 @@ services:
             PRODUCTION_TIMECLOCK_HOST: ${PRODUCTION_TIMECLOCK_HOST:?}
             STAGING_ADMIN_HOST: ${STAGING_ADMIN_HOST:?}
             STAGING_TIMECLOCK_HOST: ${STAGING_TIMECLOCK_HOST:?}
+            REDIRECT_HOSTS: ${REDIRECT_HOSTS:?}
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile:ro
             - caddy_data:/data

@@ -1,6 +1,6 @@
 # 0035. Staging and production start on one OVHcloud Public Cloud instance in Warsaw: two Compose projects behind one Caddy, with one shared PostgreSQL
 
-Status: Accepted
+Status: Accepted (point 12 superseded by [0036](0036-transactional-email-through-ovh-mail-plan.md))
 
 Date: 2026-11-23
 
