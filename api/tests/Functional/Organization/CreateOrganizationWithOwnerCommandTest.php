@@ -62,7 +62,9 @@ final class CreateOrganizationWithOwnerCommandTest extends ApiTestCase
         self::assertStringContainsString('Utworzyliśmy dla Ciebie konto do zarządzania Corner Bar', $html);
         self::assertStringNotContainsString('zaprasza', $html);
         self::assertMatchesRegularExpression('~/set-password#token=[A-Za-z0-9_-]{43}"~', $html);
-        self::assertStringNotContainsString('token=', $tester->getDisplay(), 'The link is e-mailed, never printed.');
+        // The same link is printed, to pass on if the e-mail does not arrive (ADR 0037 §3).
+        self::assertSame(1, preg_match('~/set-password#token=([A-Za-z0-9_-]{43})"~', $html, $emailed));
+        self::assertStringContainsString('http://localhost:5173/set-password#token='.$emailed[1], $tester->getDisplay());
     }
 
     public function test_it_makes_an_existing_user_the_owner_without_e_mailing_one_who_has_a_password(): void
@@ -76,6 +78,7 @@ final class CreateOrganizationWithOwnerCommandTest extends ApiTestCase
         self::assertSame(MembershipRole::Owner, $this->onlyOrganizationOf($existing)->membershipOf($existing->getId())?->getRole());
         self::assertQueuedEmailCount(0);
         self::assertStringContainsString('already has a password', $tester->getDisplay());
+        self::assertStringNotContainsString('set-password', $tester->getDisplay(), 'An existing user has no token, so no link.');
     }
 
     public function test_it_refuses_invalid_input_and_creates_nothing(): void

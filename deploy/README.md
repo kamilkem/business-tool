@@ -52,7 +52,8 @@ make deploy STAGE=staging API_IMAGE=ghcr.io/kamilkem/business-tool-api:staging-<
 
 There is no sign-up (ADR 0021): each organization, with its first owner, is created on the host with
 `app:organization:create` (#219). A new owner gets an e-mail with a one-time link to set their
-password and lands in the admin; an existing user simply becomes the owner. Without options it asks
+password and lands in the admin; the command also prints that link, to pass on to the owner only
+when the e-mail does not arrive (ADR 0037). An existing user simply becomes the owner. Without options it asks
 for what it needs and shows a summary before creating anything.
 
 ```bash

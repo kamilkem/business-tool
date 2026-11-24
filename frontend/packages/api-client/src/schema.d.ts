@@ -713,6 +713,26 @@ export interface paths {
         patch: operations["api_hourly-rates_id_patch"];
         trace?: never;
     };
+    "/api/members/{userId}/invitation-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Creates an invitation link for a member who has not set a password yet, to pass on without e-mail.
+         * @description Issues a new one-time invitation link (valid validForDays days) and sends no e-mail; earlier invitation links, the e-mailed one included, stop working. Whoever opens it sets the member's password, so pass it to that person only. Owners create links for anyone, managers for employees only (403 otherwise); a person who is not a member is a 404, one who already has a password or is deactivated a 409.
+         */
+        post: operations["api_members_userIdinvitation-link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ksef-connection": {
         parameters: {
             query?: never;
@@ -3579,6 +3599,26 @@ export interface components {
             });
             "@id": string;
             "@type": string;
+        };
+        /**
+         * @description An invitation link for a member who has not set a password yet, for the owner or manager to pass on
+         *     themselves when e-mail does not reach them (ADR 0037). Shown once: it is never stored in plain text.
+         */
+        InvitationLink: {
+            /** @description Opens the set-password page of the member's app (admin for owners and managers, time clock for employees). */
+            link: string;
+            /** @description How long the link works, in days, from now. */
+            validForDays: number;
+        };
+        /**
+         * @description An invitation link for a member who has not set a password yet, for the owner or manager to pass on
+         *     themselves when e-mail does not reach them (ADR 0037). Shown once: it is never stored in plain text.
+         */
+        "InvitationLink.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description Opens the set-password page of the member's app (admin for owners and managers, time clock for employees). */
+            link: string;
+            /** @description How long the link works, in days, from now. */
+            validForDays: number;
         };
         /**
          * @description The KSeF connection of the organization selected by the X-Organization-Id header (ADR 0023 §3):
@@ -8191,6 +8231,73 @@ export interface operations {
                 content?: never;
             };
             /** @description A field is invalid. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_members_userIdinvitation-link_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description InvitationLink identifier */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link; shown once. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["InvitationLink.jsonld"];
+                    "application/json": components["schemas"]["InvitationLink"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The actor may not act on this member. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The person is not a member of the selected organization. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The member has already set a password, or is deactivated. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
             422: {
                 headers: {
                     [name: string]: unknown;

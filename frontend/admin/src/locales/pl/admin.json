@@ -1085,7 +1085,8 @@
       },
       "ownRoleEmployee": "Pracownicy nie zarządzają zespołem ani ustawieniami organizacji. Poprzednią rolę może Ci przywrócić tylko inny właściciel.",
       "ownRoleDescription": "Poprzednią rolę może Ci przywrócić tylko inny właściciel."
-    }
+    },
+    "invitationLink": "Link z zaproszeniem…"
   },
   "addMember": {
     "title": "Dodaj osobę",
@@ -1110,7 +1111,10 @@
     "error": {
       "alreadyMember": "{{name}} ({{email}}) już należy do tej organizacji.",
       "deactivatedMember": "{{name}} ({{email}}) nie ma już dostępu do tej organizacji. Pokaż osoby bez dostępu i przywróć go."
-    }
+    },
+    "invitedTitle": "Zaproszenie wysłane",
+    "invitedDescription": "Wysłaliśmy zaproszenie na adres {{email}}.",
+    "done": "Gotowe"
   },
   "time": {
     "title": "Czas pracy",
@@ -1597,5 +1601,21 @@
     "maxShiftHours": "Maksymalna długość zmiany",
     "hours": "godz.",
     "maxShiftHoursDescription": "Dłuższa zmiana jest oznaczona na stronie Czas pracy. Dopóki trwa, ta osoba oraz właściciele i menedżerowie dostają o niej jeden e-mail. Nic nie kończy zmiany za nich. Od {{min}} do {{max}} godzin."
+  },
+  "invitationLink": {
+    "title": "Link z zaproszeniem: {{name}}",
+    "explain": "Jeśli e-mail z zaproszeniem nie dotrze, utwórz link i wyślij go tej osobie samodzielnie, np. SMS-em. Utworzenie linku unieważnia wcześniejsze linki z zaproszeniem, także ten z e-maila.",
+    "create": "Utwórz link z zaproszeniem",
+    "creating": "Tworzenie…",
+    "label": "Link z zaproszeniem",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano link",
+    "copyFailed": "Nie udało się skopiować linku: zaznacz go i skopiuj ręcznie",
+    "validFor_one": "Działa jednorazowo, przez {{count}} dzień. Nowy link zastępuje ten.",
+    "validFor_few": "Działa jednorazowo, przez {{count}} dni. Nowy link zastępuje ten.",
+    "validFor_many": "Działa jednorazowo, przez {{count}} dni. Nowy link zastępuje ten.",
+    "validFor_other": "Działa jednorazowo, przez {{count}} dnia. Nowy link zastępuje ten.",
+    "warning": "Kto otworzy ten link, ustawi hasło dla: {{name}}. Wyślij go tylko tej osobie.",
+    "error": "Nie udało się utworzyć linku z zaproszeniem"
   }
 }

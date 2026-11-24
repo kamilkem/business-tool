@@ -1,6 +1,6 @@
 # 0013. New members get access through a one-time e-mailed link; the same tokens reset forgotten passwords
 
-Status: Accepted
+Status: Accepted (points 1 and 3 superseded in part by [0037](0037-invitation-link-for-the-inviter.md))
 
 Date: 2026-11-11
 

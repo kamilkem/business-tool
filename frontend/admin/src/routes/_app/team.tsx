@@ -2,7 +2,7 @@ import { useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
-import { MailIcon, MoreHorizontalIcon, UserCheckIcon, UserXIcon } from "lucide-react"
+import { LinkIcon, MailIcon, MoreHorizontalIcon, UserCheckIcon, UserXIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -19,6 +19,7 @@ import {
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
 import { Card, CardContent } from "@business-tool/ui/components/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@business-tool/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,7 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { AddMemberDialog } from "@/components/add-member-dialog"
+import { InvitationLinkPanel } from "@/components/invitation-link-panel"
 import { api } from "@/lib/api"
 import {
   type Member,
@@ -85,6 +87,8 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
   const queryClient = useQueryClient()
   const { data: members } = useSuspenseQuery(membersQuery(organizationId, deactivated))
   const [pending, setPending] = useState<Pending | null>(null)
+  /** The member whose invitation link is being created (ADR 0037). */
+  const [linkFor, setLinkFor] = useState<Member | null>(null)
   const { t } = useTranslation("admin")
 
   /** After any change: refresh the list, and the signed-in user's own access when they changed themselves. */
@@ -221,6 +225,7 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
                   busy={busy(member)}
                   onRoleChange={(role) => requestRoleChange(member, role)}
                   onResend={() => resendInvitation.mutate(member)}
+                  onInvitationLink={() => setLinkFor(member)}
                   onDeactivate={() => setPending({ kind: "deactivate", member })}
                   onReactivate={() => reactivate.mutate(member)}
                 />
@@ -229,6 +234,20 @@ function TeamTable({ organizationId, actorRole }: { organizationId: string; acto
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={linkFor !== null} onOpenChange={(open) => !open && setLinkFor(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {linkFor && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t("invitationLink.title", { name: fullName(linkFor) })}</DialogTitle>
+                <DialogDescription>{linkFor.email}</DialogDescription>
+              </DialogHeader>
+              <InvitationLinkPanel userId={linkFor.userId} name={fullName(linkFor)} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent>
@@ -283,6 +302,7 @@ interface MemberRowProps {
   busy: boolean
   onRoleChange: (role: Role) => void
   onResend: () => void
+  onInvitationLink: () => void
   onDeactivate: () => void
   onReactivate: () => void
 }
@@ -295,6 +315,7 @@ function MemberRow({
   busy,
   onRoleChange,
   onResend,
+  onInvitationLink,
   onDeactivate,
   onReactivate,
 }: MemberRowProps) {
@@ -343,6 +364,12 @@ function MemberRow({
                 <DropdownMenuItem onSelect={onResend}>
                   <MailIcon />
                   {t("team.resendInvitation")}
+                </DropdownMenuItem>
+              )}
+              {canResend && (
+                <DropdownMenuItem onSelect={onInvitationLink}>
+                  <LinkIcon />
+                  {t("team.invitationLink")}
                 </DropdownMenuItem>
               )}
               {canReactivate && (

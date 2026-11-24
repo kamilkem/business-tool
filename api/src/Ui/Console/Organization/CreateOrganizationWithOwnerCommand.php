@@ -7,6 +7,7 @@ namespace Ui\Console\Organization;
 use App\Organization\Application\Command\CreateOrganization\CreateOrganizationCommand;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Shared\Application\Command\CommandBusInterface;
+use App\Shared\Application\Link\AppLinks;
 use App\Shared\Application\Query\QueryBusInterface;
 use App\Shared\Domain\Language\Language;
 use App\User\Application\Command\CreateInvitedUser\CreateInvitedUserCommand;
@@ -14,6 +15,8 @@ use App\User\Application\Command\SendInvitation\SendInvitationCommand;
 use App\User\Application\Query\GetUserByEmail\GetUserByEmailQuery;
 use App\User\Application\Query\GetUserByEmail\UserView;
 use App\User\Domain\Exception\PasswordAlreadySetException;
+use App\User\Domain\Model\PasswordTokenPurpose;
+use App\User\Domain\Model\PasswordTokenSecret;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
@@ -28,9 +31,10 @@ use Ui\Http\Organization\CreateOrganizationInput;
 /**
  * Creates an organization with its first owner, from the host (#219): the way into an empty database
  * and how each new customer starts, since there is no sign-up (ADR 0021). A new owner gets the
- * one-time set-password link of ADR 0013 by e-mail (queued; the worker sends it); an existing user
+ * one-time set-password link of ADR 0013 by e-mail (queued; the worker sends it), and the command
+ * prints the same link to pass on when e-mail does not reach them (ADR 0037 §3); an existing user
  * becomes the owner and signs in as before. Validated with the API's own inputs, so the console
- * accepts exactly what the API would. Never prints a token or a link.
+ * accepts exactly what the API would.
  */
 #[AsCommand(name: 'app:organization:create', description: 'Creates an organization with its first owner and e-mails a new owner the link to set their password')]
 final readonly class CreateOrganizationWithOwnerCommand
@@ -39,6 +43,7 @@ final readonly class CreateOrganizationWithOwnerCommand
         private CommandBusInterface $commandBus,
         private QueryBusInterface $queryBus,
         private ValidatorInterface $validator,
+        private AppLinks $links,
     ) {
     }
 
@@ -136,8 +141,12 @@ final readonly class CreateOrganizationWithOwnerCommand
             timezone: $organization->timezone,
         ));
 
+        // The Ui generates the secret so the same link can be e-mailed and printed (ADR 0037 §3–4).
+        $secret = PasswordTokenSecret::generate();
+        $link = null;
         try {
-            $this->commandBus->handle(new SendInvitationCommand(Uuid::v7()->toRfc4122(), $ownerId, $organizationId, MembershipRole::Owner->value, null));
+            $this->commandBus->handle(new SendInvitationCommand(Uuid::v7()->toRfc4122(), $ownerId, $organizationId, MembershipRole::Owner->value, null, $secret->value));
+            $link = $this->links->setPassword(AppLinks::appFor(MembershipRole::Owner), $secret);
             $access = \sprintf('E-mailed %s a link to set their password (queued; the worker sends it).', trim($owner->email));
         } catch (PasswordAlreadySetException) {
             $access = \sprintf('%s already has a password and signs in to the admin as before.', trim($owner->email));
@@ -147,6 +156,10 @@ final readonly class CreateOrganizationWithOwnerCommand
             \sprintf('Created the organization "%s" (%s) with %s as its owner.', $organization->name, $organizationId, trim($owner->email)),
             $access,
         ]);
+        if (null !== $link) {
+            $io->writeln(\sprintf('If the e-mail does not arrive, pass this link to the owner only (it works once, for %d days, and sets their password):', PasswordTokenPurpose::Invitation->lifetime()->d));
+            $io->writeln($link);
+        }
 
         return Command::SUCCESS;
     }

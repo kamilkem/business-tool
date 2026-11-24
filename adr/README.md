@@ -20,7 +20,7 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0010](0010-money-minor-units-and-utc-timestamps.md) | Money is stored as integer minor units with a currency; timestamps are stored in UTC | Accepted |
 | [0011](0011-continuous-integration-on-github-actions.md) | Continuous integration on GitHub Actions: the `make qa` gates on every PR, plus PR guards | Accepted |
 | [0012](0012-transactional-email-smtp-async-queue.md) | Transactional e-mail: Symfony Mailer over SMTP, queued in PostgreSQL and sent by a worker | Accepted (the worker also consumes the schedule, and a second worker the `jobs` queue: [0025](0025-background-jobs-scheduler-and-job-bus.md)) |
-| [0013](0013-member-access-by-one-time-email-link.md) | New members get access through a one-time e-mailed link; the same tokens reset forgotten passwords | Accepted |
+| [0013](0013-member-access-by-one-time-email-link.md) | New members get access through a one-time e-mailed link; the same tokens reset forgotten passwords | Accepted (points 1 and 3 superseded in part by [0037](0037-invitation-link-for-the-inviter.md)) |
 | [0014](0014-deactivate-members-never-delete.md) | Members are deactivated, never deleted; a deactivated membership gives no access | Accepted |
 | [0015](0015-time-from-symfony-clock-passed-into-domain.md) | Time comes from Symfony Clock in the Application layer and is passed into the Domain | Accepted |
 | [0016](0016-clock-in-on-own-phone-server-time.md) | Employees clock in on their own phones with their own account; the server's clock sets the time | Accepted |
@@ -44,3 +44,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0034](0034-income-month-close-and-entry-history.md) | An owner closes an Income month, which locks its revenue entries; every entry write is kept in an append-only change history | Accepted |
 | [0035](0035-staging-and-production-on-one-ovh-instance.md) | Staging and production start on one OVHcloud Public Cloud instance in Warsaw: two Compose projects behind one Caddy, with one shared PostgreSQL | Accepted (point 12 superseded by [0036](0036-transactional-email-through-ovh-mail-plan.md)) |
 | [0036](0036-transactional-email-through-ovh-mail-plan.md) | Transactional e-mail is sent through the OVHcloud mail plan of tooltipp.com, from one no-reply mailbox | Accepted |
+| [0037](0037-invitation-link-for-the-inviter.md) | Owners and managers can create an invitation link to pass on themselves, and the console prints the first owner's link | Accepted |
