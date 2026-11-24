@@ -61,8 +61,11 @@ final readonly class KsefRequestPacer
         if (null !== $binding && $wait > self::MAX_WAIT_SECONDS) {
             throw KsefRateLimitedException::pausedBeforeLimit((int) ceil($wait), $endpoint, $binding[0], $binding[1]);
         }
-        if ($wait > 0) {
-            $this->clock->sleep($wait);
+        // A signal ends sleep() early (the jobs worker's --keepalive alarm fires every 5 s), so it
+        // sleeps again until the moment is reached.
+        $until = $now + $wait;
+        while (($left = $until - $now) > 0) {
+            $this->clock->sleep($left);
             $now = $this->now();
         }
 

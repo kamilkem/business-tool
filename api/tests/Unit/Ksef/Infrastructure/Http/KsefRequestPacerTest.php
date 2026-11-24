@@ -9,6 +9,7 @@ use App\Ksef\Infrastructure\Http\KsefApiLimit;
 use App\Ksef\Infrastructure\Http\KsefRequestPacer;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\MockClock;
 
 final class KsefRequestPacerTest extends TestCase
@@ -103,6 +104,42 @@ final class KsefRequestPacerTest extends TestCase
         $this->paceTimes(8, KsefApiLimit::InvoiceDownload);
 
         self::assertSame($before, $this->elapsed());
+    }
+
+    public function test_it_keeps_waiting_when_a_signal_ends_the_sleep_early(): void
+    {
+        // The jobs worker's keepalive alarm ends sleep() after at most 5 seconds.
+        $interrupted = new class($this->clock) implements ClockInterface {
+            public int $sleeps = 0;
+
+            public function __construct(private readonly MockClock $clock)
+            {
+            }
+
+            public function now(): \DateTimeImmutable
+            {
+                return $this->clock->now();
+            }
+
+            public function sleep(float|int $seconds): void
+            {
+                ++$this->sleeps;
+                $this->clock->sleep(min($seconds, 4.0));
+            }
+
+            public function withTimeZone(\DateTimeZone|string $timezone): static
+            {
+                return $this;
+            }
+        };
+        $pacer = new KsefRequestPacer($interrupted, $this->cache);
+
+        for ($request = 1; $request <= 17; ++$request) {
+            $pacer->pace(self::NIP, 'invoice download', KsefApiLimit::InvoiceDownload);
+        }
+
+        self::assertSame(60.25, $this->elapsed(), 'The 17th request still waits for the minute to pass.');
+        self::assertGreaterThan(2, $interrupted->sleeps);
     }
 
     private function paceTimes(int $times, KsefApiLimit $limit, string $endpoint = 'invoice download'): void
