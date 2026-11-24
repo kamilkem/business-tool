@@ -120,6 +120,18 @@ describe("requestErrorMessage", () => {
     )
   })
 
+  test("test_it_formats_the_dates_of_a_refused_ksef_start_date", async () => {
+    const format = createDateTimeFormat("Europe/Warsaw", "en-GB")
+    const beforeKsef = problem(422, "ksef.invalid_sync_start_date.before_ksef", { startDate: "2026-01-31", earliest: "2026-02-01" })
+    expect(requestErrorMessage(beforeKsef, { format })).toBe("KSeF holds invoices from 1 Feb 2026: choose that date or a later one.")
+    const inTheFuture = problem(422, "ksef.invalid_sync_start_date.in_the_future", { startDate: "2026-11-15", today: "2026-11-14" })
+    expect(requestErrorMessage(inTheFuture, { format })).toBe("Choose a date no later than today (14 Nov 2026).")
+    await i18n.changeLanguage("pl")
+    expect(requestErrorMessage(beforeKsef, { format: createDateTimeFormat("Europe/Warsaw", "pl-PL") })).toBe(
+      "KSeF przechowuje faktury od 1 lut 2026: wybierz tę datę lub późniejszą.",
+    )
+  })
+
   test("test_it_falls_back_to_a_message_for_the_status_for_an_unknown_code", async () => {
     expect(requestErrorMessage(problem(409, "income.something_new"))).toBe(
       "It changed in the meantime. Reload the page and try again.",

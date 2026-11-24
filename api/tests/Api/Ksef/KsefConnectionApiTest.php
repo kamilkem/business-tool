@@ -17,7 +17,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * GET /ksef-connection, POST and DELETE /ksef-connection/token, POST /ksef-connection/test (#49).
+ * GET /ksef-connection, POST and DELETE /ksef-connection/token, POST /ksef-connection/test (#49),
+ * POST /ksef-connection/sync-start-date (ADR 0038).
  * KSeF is the in-memory one (adr/0023 §8); the clients keep one kernel, so it keeps what it was told.
  * Organizations are in Poland with a valid NIP unless a test says otherwise; time is mocked at NOW.
  */
@@ -58,6 +59,8 @@ final class KsefConnectionApiTest extends ApiTestCase
             'lastCheckedAt' => '2026-11-13T10:00:00+00:00',
             'lastCheckError' => null,
             'lastCheckErrorMessage' => null,
+            'syncStartDate' => null,
+            'defaultSyncStartDate' => '2026-10-01',
             'syncedUntil' => null,
             'lastSyncAt' => null,
             'lastSyncSucceededAt' => null,
@@ -171,8 +174,8 @@ final class KsefConnectionApiTest extends ApiTestCase
     {
         [$owner, $organization] = $this->memberOfPolishOrganization(MembershipRole::Owner);
 
-        foreach ([['GET', '/api/ksef-connection'], ['POST', '/api/ksef-connection/test'], ['DELETE', '/api/ksef-connection/token']] as [$method, $url]) {
-            $this->request($owner, $organization, $method, $url);
+        foreach ([['GET', '/api/ksef-connection'], ['POST', '/api/ksef-connection/test'], ['DELETE', '/api/ksef-connection/token'], ['POST', '/api/ksef-connection/sync-start-date'], ['DELETE', '/api/ksef-connection/sync-start-date']] as [$method, $url]) {
+            $this->request($owner, $organization, $method, $url, 'POST' === $method && str_ends_with($url, '/sync-start-date') ? ['syncStartDate' => '2026-03-01'] : null);
             self::assertResponseStatusCodeSame(404, $method.' '.$url);
         }
     }
@@ -250,6 +253,8 @@ final class KsefConnectionApiTest extends ApiTestCase
         yield 'employee tests' => [MembershipRole::Employee, 'POST', '/api/ksef-connection/test', 403];
         yield 'employee saves the token' => [MembershipRole::Employee, 'POST', '/api/ksef-connection/token', 403];
         yield 'employee removes the token' => [MembershipRole::Employee, 'DELETE', '/api/ksef-connection/token', 403];
+        yield 'employee chooses the start date' => [MembershipRole::Employee, 'POST', '/api/ksef-connection/sync-start-date', 403];
+        yield 'employee resets the start date' => [MembershipRole::Employee, 'DELETE', '/api/ksef-connection/sync-start-date', 403];
     }
 
     #[DataProvider('forbidden')]
@@ -259,11 +264,17 @@ final class KsefConnectionApiTest extends ApiTestCase
         self::ksef()->acceptToken(self::NIP, self::TOKEN);
         $this->saveToken(OrganizationMother::ownerOf($organization), $organization);
 
-        $this->request($actor, $organization, $method, $url, 'POST' === $method && str_ends_with($url, '/token') ? ['token' => 'another-not-a-real-token'] : null);
+        $body = match (true) {
+            'POST' === $method && str_ends_with($url, '/token') => ['token' => 'another-not-a-real-token'],
+            'POST' === $method && str_ends_with($url, '/sync-start-date') => ['syncStartDate' => '2026-03-01'],
+            default => null,
+        };
+        $this->request($actor, $organization, $method, $url, $body);
 
         self::assertResponseStatusCodeSame($status);
         $connection = $this->request(OrganizationMother::ownerOf($organization), $organization, 'GET', '/api/ksef-connection')->toArray();
         self::assertTrue($connection['tokenSet']);
+        self::assertNull($connection['syncStartDate']);
         self::assertSame('2026-11-13T10:00:00+00:00', $connection['tokenSetAt']);
     }
 
@@ -280,6 +291,11 @@ final class KsefConnectionApiTest extends ApiTestCase
         self::assertResponseStatusCodeSame(404);
         $this->request($otherOwner, $otherOrganization, 'DELETE', '/api/ksef-connection/token');
         self::assertResponseStatusCodeSame(404);
+        $this->request($otherOwner, $otherOrganization, 'POST', '/api/ksef-connection/sync-start-date', ['syncStartDate' => '2026-03-01']);
+        self::assertResponseStatusCodeSame(404);
+        $this->request($otherOwner, $otherOrganization, 'DELETE', '/api/ksef-connection/sync-start-date');
+        self::assertResponseStatusCodeSame(404);
+        self::assertNull($this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['syncStartDate']);
         $this->request($otherOwner, $organization, 'GET', '/api/ksef-connection');
         self::assertResponseStatusCodeSame(403);
 
@@ -289,6 +305,89 @@ final class KsefConnectionApiTest extends ApiTestCase
         self::assertSame($saved['id'], $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['id']);
         self::assertSame('active', $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['status']);
         self::assertSame(2, (int) self::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM organization_secret'));
+    }
+
+    /** @return iterable<string, array{MembershipRole}> */
+    public static function ownersAndManagers(): iterable
+    {
+        yield 'owner' => [MembershipRole::Owner];
+        yield 'manager' => [MembershipRole::Manager];
+    }
+
+    #[DataProvider('ownersAndManagers')]
+    public function test_it_lets_owners_and_managers_choose_the_date_the_import_starts_at(MembershipRole $role): void
+    {
+        [$actor, $organization] = $this->memberOfPolishOrganization($role);
+        self::ksef()->acceptToken(self::NIP, self::TOKEN);
+        $this->saveToken(OrganizationMother::ownerOf($organization), $organization);
+
+        $changed = $this->request($actor, $organization, 'POST', '/api/ksef-connection/sync-start-date', ['syncStartDate' => '2026-02-01'])->toArray();
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('2026-02-01', $changed['syncStartDate']);
+        self::assertSame('2026-10-01', $changed['defaultSyncStartDate']);
+        self::assertSame($changed, $this->request($actor, $organization, 'GET', '/api/ksef-connection')->toArray());
+
+        $this->request($actor, $organization, 'DELETE', '/api/ksef-connection/sync-start-date');
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertNull($this->request($actor, $organization, 'GET', '/api/ksef-connection')->toArray()['syncStartDate']);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function invalidSyncStartDates(): iterable
+    {
+        yield 'missing' => [[]];
+        yield 'null' => [['syncStartDate' => null]];
+        yield 'empty' => [['syncStartDate' => '']];
+        yield 'not a date' => [['syncStartDate' => 'yesterday']];
+        yield 'day first' => [['syncStartDate' => '01.10.2026']];
+        yield 'no such day' => [['syncStartDate' => '2026-02-30']];
+        yield 'a number' => [['syncStartDate' => 20261001]];
+    }
+
+    /** @param array<string, mixed> $body */
+    #[DataProvider('invalidSyncStartDates')]
+    public function test_it_answers_422_with_violations_for_an_invalid_start_date(array $body): void
+    {
+        [$owner, $organization] = $this->memberOfPolishOrganization(MembershipRole::Owner);
+        self::ksef()->acceptToken(self::NIP, self::TOKEN);
+        $this->saveToken($owner, $organization);
+
+        $response = $this->request($owner, $organization, 'POST', '/api/ksef-connection/sync-start-date', $body);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['syncStartDate'], array_values(array_unique(array_column($response->toArray(false)['violations'] ?? [], 'propertyPath'))));
+        self::assertNull($this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['syncStartDate']);
+    }
+
+    /** @return iterable<string, array{string, string, array<string, string>}> */
+    public static function startDatesOutOfRange(): iterable
+    {
+        // 23:30 UTC on 13 November is 14 November in Warsaw: the 14th is today, the 15th is not.
+        yield 'after today' => ['2026-11-15', 'ksef.invalid_sync_start_date.in_the_future', ['startDate' => '2026-11-15', 'today' => '2026-11-14']];
+        yield 'before KSeF API 2.0' => ['2026-01-31', 'ksef.invalid_sync_start_date.before_ksef', ['startDate' => '2026-01-31', 'earliest' => '2026-02-01']];
+    }
+
+    /** @param array<string, string> $parameters */
+    #[DataProvider('startDatesOutOfRange')]
+    public function test_it_answers_422_with_a_code_for_a_start_date_out_of_range(string $date, string $code, array $parameters): void
+    {
+        [$owner, $organization] = $this->memberOfPolishOrganization(MembershipRole::Owner);
+        self::ksef()->acceptToken(self::NIP, self::TOKEN);
+        $this->saveToken($owner, $organization);
+        self::mockTime('2026-11-13 23:30:00');
+
+        $response = $this->request($owner, $organization, 'POST', '/api/ksef-connection/sync-start-date', ['syncStartDate' => $date]);
+
+        self::assertResponseStatusCodeSame(422);
+        $problem = $response->toArray(false);
+        self::assertSame($code, $problem['code'] ?? null);
+        self::assertSame($parameters, $problem['parameters'] ?? null);
+        self::assertNull($this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['syncStartDate']);
+
+        $this->request($owner, $organization, 'POST', '/api/ksef-connection/sync-start-date', ['syncStartDate' => '2026-11-14']);
+        self::assertResponseStatusCodeSame(200);
     }
 
     /** @return array{User, Organization} */

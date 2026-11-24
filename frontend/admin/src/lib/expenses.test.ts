@@ -69,6 +69,8 @@ function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
     lastCheckedAt: "2026-11-13T10:00:00+00:00",
     lastCheckError: null,
     lastCheckErrorMessage: null,
+    syncStartDate: null,
+    defaultSyncStartDate: "2026-10-01",
     syncedUntil: null,
     lastSyncAt: null,
     lastSyncSucceededAt: null,

@@ -4,6 +4,9 @@ import { i18n } from "../i18n"
 
 export type KsefConnection = components["schemas"]["KsefConnection"]
 
+/** The earliest date the import may start at: KSeF API 2.0 became mandatory (ADR 0038 §4). */
+export const KSEF_EARLIEST_SYNC_START_DATE = "2026-02-01"
+
 /** KSeF exists only for organizations in Poland (ADR 0002 §3, ADR 0023 §3). */
 export function ksefAvailableIn(countryCode: string): boolean {
   return countryCode.toUpperCase() === "PL"

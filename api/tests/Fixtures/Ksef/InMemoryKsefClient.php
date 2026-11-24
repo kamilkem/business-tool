@@ -13,6 +13,7 @@ use App\Ksef\Domain\Model\KsefInvoiceMetadata;
 use App\Ksef\Domain\Model\KsefInvoiceMetadataPage;
 use App\Ksef\Domain\Model\KsefPurchaseInvoiceQuery;
 use App\Ksef\Domain\Model\KsefSession;
+use App\Shared\Domain\Time\BusinessDate;
 
 /**
  * KSeF for handler and API tests (adr/0023 §8): accepted tokens per NIP, purchase invoices with their
@@ -60,12 +61,15 @@ final class InMemoryKsefClient implements KsefClientInterface
         \DateTimeImmutable $permanentStorageDate,
         string $xml,
         KsefFormCode $formCode = new KsefFormCode(KsefFormCode::FA3_SYSTEM_CODE, '1-0E', 'FA'),
+        /** Default: the day it was stored, in Warsaw. */
+        ?BusinessDate $issueDate = null,
     ): KsefInvoiceMetadata {
         $metadata = new KsefInvoiceMetadata(
             $ksefNumber,
             $formCode,
             base64_encode(hash('sha256', $xml, true)),
             $permanentStorageDate->setTimezone(new \DateTimeZone('UTC')),
+            $issueDate ?? BusinessDate::containing($permanentStorageDate, new \DateTimeZone('Europe/Warsaw')),
         );
         $this->invoices[$buyerNip][] = ['metadata' => $metadata, 'xml' => $xml];
 

@@ -70,7 +70,7 @@ function statusMessage(status: number): string {
 }
 
 // Parameters by meaning (the API's names, ADR 0028 §5), formatted before they go into the text.
-const BUSINESS_DATES = new Set(["date", "from", "to", "today", "businessDate", "lockedFrom", "lockedTo", "lastClosedDate"])
+const BUSINESS_DATES = new Set(["date", "from", "to", "today", "businessDate", "lockedFrom", "lockedTo", "lastClosedDate", "startDate", "earliest"])
 const INSTANTS = new Set(["startedAt", "endedAt", "otherStartedAt", "otherEndedAt", "time", "now", "retryAt", "occurredAt", "at", "closedAt"])
 const MONTHS = new Set(["month"])
 

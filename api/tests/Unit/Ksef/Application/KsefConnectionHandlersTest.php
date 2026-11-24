@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Ksef\Application;
 
+use App\Ksef\Application\Command\ChangeKsefSyncStartDate\ChangeKsefSyncStartDateCommand;
+use App\Ksef\Application\Command\ChangeKsefSyncStartDate\ChangeKsefSyncStartDateHandler;
 use App\Ksef\Application\Command\RemoveKsefToken\RemoveKsefTokenCommand;
 use App\Ksef\Application\Command\RemoveKsefToken\RemoveKsefTokenHandler;
 use App\Ksef\Application\Command\RequestKsefImport\RequestKsefImportCommand;
@@ -20,6 +22,7 @@ use App\Ksef\Application\Query\GetKsefConnection\KsefConnectionView;
 use App\Ksef\Application\Query\GetKsefTokenTarget\GetKsefTokenTargetHandler;
 use App\Ksef\Application\Query\GetKsefTokenTarget\GetKsefTokenTargetQuery;
 use App\Ksef\Application\Query\GetKsefTokenTarget\KsefTokenTargetView;
+use App\Ksef\Domain\Exception\InvalidSyncStartDateException;
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
 use App\Ksef\Domain\Exception\KsefConnectionNotFoundException;
 use App\Ksef\Domain\Exception\KsefException;
@@ -77,6 +80,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(TestKsefConnectionHandler::class)]
 #[CoversClass(GetKsefConnectionHandler::class)]
 #[CoversClass(RequestKsefImportHandler::class)]
+#[CoversClass(ChangeKsefSyncStartDateHandler::class)]
 #[CoversClass(GetKsefTokenTargetHandler::class)]
 #[CoversClass(KsefConnectionView::class)]
 #[CoversClass(KsefActor::class)]
@@ -446,6 +450,63 @@ final class KsefConnectionHandlersTest extends TestCase
             }
         }
         self::assertSame([], $this->jobBus->dispatched);
+    }
+
+    #[DataProvider('managers')]
+    public function test_it_lets_owners_and_managers_choose_the_start_date(string $actor): void
+    {
+        $this->saveToken();
+        $view = $this->view($this->owner) ?? self::fail('Connection expected.');
+        self::assertNull($view->syncStartDate);
+        self::assertSame('2026-10-01', $view->defaultSyncStartDate);
+
+        $this->changeSyncStartDate($this->user($actor), '2026-02-01');
+
+        $view = $this->view($this->owner) ?? self::fail('Connection expected.');
+        self::assertSame('2026-02-01', $view->syncStartDate);
+        self::assertSame('2026-10-01', $view->defaultSyncStartDate);
+
+        $this->changeSyncStartDate($this->user($actor), null);
+
+        self::assertNull(($this->view($this->owner) ?? self::fail('Connection expected.'))->syncStartDate);
+    }
+
+    public function test_it_refuses_a_start_date_in_the_future_in_the_organizations_time_zone(): void
+    {
+        $this->saveToken();
+
+        $this->expectException(InvalidSyncStartDateException::class);
+
+        $this->changeSyncStartDate($this->owner, '2026-11-14');
+    }
+
+    public function test_it_refuses_employees_and_strangers_to_choose_the_start_date(): void
+    {
+        $this->saveToken();
+
+        try {
+            $this->changeSyncStartDate($this->employee, '2026-03-01');
+            self::fail('Exception expected.');
+        } catch (KsefConnectionForbiddenException) {
+        }
+
+        $this->expectException(OrganizationNotFoundException::class);
+
+        $this->changeSyncStartDate(UserMother::any('stranger@example.com'), '2026-03-01');
+    }
+
+    public function test_it_reports_choosing_the_start_date_without_a_connection_as_not_found(): void
+    {
+        $this->expectException(KsefConnectionNotFoundException::class);
+
+        $this->changeSyncStartDate($this->owner, '2026-03-01');
+    }
+
+    private function changeSyncStartDate(User $actor, ?string $date): void
+    {
+        (new ChangeKsefSyncStartDateHandler($this->connections, $this->queryBus, $this->clock))(
+            new ChangeKsefSyncStartDateCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $date),
+        );
     }
 
     private function requestImport(User $actor): void

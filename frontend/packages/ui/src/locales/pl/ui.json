@@ -156,6 +156,10 @@
         "not_xml": "Faktura nie jest poprawnym dokumentem XML.",
         "repeated": "Element {{path}} występuje w fakturze więcej niż raz."
       },
+      "invalid_sync_start_date": {
+        "before_ksef": "KSeF przechowuje faktury od {{earliest}}: wybierz tę datę lub późniejszą.",
+        "in_the_future": "Wybierz datę nie późniejszą niż dzisiaj ({{today}})."
+      },
       "not_available": {
         "invalid_nip": "KSeF wymaga poprawnego NIP-u organizacji: ustaw go w ustawieniach.",
         "outside_poland": "KSeF jest dostępny tylko dla organizacji w Polsce."

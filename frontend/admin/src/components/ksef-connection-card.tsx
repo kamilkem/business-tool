@@ -26,7 +26,7 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { FORM_WIDTH } from "@/components/page-container"
 import { api } from "@/lib/api"
 import { type Membership, can } from "@/lib/access"
-import { type KsefConnection, ksefErrorLabel, ksefState } from "@/lib/ksef"
+import { KSEF_EARLIEST_SYNC_START_DATE, type KsefConnection, ksefErrorLabel, ksefState } from "@/lib/ksef"
 import { ksefConnectionQuery } from "@/lib/queries"
 
 const toneClass = {
@@ -112,6 +112,11 @@ export function KsefConnectionCard({ membership }: { membership: Membership }) {
           <Button variant="outline" className="self-start" disabled={busy} onClick={() => test.mutate()}>
             {test.isPending ? t("ksef.card.testing") : t("ksef.card.test")}
           </Button>
+        )}
+
+        {connection && (
+          // Keyed by the saved start, so the field shows it again after a save or reset.
+          <SyncStartDateForm key={connection.syncStartDate ?? connection.defaultSyncStartDate} connection={connection} organizationId={organizationId} />
         )}
 
         {mayManageToken && (
@@ -208,5 +213,84 @@ function KsefStatus({
         </dl>
       )}
     </div>
+  )
+}
+
+/**
+ * The date of issue from which invoices are imported (ADR 0038): the chosen one or the default, for
+ * owners and managers. Saving an earlier date makes the next imports fetch the missing invoices.
+ */
+function SyncStartDateForm({ connection, organizationId }: { connection: KsefConnection; organizationId: string }) {
+  const query = ksefConnectionQuery(organizationId)
+  const queryClient = useQueryClient()
+  const format = useDateTimeFormat()
+  const { t } = useTranslation("admin")
+  const saved = connection.syncStartDate ?? connection.defaultSyncStartDate
+  const [date, setDate] = useState(saved)
+  const [error, setError] = useState<string | null>(null)
+
+  const save = useMutation({
+    mutationFn: (value: string) => unwrap(api.POST("/api/ksef-connection/sync-start-date", { body: { syncStartDate: value } })),
+    onSuccess: (data) => {
+      setError(null)
+      queryClient.setQueryData(query.queryKey, data)
+      toast.success(t("ksef.syncStart.saved", { date: format.businessDate(data.syncStartDate ?? data.defaultSyncStartDate) }))
+    },
+    onError: (e) => setError(violationsOf(e).syncStartDate ?? requestErrorMessage(e, { format })),
+  })
+
+  const reset = useMutation({
+    mutationFn: () => unwrap(api.DELETE("/api/ksef-connection/sync-start-date")),
+    onSuccess: async () => {
+      setError(null)
+      await queryClient.invalidateQueries({ queryKey: query.queryKey })
+      toast.success(t("ksef.syncStart.reset"))
+    },
+    onError: (e) => toast.error(requestErrorMessage(e, { format })),
+  })
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    save.mutate(date)
+  }
+
+  const busy = save.isPending || reset.isPending
+
+  return (
+    <form onSubmit={onSubmit}>
+      <fieldset disabled={busy}>
+        <FieldGroup>
+          <Field data-invalid={error ? true : undefined}>
+            <FieldLabel htmlFor="ksef-sync-start-date">{t("ksef.syncStart.title")}</FieldLabel>
+            <Input
+              id="ksef-sync-start-date"
+              type="date"
+              className="w-auto self-start"
+              required
+              min={KSEF_EARLIEST_SYNC_START_DATE}
+              max={format.today()}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              aria-invalid={error ? true : undefined}
+            />
+            <FieldDescription>
+              {t("ksef.syncStart.description")}{" "}
+              {t("ksef.syncStart.default", { date: format.businessDate(connection.defaultSyncStartDate) })}
+            </FieldDescription>
+            {error && <FieldError>{error}</FieldError>}
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="outline" disabled={date === "" || date === saved}>
+              {save.isPending ? t("ksef.syncStart.saving") : t("ksef.syncStart.save")}
+            </Button>
+            {connection.syncStartDate !== null && (
+              <Button type="button" variant="ghost" onClick={() => reset.mutate()}>
+                {t("ksef.syncStart.useDefault")}
+              </Button>
+            )}
+          </div>
+        </FieldGroup>
+      </fieldset>
+    </form>
   )
 }

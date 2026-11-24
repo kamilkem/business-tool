@@ -215,6 +215,16 @@
       "notYet": "Jeszcze nie",
       "lastCheckFailed": "Ostatnie nieudane sprawdzenie"
     },
+    "syncStart": {
+      "title": "Importuj faktury od",
+      "description": "Importowane są faktury wystawione w tym dniu lub później. Wcześniejsza data pobierze brakujące faktury w kolejnych importach (najwyżej 64 na godzinę); późniejsza nie usuwa faktur już zaimportowanych.",
+      "default": "Domyślnie: {{date}}, pierwszy dzień miesiąca przed połączeniem z KSeF.",
+      "save": "Zapisz datę",
+      "saving": "Zapisywanie…",
+      "saved": "Faktury będą importowane od {{date}}",
+      "useDefault": "Użyj domyślnej",
+      "reset": "Faktury będą importowane od daty domyślnej"
+    },
     "import": {
       "started": "Import rozpoczęty",
       "startedDescription": "Nowe faktury pojawią się tutaj po jego zakończeniu.",
