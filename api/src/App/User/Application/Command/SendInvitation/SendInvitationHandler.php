@@ -61,9 +61,12 @@ final readonly class SendInvitationHandler implements CommandHandlerInterface
         foreach ($this->tokens->findUnusedByUser($user->getId(), PasswordTokenPurpose::Invitation) as $previous) {
             $previous->invalidate($now);
         }
-        $secret = PasswordTokenSecret::generate();
+        $secret = null === $command->secret ? PasswordTokenSecret::generate() : PasswordTokenSecret::fromValue($command->secret);
         $token = new PasswordToken(Uuid::fromString($command->tokenId), $user, PasswordTokenPurpose::Invitation, $secret, $now);
         $this->tokens->add($token);
+        if (!$command->sendEmail) {
+            return; // The inviter passes the link on themselves (ADR 0037).
+        }
 
         // Queued only after the token is saved (adr/0012): the link in the e-mail always works. It is
         // in the language chosen for the invitee on add-member, else the inviter's own (ADR 0028 §6).

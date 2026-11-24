@@ -130,6 +130,28 @@ final class SendInvitationHandlerTest extends TestCase
         self::assertStringStartsWith('https://admin.example/set-password#token=', (string) $email->context['link']);
     }
 
+    public function test_it_uses_the_callers_secret_and_sends_no_e_mail_when_the_inviter_passes_the_link_on(): void
+    {
+        $secret = PasswordTokenSecret::generate();
+
+        $this->handle('employee', secret: $secret->value, sendEmail: false);
+
+        $tokens = $this->tokens->all();
+        self::assertCount(1, $tokens);
+        self::assertSame($secret->hash(), $tokens[0]->getSecretHash());
+        self::assertSame(PasswordTokenPurpose::Invitation, $tokens[0]->getPurpose());
+        self::assertSame([], $this->mailer->emails);
+    }
+
+    public function test_it_e_mails_the_link_of_the_callers_secret(): void
+    {
+        $secret = PasswordTokenSecret::generate();
+
+        $this->handle('owner', secret: $secret->value);
+
+        self::assertSame('https://admin.example/set-password#token='.$secret->value, $this->onlyEmail()->context['link']);
+    }
+
     public function test_it_invalidates_the_previous_invitation_but_not_a_password_reset(): void
     {
         $issuedAt = new \DateTimeImmutable('2026-11-10 12:00:00');
@@ -168,7 +190,7 @@ final class SendInvitationHandlerTest extends TestCase
         $this->handle('employee');
     }
 
-    private function handle(string $role, ?string $tokenId = null, ?string $invitedById = 'inviter'): void
+    private function handle(string $role, ?string $tokenId = null, ?string $invitedById = 'inviter', ?string $secret = null, bool $sendEmail = true): void
     {
         $invitedById = 'inviter' === $invitedById ? $this->inviter->getId()->toRfc4122() : $invitedById;
         // The organization is read as the inviter, or as the invitee when nobody invited them.
@@ -190,6 +212,8 @@ final class SendInvitationHandlerTest extends TestCase
             organizationId: $this->organizationId,
             role: $role,
             invitedById: $invitedById,
+            secret: $secret,
+            sendEmail: $sendEmail,
         ));
     }
 

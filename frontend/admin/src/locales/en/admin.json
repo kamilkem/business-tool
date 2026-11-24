@@ -1017,7 +1017,8 @@
       },
       "ownRoleEmployee": "Employees can't manage the team or the organization settings. Only another owner can give you your role back.",
       "ownRoleDescription": "Only another owner can give you your role back."
-    }
+    },
+    "invitationLink": "Invitation link…"
   },
   "addMember": {
     "title": "Add member",
@@ -1042,7 +1043,10 @@
     "error": {
       "alreadyMember": "{{name}} ({{email}}) is already a member of this organization.",
       "deactivatedMember": "{{name}} ({{email}}) is a deactivated member. Show deactivated members and reactivate them instead."
-    }
+    },
+    "invitedTitle": "Invitation sent",
+    "invitedDescription": "We e-mailed an invitation to {{email}}.",
+    "done": "Done"
   },
   "time": {
     "title": "Time tracking",
@@ -1493,5 +1497,19 @@
     "maxShiftHours": "Maximum shift length",
     "hours": "hours",
     "maxShiftHoursDescription": "A shift longer than this is flagged on the Time page. While it is open, the person and the owners and managers get one e-mail about it. Nothing ends the shift for them. From {{min}} to {{max}} hours."
+  },
+  "invitationLink": {
+    "title": "Invitation link for {{name}}",
+    "explain": "If the invitation e-mail doesn't arrive, create a link and send it to this person yourself, for example by text message. Creating it makes earlier invitation links stop working, including the e-mailed one.",
+    "create": "Create invitation link",
+    "creating": "Creating…",
+    "label": "Invitation link",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "copyFailed": "Couldn't copy the link: select it and copy it by hand",
+    "validFor_one": "Works once, for {{count}} day. Creating a new link replaces this one.",
+    "validFor_other": "Works once, for {{count}} days. Creating a new link replaces this one.",
+    "warning": "Whoever opens this link sets the password for {{name}}, so send it to that person only.",
+    "error": "Couldn't create the invitation link"
   }
 }
