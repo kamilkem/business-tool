@@ -11,6 +11,7 @@ use App\Ksef\Domain\Exception\KsefUnavailableException;
 use App\Ksef\Domain\Model\KsefPurchaseInvoiceQuery;
 use App\Ksef\Domain\Model\KsefSession;
 use App\Ksef\Infrastructure\Http\HttpKsefClient;
+use App\Ksef\Infrastructure\Http\KsefRequestPacer;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Crypt\RSA;
 use PHPUnit\Framework\TestCase;
@@ -251,6 +252,42 @@ final class HttpKsefClientTest extends TestCase
         self::assertSame('application/xml', $this->header(0, 'accept'));
     }
 
+    public function test_it_paces_invoice_downloads_within_ksef_limits_per_second_and_minute(): void
+    {
+        $client = $this->client(array_map(static fn (): MockResponse => self::xml(), range(1, 17)));
+        $session = $this->session('2026-11-12 23:57:49 UTC');
+
+        foreach (range(1, 17) as $download) {
+            $client->downloadInvoice($session, '3947150208-20261103-0100A0B1C2D3-4F');
+        }
+
+        self::assertCount(17, $this->requests);
+        // The 9th waits for the second to pass, the 17th for the minute (KsefRequestPacer::MARGIN_SECONDS each).
+        self::assertEquals(new \DateTimeImmutable('2026-11-12 22:43:47.25 UTC'), $this->clock->now());
+    }
+
+    public function test_it_stops_before_the_hourly_limit_without_calling_ksef(): void
+    {
+        $client = $this->client(array_map(static fn (): MockResponse => self::xml(), range(1, 64)));
+        $session = $this->session('2026-11-13 23:57:49 UTC');
+        $start = $this->clock->now();
+        foreach (range(1, 64) as $download) {
+            $client->downloadInvoice($session, '3947150208-20261103-0100A0B1C2D3-4F');
+        }
+        $after64 = $this->clock->now();
+
+        try {
+            $client->downloadInvoice($session, '3947150208-20261103-0100A0B1C2D3-4F');
+            self::fail('Expected the run to stop before the hourly limit.');
+        } catch (KsefRateLimitedException $e) {
+            self::assertSame("Paused before KSeF's limit of 64 invoice download requests per hour; the import continues after {$e->retryAfterSeconds} s.", $e->getMessage());
+            // The first request leaves the hour 3600.25 s after it was sent.
+            self::assertSame((int) ceil(3600.25 - ((float) $after64->format('U.u') - (float) $start->format('U.u'))), $e->retryAfterSeconds);
+        }
+        self::assertCount(64, $this->requests, 'The 65th request is never sent.');
+        self::assertEquals($after64, $this->clock->now(), 'No waiting for the hour.');
+    }
+
     public function test_it_refreshes_the_access_token_before_it_expires(): void
     {
         $session = $this->session(accessTokenValidUntil: '2026-11-12 22:43:30 UTC');
@@ -390,7 +427,7 @@ final class HttpKsefClientTest extends TestCase
             return $response;
         });
 
-        return new HttpKsefClient($http, $this->clock, $this->cache, self::API_URL);
+        return new HttpKsefClient($http, $this->clock, $this->cache, new KsefRequestPacer($this->clock, $this->cache), self::API_URL);
     }
 
     private function session(string $accessTokenValidUntil = '2026-11-12 22:57:49 UTC'): KsefSession
@@ -428,6 +465,11 @@ final class HttpKsefClientTest extends TestCase
             'http_code' => $status,
             'response_headers' => $headers + ['content-type' => 'application/json'],
         ]);
+    }
+
+    private static function xml(): MockResponse
+    {
+        return new MockResponse((string) file_get_contents(self::FIXTURES.'invoice-fa3.xml'), ['response_headers' => ['content-type' => 'application/xml']]);
     }
 
     private static function json(mixed $body): MockResponse

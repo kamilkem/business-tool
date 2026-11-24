@@ -34,8 +34,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * integrator guide (https://github.com/CIRFMF/ksef-docs: uwierzytelnianie.md, auth/sesje.md,
  * pobieranie-faktur/, limity/limity-api.md).
  *
- * Network errors and 5xx answers are retried up to 3 times with exponential backoff; a 429 is never
- * retried (ADR 0023 §5). Access and refresh tokens stay in the KsefSession in memory.
+ * Every request except the public auth challenge first waits for room within KSeF's API limits
+ * (KsefRequestPacer, KsefApiLimit). Network errors and 5xx answers are retried up to 3 times with
+ * exponential backoff; a 429 is never retried (ADR 0023 §5). Access and refresh tokens stay in the
+ * KsefSession in memory.
  */
 final readonly class HttpKsefClient implements KsefClientInterface
 {
@@ -58,6 +60,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
         private HttpClientInterface $ksefClient,
         private ClockInterface $clock,
         private CacheInterface $cache,
+        private KsefRequestPacer $pacer,
         #[Autowire(env: 'KSEF_API_URL')]
         private string $apiUrl,
     ) {
@@ -67,7 +70,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
     {
         $key = $this->tokenEncryptionKey();
 
-        $challenge = $this->json('auth challenge', $this->send('auth challenge', 'POST', 'auth/challenge'), 200);
+        $challenge = $this->json('auth challenge', $this->send('auth challenge', 'POST', 'auth/challenge', limit: null), 200);
         $timestampMs = self::int($challenge, 'timestampMs', 'auth challenge');
 
         $init = $this->json('KSeF token authentication', $this->send('KSeF token authentication', 'POST', 'auth/ksef-token', [
@@ -77,15 +80,15 @@ final readonly class HttpKsefClient implements KsefClientInterface
                 'encryptedToken' => self::encryptToken($key['key'], $ksefToken, $timestampMs),
                 'publicKeyId' => $key['publicKeyId'],
             ],
-        ]), 202);
+        ], context: $nip), 202);
         $referenceNumber = self::string($init, 'referenceNumber', 'KSeF token authentication');
         $authenticationToken = self::string(self::object($init, 'authenticationToken', 'KSeF token authentication'), 'token', 'KSeF token authentication');
 
-        $this->waitForAuthentication($referenceNumber, $authenticationToken);
+        $this->waitForAuthentication($nip, $referenceNumber, $authenticationToken);
 
         $tokens = $this->json('token redemption', $this->send('token redemption', 'POST', 'auth/token/redeem', [
             'auth_bearer' => $authenticationToken,
-        ]), 200);
+        ], context: $nip), 200);
         $access = self::object($tokens, 'accessToken', 'token redemption');
         $refresh = self::object($tokens, 'refreshToken', 'token redemption');
 
@@ -117,7 +120,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
                     'restrictToPermanentStorageHwmDate' => true,
                 ],
             ],
-        ]), 200);
+        ], KsefApiLimit::InvoiceMetadataQuery), 200);
 
         $invoices = [];
         foreach (self::list($page, 'invoices', $what) as $record) {
@@ -151,7 +154,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
         $what = 'invoice download';
         $response = $this->sendAuthorized($session, $what, 'GET', 'invoices/ksef/'.rawurlencode($ksefNumber), [
             'headers' => ['Accept' => 'application/xml'],
-        ]);
+        ], KsefApiLimit::InvoiceDownload);
         $this->expectStatus($what, $response, 200);
 
         $xml = $response->getContent(false);
@@ -169,13 +172,13 @@ final readonly class HttpKsefClient implements KsefClientInterface
     }
 
     /** Polls the authentication status until it succeeds, fails or the polling budget is spent. */
-    private function waitForAuthentication(string $referenceNumber, #[\SensitiveParameter] string $authenticationToken): void
+    private function waitForAuthentication(string $nip, string $referenceNumber, #[\SensitiveParameter] string $authenticationToken): void
     {
         $what = 'authentication status';
         for ($poll = 1; $poll <= self::MAX_STATUS_POLLS; ++$poll) {
             $body = $this->json($what, $this->send($what, 'GET', 'auth/'.rawurlencode($referenceNumber), [
                 'auth_bearer' => $authenticationToken,
-            ]), 200);
+            ], context: $nip), 200);
             $status = self::object($body, 'status', $what);
             $code = self::int($status, 'code', $what);
 
@@ -203,18 +206,20 @@ final readonly class HttpKsefClient implements KsefClientInterface
      * more if KSeF answers 401 anyway.
      *
      * @param array<string, mixed> $options
+     *
+     * @throws KsefRateLimitedException
      */
-    private function sendAuthorized(KsefSession $session, string $what, string $method, string $path, array $options = []): ResponseInterface
+    private function sendAuthorized(KsefSession $session, string $what, string $method, string $path, array $options = [], KsefApiLimit $limit = KsefApiLimit::Other): ResponseInterface
     {
         $refreshAt = $this->clock->now()->modify(\sprintf('+%d seconds', self::REFRESH_MARGIN_SECONDS));
         if ($session->accessTokenValidUntil() <= $refreshAt) {
             $this->refresh($session);
         }
 
-        $response = $this->send($what, $method, $path, $options + ['auth_bearer' => $session->accessToken()]);
+        $response = $this->send($what, $method, $path, $options + ['auth_bearer' => $session->accessToken()], $limit, $session->contextNip);
         if (401 === $response->getStatusCode()) {
             $this->refresh($session);
-            $response = $this->send($what, $method, $path, ['auth_bearer' => $session->accessToken()] + $options);
+            $response = $this->send($what, $method, $path, ['auth_bearer' => $session->accessToken()] + $options, $limit, $session->contextNip);
         }
 
         return $response;
@@ -225,7 +230,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
         $what = 'access token refresh';
         $body = $this->json($what, $this->send($what, 'POST', 'auth/token/refresh', [
             'auth_bearer' => $session->refreshToken(),
-        ]), 200);
+        ], context: $session->contextNip), 200);
         $access = self::object($body, 'accessToken', $what);
 
         $session->replaceAccessToken(self::string($access, 'token', $what), self::date($access, 'validUntil', $what));
@@ -308,11 +313,15 @@ final readonly class HttpKsefClient implements KsefClientInterface
 
     /**
      * Sends a request, retrying network errors and 5xx answers; the body is read inside the retry
-     * loop so that a connection dropped mid-body is retried too. A 429 throws at once.
+     * loop so that a connection dropped mid-body is retried too. Every attempt is paced within
+     * `$limit` for `$context` (the NIP; none for public endpoints), and `$what` names the endpoint's
+     * counter. A 429 throws at once.
      *
      * @param array<string, mixed> $options
+     *
+     * @throws KsefRateLimitedException
      */
-    private function send(string $what, string $method, string $path, array $options = []): ResponseInterface
+    private function send(string $what, string $method, string $path, array $options = [], ?KsefApiLimit $limit = KsefApiLimit::Other, string $context = ''): ResponseInterface
     {
         $options['headers'] = ($options['headers'] ?? []) + [
             'Accept' => 'application/json',
@@ -322,6 +331,9 @@ final readonly class HttpKsefClient implements KsefClientInterface
         $url = rtrim($this->apiUrl, '/').'/'.$path;
 
         for ($attempt = 1; ; ++$attempt) {
+            if (null !== $limit) {
+                $this->pacer->pace($context, $what, $limit);
+            }
             try {
                 $response = $this->ksefClient->request($method, $url, $options);
                 $status = $response->getStatusCode();
