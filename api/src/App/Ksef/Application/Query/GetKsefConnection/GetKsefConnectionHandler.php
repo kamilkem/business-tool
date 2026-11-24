@@ -40,6 +40,6 @@ final readonly class GetKsefConnectionHandler implements QueryHandlerInterface
         /** @var OrganizationSecretView|null $secret */
         $secret = null === $secretId ? null : $this->queryBus->ask(new GetOrganizationSecretQuery($query->organizationId, $secretId->toRfc4122()));
 
-        return KsefConnectionView::fromConnection($connection, $secret?->setAt, Nip::tryFromTaxId($actor->taxId)?->value);
+        return KsefConnectionView::fromConnection($connection, $secret?->setAt, Nip::tryFromTaxId($actor->taxId)?->value, new \DateTimeZone($actor->timeZone));
     }
 }

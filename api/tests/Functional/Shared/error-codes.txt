@@ -118,6 +118,8 @@ ksef.invalid_fa3_invoice.invalid_value
 ksef.invalid_fa3_invoice.missing
 ksef.invalid_fa3_invoice.not_xml
 ksef.invalid_fa3_invoice.repeated
+ksef.invalid_sync_start_date.before_ksef
+ksef.invalid_sync_start_date.in_the_future
 ksef.not_available.invalid_nip
 ksef.not_available.outside_poland
 ksef.rate_limited

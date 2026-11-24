@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Ksef\Domain;
 
+use App\Ksef\Domain\Exception\InvalidSyncStartDateException;
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
 use App\Ksef\Domain\Exception\KsefImportTooSoonException;
 use App\Ksef\Domain\Exception\KsefNotAvailableException;
@@ -14,6 +15,7 @@ use App\Ksef\Domain\Model\KsefConnection;
 use App\Ksef\Domain\Model\KsefConnectionStatus;
 use App\Ksef\Domain\Model\KsefErrorCode;
 use App\Organization\Domain\Model\MembershipRole;
+use App\Shared\Domain\Time\BusinessDate;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -328,5 +330,117 @@ final class KsefConnectionTest extends TestCase
         $this->expectException(KsefConnectionForbiddenException::class);
 
         KsefAccess::assertCanUse(Uuid::v7(), MembershipRole::Employee);
+    }
+
+    private static function warsaw(): \DateTimeZone
+    {
+        return new \DateTimeZone('Europe/Warsaw');
+    }
+
+    /** @return iterable<string, array{MembershipRole}> */
+    public static function ownersAndManagers(): iterable
+    {
+        yield 'owner' => [MembershipRole::Owner];
+        yield 'manager' => [MembershipRole::Manager];
+    }
+
+    #[DataProvider('ownersAndManagers')]
+    public function test_it_starts_the_import_at_the_chosen_date_in_the_organizations_time_zone(MembershipRole $role): void
+    {
+        $connection = self::connection();
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-03-01'), Uuid::v7(), $role, self::warsaw(), self::now());
+
+        self::assertEquals(BusinessDate::fromString('2026-03-01'), $connection->getSyncStartDate());
+        self::assertEquals(BusinessDate::fromString('2026-03-01'), $connection->effectiveSyncStartDate(self::warsaw()));
+        self::assertEquals(new \DateTimeImmutable('2026-02-28 23:00:00 UTC'), $connection->syncFrom(self::warsaw()));
+        self::assertEquals(BusinessDate::fromString('2026-10-01'), $connection->defaultSyncStartDate(self::warsaw()));
+    }
+
+    public function test_it_goes_back_to_the_default_start_when_the_date_is_cleared(): void
+    {
+        $connection = self::connection();
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-11-01'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+
+        $connection->changeSyncStartDate(null, Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+
+        self::assertNull($connection->getSyncStartDate());
+        self::assertEquals(BusinessDate::fromString('2026-10-01'), $connection->effectiveSyncStartDate(self::warsaw()));
+    }
+
+    public function test_it_reads_again_from_an_earlier_start_date(): void
+    {
+        $connection = self::connection();
+        $connection->advanceSyncCursor(self::now('2026-11-12 18:00:00'));
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-02-01'), Uuid::v7(), MembershipRole::Manager, self::warsaw(), self::now());
+
+        self::assertNull($connection->getSyncCursor());
+        self::assertEquals(new \DateTimeImmutable('2026-01-31 23:00:00 UTC'), $connection->syncFrom(self::warsaw()));
+    }
+
+    public function test_it_keeps_the_cursor_when_the_start_moves_later_but_not_past_it(): void
+    {
+        $connection = self::connection();
+        $connection->advanceSyncCursor(self::now('2026-11-12 18:00:00'));
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-11-01'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+
+        self::assertEquals(self::now('2026-11-12 18:00:00'), $connection->getSyncCursor());
+        self::assertEquals(self::now('2026-11-12 18:00:00'), $connection->syncFrom(self::warsaw()));
+    }
+
+    public function test_it_starts_at_a_later_start_date_past_the_cursor(): void
+    {
+        $connection = self::connection();
+        $connection->advanceSyncCursor(self::now('2026-10-20 18:00:00'));
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-11-10'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+
+        self::assertNull($connection->getSyncCursor(), 'The days between the cursor and the new start are not imported.');
+        self::assertEquals(new \DateTimeImmutable('2026-11-09 23:00:00 UTC'), $connection->syncFrom(self::warsaw()));
+    }
+
+    public function test_it_accepts_today_in_the_organizations_time_zone_as_the_start(): void
+    {
+        $connection = self::connection();
+
+        // 23:30 UTC on 13 November is already 14 November in Warsaw.
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-11-14'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now('2026-11-13 23:30:00'));
+
+        self::assertEquals(BusinessDate::fromString('2026-11-14'), $connection->getSyncStartDate());
+    }
+
+    public function test_it_refuses_a_start_date_after_today(): void
+    {
+        $connection = self::connection();
+
+        $this->expectException(InvalidSyncStartDateException::class);
+        $this->expectExceptionMessage('after today (2026-11-13)');
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-11-14'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+    }
+
+    public function test_it_refuses_a_start_date_before_ksef_api_2(): void
+    {
+        $connection = self::connection();
+
+        try {
+            $connection->changeSyncStartDate(BusinessDate::fromString('2026-01-31'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+            self::fail('A start before 2026-02-01 was accepted.');
+        } catch (InvalidSyncStartDateException $e) {
+            self::assertSame('ksef.invalid_sync_start_date.before_ksef', $e->errorCode());
+            self::assertSame(['startDate' => '2026-01-31', 'earliest' => '2026-02-01'], $e->errorParameters());
+        }
+        self::assertNull($connection->getSyncStartDate());
+    }
+
+    public function test_it_refuses_employees_to_choose_the_start_date(): void
+    {
+        $connection = self::connection();
+
+        $this->expectException(KsefConnectionForbiddenException::class);
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-03-01'), Uuid::v7(), MembershipRole::Employee, self::warsaw(), self::now());
     }
 }

@@ -203,6 +203,16 @@
       "notYet": "Not yet",
       "lastCheckFailed": "Last check failed"
     },
+    "syncStart": {
+      "title": "Import invoices from",
+      "description": "Invoices issued on or after this date are imported. An earlier date fetches the missing ones over the next imports (at most 64 an hour); a later one does not remove invoices already imported.",
+      "default": "Default: {{date}}, the first day of the month before KSeF was connected.",
+      "save": "Save date",
+      "saving": "Saving…",
+      "saved": "Invoices will be imported from {{date}}",
+      "useDefault": "Use the default",
+      "reset": "Invoices will be imported from the default date"
+    },
     "import": {
       "started": "Import started",
       "startedDescription": "New invoices show up here when it finishes.",

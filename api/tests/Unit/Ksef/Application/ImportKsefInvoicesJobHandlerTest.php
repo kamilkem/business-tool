@@ -185,9 +185,54 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
         self::assertSame(['KSEF-OCTOBER'], $this->storedNumbers());
     }
 
+    public function test_it_starts_at_the_chosen_start_date_in_the_organizations_time_zone(): void
+    {
+        $this->chooseStartDate('2026-03-01');
+        $this->ksef->addInvoice(self::NIP, 'KSEF-FEBRUARY', new \DateTimeImmutable('2026-02-28 22:59:59 UTC'), $this->xml);
+        $this->ksef->addInvoice(self::NIP, 'KSEF-MARCH', new \DateTimeImmutable('2026-02-28 23:00:00 UTC'), $this->xml);
+        $this->ksef->addInvoice(self::NIP, 'KSEF-NOVEMBER', new \DateTimeImmutable('2026-11-19 08:00:00 UTC'), $this->xml);
+
+        $this->runJob();
+
+        self::assertSame(['KSEF-MARCH', 'KSEF-NOVEMBER'], $this->storedNumbers());
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->connection->getSyncCursor());
+    }
+
+    public function test_it_imports_only_invoices_issued_on_or_after_the_start_date(): void
+    {
+        $this->chooseStartDate('2026-10-01');
+        // Issued on 30 September, stored in KSeF on 1 October: September's, so not imported.
+        $this->ksef->addInvoice(self::NIP, 'KSEF-ISSUED-SEPTEMBER', new \DateTimeImmutable('2026-10-01 08:00:00 UTC'), $this->xml, issueDate: BusinessDate::fromString('2026-09-30'));
+        $this->ksef->addInvoice(self::NIP, 'KSEF-ISSUED-OCTOBER', new \DateTimeImmutable('2026-10-01 09:00:00 UTC'), $this->xml, issueDate: BusinessDate::fromString('2026-10-01'));
+
+        $this->runJob();
+
+        self::assertSame(['KSEF-ISSUED-OCTOBER'], $this->storedNumbers());
+        self::assertSame(['KSEF-ISSUED-OCTOBER'], $this->ksef->downloaded, 'An invoice issued before the start is not downloaded.');
+        self::assertSame(1, $this->connection->getLastSyncImportedCount());
+        self::assertSame(0, $this->connection->getLastSyncSkippedCount(), 'An invoice outside the range is not counted as skipped.');
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->connection->getSyncCursor());
+    }
+
+    public function test_it_reads_again_from_an_earlier_start_date_without_storing_an_invoice_twice(): void
+    {
+        $this->ksef->addInvoice(self::NIP, 'KSEF-MARCH', new \DateTimeImmutable('2026-03-10 08:00:00 UTC'), $this->xml);
+        $this->ksef->addInvoice(self::NIP, 'KSEF-OCTOBER', new \DateTimeImmutable('2026-10-10 08:00:00 UTC'), $this->xml);
+        $this->runJob();
+        self::assertSame(['KSEF-OCTOBER'], $this->storedNumbers());
+
+        $this->chooseStartDate('2026-03-01');
+        $this->clock->modify('+1 hour');
+        $this->runJob();
+
+        self::assertSame(['KSEF-MARCH', 'KSEF-OCTOBER'], $this->storedNumbers());
+        self::assertSame(1, $this->connection->getLastSyncImportedCount());
+    }
+
     public function test_it_queries_windows_of_at_most_100_days_and_follows_pages(): void
     {
         // A cursor 250 days back: three windows. 260 invoices in one window: two pages.
+        $this->chooseStartDate('2026-03-01');
         $this->connection->advanceSyncCursor(new \DateTimeImmutable('2026-03-15 00:00:00 UTC'));
         $this->ksef->addInvoice(self::NIP, 'KSEF-MARCH', new \DateTimeImmutable('2026-03-20 08:00:00 UTC'), $this->xml);
         for ($i = 0; $i < 260; ++$i) {
@@ -464,6 +509,11 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
 
         self::assertSame(['KSEF-1', 'KSEF-2', 'KSEF-3'], $this->storedNumbers());
         self::assertSame(1, $this->connection->getLastSyncImportedCount(), 'KSEF-2 was stored before the interruption.');
+    }
+
+    private function chooseStartDate(string $date): void
+    {
+        $this->connection->changeSyncStartDate(BusinessDate::fromString($date), $this->ownerId, MembershipRole::Owner, new \DateTimeZone('Europe/Warsaw'), $this->clock->now());
     }
 
     private function runJob(): void

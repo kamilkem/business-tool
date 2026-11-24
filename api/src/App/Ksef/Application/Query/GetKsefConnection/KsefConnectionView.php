@@ -19,6 +19,8 @@ final readonly class KsefConnectionView
         public ?\DateTimeImmutable $lastCheckedAt,
         public ?string $lastCheckError,
         public ?string $lastCheckErrorMessage,
+        public ?string $syncStartDate,
+        public string $defaultSyncStartDate,
         public ?\DateTimeImmutable $syncedUntil,
         public ?\DateTimeImmutable $lastSyncAt,
         public ?\DateTimeImmutable $lastSyncSucceededAt,
@@ -32,7 +34,7 @@ final readonly class KsefConnectionView
     ) {
     }
 
-    public static function fromConnection(KsefConnection $connection, ?\DateTimeImmutable $tokenSetAt, ?string $nip): self
+    public static function fromConnection(KsefConnection $connection, ?\DateTimeImmutable $tokenSetAt, ?string $nip, \DateTimeZone $timeZone): self
     {
         return new self(
             $connection->getId()->toRfc4122(),
@@ -44,6 +46,8 @@ final readonly class KsefConnectionView
             $connection->getLastCheckedAt(),
             $connection->getLastCheckError()?->value,
             $connection->getLastCheckErrorMessage(),
+            $connection->getSyncStartDate()?->toString(),
+            $connection->defaultSyncStartDate($timeZone)->toString(),
             $connection->getSyncCursor(),
             $connection->getLastSyncAt(),
             $connection->getLastSyncSucceededAt(),

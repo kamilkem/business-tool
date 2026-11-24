@@ -11,8 +11,10 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\Ksef\Application\Query\GetKsefConnection\KsefConnectionView;
+use Ui\Http\Ksef\Processor\ChangeKsefSyncStartDateProcessor;
 use Ui\Http\Ksef\Processor\RemoveKsefTokenProcessor;
 use Ui\Http\Ksef\Processor\RequestKsefImportProcessor;
+use Ui\Http\Ksef\Processor\ResetKsefSyncStartDateProcessor;
 use Ui\Http\Ksef\Processor\SaveKsefTokenProcessor;
 use Ui\Http\Ksef\Processor\TestKsefConnectionProcessor;
 use Ui\Http\Ksef\Provider\KsefConnectionProvider;
@@ -104,6 +106,37 @@ use Ui\Http\Ksef\Provider\KsefConnectionProvider;
             read: false,
             processor: RequestKsefImportProcessor::class,
         ),
+        new Post(
+            uriTemplate: '/ksef-connection/sync-start-date',
+            status: 200,
+            openapi: new Operation(
+                summary: 'Chooses the date of issue from which purchase invoices are imported from KSeF.',
+                description: 'Owners and managers only (403 otherwise). Invoices issued on or after syncStartDate (YYYY-MM-DD, in the organization\'s time zone) are imported; DELETE goes back to the default (defaultSyncStartDate). The date may not be after today or before 2026-02-01 (422). A date earlier than the current start makes the next import read KSeF again from it, passing over invoices already imported; a later one only affects imports not done yet. Imported invoices are never removed. 404 when no token was ever saved.',
+                responses: [
+                    '200' => new Response('The connection with the new start.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The organization has no KSeF connection yet.'),
+                    '422' => new Response('The date is missing, not a YYYY-MM-DD date, after today or before 2026-02-01 (code ksef.invalid_sync_start_date.*).'),
+                ],
+            ),
+            input: ChangeKsefSyncStartDateInput::class,
+            read: false,
+            processor: ChangeKsefSyncStartDateProcessor::class,
+        ),
+        new Delete(
+            uriTemplate: '/ksef-connection/sync-start-date',
+            openapi: new Operation(
+                summary: 'Goes back to the default start of the KSeF import.',
+                description: 'Owners and managers only (403 otherwise). Invoices are imported from defaultSyncStartDate again: the first day of the month before the connection was created. As with POST, an earlier start makes the next import read KSeF again from it; imported invoices are never removed. 404 when no token was ever saved.',
+                responses: [
+                    '204' => new Response('The import starts at the default date.'),
+                    '403' => new Response('The signed-in user is not an owner or manager.'),
+                    '404' => new Response('The organization has no KSeF connection yet.'),
+                ],
+            ),
+            read: false,
+            processor: ResetKsefSyncStartDateProcessor::class,
+        ),
     ],
 )]
 final readonly class KsefConnectionResource
@@ -125,6 +158,10 @@ final readonly class KsefConnectionResource
         /** Why the last check failed (`credentials_rejected`, `token_unreadable`, `rate_limited`, `unavailable`, `request_failed`); null when it succeeded or none ran. */
         public ?string $lastCheckError,
         public ?string $lastCheckErrorMessage,
+        /** The date of issue (`YYYY-MM-DD`) from which invoices are imported, as chosen by an owner or manager; null for the default. */
+        public ?string $syncStartDate,
+        /** The start of the import while none is chosen (`YYYY-MM-DD`): the first day of the month before the connection was created. */
+        public string $defaultSyncStartDate,
         /** Invoices stored in KSeF before this instant are imported; null before the first import. */
         public ?\DateTimeImmutable $syncedUntil,
         public ?\DateTimeImmutable $lastSyncAt,
@@ -160,6 +197,8 @@ final readonly class KsefConnectionResource
             $view->lastCheckedAt,
             $view->lastCheckError,
             $view->lastCheckErrorMessage,
+            $view->syncStartDate,
+            $view->defaultSyncStartDate,
             $view->syncedUntil,
             $view->lastSyncAt,
             $view->lastSyncSucceededAt,

@@ -14,6 +14,8 @@ use App\Ksef\Domain\Model\KsefInvoiceMetadata;
 use App\Ksef\Domain\Model\KsefInvoiceMetadataPage;
 use App\Ksef\Domain\Model\KsefPurchaseInvoiceQuery;
 use App\Ksef\Domain\Model\KsefSession;
+use App\Shared\Domain\Time\BusinessDate;
+use App\Shared\Domain\Time\Exception\InvalidBusinessDateException;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Exception\NoKeyLoadedException;
@@ -132,6 +134,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
                 ),
                 self::string($record, 'invoiceHash', $what),
                 self::date($record, 'permanentStorageDate', $what),
+                self::businessDate($record, 'issueDate', $what),
             );
         }
 
@@ -496,6 +499,21 @@ final readonly class HttpKsefClient implements KsefClientInterface
         try {
             return new \DateTimeImmutable($value)->setTimezone(new \DateTimeZone('UTC'));
         } catch (\Exception) {
+            throw KsefRequestFailedException::malformedResponse($what, \sprintf('"%s" is not a date: "%s"', $key, $value));
+        }
+    }
+
+    /**
+     * A `YYYY-MM-DD` date of the response.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function businessDate(array $data, string $key, string $what): BusinessDate
+    {
+        $value = self::string($data, $key, $what);
+        try {
+            return BusinessDate::fromString($value);
+        } catch (InvalidBusinessDateException) {
             throw KsefRequestFailedException::malformedResponse($what, \sprintf('"%s" is not a date: "%s"', $key, $value));
         }
     }

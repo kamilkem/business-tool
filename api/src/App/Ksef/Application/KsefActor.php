@@ -14,7 +14,7 @@ use App\Shared\Application\Query\QueryBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The member acting on the KSeF connection, with the organization's country and tax ID, asked
+ * The member acting on the KSeF connection, with the organization's country, tax ID and time zone, asked
  * through the Organization module's queries. KsefAccess and the aggregate decide what the role may do.
  */
 final readonly class KsefActor
@@ -24,6 +24,8 @@ final readonly class KsefActor
         public MembershipRole $role,
         public string $countryCode,
         public ?string $taxId,
+        /** The organization's IANA time zone, for its business dates (ADR 0017). */
+        public string $timeZone,
     ) {
     }
 
@@ -44,6 +46,6 @@ final readonly class KsefActor
             return null;
         }
 
-        return new self(Uuid::fromString($member->userId), MembershipRole::from($member->role), $organization->countryCode, $organization->taxId);
+        return new self(Uuid::fromString($member->userId), MembershipRole::from($member->role), $organization->countryCode, $organization->taxId, $organization->timezone);
     }
 }

@@ -221,6 +221,7 @@ final class HttpKsefClientTest extends TestCase
         self::assertSame('mkht+3m5trnfxlTYhq3QFn74LkEO69MFNlsMAkCDSPA=', $fa3->invoiceHash);
         self::assertEquals(new \DateTimeImmutable('2026-11-03 09:15:07.388123 UTC'), $fa3->permanentStorageDate);
         self::assertSame('UTC', $fa3->permanentStorageDate->getTimezone()->getName());
+        self::assertSame('2026-11-03', $fa3->issueDate->toString());
         self::assertFalse($fa2->formCode->isFa3());
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ksef\Domain\Model;
 
+use App\Ksef\Domain\Exception\InvalidSyncStartDateException;
 use App\Ksef\Domain\Exception\KsefConnectionForbiddenException;
 use App\Ksef\Domain\Exception\KsefImportTooSoonException;
 use App\Ksef\Domain\Exception\KsefNotAvailableException;
@@ -35,6 +36,9 @@ class KsefConnection implements TenantAwareInterface
     /** "Import now" is accepted at most once in this many minutes (ADR 0023 §5). */
     public const int IMPORT_REQUEST_INTERVAL_MINUTES = 15;
 
+    /** No import starts before KSeF API 2.0 became mandatory (ADR 0038 §3). */
+    public const string EARLIEST_SYNC_START_DATE = '2026-02-01';
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
@@ -62,6 +66,10 @@ class KsefConnection implements TenantAwareInterface
 
     #[ORM\Column(length: self::ERROR_MESSAGE_MAX_LENGTH, nullable: true)]
     private ?string $lastCheckErrorMessage = null;
+
+    /** The business date the import starts at, chosen by an owner or manager; null for the default (ADR 0038). */
+    #[ORM\Column(type: 'business_date', nullable: true)]
+    private ?BusinessDate $syncStartDate = null;
 
     /** The sync cursor (ADR 0023 §4): a UTC instant below which every invoice is imported; null until the first run. */
     #[ORM\Column(nullable: true)]
@@ -178,19 +186,63 @@ class KsefConnection implements TenantAwareInterface
     }
 
     /**
-     * Where the next run starts (ADR 0023 §4): the cursor, or before the first run the first day of
-     * the month before the one the connection was created in, in the organization's time zone.
+     * Where the next run starts (ADR 0023 §4, ADR 0038 §5): the cursor, or before the first run (and
+     * after a change of the start that the cursor is not past) the first moment of the start date in
+     * the organization's time zone.
      */
     public function syncFrom(\DateTimeZone $timeZone): \DateTimeImmutable
     {
-        if (null !== $this->syncCursor) {
-            return $this->syncCursor;
-        }
+        return $this->syncCursor ?? self::startOf($this->effectiveSyncStartDate($timeZone), $timeZone);
+    }
 
+    /**
+     * The start of the import while none is chosen (ADR 0023 §4): the first day of the month before
+     * the one the connection was created in, in the organization's time zone.
+     */
+    public function defaultSyncStartDate(\DateTimeZone $timeZone): BusinessDate
+    {
         $created = BusinessDate::containing($this->createdAt, $timeZone);
         $previousMonth = BusinessDate::of($created->year, $created->month, 1)->previous();
 
-        return BusinessDate::of($previousMonth->year, $previousMonth->month, 1)->startsAt($timeZone)->setTimezone(new \DateTimeZone('UTC'));
+        return BusinessDate::of($previousMonth->year, $previousMonth->month, 1);
+    }
+
+    /** The business date the import starts at: the chosen one, or the default (ADR 0038 §1). */
+    public function effectiveSyncStartDate(\DateTimeZone $timeZone): BusinessDate
+    {
+        return $this->syncStartDate ?? $this->defaultSyncStartDate($timeZone);
+    }
+
+    /**
+     * An owner or manager chose the business date the import starts at, or null for the default
+     * (ADR 0038). Not after today and not before KSeF API 2.0. A start earlier than the previous one
+     * clears the cursor, so the next run walks forward from it again (invoices already imported are
+     * passed over by their KSeF number); a later one keeps the cursor if it is past the new start,
+     * else the next run starts at the new start. Imported invoices stay.
+     *
+     * @throws KsefConnectionForbiddenException when the actor is an employee
+     * @throws InvalidSyncStartDateException    when the date is after today or before 1 February 2026
+     */
+    public function changeSyncStartDate(?BusinessDate $startDate, Uuid $actorId, MembershipRole $actorRole, \DateTimeZone $timeZone, \DateTimeImmutable $now): void
+    {
+        KsefAccess::assertCanUse($actorId, $actorRole);
+        if (null !== $startDate) {
+            $earliest = BusinessDate::fromString(self::EARLIEST_SYNC_START_DATE);
+            if ($startDate->isBefore($earliest)) {
+                throw InvalidSyncStartDateException::beforeKsef($startDate->toString(), $earliest->toString());
+            }
+            $today = BusinessDate::containing($now, $timeZone);
+            if ($startDate->isAfter($today)) {
+                throw InvalidSyncStartDateException::inTheFuture($startDate->toString(), $today->toString());
+            }
+        }
+
+        $previous = $this->effectiveSyncStartDate($timeZone);
+        $this->syncStartDate = $startDate;
+        $start = $this->effectiveSyncStartDate($timeZone);
+        if ($start->isBefore($previous) || (null !== $this->syncCursor && $this->syncCursor < self::startOf($start, $timeZone))) {
+            $this->syncCursor = null;
+        }
     }
 
     /**
@@ -310,6 +362,11 @@ class KsefConnection implements TenantAwareInterface
         return $this->lastCheckErrorMessage;
     }
 
+    public function getSyncStartDate(): ?BusinessDate
+    {
+        return $this->syncStartDate;
+    }
+
     public function getSyncCursor(): ?\DateTimeImmutable
     {
         return $this->syncCursor;
@@ -353,6 +410,11 @@ class KsefConnection implements TenantAwareInterface
     public function getLastImportRequestedAt(): ?\DateTimeImmutable
     {
         return $this->lastImportRequestedAt;
+    }
+
+    private static function startOf(BusinessDate $date, \DateTimeZone $timeZone): \DateTimeImmutable
+    {
+        return $date->startsAt($timeZone)->setTimezone(new \DateTimeZone('UTC'));
     }
 
     private function forgetChecks(): void

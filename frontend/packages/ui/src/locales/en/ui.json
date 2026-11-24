@@ -154,6 +154,10 @@
         "not_xml": "The invoice is not a well-formed XML document.",
         "repeated": "The invoice has more than one {{path}}."
       },
+      "invalid_sync_start_date": {
+        "before_ksef": "KSeF holds invoices from {{earliest}}: choose that date or a later one.",
+        "in_the_future": "Choose a date no later than today ({{today}})."
+      },
       "not_available": {
         "invalid_nip": "KSeF needs the organization's tax ID to be a valid NIP: set it in the settings.",
         "outside_poland": "KSeF is only available for organizations in Poland."

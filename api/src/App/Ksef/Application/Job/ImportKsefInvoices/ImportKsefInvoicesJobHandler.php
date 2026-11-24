@@ -33,6 +33,7 @@ use App\Secret\Application\Query\RevealOrganizationSecret\RevealedSecretView;
 use App\Secret\Application\Query\RevealOrganizationSecret\RevealOrganizationSecretQuery;
 use App\Secret\Domain\Exception\SecretUnreadableException;
 use App\Secret\Domain\Model\SecretKind;
+use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Application\Command\CommandBusInterface;
 use App\Shared\Application\Job\JobHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
@@ -51,6 +52,8 @@ use Symfony\Component\Uid\Uuid;
  *   windows of at most 100 days up to the start of the run, page by page (`hasMore`), starting again
  *   from the last record when the result is truncated. Invoices of another form than FA(3) are
  *   skipped (counted); invoices already in Expenses are passed over by their KSeF number.
+ * - Only invoices issued on or after the import's start date are imported (ADR 0038): one issued
+ *   earlier but stored in KSeF later is passed over, and the cursor moves past it.
  * - Each new invoice is downloaded alone, checked against the metadata's SHA-256, parsed and stored in
  *   Expenses through ImportPurchaseInvoiceCommand with its XML, then the cursor moves to its
  *   permanent-storage date: one flush per invoice, so an interrupted run loses nothing. After a
@@ -108,8 +111,9 @@ final readonly class ImportKsefInvoicesJobHandler implements JobHandlerInterface
                 $progress->fail(KsefErrorCode::TokenUnreadable, 'The saved KSeF token is missing: save it again.');
             } else {
                 $session = $this->ksef->authenticateWithKsefToken($nip->value, $token->value);
+                $timeZone = new \DateTimeZone($organization->getTimezone());
                 try {
-                    $this->importFrom($session, $connection->syncFrom(new \DateTimeZone($organization->getTimezone())), $job->organizationId, $progress);
+                    $this->importFrom($session, $connection->syncFrom($timeZone), $connection->effectiveSyncStartDate($timeZone), $job->organizationId, $progress);
                 } finally {
                     $this->endSession($session);
                 }
@@ -150,7 +154,7 @@ final readonly class ImportKsefInvoicesJobHandler implements JobHandlerInterface
      *
      * @throws KsefException
      */
-    private function importFrom(KsefSession $session, \DateTimeImmutable $from, string $organizationId, ImportProgress $progress): void
+    private function importFrom(KsefSession $session, \DateTimeImmutable $from, BusinessDate $issuedFrom, string $organizationId, ImportProgress $progress): void
     {
         while ($from < $progress->startedAt) {
             $windowEnd = min($from->modify(\sprintf('+%d days', KsefPurchaseInvoiceQuery::MAX_RANGE_DAYS)), $progress->startedAt);
@@ -161,7 +165,7 @@ final readonly class ImportKsefInvoicesJobHandler implements JobHandlerInterface
                     return;
                 }
                 $page = $this->ksef->queryPurchaseInvoiceMetadata($session, $query);
-                if (!$this->importPage($session, $page, $organizationId, $progress)) {
+                if (!$this->importPage($session, $page, $issuedFrom, $organizationId, $progress)) {
                     return;
                 }
 
@@ -193,12 +197,12 @@ final readonly class ImportKsefInvoicesJobHandler implements JobHandlerInterface
     }
 
     /**
-     * Imports a page's new FA(3) invoices in order. False when the run must stop (time budget, or an
+     * Imports a page's new FA(3) invoices issued on or after `$issuedFrom`, in order. False when the run must stop (time budget, or an
      * invoice that does not match its hash).
      *
      * @throws KsefException
      */
-    private function importPage(KsefSession $session, KsefInvoiceMetadataPage $page, string $organizationId, ImportProgress $progress): bool
+    private function importPage(KsefSession $session, KsefInvoiceMetadataPage $page, BusinessDate $issuedFrom, string $organizationId, ImportProgress $progress): bool
     {
         $fa3Numbers = array_values(array_map(
             static fn (KsefInvoiceMetadata $metadata): string => $metadata->ksefNumber,
@@ -210,6 +214,10 @@ final readonly class ImportKsefInvoicesJobHandler implements JobHandlerInterface
         foreach ($page->invoices as $metadata) {
             if ($this->outOfTime($progress)) {
                 return false;
+            }
+            if ($metadata->issueDate->isBefore($issuedFrom)) {
+                $this->advanceCursor($organizationId, $metadata->permanentStorageDate);
+                continue;
             }
             if (!$metadata->formCode->isFa3()) {
                 ++$progress->skipped;
