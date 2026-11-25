@@ -160,3 +160,34 @@ export function isImportPending(connection: KsefConnection | null, now: Date): b
   if (now.getTime() - requestedAt.getTime() > IMPORT_REQUEST_INTERVAL_MS) return false
   return !connection.lastSyncAt || new Date(connection.lastSyncAt) < requestedAt
 }
+
+// --- Items ------------------------------------------------------------------------------------------
+
+/** A row of the invoice as printed (ADR 0040). */
+export type ExpenseItem = components["schemas"]["ExpenseItem"]
+
+/** Which of the optional item columns any row fills in. */
+export interface ItemColumns {
+  quantity: boolean
+  unitNetPrice: boolean
+  unitGrossPrice: boolean
+  netAmount: boolean
+  vatRate: boolean
+  grossAmount: boolean
+}
+
+/**
+ * The columns to show for an invoice's items: a column every row leaves empty is hidden, since a
+ * net-based invoice often has no gross value per item and a gross-based one no net value.
+ */
+export function itemColumns(items: readonly ExpenseItem[]): ItemColumns {
+  const any = (filled: (item: ExpenseItem) => boolean) => items.some(filled)
+  return {
+    quantity: any((item) => item.quantity !== null || item.unit !== null),
+    unitNetPrice: any((item) => item.unitNetPrice !== null),
+    unitGrossPrice: any((item) => item.unitGrossPrice !== null),
+    netAmount: any((item) => item.netAmount !== null),
+    vatRate: any((item) => item.vatRate !== null),
+    grossAmount: any((item) => item.grossAmount !== null),
+  }
+}

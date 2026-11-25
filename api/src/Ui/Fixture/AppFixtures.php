@@ -13,6 +13,7 @@ use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -273,8 +274,37 @@ final class AppFixtures extends Fixture
             [44, 'FA/2026/71', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], null],
             [61, '097/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 88_210, 4_411, null]], null],
         ];
+        // The items as printed (ADR 0040), by invoice number; the others have none, as invoices
+        // imported before items were kept. Quantities and unit prices are decimal strings.
+        $items = [
+            // Net-based: no gross value per row.
+            'FV/HN/0412' => [
+                new PurchaseInvoiceItemDetails(1, 'Piwo jasne Demo KEG 30 l', sellerCode: 'HN-KEG30-J', unit: 'szt.', quantity: '2', unitNetPrice: '389.50', netAmount: 77_900, vatRate: '23'),
+                new PurchaseInvoiceItemDetails(2, 'Wódka Demo 0,7 l', sellerCode: 'HN-WD07', gtin: '5900000000017', unit: 'szt.', quantity: '12', unitNetPrice: '41.25', netAmount: 49_500, vatRate: '23'),
+                new PurchaseInvoiceItemDetails(3, 'Tonik Demo 0,2 l', gtin: '5900000000024', unit: 'szt.', quantity: '144', unitNetPrice: '0.39583333', netAmount: 5_700, vatRate: '23'),
+                new PurchaseInvoiceItemDetails(4, 'Syrop cukrowy 1 l', unit: 'szt.', quantity: '20', unitNetPrice: '25.70', netAmount: 51_400, vatRate: '23'),
+                new PurchaseInvoiceItemDetails(5, 'Woda mineralna Demo 0,33 l', gtin: '5900000000031', unit: 'szt.', quantity: '240', unitNetPrice: '0.91666667', netAmount: 22_000, vatRate: '8'),
+            ],
+            'FV/HN/0398' => [
+                new PurchaseInvoiceItemDetails(1, 'Piwo jasne Demo KEG 30 l', sellerCode: 'HN-KEG30-J', unit: 'szt.', quantity: '8', unitNetPrice: '390.05', netAmount: 312_040, vatRate: '23'),
+            ],
+            // A correction: the row before it and the row after.
+            'KOR/HN/0021' => [
+                new PurchaseInvoiceItemDetails(1, 'Piwo jasne Demo KEG 30 l', sellerCode: 'HN-KEG30-J', unit: 'szt.', quantity: '8', unitNetPrice: '390.05', netAmount: 312_040, vatRate: '23', beforeCorrection: true),
+                new PurchaseInvoiceItemDetails(1, 'Piwo jasne Demo KEG 30 l', sellerCode: 'HN-KEG30-J', unit: 'szt.', quantity: '8', unitNetPrice: '375.05', netAmount: 300_040, vatRate: '23'),
+            ],
+            // Gross-based (FA(3) P_9B, P_11A): no net value per row.
+            '118/MS/2026' => [
+                new PurchaseInvoiceItemDetails(1, 'Schab wieprzowy b/k', unit: 'kg', quantity: '12.350', unitGrossPrice: '38.99', grossAmount: 48_153, vatRate: '5'),
+                new PurchaseInvoiceItemDetails(2, 'Boczek surowy', unit: 'kg', quantity: '8.2', unitGrossPrice: '29.49', grossAmount: 24_182, vatRate: '5'),
+                new PurchaseInvoiceItemDetails(3, 'Kiełbasa śląska', unit: 'kg', quantity: '10', unitGrossPrice: '28.864', grossAmount: 28_864, vatRate: '5'),
+            ],
+            'FA/2026/77' => [
+                new PurchaseInvoiceItemDetails(1, 'Czynsz najmu lokalu, ul. Demo 1', unit: 'mies.', quantity: '1', unitNetPrice: '6500', unitGrossPrice: '7995', netAmount: 650_000, grossAmount: 799_500, vatAmount: 149_500, vatRate: '23'),
+            ],
+        ];
         foreach ($imported as [$days, $number, [$taxId, $name], $kind, $invoiceCurrency, $lines, $corrected]) {
-            $details = self::invoiceDetails($number, $taxId, $name, $daysAgo($days), $kind, $invoiceCurrency, $lines, $corrected);
+            $details = self::invoiceDetails($number, $taxId, $name, $daysAgo($days), $kind, $invoiceCurrency, $lines, $corrected, $items[$number] ?? []);
             $externalId = 'DEMO-KSEF-'.strtoupper((string) preg_replace('/\W+/', '-', $number));
             $invoice = PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, $country, $currency, $now);
             $manager->persist($invoice);
@@ -294,14 +324,17 @@ final class AppFixtures extends Fixture
         $manager->flush();
     }
 
-    /** @param list<array{string, int, int, ?int}> $lines [rate, net, vat, vat in the tax currency] */
-    private static function invoiceDetails(?string $number, ?string $taxId, string $name, BusinessDate $issueDate, PurchaseInvoiceKind $kind, string $currency, array $lines, ?string $corrected): PurchaseInvoiceDetails
+    /**
+     * @param list<array{string, int, int, ?int}> $lines [rate, net, vat, vat in the tax currency]
+     * @param list<PurchaseInvoiceItemDetails>    $items the items as printed, for an imported invoice
+     */
+    private static function invoiceDetails(?string $number, ?string $taxId, string $name, BusinessDate $issueDate, PurchaseInvoiceKind $kind, string $currency, array $lines, ?string $corrected, array $items = []): PurchaseInvoiceDetails
     {
         $vatLines = array_map(static fn (array $line): PurchaseInvoiceVatAmount => new PurchaseInvoiceVatAmount(...$line), $lines);
         $net = array_sum(array_column($lines, 1));
         $vat = array_sum(array_column($lines, 2));
 
-        return new PurchaseInvoiceDetails($number, $taxId, $name, $issueDate, $kind, $currency, $net, $vat, $net + $vat, $vatLines, $corrected);
+        return new PurchaseInvoiceDetails($number, $taxId, $name, $issueDate, $kind, $currency, $net, $vat, $net + $vat, $vatLines, $corrected, $items);
     }
 
     /** A short FA(3)-shaped document: enough to download and read, not a complete invoice. */

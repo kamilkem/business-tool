@@ -525,7 +525,20 @@
       "deleteDescription": "{{amount}} leaves the period's totals. A deleted expense can't be restored; you can enter it again.",
       "downloadFailed": "Could not download the document",
       "downloading": "Downloading…",
-      "download": "Download XML"
+      "download": "Download XML",
+      "items": {
+        "title": "Items",
+        "none": "This invoice has no items.",
+        "failed": "Could not load the items.",
+        "position": "No.",
+        "name": "Name",
+        "quantity": "Quantity",
+        "unitNetPrice": "Unit net",
+        "unitGrossPrice": "Unit gross",
+        "beforeCorrection": "Before correction",
+        "sellerCode": "Code {{code}}",
+        "gtin": "GTIN {{code}}"
+      }
     }
   },
   "expenseForm": {
