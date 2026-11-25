@@ -25,6 +25,39 @@ interface PurchasedItemRepositoryInterface
      */
     public function addAll(array $items): void;
 
+    public function findById(Uuid $id): ?PurchasedItem;
+
+    /**
+     * The items with these ids that are the current organization's, in any order: an id that is
+     * not one of them is left out.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return list<PurchasedItem>
+     */
+    public function findByIds(array $ids): array;
+
+    /**
+     * The items the filter selects, newest issue date first, then by seller name, invoice and index in
+     * the document, so that pages do not overlap; with their products.
+     *
+     * @return list<PurchasedItem>
+     */
+    public function search(PurchasedItemFilter $filter, int $offset, int $limit): array;
+
+    /** How many items the filter selects. */
+    public function countMatching(PurchasedItemFilter $filter): int;
+
+    /** Persists changes made to an already managed item. */
+    public function save(PurchasedItem $item): void;
+
+    /**
+     * Persists changes made to already managed items in one flush: all or none.
+     *
+     * @param list<PurchasedItem> $items
+     */
+    public function saveAll(array $items): void;
+
     /** Whether an item is linked to the product. */
     public function hasItemsOfProduct(Uuid $productId): bool;
 

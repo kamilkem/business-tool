@@ -494,4 +494,22 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
 
         return PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, 'PL', 'PLN', new \DateTimeImmutable('2026-11-12 21:00:00'));
     }
+
+    public function test_it_finds_invoice_numbers_by_id_for_the_current_organization_only(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $first = PurchaseInvoiceMother::imported(invoiceNumber: 'FV/1/2026');
+        $receipt = PurchaseInvoiceMother::manual(invoiceNumber: null);
+        $this->invoices->add($first);
+        $this->invoices->add($receipt);
+        $this->entityManager->clear();
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $foreign = PurchaseInvoiceMother::imported(invoiceNumber: 'FV/9/2026');
+        $this->invoices->add($foreign);
+        $this->entityManager->clear();
+
+        self::assertSame([$foreign->getId()->toRfc4122() => 'FV/9/2026'], $this->invoices->findInvoiceNumbers([$first->getId(), $receipt->getId(), $foreign->getId(), Uuid::v7()]));
+        self::assertSame([], $this->invoices->findInvoiceNumbers([]));
+        self::assertSame([], $this->invoices->findInvoiceNumbers([$first->getId()]), 'Another organization\'s invoice has no number here.');
+    }
 }

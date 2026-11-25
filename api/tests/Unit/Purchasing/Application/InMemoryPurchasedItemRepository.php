@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Application;
 
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\Repository\PurchasedItemFilter;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -39,6 +40,59 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         foreach ($items as $item) {
             $this->byKey[$item->getInvoiceId()->toRfc4122().'#'.$item->getItemIndex()] = $item;
         }
+    }
+
+    public int $saveCallCount = 0;
+
+    public function findById(Uuid $id): ?PurchasedItem
+    {
+        foreach ($this->byKey as $item) {
+            if ($item->getId()->equals($id)) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    public function findByIds(array $ids): array
+    {
+        return array_values(array_filter($this->byKey, static function (PurchasedItem $item) use ($ids): bool {
+            foreach ($ids as $id) {
+                if ($item->getId()->equals($id)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }));
+    }
+
+    public function search(PurchasedItemFilter $filter, int $offset, int $limit): array
+    {
+        return \array_slice($this->matching($filter), $offset, $limit);
+    }
+
+    public function countMatching(PurchasedItemFilter $filter): int
+    {
+        return \count($this->matching($filter));
+    }
+
+    public function save(PurchasedItem $item): void
+    {
+        ++$this->saveCallCount;
+    }
+
+    public function saveAll(array $items): void
+    {
+        ++$this->saveCallCount;
+    }
+
+    /** @return list<PurchasedItem> the criteria the unit tests of handlers need: statuses and product, in the order they were added */
+    private function matching(PurchasedItemFilter $filter): array
+    {
+        return array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => ([] === $filter->statuses || \in_array($item->getStatus(), $filter->statuses, true))
+            && (null === $filter->productId || ($item->getProductId()?->equals($filter->productId) ?? false))));
     }
 
     /** @return list<PurchasedItem> */

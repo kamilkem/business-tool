@@ -252,6 +252,7 @@
       }
     },
     "purchasing": {
+      "invalid_package_size": "Wielkość opakowania musi być liczbą dodatnią z co najwyżej 6 miejscami po przecinku.",
       "invalid_product_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
       "invalid_product_name": "Nazwa produktu musi mieć od 1 do {{maxLength}} znaków.",
       "invalid_product_reference_quantity": {
@@ -272,6 +273,8 @@
       "product_merge_target_not_found": "Produkt, z którym miało nastąpić scalenie, już nie istnieje. Odśwież stronę.",
       "product_name_taken": "Produkt o nazwie „{{name}}” już istnieje.",
       "product_not_found": "Ten produkt już nie istnieje. Odśwież stronę.",
+      "purchased_item_not_found": "Ta pozycja zakupu już nie istnieje. Odśwież stronę.",
+      "purchased_item_product_not_found": "Produkt wybrany dla tych pozycji już nie istnieje. Odśwież stronę.",
       "unknown_product_category": "Kategoria wybrana dla tego produktu już nie istnieje. Odśwież stronę."
     },
     "reporting": {

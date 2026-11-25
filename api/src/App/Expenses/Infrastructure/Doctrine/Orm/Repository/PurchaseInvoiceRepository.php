@@ -13,6 +13,7 @@ use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -111,6 +112,30 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn('SELECT DISTINCT organization_id FROM purchase_invoice_item ORDER BY organization_id');
 
         return $ids;
+    }
+
+    public function findInvoiceNumbers(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: Uuid|string, invoiceNumber: string}> $rows */
+        $rows = $this->createQueryBuilder('i')
+            ->select('i.id', 'i.invoiceNumber')
+            ->where('i.id IN (:ids)')
+            ->andWhere('i.invoiceNumber IS NOT NULL')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids), ArrayParameterType::STRING)
+            ->getQuery()
+            ->getArrayResult();
+
+        $numbers = [];
+        foreach ($rows as $row) {
+            $id = $row['id'] instanceof Uuid ? $row['id']->toRfc4122() : $row['id'];
+            $numbers[$id] = $row['invoiceNumber'];
+        }
+
+        return $numbers;
     }
 
     public function findByFilter(PurchaseInvoiceFilter $filter): array

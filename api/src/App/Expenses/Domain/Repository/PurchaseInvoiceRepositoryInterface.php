@@ -50,6 +50,15 @@ interface PurchaseInvoiceRepositoryInterface
     public function findOrganizationIdsWithItems(): array;
 
     /**
+     * The invoice numbers of these invoices, by invoice id: only the invoices that exist and have one.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, string>
+     */
+    public function findInvoiceNumbers(array $ids): array;
+
+    /**
      * The invoices the filter selects, newest issue date first, then by seller name and invoice number.
      *
      * @return list<PurchaseInvoice>
