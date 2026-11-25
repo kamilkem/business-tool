@@ -563,7 +563,20 @@
       "deleteDescription": "{{amount}} zniknie z sum okresu. Usuniętego wydatku nie da się przywrócić, ale możesz wpisać go ponownie.",
       "downloadFailed": "Nie udało się pobrać dokumentu",
       "downloading": "Pobieranie…",
-      "download": "Pobierz XML"
+      "download": "Pobierz XML",
+      "items": {
+        "title": "Pozycje",
+        "none": "Ta faktura nie ma pozycji.",
+        "failed": "Nie udało się wczytać pozycji.",
+        "position": "Lp.",
+        "name": "Nazwa",
+        "quantity": "Ilość",
+        "unitNetPrice": "Cena jedn. netto",
+        "unitGrossPrice": "Cena jedn. brutto",
+        "beforeCorrection": "Przed korektą",
+        "sellerCode": "Kod {{code}}",
+        "gtin": "GTIN {{code}}"
+      }
     }
   },
   "expenseForm": {

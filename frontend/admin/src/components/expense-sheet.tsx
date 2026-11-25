@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { unwrap } from "@business-tool/api-client"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DownloadIcon, LockIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -19,15 +19,27 @@ import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@business-tool/ui/components/sheet"
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@business-tool/ui/components/table"
+import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
+import { formatDecimal, formatDecimalMoney } from "@business-tool/ui/lib/decimal"
 import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 import { cn } from "@business-tool/ui/lib/utils"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
+import { expenseQuery } from "@/lib/queries"
 import { isEditable } from "@/lib/expense-form"
-import { type ExpenseListItem, documentFileName, isCorrection, kindLabel, sourceLabel, vatRateLabel } from "@/lib/expenses"
+import {
+  type ExpenseItem,
+  type ExpenseListItem,
+  documentFileName,
+  isCorrection,
+  itemColumns,
+  kindLabel,
+  sourceLabel,
+  vatRateLabel,
+} from "@/lib/expenses"
 
 interface ExpenseActions {
   organizationId: string
@@ -36,8 +48,8 @@ interface ExpenseActions {
 }
 
 /**
- * One expense in a drawer: what the invoice says, its VAT lines, where it came from, and the
- * original document (the local copy, never fetched from KSeF again). An expense entered by hand can
+ * One expense in a drawer: what the invoice says, its VAT lines, its items as printed (ADR 0040),
+ * where it came from, and the original document (the local copy, never fetched from KSeF again). An expense entered by hand can
  * be edited or deleted here; an imported one is read-only (#58).
  */
 export function ExpenseSheet({
@@ -50,7 +62,7 @@ export function ExpenseSheet({
 }) {
   return (
     <Sheet open={expense !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
+      <SheetContent className="gap-0 overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
         {expense && <ExpenseDetails expense={expense} onDeleted={onClose} {...actions} />}
       </SheetContent>
     </Sheet>
@@ -176,6 +188,8 @@ function ExpenseDetails({
           )}
         </section>
 
+        <ExpenseItems expense={expense} organizationId={organizationId} />
+
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">{t("expenses.sheet.document")}</h3>
           {expense.hasDocument ? (
@@ -188,6 +202,97 @@ function ExpenseDetails({
         </section>
       </div>
     </>
+  )
+}
+
+/**
+ * The invoice's rows as printed, from GET /expenses/{id} (the list leaves them out). A column every
+ * row leaves empty is hidden; in a correction the rows as they were before it are labelled and
+ * muted. On a narrow screen the table scrolls inside its border, never the page.
+ */
+function ExpenseItems({ expense, organizationId }: { expense: ExpenseListItem; organizationId: string }) {
+  const { t } = useTranslation("admin")
+  const detail = useQuery(expenseQuery(organizationId, expense.id))
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium">{t("expenses.sheet.items.title")}</h3>
+      {detail.isPending ? (
+        <Skeleton className="h-24 w-full" />
+      ) : detail.isError ? (
+        <p className="text-sm text-destructive">{t("expenses.sheet.items.failed")}</p>
+      ) : detail.data.items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("expenses.sheet.items.none")}</p>
+      ) : (
+        <ItemsTable items={detail.data.items} currency={detail.data.currency} />
+      )}
+    </section>
+  )
+}
+
+function ItemsTable({ items, currency }: { items: readonly ExpenseItem[]; currency: string }) {
+  const { t } = useTranslation("admin")
+  const locale = useLocale()
+  const columns = itemColumns(items)
+  const money = (minor: MinorUnits | null) => (minor === null ? "—" : formatMoney(minor, currency, locale))
+  const price = (decimal: string | null) => (decimal === null ? "—" : formatDecimalMoney(decimal, currency, locale))
+
+  return (
+    <div className="rounded-lg border">
+      {/* The last visible column gets the right padding, whichever it is. */}
+      <Table className="[&_td:last-child]:pr-3 [&_th:last-child]:pr-3">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-0 pl-3 text-right">{t("expenses.sheet.items.position")}</TableHead>
+            <TableHead>{t("expenses.sheet.items.name")}</TableHead>
+            {columns.quantity && <TableHead className="text-right">{t("expenses.sheet.items.quantity")}</TableHead>}
+            {columns.unitNetPrice && <TableHead className="text-right">{t("expenses.sheet.items.unitNetPrice")}</TableHead>}
+            {columns.unitGrossPrice && <TableHead className="text-right">{t("expenses.sheet.items.unitGrossPrice")}</TableHead>}
+            {columns.netAmount && <TableHead className="text-right">{t("income.vat.net")}</TableHead>}
+            {columns.vatRate && <TableHead className="text-right">{t("income.vat.rate")}</TableHead>}
+            {columns.grossAmount && <TableHead className="text-right">{t("income.vat.gross")}</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item, index) => (
+            <TableRow key={index} className={cn("align-top", item.beforeCorrection && "text-muted-foreground")}>
+              <TableCell className="pl-3 text-right tabular-nums">{item.position}</TableCell>
+              <TableCell className="min-w-48 whitespace-normal">
+                <div className="flex flex-col gap-0.5">
+                  {item.beforeCorrection && (
+                    <span className="text-xs font-medium uppercase">{t("expenses.sheet.items.beforeCorrection")}</span>
+                  )}
+                  <span>{item.name}</span>
+                  {(item.sellerCode !== null || item.gtin !== null) && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {[
+                        item.sellerCode !== null ? t("expenses.sheet.items.sellerCode", { code: item.sellerCode }) : null,
+                        item.gtin !== null ? t("expenses.sheet.items.gtin", { code: item.gtin }) : null,
+                      ]
+                        .filter((part) => part !== null)
+                        .join(" · ")}
+                    </span>
+                  )}
+                </div>
+              </TableCell>
+              {columns.quantity && (
+                <TableCell className="text-right tabular-nums">
+                  {item.quantity === null ? "—" : formatDecimal(item.quantity, locale)}
+                  {item.unit !== null && <span className="text-muted-foreground"> {item.unit}</span>}
+                </TableCell>
+              )}
+              {columns.unitNetPrice && <TableCell className="text-right tabular-nums">{price(item.unitNetPrice)}</TableCell>}
+              {columns.unitGrossPrice && <TableCell className="text-right tabular-nums">{price(item.unitGrossPrice)}</TableCell>}
+              {columns.netAmount && <TableCell className="text-right tabular-nums">{money(item.netAmount)}</TableCell>}
+              {columns.vatRate && (
+                <TableCell className="text-right">{item.vatRate === null ? "—" : vatRateLabel(item.vatRate)}</TableCell>
+              )}
+              {columns.grossAmount && <TableCell className="text-right tabular-nums">{money(item.grossAmount)}</TableCell>}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

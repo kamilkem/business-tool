@@ -4,12 +4,14 @@ import { i18n } from "../i18n"
 import {
   type Expense,
   type ExpenseCurrencyTotal,
+  type ExpenseItem,
   documentFileName,
   expensesFilter,
   hasFilters,
   importAvailability,
   isCorrection,
   isImportPending,
+  itemColumns,
   kindLabel,
   sourceLabel,
   validateExpensesSearch,
@@ -188,6 +190,56 @@ describe("isImportPending", () => {
     expect(isImportPending(connection({ lastImportRequestedAt: "2026-11-20T11:40:00Z" }), now)).toBe(false)
     expect(isImportPending(connection(), now)).toBe(false)
     expect(isImportPending(null, now)).toBe(false)
+  })
+})
+
+describe("itemColumns", () => {
+  const item = (overrides: Partial<ExpenseItem> = {}): ExpenseItem => ({
+    position: 1,
+    name: "Piwo",
+    sellerCode: null,
+    gtin: null,
+    unit: null,
+    quantity: null,
+    unitNetPrice: null,
+    unitGrossPrice: null,
+    discount: null,
+    netAmount: null,
+    grossAmount: null,
+    vatAmount: null,
+    vatRate: null,
+    beforeCorrection: false,
+    ...overrides,
+  })
+
+  it("test_it_hides_every_optional_column_when_no_row_fills_it", () => {
+    expect(itemColumns([item(), item({ position: 2 })])).toEqual({
+      quantity: false,
+      unitNetPrice: false,
+      unitGrossPrice: false,
+      netAmount: false,
+      vatRate: false,
+      grossAmount: false,
+    })
+  })
+
+  it("test_it_shows_a_column_that_any_row_fills", () => {
+    const columns = itemColumns([
+      item({ quantity: "2", unitNetPrice: "4.5", netAmount: 900, vatRate: "23" }),
+      item({ position: 2, unit: "szt." }),
+    ])
+    expect(columns).toEqual({
+      quantity: true,
+      unitNetPrice: true,
+      unitGrossPrice: false,
+      netAmount: true,
+      vatRate: true,
+      grossAmount: false,
+    })
+  })
+
+  it("test_it_shows_the_quantity_column_for_a_unit_alone", () => {
+    expect(itemColumns([item({ unit: "kg" })]).quantity).toBe(true)
   })
 })
 

@@ -171,6 +171,16 @@ export const expensesQuery = (organizationId: string, filter: ExpensesFilter) =>
     queryFn: () => unwrap(api.GET("/api/expenses", { params: { query: filter } })),
   })
 
+/**
+ * One expense with its items (GET /expenses/{id}; ADR 0040). Under `["expenses", organizationId]`,
+ * so the writes that refresh the lists refresh it too.
+ */
+export const expenseQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["expenses", organizationId, "detail", id],
+    queryFn: () => unwrap(api.GET("/api/expenses/{id}", { params: { path: { id } } })),
+  })
+
 /** Payroll runs, newest month first, with their totals (GET /payroll-runs). */
 export const payrollRunsQuery = (organizationId: string) =>
   queryOptions({
