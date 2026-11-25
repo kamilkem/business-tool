@@ -43,6 +43,29 @@ export function ksefState(connection: KsefConnection | null): KsefState {
   return { label: i18n.t("ksef.state.connected", { ns: "admin" }), tone: "ok", hint: null }
 }
 
+/**
+ * What is left of the import, in words (ADR 0039 §7): the invoices still waiting ("at least" when the
+ * last run did not reach the end), or that KSeF is preparing a package. Null when nothing is known to
+ * be waiting.
+ */
+export function ksefBacklogLabel(connection: KsefConnection): string | null {
+  if (connection.exportPending) return i18n.t("ksef.import.preparingPackage", { ns: "admin" })
+  const count = connection.importBacklogCount
+  if (count === null || count === 0) return null
+  return i18n.t(connection.importBacklogIsMinimum ? "ksef.import.leftAtLeast" : "ksef.import.left", { ns: "admin", count })
+}
+
+/** How the last import fetched the invoices, in words; null before the first. */
+export function ksefImportMethodLabel(method: string | null): string | null {
+  switch (method) {
+    case "single":
+    case "export":
+      return i18n.t(`ksef.import.method.${method}`, { ns: "admin" })
+    default:
+      return method
+  }
+}
+
 /** A failed check or import, in words. */
 export function ksefErrorLabel(code: string): string {
   switch (code) {

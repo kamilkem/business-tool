@@ -570,7 +570,7 @@ final class KsefConnectionHandlersTest extends TestCase
 
     private function view(User $actor): ?KsefConnectionView
     {
-        return (new GetKsefConnectionHandler($this->connections, $this->queryBus))(
+        return (new GetKsefConnectionHandler($this->connections, $this->queryBus, $this->clock))(
             new GetKsefConnectionQuery($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122()),
         );
     }

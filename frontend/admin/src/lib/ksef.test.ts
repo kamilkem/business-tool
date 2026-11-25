@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { i18n } from "../i18n"
-import { type KsefConnection, ksefAvailableIn, ksefErrorLabel, ksefState } from "./ksef"
+import { type KsefConnection, ksefAvailableIn, ksefBacklogLabel, ksefErrorLabel, ksefImportMethodLabel, ksefState } from "./ksef"
 
 function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
   return {
@@ -25,6 +25,11 @@ function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
     lastSyncSkippedCount: 0,
     syncRetryNotBefore: null,
     lastImportRequestedAt: null,
+    lastImportMethod: null,
+    importBacklogCount: null,
+    importBacklogIsMinimum: false,
+    exportPending: false,
+    importEstimatedAt: null,
     createdAt: "2026-11-13T10:00:00+00:00",
     ...overrides,
   }
@@ -101,5 +106,41 @@ describe("in Polish", () => {
 
   it("test_it_keeps_an_unknown_code_as_it_is", () => {
     expect(ksefErrorLabel("something_new")).toBe("something_new")
+  })
+})
+
+describe("ksefBacklogLabel", () => {
+  it("test_it_says_nothing_when_nothing_is_known_to_be_waiting", () => {
+    expect(ksefBacklogLabel(connection())).toBeNull()
+    expect(ksefBacklogLabel(connection({ importBacklogCount: 0 }))).toBeNull()
+  })
+
+  it("test_it_counts_the_invoices_left_exactly_or_at_least", () => {
+    expect(ksefBacklogLabel(connection({ importBacklogCount: 1 }))).toBe("1 invoice")
+    expect(ksefBacklogLabel(connection({ importBacklogCount: 120, importBacklogIsMinimum: true }))).toBe("At least 120 invoices")
+  })
+
+  it("test_it_says_ksef_is_preparing_a_package", () => {
+    expect(ksefBacklogLabel(connection({ exportPending: true, importBacklogCount: 5 }))).toBe(
+      "KSeF is preparing a package of invoices; the next import picks it up.",
+    )
+  })
+
+  it("test_it_uses_polish_plural_forms", async () => {
+    await i18n.changeLanguage("pl")
+    try {
+      expect(ksefBacklogLabel(connection({ importBacklogCount: 3 }))).toBe("3 faktury")
+      expect(ksefBacklogLabel(connection({ importBacklogCount: 25, importBacklogIsMinimum: true }))).toBe("Co najmniej 25 faktur")
+    } finally {
+      await i18n.changeLanguage("en")
+    }
+  })
+})
+
+describe("ksefImportMethodLabel", () => {
+  it("test_it_names_the_import_method", () => {
+    expect(ksefImportMethodLabel("single")).toBe("One invoice at a time")
+    expect(ksefImportMethodLabel("export")).toBe("Package export (more than 64 invoices waiting)")
+    expect(ksefImportMethodLabel(null)).toBeNull()
   })
 })

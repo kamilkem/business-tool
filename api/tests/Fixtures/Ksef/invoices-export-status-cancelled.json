@@ -1,0 +1,7 @@
+{
+  "status": {
+    "code": 550,
+    "description": "Operacja została anulowana przez system",
+    "details": ["Przetwarzanie zostało przerwane z przyczyn wewnętrznych systemu. Spróbuj ponownie"]
+  }
+}

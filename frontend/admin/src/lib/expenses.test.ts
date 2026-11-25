@@ -80,6 +80,11 @@ function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
     lastSyncSkippedCount: 0,
     syncRetryNotBefore: null,
     lastImportRequestedAt: null,
+    lastImportMethod: null,
+    importBacklogCount: null,
+    importBacklogIsMinimum: false,
+    exportPending: false,
+    importEstimatedAt: null,
     createdAt: "2026-11-13T10:00:00+00:00",
     ...overrides,
   }

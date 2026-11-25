@@ -6,6 +6,7 @@ namespace App\Ksef\Application\Command\RecordKsefSyncRun;
 
 use App\Ksef\Domain\Exception\KsefConnectionNotFoundException;
 use App\Ksef\Domain\Model\KsefErrorCode;
+use App\Ksef\Domain\Model\KsefImportMethod;
 use App\Ksef\Domain\Repository\KsefConnectionRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 
@@ -26,6 +27,9 @@ final readonly class RecordKsefSyncRunHandler implements CommandHandlerInterface
             null === $command->error ? null : KsefErrorCode::from($command->error),
             $command->errorMessage,
             null === $command->retryNotBefore ? null : new \DateTimeImmutable($command->retryNotBefore),
+            null === $command->method ? null : KsefImportMethod::from($command->method),
+            $command->backlogCount,
+            $command->backlogIsMinimum,
         );
 
         $this->connections->save($connection);

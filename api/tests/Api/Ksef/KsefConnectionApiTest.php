@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Api\Ksef;
 
 use App\Ksef\Domain\Exception\KsefUnavailableException;
+use App\Ksef\Domain\Model\KsefConnection;
+use App\Ksef\Domain\Model\KsefImportMethod;
+use App\Ksef\Domain\Model\KsefInvoiceExport;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Tests\Api\ApiTestCase;
@@ -70,6 +73,11 @@ final class KsefConnectionApiTest extends ApiTestCase
             'lastSyncSkippedCount' => 0,
             'syncRetryNotBefore' => null,
             'lastImportRequestedAt' => null,
+            'lastImportMethod' => null,
+            'importBacklogCount' => null,
+            'importBacklogIsMinimum' => false,
+            'exportPending' => false,
+            'importEstimatedAt' => null,
             'createdAt' => '2026-11-13T10:00:00+00:00',
         ], $saved);
         self::assertSame(['in-memory-1'], self::ksef()->endedSessions);
@@ -305,6 +313,41 @@ final class KsefConnectionApiTest extends ApiTestCase
         self::assertSame($saved['id'], $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['id']);
         self::assertSame('active', $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray()['status']);
         self::assertSame(2, (int) self::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM organization_secret'));
+    }
+
+    public function test_it_shows_what_is_left_to_import_and_when_it_should_be_done(): void
+    {
+        [$owner, $organization] = $this->memberOfPolishOrganization(MembershipRole::Owner);
+        self::ksef()->acceptToken(self::NIP, self::TOKEN);
+        $this->saveToken($owner, $organization);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $connection = $entityManager->getRepository(KsefConnection::class)->findOneBy([]);
+        self::assertInstanceOf(KsefConnection::class, $connection);
+        $connection->recordSyncRun(new \DateTimeImmutable(self::NOW), 64, 0, method: KsefImportMethod::Export, backlogCount: 25_000, backlogIsMinimum: true);
+        $entityManager->flush();
+
+        $body = $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray();
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('export', $body['lastImportMethod']);
+        self::assertSame(25_000, $body['importBacklogCount']);
+        self::assertTrue($body['importBacklogIsMinimum']);
+        self::assertFalse($body['exportPending']);
+        // One package of 10,000 per run from 20:00 in Warsaw (19:00 UTC): the third run.
+        self::assertSame('2026-11-13T21:00:00+00:00', $body['importEstimatedAt']);
+
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $connection = $entityManager->getRepository(KsefConnection::class)->findOneBy([]);
+        self::assertInstanceOf(KsefConnection::class, $connection);
+        $connection->exportStarted(new KsefInvoiceExport('20261113-EH-1', '019ab6c0-0000-7000-8000-000000000001', new \DateTimeImmutable('2026-11-01 00:00 UTC'), new \DateTimeImmutable(self::NOW), new \DateTimeImmutable(self::NOW)));
+        $connection->recordSyncRun(new \DateTimeImmutable(self::NOW), 0, 0, method: KsefImportMethod::Export);
+        $entityManager->flush();
+
+        $body = $this->request($owner, $organization, 'GET', '/api/ksef-connection')->toArray();
+
+        self::assertTrue($body['exportPending']);
+        self::assertNull($body['importBacklogCount']);
+        self::assertSame('2026-11-13T19:00:00+00:00', $body['importEstimatedAt'], 'the next run imports the package');
     }
 
     /** @return iterable<string, array{MembershipRole}> */

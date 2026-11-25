@@ -101,6 +101,34 @@ class KsefConnection implements TenantAwareInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastImportRequestedAt = null;
 
+    /** How the last run fetched the invoices (ADR 0039 §1); null before the first run. */
+    #[ORM\Column(length: 16, nullable: true, enumType: KsefImportMethod::class)]
+    private ?KsefImportMethod $lastSyncMethod = null;
+
+    /** Invoices the last run knew were still waiting; null when it could not tell (ADR 0039 §7). */
+    #[ORM\Column(nullable: true)]
+    private ?int $importBacklogCount = null;
+
+    /** Whether more than importBacklogCount may be waiting: the last run did not catch up. */
+    #[ORM\Column]
+    private bool $importBacklogIsMinimum = false;
+
+    /** The package export not imported yet (ADR 0039 §2–3): its reference number, key id and range. */
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $exportReferenceNumber = null;
+
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    private ?Uuid $exportKeyId = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $exportFrom = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $exportTo = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $exportStartedAt = null;
+
     private function __construct(Uuid $id, Uuid $secretId, \DateTimeImmutable $createdAt)
     {
         $this->id = $id;
@@ -242,6 +270,10 @@ class KsefConnection implements TenantAwareInterface
         $start = $this->effectiveSyncStartDate($timeZone);
         if ($start->isBefore($previous) || (null !== $this->syncCursor && $this->syncCursor < self::startOf($start, $timeZone))) {
             $this->syncCursor = null;
+            // A pending export covers the old range; the next run asks for a new one (ADR 0039 §6).
+            $this->forgetExport();
+            $this->importBacklogCount = null;
+            $this->importBacklogIsMinimum = false;
         }
     }
 
@@ -261,10 +293,43 @@ class KsefConnection implements TenantAwareInterface
     }
 
     /**
+     * A package export was requested (ADR 0039 §2): it replaces any earlier one, which the run has
+     * finished or given up.
+     */
+    public function exportStarted(KsefInvoiceExport $export): void
+    {
+        $this->exportReferenceNumber = $export->referenceNumber;
+        $this->exportKeyId = Uuid::fromString($export->keyId);
+        $this->exportFrom = $export->from;
+        $this->exportTo = $export->to;
+        $this->exportStartedAt = $export->startedAt;
+    }
+
+    /** The export was imported or given up (ADR 0039 §5–6); a stale reference number changes nothing. */
+    public function exportFinished(string $referenceNumber): void
+    {
+        if ($this->exportReferenceNumber === $referenceNumber) {
+            $this->forgetExport();
+        }
+    }
+
+    /** The package export not imported yet, if any. */
+    public function getPendingExport(): ?KsefInvoiceExport
+    {
+        if (null === $this->exportReferenceNumber || null === $this->exportKeyId || null === $this->exportFrom || null === $this->exportTo || null === $this->exportStartedAt) {
+            return null;
+        }
+
+        return new KsefInvoiceExport($this->exportReferenceNumber, $this->exportKeyId->toRfc4122(), $this->exportFrom, $this->exportTo, $this->exportStartedAt);
+    }
+
+    /**
      * The outcome of one sync run: what it imported and skipped, and the error that ended it, if any
      * (the cursor moved during the run, advanceSyncCursor()). A rejected or unreadable token stops
      * further runs until the owner saves a new one; after a 429 no run starts before
-     * `$retryNotBefore` (ADR 0023 §5). A run that only skipped unreadable invoices completed.
+     * `$retryNotBefore` (ADR 0023 §5). A run that only skipped unreadable invoices completed. It also
+     * keeps how the run fetched the invoices and how many it knew were still waiting, exactly or at
+     * least (ADR 0039 §7).
      */
     public function recordSyncRun(
         \DateTimeImmutable $ranAt,
@@ -273,7 +338,16 @@ class KsefConnection implements TenantAwareInterface
         ?KsefErrorCode $error = null,
         ?string $errorMessage = null,
         ?\DateTimeImmutable $retryNotBefore = null,
+        ?KsefImportMethod $method = null,
+        ?int $backlogCount = null,
+        bool $backlogIsMinimum = false,
     ): void {
+        if (null !== $backlogCount && $backlogCount < 0) {
+            throw new \InvalidArgumentException('The import backlog cannot be negative.');
+        }
+        $this->lastSyncMethod = $method;
+        $this->importBacklogCount = $backlogCount;
+        $this->importBacklogIsMinimum = null !== $backlogCount && $backlogIsMinimum;
         $this->lastSyncAt = $ranAt;
         $this->lastSyncImportedCount = $imported;
         $this->lastSyncSkippedCount = $skipped;
@@ -402,6 +476,30 @@ class KsefConnection implements TenantAwareInterface
         return $this->lastSyncSkippedCount;
     }
 
+    public function getLastSyncMethod(): ?KsefImportMethod
+    {
+        return $this->lastSyncMethod;
+    }
+
+    public function getImportBacklogCount(): ?int
+    {
+        return $this->importBacklogCount;
+    }
+
+    public function isImportBacklogMinimum(): bool
+    {
+        return $this->importBacklogIsMinimum;
+    }
+
+    /**
+     * When the import is expected to be done (ADR 0039 §7): the scheduled run that should finish the
+     * backlog, from KSeF's Retry-After if later; null when nothing is known to be waiting.
+     */
+    public function importEstimatedAt(\DateTimeImmutable $now): ?\DateTimeImmutable
+    {
+        return KsefImportSchedule::estimatedCompletion($this->importBacklogCount, null !== $this->exportReferenceNumber, $now, $this->syncRetryNotBefore);
+    }
+
     public function getSyncRetryNotBefore(): ?\DateTimeImmutable
     {
         return $this->syncRetryNotBefore;
@@ -415,6 +513,15 @@ class KsefConnection implements TenantAwareInterface
     private static function startOf(BusinessDate $date, \DateTimeZone $timeZone): \DateTimeImmutable
     {
         return $date->startsAt($timeZone)->setTimezone(new \DateTimeZone('UTC'));
+    }
+
+    private function forgetExport(): void
+    {
+        $this->exportReferenceNumber = null;
+        $this->exportKeyId = null;
+        $this->exportFrom = null;
+        $this->exportTo = null;
+        $this->exportStartedAt = null;
     }
 
     private function forgetChecks(): void

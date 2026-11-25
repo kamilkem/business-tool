@@ -32,4 +32,9 @@ final class KsefRequestFailedException extends KsefException
     {
         return new self('KSeF offers no valid public key with the usage KsefTokenEncryption.', null, [], null, __FUNCTION__);
     }
+
+    public static function noSymmetricKeyEncryptionKey(): self
+    {
+        return new self('KSeF offers no valid public key with the usage SymmetricKeyEncryption.', null, [], null, __FUNCTION__);
+    }
 }

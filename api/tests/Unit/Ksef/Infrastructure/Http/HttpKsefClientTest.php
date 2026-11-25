@@ -8,12 +8,16 @@ use App\Ksef\Domain\Exception\KsefCredentialsRejectedException;
 use App\Ksef\Domain\Exception\KsefRateLimitedException;
 use App\Ksef\Domain\Exception\KsefRequestFailedException;
 use App\Ksef\Domain\Exception\KsefUnavailableException;
+use App\Ksef\Domain\Model\KsefInvoiceExportState;
+use App\Ksef\Domain\Model\KsefInvoicePackage;
 use App\Ksef\Domain\Model\KsefPurchaseInvoiceQuery;
 use App\Ksef\Domain\Model\KsefSession;
 use App\Ksef\Infrastructure\Http\HttpKsefClient;
+use App\Ksef\Infrastructure\Http\KsefExportKey;
 use App\Ksef\Infrastructure\Http\KsefRequestPacer;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Crypt\RSA;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -30,6 +34,11 @@ final class HttpKsefClientTest extends TestCase
     private const string NIP = '7251964308';
     private const string KSEF_TOKEN = 'fixture-ksef-token';
     private const string FIXTURES = __DIR__.'/../../../../Fixtures/Ksef/';
+    /** The secret, NIP and key id the test package was built with (Fixtures/Ksef/export-package/build.php). */
+    private const string EXPORT_KEY_SECRET = 'fixture-export-key-secret';
+    private const string EXPORT_KEY_ID = '019ab6c0-0000-7000-8000-000000000039';
+    private const string EXPORT_REFERENCE = '20261125-EH-2D2C11B000-E9C9ED8340-EE';
+    private const string PACKAGE = self::FIXTURES.'export-package/'.self::EXPORT_REFERENCE;
 
     private MockClock $clock;
     private ArrayAdapter $cache;
@@ -406,6 +415,199 @@ final class HttpKsefClientTest extends TestCase
         $client->queryPurchaseInvoiceMetadata($this->session(), self::anyQuery());
     }
 
+    public function test_it_requests_a_purchase_invoice_export_with_its_key_encrypted_for_ksef(): void
+    {
+        [$privateKey, $certificates] = self::generatedCertificates('SymmetricKeyEncryption');
+        $client = $this->client([self::json($certificates), self::fixture('invoices-export.json', 201)]);
+
+        $reference = $client->startPurchaseInvoiceExport($this->session(), self::anyQuery(), self::EXPORT_KEY_ID);
+
+        self::assertSame(self::EXPORT_REFERENCE, $reference);
+        self::assertSame(['GET https://ksef.example/v2/security/public-key-certificates', 'POST https://ksef.example/v2/invoices/exports'], $this->requestLines());
+        self::assertSame('Bearer fixture-access-token', $this->header(1, 'authorization'));
+        $body = $this->jsonBody(1);
+        self::assertSame([
+            'subjectType' => 'Subject2',
+            'dateRange' => [
+                'dateType' => 'PermanentStorage',
+                'from' => '2026-11-01T00:00:00.000+00:00',
+                'to' => '2026-11-12T00:00:00.000+00:00',
+                'restrictToPermanentStorageHwmDate' => true,
+            ],
+        ], $body['filters']);
+        self::assertSame('Zip', $body['compressionType']);
+
+        $expected = KsefExportKey::derive(self::EXPORT_KEY_SECRET, self::NIP, self::EXPORT_KEY_ID);
+        $encryption = $body['encryption'];
+        self::assertIsArray($encryption);
+        self::assertSame('generatedKeyIdgeneratedKeyIdgeneratedKeyId=', $encryption['publicKeyId']);
+        self::assertSame($expected->key, $privateKey->decrypt((string) base64_decode((string) $encryption['encryptedSymmetricKey'], true)));
+        self::assertSame(base64_encode($expected->iv), $encryption['initializationVector']);
+        self::assertSame(32, \strlen($expected->key));
+        self::assertSame(16, \strlen($expected->iv));
+    }
+
+    public function test_it_encrypts_the_export_key_with_the_symmetric_key_encryption_key(): void
+    {
+        $client = $this->client([self::fixture('public-key-certificates.json'), self::fixture('invoices-export.json', 201)]);
+
+        $client->startPurchaseInvoiceExport($this->session(), self::anyQuery(), self::EXPORT_KEY_ID);
+
+        $encryption = $this->jsonBody(1)['encryption'];
+        self::assertIsArray($encryption);
+        self::assertNotSame('IPbPM4CB49vtoR/x/3fEI+Y+Q6lK/bVVehQ7/NlPJoo=', $encryption['publicKeyId'], 'not the KsefTokenEncryption key');
+        self::assertSame(256, \strlen((string) base64_decode((string) $encryption['encryptedSymmetricKey'], true)), 'one RSA-2048 block');
+    }
+
+    public function test_it_derives_another_key_for_another_key_id_or_nip(): void
+    {
+        $key = KsefExportKey::derive(self::EXPORT_KEY_SECRET, self::NIP, self::EXPORT_KEY_ID);
+
+        self::assertNotSame($key->key, KsefExportKey::derive(self::EXPORT_KEY_SECRET, self::NIP, '019ab6c0-0000-7000-8000-000000000040')->key);
+        self::assertNotSame($key->key, KsefExportKey::derive(self::EXPORT_KEY_SECRET, '1111111111', self::EXPORT_KEY_ID)->key);
+        self::assertNotSame($key->key, KsefExportKey::derive('another-secret', self::NIP, self::EXPORT_KEY_ID)->key);
+        self::assertEquals($key, KsefExportKey::derive(self::EXPORT_KEY_SECRET, self::NIP, self::EXPORT_KEY_ID));
+    }
+
+    public function test_it_waits_for_the_export_while_ksef_builds_the_package(): void
+    {
+        $client = $this->client([
+            self::fixture('invoices-export-status-in-progress.json'),
+            self::fixture('invoices-export-status-in-progress.json'),
+            self::fixture('invoices-export-status-succeeded.json'),
+        ]);
+
+        $status = $client->getPurchaseInvoiceExport($this->session(), self::EXPORT_REFERENCE, 60);
+
+        self::assertSame(KsefInvoiceExportState::Ready, $status->state);
+        self::assertSame(array_fill(0, 3, 'GET https://ksef.example/v2/invoices/exports/'.self::EXPORT_REFERENCE), $this->requestLines());
+        self::assertEquals(new \DateTimeImmutable('2026-11-12 22:42:57 UTC'), $this->clock->now(), 'two poll intervals of 5 seconds');
+        $package = $status->package;
+        self::assertNotNull($package);
+        self::assertSame(2, $package->invoiceCount);
+        self::assertSame([1, 2], array_map(static fn ($part): int => $part->ordinalNumber, $package->parts), 'sorted by their ordinal number');
+        self::assertFalse($package->isTruncated);
+        self::assertNull($package->lastPermanentStorageDate);
+        self::assertEquals(new \DateTimeImmutable('2026-11-25 21:30:00.123456 UTC'), $package->permanentStorageHwmDate);
+    }
+
+    public function test_it_leaves_an_export_in_progress_once_the_wait_is_over(): void
+    {
+        $client = $this->client([self::fixture('invoices-export-status-in-progress.json')]);
+
+        $status = $client->getPurchaseInvoiceExport($this->session(), self::EXPORT_REFERENCE, 0);
+
+        self::assertSame(KsefInvoiceExportState::InProgress, $status->state);
+        self::assertCount(1, $this->requests);
+    }
+
+    public function test_it_reads_a_truncated_package_and_where_the_next_export_starts(): void
+    {
+        $client = $this->client([self::fixture('invoices-export-status-truncated.json')]);
+
+        $package = $client->getPurchaseInvoiceExport($this->session(), self::EXPORT_REFERENCE, 0)->package;
+
+        self::assertNotNull($package);
+        self::assertTrue($package->isTruncated);
+        self::assertEquals(new \DateTimeImmutable('2026-09-11 11:40:40.266578 UTC'), $package->lastPermanentStorageDate);
+    }
+
+    /** @return iterable<string, array{MockResponse, KsefInvoiceExportState, bool}> */
+    public static function exportOutcomes(): iterable
+    {
+        yield 'expired (210)' => [self::fixture('invoices-export-status-expired.json'), KsefInvoiceExportState::Expired, false];
+        yield 'no longer kept (410 Gone)' => [self::fixture('error-400.json', 410), KsefInvoiceExportState::Expired, false];
+        yield 'past the high-water mark (420)' => [self::fixture('invoices-export-status-beyond-hwm.json'), KsefInvoiceExportState::NothingToExport, false];
+        yield 'cancelled by the system (550)' => [self::fixture('invoices-export-status-cancelled.json'), KsefInvoiceExportState::Failed, true];
+        yield 'the key does not decrypt (415)' => [self::json(['status' => ['code' => 415, 'description' => 'Błąd odszyfrowania dostarczonego klucza']]), KsefInvoiceExportState::Failed, false];
+    }
+
+    #[DataProvider('exportOutcomes')]
+    public function test_it_reports_what_became_of_an_export(MockResponse $response, KsefInvoiceExportState $state, bool $transient): void
+    {
+        $client = $this->client([$response]);
+
+        $status = $client->getPurchaseInvoiceExport($this->session(), self::EXPORT_REFERENCE, 60);
+
+        self::assertSame($state, $status->state);
+        self::assertSame($transient, $status->transient);
+        self::assertCount(1, $this->requests, 'no waiting for an outcome');
+    }
+
+    public function test_it_downloads_decrypts_and_opens_the_export_package(): void
+    {
+        $package = $this->readyPackage();
+        $client = $this->client([self::part(1), self::part(2)]);
+
+        $contents = $client->openInvoicePackage($this->session(), self::EXPORT_KEY_ID, $package);
+
+        self::assertSame([
+            'GET https://ksef-storage.example/invoice-part/'.self::EXPORT_REFERENCE.'-001.zip.aes?sig=fixture-signature',
+            'GET https://ksef-storage.example/invoice-part/'.self::EXPORT_REFERENCE.'-002.zip.aes?sig=fixture-signature',
+        ], $this->requestLines());
+        self::assertNull($this->header(0, 'authorization'), 'part links need no access token');
+        $invoices = $contents->invoices();
+        self::assertSame(['3947150208-20261103-0100A0B1C2D3-4F', '5218630497-20261104-0100E5F6A7B8-1C'], array_map(static fn ($metadata): string => $metadata->ksefNumber, $invoices), 'by permanent-storage date');
+        self::assertSame('2026-11-03', $invoices[0]->issueDate->toString());
+        self::assertTrue($invoices[0]->formCode->isFa3());
+        $xml = $contents->xmlOf('3947150208-20261103-0100A0B1C2D3-4F');
+        self::assertSame(file_get_contents(self::FIXTURES.'invoice-fa3.xml'), $xml);
+        self::assertSame($invoices[0]->invoiceHash, base64_encode(hash('sha256', $xml, true)));
+        self::assertSame(file_get_contents(self::FIXTURES.'Fa3/vat-several-rates.xml'), $contents->xmlOf('5218630497-20261104-0100E5F6A7B8-1C'));
+
+        $contents->close();
+        $this->expectException(KsefRequestFailedException::class);
+        $contents->xmlOf('3947150208-20261103-0100A0B1C2D3-4F');
+    }
+
+    public function test_it_refuses_a_package_part_that_does_not_match_its_hash(): void
+    {
+        $package = $this->readyPackage();
+        $client = $this->client([new MockResponse(((string) file_get_contents(self::PACKAGE.'-001.zip.aes')).'x')]);
+
+        $this->expectException(KsefRequestFailedException::class);
+        $this->expectExceptionMessage('part 1 does not match its encrypted SHA-256 hash');
+
+        $client->openInvoicePackage($this->session(), self::EXPORT_KEY_ID, $package);
+    }
+
+    public function test_it_refuses_a_package_it_cannot_decrypt_with_its_key(): void
+    {
+        $package = $this->readyPackage();
+        $client = $this->client([self::part(1), self::part(2)]);
+
+        $this->expectException(KsefRequestFailedException::class);
+        $this->expectExceptionMessageMatches('/part 1 does not (decrypt|match its SHA-256 hash)/');
+
+        $client->openInvoicePackage($this->session(), '019ab6c0-0000-7000-8000-000000000040', $package);
+    }
+
+    public function test_it_reports_a_package_without_an_invoice_it_lists(): void
+    {
+        $client = $this->client([self::part(1), self::part(2)]);
+        $contents = $client->openInvoicePackage($this->session(), self::EXPORT_KEY_ID, $this->readyPackage());
+
+        try {
+            $this->expectException(KsefRequestFailedException::class);
+            $this->expectExceptionMessage('it holds no XML for 9999999999-20261105-000000000000-00');
+
+            $contents->xmlOf('9999999999-20261105-000000000000-00');
+        } finally {
+            $contents->close();
+        }
+    }
+
+    public function test_it_retries_a_part_download_that_fails_on_the_network(): void
+    {
+        $package = $this->readyPackage();
+        $client = $this->client([new MockResponse('', ['http_code' => 503]), self::part(1), self::part(2)]);
+
+        $contents = $client->openInvoicePackage($this->session(), self::EXPORT_KEY_ID, $package);
+        $contents->close();
+
+        self::assertCount(3, $this->requests);
+    }
+
     public function test_it_ends_the_session(): void
     {
         $client = $this->client([new MockResponse('', ['http_code' => 204])]);
@@ -427,7 +629,7 @@ final class HttpKsefClientTest extends TestCase
             return $response;
         });
 
-        return new HttpKsefClient($http, $this->clock, $this->cache, new KsefRequestPacer($this->clock, $this->cache), self::API_URL);
+        return new HttpKsefClient($http, $this->clock, $this->cache, new KsefRequestPacer($this->clock, $this->cache), self::API_URL, self::EXPORT_KEY_SECRET);
     }
 
     private function session(string $accessTokenValidUntil = '2026-11-12 22:57:49 UTC'): KsefSession
@@ -440,6 +642,22 @@ final class HttpKsefClientTest extends TestCase
             'fixture-refresh-token',
             new \DateTimeImmutable('2026-11-19 22:42:49 UTC'),
         );
+    }
+
+    /** The finished export of the test package, read from its status fixture. */
+    private function readyPackage(): KsefInvoicePackage
+    {
+        $requests = $this->requests;
+        $package = $this->client([self::fixture('invoices-export-status-succeeded.json')])->getPurchaseInvoiceExport($this->session(), self::EXPORT_REFERENCE, 0)->package;
+        self::assertNotNull($package);
+        $this->requests = $requests;
+
+        return $package;
+    }
+
+    private static function part(int $ordinal): MockResponse
+    {
+        return new MockResponse((string) file_get_contents(\sprintf('%s-%03d.zip.aes', self::PACKAGE, $ordinal)), ['response_headers' => ['content-type' => 'application/octet-stream']]);
     }
 
     private static function anyQuery(): KsefPurchaseInvoiceQuery
@@ -478,12 +696,12 @@ final class HttpKsefClientTest extends TestCase
     }
 
     /**
-     * A KsefTokenEncryption certificate from a key pair generated for the test, so that the
-     * encrypted token can be decrypted and checked.
+     * A certificate (KsefTokenEncryption by default) from a key pair generated for the test, so that
+     * what was encrypted with it can be decrypted and checked.
      *
      * @return array{RSA\PrivateKey, list<array<string, mixed>>}
      */
-    private static function generatedCertificates(): array
+    private static function generatedCertificates(string $usage = 'KsefTokenEncryption'): array
     {
         $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => \OPENSSL_KEYTYPE_RSA]);
         self::assertNotFalse($key);
@@ -509,7 +727,7 @@ final class HttpKsefClientTest extends TestCase
                     'publicKeyId' => 'generatedKeyIdgeneratedKeyIdgeneratedKeyId=',
                     'validFrom' => '2026-11-01T00:00:00+00:00',
                     'validTo' => '2027-11-01T00:00:00+00:00',
-                    'usage' => ['KsefTokenEncryption'],
+                    'usage' => [$usage],
                 ],
             ],
         ];

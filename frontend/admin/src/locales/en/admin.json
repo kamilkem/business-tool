@@ -236,7 +236,20 @@
       "import": "Import",
       "noToken": "Stopped: no KSeF token is saved.",
       "saveInSettings": "Save one in Settings",
-      "ownerSaves": "An owner saves one in Settings."
+      "ownerSaves": "An owner saves one in Settings.",
+      "methodLabel": "Method",
+      "method": {
+        "single": "One invoice at a time",
+        "export": "Package export (more than 64 invoices waiting)"
+      },
+      "leftLabel": "Left to import",
+      "left_one": "{{count}} invoice",
+      "left_other": "{{count}} invoices",
+      "leftAtLeast_one": "At least {{count}} invoice",
+      "leftAtLeast_other": "At least {{count}} invoices",
+      "preparingPackage": "KSeF is preparing a package of invoices; the next import picks it up.",
+      "estimateLabel": "Expected",
+      "estimate": "With the import at {{when}}"
     },
     "rejected": {
       "title": "KSeF import stopped: the token was rejected",

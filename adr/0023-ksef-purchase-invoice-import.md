@@ -1,6 +1,6 @@
 # 0023. Purchase invoices are imported from KSeF API 2.0 with a KSeF token: metadata by permanent-storage date, one XML at a time, raw XML kept next to the parsed fields
 
-Status: Accepted (module placement in points 1 and 3 and the XML table of point 6 superseded by [0024](0024-expenses-independent-of-ksef.md); the first run's start in point 4 superseded by [0038](0038-ksef-import-start-date-chosen-by-owner.md))
+Status: Accepted (module placement in points 1 and 3 and the XML table of point 6 superseded by [0024](0024-expenses-independent-of-ksef.md); the first run's start in point 4 superseded by [0038](0038-ksef-import-start-date-chosen-by-owner.md); the "Package export" alternative and the consequence on backlogs superseded by [0039](0039-ksef-package-export-for-backlogs.md))
 
 Date: 2026-11-12
 

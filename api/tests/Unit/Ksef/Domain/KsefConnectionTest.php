@@ -14,6 +14,8 @@ use App\Ksef\Domain\Model\KsefAccess;
 use App\Ksef\Domain\Model\KsefConnection;
 use App\Ksef\Domain\Model\KsefConnectionStatus;
 use App\Ksef\Domain\Model\KsefErrorCode;
+use App\Ksef\Domain\Model\KsefImportMethod;
+use App\Ksef\Domain\Model\KsefInvoiceExport;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Shared\Domain\Time\BusinessDate;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -24,6 +26,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(KsefConnection::class)]
 #[CoversClass(KsefAccess::class)]
 #[CoversClass(KsefErrorCode::class)]
+#[CoversClass(KsefInvoiceExport::class)]
 final class KsefConnectionTest extends TestCase
 {
     private const string NIP = '1111111111';
@@ -330,6 +333,77 @@ final class KsefConnectionTest extends TestCase
         $this->expectException(KsefConnectionForbiddenException::class);
 
         KsefAccess::assertCanUse(Uuid::v7(), MembershipRole::Employee);
+    }
+
+    public function test_it_keeps_a_pending_export_until_it_is_finished(): void
+    {
+        $connection = self::connection();
+        $export = self::export('20261125-EH-1');
+
+        $connection->exportStarted($export);
+
+        self::assertEquals($export, $connection->getPendingExport());
+        self::assertNotNull($connection->importEstimatedAt(self::now()), 'the next run imports the package');
+
+        $connection->exportFinished('20261125-EH-OTHER');
+        self::assertNotNull($connection->getPendingExport(), 'a stale reference number changes nothing');
+
+        $connection->exportFinished('20261125-EH-1');
+        self::assertNull($connection->getPendingExport());
+    }
+
+    public function test_it_gives_up_the_pending_export_when_an_earlier_start_date_clears_the_cursor(): void
+    {
+        $connection = self::connection();
+        $connection->advanceSyncCursor(new \DateTimeImmutable('2026-11-05 10:00:00 UTC'));
+        $connection->exportStarted(self::export('20261125-EH-1'));
+        $connection->recordSyncRun(self::now(), 0, 0, method: KsefImportMethod::Export, backlogCount: 500, backlogIsMinimum: true);
+
+        $connection->changeSyncStartDate(BusinessDate::fromString('2026-06-01'), Uuid::v7(), MembershipRole::Owner, self::warsaw(), self::now());
+
+        self::assertNull($connection->getPendingExport());
+        self::assertNull($connection->getImportBacklogCount(), 'unknown until the next run');
+    }
+
+    public function test_it_records_how_the_run_fetched_the_invoices_and_what_is_left(): void
+    {
+        $connection = self::connection();
+
+        $connection->recordSyncRun(self::now(), 64, 0, method: KsefImportMethod::Single, backlogCount: 120, backlogIsMinimum: true);
+
+        self::assertSame(KsefImportMethod::Single, $connection->getLastSyncMethod());
+        self::assertSame(120, $connection->getImportBacklogCount());
+        self::assertTrue($connection->isImportBacklogMinimum());
+
+        $connection->recordSyncRun(self::now(), 120, 0, method: KsefImportMethod::Export, backlogCount: 0);
+        self::assertSame(0, $connection->getImportBacklogCount());
+        self::assertFalse($connection->isImportBacklogMinimum());
+        self::assertNull($connection->importEstimatedAt(self::now()), 'nothing left');
+
+        $connection->recordSyncRun(self::now(), 0, 0);
+        self::assertNull($connection->getImportBacklogCount());
+        self::assertFalse($connection->isImportBacklogMinimum(), 'no minimum without a count');
+    }
+
+    public function test_it_estimates_the_backlog_from_retry_after_when_rate_limited(): void
+    {
+        $connection = self::connection();
+        // 10:00 UTC on a Friday; KSeF lets the next run through at 21:30 UTC (22:30 in Warsaw).
+        $connection->recordSyncRun(self::now(), 0, 0, KsefErrorCode::RateLimited, 'Too many requests.', new \DateTimeImmutable('2026-11-13 21:30:00 UTC'), KsefImportMethod::Single, 30, true);
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-13 22:00:00 UTC'), $connection->importEstimatedAt(self::now()));
+    }
+
+    public function test_it_refuses_a_negative_backlog(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        self::connection()->recordSyncRun(self::now(), 0, 0, backlogCount: -1);
+    }
+
+    private static function export(string $referenceNumber): KsefInvoiceExport
+    {
+        return new KsefInvoiceExport($referenceNumber, Uuid::v7()->toRfc4122(), new \DateTimeImmutable('2026-11-05 10:00:00 UTC'), new \DateTimeImmutable('2026-11-13 10:00:00 UTC'), self::now());
     }
 
     private static function warsaw(): \DateTimeZone
