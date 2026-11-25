@@ -135,6 +135,13 @@ api_platform:
         App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException: 404
         App\Expenses\Domain\Exception\PurchaseInvoiceDocumentNotFoundException: 404
         App\Expenses\Domain\Exception\PurchaseInvoiceReadOnlyException: 409
+        App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException: 403
+        App\Purchasing\Domain\Exception\InvalidProductCategoryNameException: 422
+        App\Purchasing\Domain\Exception\ProductCategoryNameTakenException: 409
+        App\Purchasing\Domain\Exception\ProductCategoryNotFoundException: 404
+        App\Purchasing\Domain\Exception\ProductCategoryParentNotFoundException: 422
+        App\Purchasing\Domain\Exception\ProductCategoryCycleException: 409
+        App\Purchasing\Domain\Exception\ProductCategoryInUseException: 409
         # KSeF errors are recorded by the sync, not thrown at HTTP clients; mapped in case one escapes.
         App\Ksef\Domain\Exception\KsefCredentialsRejectedException: 422
         App\Ksef\Domain\Exception\KsefRateLimitedException: 429

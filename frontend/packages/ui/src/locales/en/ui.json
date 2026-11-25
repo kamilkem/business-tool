@@ -244,6 +244,18 @@
         "not_draft": "This run is approved: reopen it first."
       }
     },
+    "purchasing": {
+      "invalid_product_category_name": "A category name must have 1 to {{maxLength}} characters.",
+      "management_forbidden": "Only owners and managers can manage purchasing.",
+      "product_category_cycle": "A category cannot be moved under itself or one of its own subcategories.",
+      "product_category_in_use": {
+        "has_products": "This category has products: move them to another category first.",
+        "has_subcategories": "This category has subcategories: move or delete them first."
+      },
+      "product_category_name_taken": "A category named “{{name}}” already exists here.",
+      "product_category_not_found": "This category no longer exists. Reload the page.",
+      "product_category_parent_not_found": "The category to move this under no longer exists. Reload the page."
+    },
     "reporting": {
       "business_summary_forbidden": "Only owners and managers can see the business summary.",
       "business_summary_month_in_the_future": "{{month}} has not started yet.",

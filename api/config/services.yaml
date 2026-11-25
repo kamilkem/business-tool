@@ -52,6 +52,12 @@ services:
         exclude:
             - '../src/App/Expenses/Domain/Model/'
 
+    # Products, product categories and the purchase analysis (ADR 0041): uses Expenses only through the buses.
+    App\Purchasing\:
+        resource: '../src/App/Purchasing/'
+        exclude:
+            - '../src/App/Purchasing/Domain/Model/'
+
     # KSeF integration (ADR 0024 §3): uses Expenses only through the buses.
     App\Ksef\:
         resource: '../src/App/Ksef/'

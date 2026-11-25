@@ -31,6 +31,8 @@ use App\Payroll\Domain\Model\DayRate;
 use App\Payroll\Domain\Model\HourlyRate;
 use App\Payroll\Domain\Model\HourlyRateHistory;
 use App\Payroll\Domain\Model\LockedPayrollDates;
+use App\Purchasing\Domain\Model\DefaultProductCategories;
+use App\Purchasing\Domain\Model\ProductCategory;
 use App\Secret\Domain\Model\OrganizationSecret;
 use App\Secret\Domain\Model\SecretKind;
 use App\Secret\Domain\SecretCipherInterface;
@@ -106,6 +108,8 @@ final class AppFixtures extends Fixture
 
         $this->expenseCategories($manager, $bar, $owner->getId(), $now);
         $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
+        $this->productCategories($manager, $bar, $owner->getId(), $now);
+        $this->productCategories($manager, $cafe, $mixed->getId(), $now);
 
         $this->denominations($manager, $bar, $owner->getId(), $now);
         $this->denominations($manager, $cafe, $mixed->getId(), $now);
@@ -209,6 +213,20 @@ final class AppFixtures extends Fixture
         $this->tenantContext->switchTo($organization);
         foreach (DefaultExpenseCategories::forCountry($organization->getCountryCode()) as $name) {
             $manager->persist(ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now));
+        }
+        $manager->flush();
+    }
+
+    /** The default tree of the organization's country (#238), as AddDefaultProductCategoriesOnOrganizationCreated adds it. */
+    private function productCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
+    {
+        $this->tenantContext->switchTo($organization);
+        foreach (DefaultProductCategories::forCountry($organization->getCountryCode()) as $default) {
+            $top = ProductCategory::create(Uuid::v7(), $default['name'], null, null, $ownerId, MembershipRole::Owner, $now);
+            $manager->persist($top);
+            foreach ($default['children'] as $name) {
+                $manager->persist(ProductCategory::create(Uuid::v7(), $name, $top, null, $ownerId, MembershipRole::Owner, $now));
+            }
         }
         $manager->flush();
     }
