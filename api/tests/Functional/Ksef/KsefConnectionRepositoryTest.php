@@ -60,6 +60,19 @@ final class KsefConnectionRepositoryTest extends KernelTestCase
         self::assertFalse($this->tenantContext->hasOrganization());
     }
 
+    public function test_it_lists_across_organizations_every_one_with_a_connection(): void
+    {
+        $active = $this->connect(OrganizationFactory::createOne());
+        $rejected = $this->connect(OrganizationFactory::createOne(), static fn (KsefConnection $c) => $c->recordSyncRun(new \DateTimeImmutable(self::NOW), 0, 0, KsefErrorCode::CredentialsRejected, 'revoked'));
+        $withoutToken = $this->connect(OrganizationFactory::createOne(), static fn (KsefConnection $c) => $c->tokenRemoved(Uuid::v7(), MembershipRole::Owner));
+        OrganizationFactory::createOne();
+
+        $expected = [$active->getId()->toRfc4122(), $rejected->getId()->toRfc4122(), $withoutToken->getId()->toRfc4122()];
+        sort($expected);
+        self::assertSame($expected, $this->connections->findOrganizationIds());
+        self::assertFalse($this->tenantContext->hasOrganization());
+    }
+
     public function test_it_stores_the_import_status(): void
     {
         $organization = OrganizationFactory::createOne();

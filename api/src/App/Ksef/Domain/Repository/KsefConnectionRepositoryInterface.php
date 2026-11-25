@@ -19,6 +19,14 @@ interface KsefConnectionRepositoryInterface
      */
     public function findOrganizationIdsToSync(\DateTimeImmutable $now): array;
 
+    /**
+     * Across organizations, for operator tasks that queue one job each (`app:ksef:read-invoice-items`):
+     * the organization ids of every connection, whatever its status, by id. Ids only, no tenant data.
+     *
+     * @return list<string>
+     */
+    public function findOrganizationIds(): array;
+
     public function add(KsefConnection $connection): void;
 
     /** Persists changes made to an already managed connection. */

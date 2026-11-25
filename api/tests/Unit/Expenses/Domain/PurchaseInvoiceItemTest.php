@@ -150,6 +150,48 @@ final class PurchaseInvoiceItemTest extends TestCase
         yield 'too many decimals' => ['0.1234567', null];
     }
 
+    public function test_it_records_the_items_of_an_imported_invoice_without_items_once(): void
+    {
+        $invoice = self::import();
+
+        self::assertTrue($invoice->recordItems([new PurchaseInvoiceItemDetails(position: 2, name: ' Woda ', quantity: '6.000'), new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')], 'PL'));
+        self::assertFalse($invoice->recordItems([new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')], 'PL'), 'Items are never replaced (ADR 0040).');
+
+        self::assertEquals([new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo'), new PurchaseInvoiceItemDetails(position: 2, name: 'Woda', quantity: '6')], $invoice->getItems());
+    }
+
+    public function test_it_records_nothing_for_an_invoice_imported_with_items_or_without_items_to_record(): void
+    {
+        $withItems = self::import(new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo'));
+        $without = self::import();
+
+        self::assertFalse($withItems->recordItems([new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')], 'PL'));
+        self::assertFalse($without->recordItems([], 'PL'));
+
+        self::assertEquals([new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')], $withItems->getItems());
+        self::assertSame([], $without->getItems());
+    }
+
+    public function test_it_records_no_items_for_a_manual_invoice(): void
+    {
+        $this->expectExceptionObject(InvalidPurchaseInvoiceException::itemsOnManual());
+
+        PurchaseInvoiceMother::manual()->recordItems([new PurchaseInvoiceItemDetails(position: 1, name: 'Ryba')], 'PL');
+    }
+
+    public function test_it_records_none_of_the_items_when_one_breaks_a_rule(): void
+    {
+        $invoice = self::import();
+
+        try {
+            $invoice->recordItems([new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo'), new PurchaseInvoiceItemDetails(position: 2, name: 'Wino', vatRate: '19')], 'PL');
+            self::fail('Poland has no 19% rate.');
+        } catch (InvalidPurchaseInvoiceException) {
+        }
+
+        self::assertSame([], $invoice->getItems());
+    }
+
     #[DataProvider('decimals')]
     public function test_it_normalizes_a_decimal_string(string $value, ?string $normalized): void
     {

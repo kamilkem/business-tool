@@ -355,6 +355,48 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertSame([], $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Ksef, []));
     }
 
+    public function test_it_lists_the_imported_invoices_with_a_document_and_no_items_by_id(): void
+    {
+        $this->switchToNewOrganization();
+        $foreign = $this->withDocument($this->import('K-OTHER-ORGANIZATION'));
+        $this->entityManager->clear();
+        $organization = $this->switchToNewOrganization();
+        $a = $this->withDocument($this->import('K-1'));
+        $b = $this->withDocument($this->import('K-2'));
+        $c = $this->withDocument($this->import('K-3'));
+        $this->withDocument(PurchaseInvoiceMother::imported(externalId: 'K-WITH-ITEMS', items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')]));
+        $this->add($this->import('K-WITHOUT-DOCUMENT'));
+        $this->add(PurchaseInvoiceMother::manual());
+        $this->entityManager->clear();
+        $ids = self::idsOf([$a, $b, $c]);
+        sort($ids);
+
+        $first = $this->invoices->findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource::Ksef, null, 2);
+        $rest = $this->invoices->findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource::Ksef, $first[1], 2);
+
+        self::assertSame(\array_slice($ids, 0, 2), array_map(static fn (Uuid $id): string => $id->toRfc4122(), $first));
+        self::assertSame([$ids[2]], array_map(static fn (Uuid $id): string => $id->toRfc4122(), $rest));
+        self::assertNotContains($foreign->getId()->toRfc4122(), $ids);
+        self::assertSame([], $this->invoices->findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource::Manual, null, 10));
+
+        // Once its items are recorded, an invoice is no longer listed. The job bus switches to a managed organization.
+        $this->tenantContext->switchTo($this->entityManager->find(Organization::class, $organization->getId()) ?? self::fail('Organization expected.'));
+        $invoice = $this->invoices->findById(Uuid::fromString($ids[0])) ?? self::fail('Invoice expected.');
+        self::assertTrue($invoice->recordItems([new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')], 'PL'));
+        $this->invoices->save($invoice);
+        $this->entityManager->clear();
+
+        self::assertSame(\array_slice($ids, 1), array_map(static fn (Uuid $id): string => $id->toRfc4122(), $this->invoices->findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource::Ksef, null, 10)));
+        self::assertEquals([new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')], $this->invoices->findById(Uuid::fromString($ids[0]))?->getItems());
+    }
+
+    private function withDocument(PurchaseInvoice $invoice): PurchaseInvoice
+    {
+        $this->invoices->add($invoice, PurchaseInvoiceDocument::of($invoice, self::XML, 'FA (3)', new \DateTimeImmutable('2026-11-12 21:00:05')));
+
+        return $invoice;
+    }
+
     private function add(PurchaseInvoice $invoice): PurchaseInvoice
     {
         $this->invoices->add($invoice);

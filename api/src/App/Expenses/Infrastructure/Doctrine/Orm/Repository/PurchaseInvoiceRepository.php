@@ -7,6 +7,7 @@ namespace App\Expenses\Infrastructure\Doctrine\Orm\Repository;
 use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceItem;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
@@ -14,6 +15,7 @@ use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<PurchaseInvoice> */
@@ -51,6 +53,26 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
             ->getSingleColumnResult();
 
         return $stored;
+    }
+
+    public function findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource $source, ?Uuid $after, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('i')
+            ->select('i.id')
+            ->where('i.source = :source')
+            ->andWhere(\sprintf('EXISTS (SELECT IDENTITY(d.purchaseInvoice) FROM %s d WHERE d.purchaseInvoice = i)', PurchaseInvoiceDocument::class))
+            ->andWhere(\sprintf('NOT EXISTS (SELECT it.ordinal FROM %s it WHERE it.purchaseInvoice = i)', PurchaseInvoiceItem::class))
+            ->setParameter('source', $source)
+            ->orderBy('i.id', 'ASC')
+            ->setMaxResults($limit);
+        if (null !== $after) {
+            $qb->andWhere('i.id > :after')->setParameter('after', $after, UuidType::NAME);
+        }
+
+        /** @var list<Uuid|string> $ids */
+        $ids = $qb->getQuery()->getSingleColumnResult();
+
+        return array_map(static fn (Uuid|string $id): Uuid => $id instanceof Uuid ? $id : Uuid::fromString($id), $ids);
     }
 
     public function findByFilter(PurchaseInvoiceFilter $filter): array
