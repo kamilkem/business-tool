@@ -19,3 +19,4 @@
 'This value is not a valid date-time with a time zone offset, e.g. 2026-11-12T16:00:00+01:00.': 'Ta wartość nie jest prawidłową datą i godziną z przesunięciem strefy czasowej, np. 2026-11-12T16:00:00+01:00.'
 'Give an entryId, or both from and to.': 'Podaj entryId albo obie daty: from i to.'
 'Give both from and to, or neither.': 'Podaj obie daty, from i to, albo żadnej.'
+'This is not a decimal number with at most 6 decimals.': 'To nie jest liczba dziesiętna z co najwyżej 6 miejscami po przecinku.'

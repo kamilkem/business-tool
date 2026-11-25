@@ -27,7 +27,9 @@ use App\Purchasing\Domain\Exception\ProductCategoryNameTakenException;
 use App\Purchasing\Domain\Exception\ProductCategoryNotFoundException;
 use App\Purchasing\Domain\Exception\ProductCategoryParentNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
+use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductCategory;
+use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Shared\Application\Query\QueryInterface;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
@@ -57,6 +59,7 @@ final class ProductCategoryHandlersTest extends TestCase
     private const string JOINED = '2026-01-05 09:00:00';
 
     private InMemoryProductCategoryRepository $categories;
+    private InMemoryProductRepository $products;
     private StubQueryBus $queryBus;
     private Organization $organization;
     private User $owner;
@@ -70,6 +73,7 @@ final class ProductCategoryHandlersTest extends TestCase
     {
         $organizations = new InMemoryOrganizationRepository();
         $this->categories = new InMemoryProductCategoryRepository();
+        $this->products = new InMemoryProductRepository();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -236,6 +240,20 @@ final class ProductCategoryHandlersTest extends TestCase
         }
     }
 
+    public function test_it_refuses_to_delete_a_category_with_a_product(): void
+    {
+        $this->products->add(Product::create(Uuid::v7(), 'Jack Daniel\'s', $this->whisky, ProductMeasure::Volume, null, false, null, $this->owner->getId(), MembershipRole::Owner, new \DateTimeImmutable(self::JOINED)));
+
+        try {
+            $this->delete($this->owner, $this->whisky->getId()->toRfc4122());
+            self::fail('A category with a product should not be deleted.');
+        } catch (ProductCategoryInUseException $e) {
+            self::assertSame('purchasing.product_category_in_use.has_products', $e->errorCode());
+        }
+
+        self::assertNotNull($this->categories->findById($this->whisky->getId()));
+    }
+
     public function test_it_reports_an_unknown_category_on_delete(): void
     {
         $this->expectException(ProductCategoryNotFoundException::class);
@@ -320,7 +338,7 @@ final class ProductCategoryHandlersTest extends TestCase
 
     private function delete(User $actor, string $id): void
     {
-        (new DeleteProductCategoryHandler($this->categories, $this->queryBus))(
+        (new DeleteProductCategoryHandler($this->categories, $this->products, $this->queryBus))(
             new DeleteProductCategoryCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $id),
         );
     }

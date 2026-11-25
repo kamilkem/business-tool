@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Purchasing\Domain\Exception\ProductCategoryInUseException;
 use App\Purchasing\Domain\Exception\ProductCategoryNameTakenException;
 use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -60,7 +62,14 @@ final class ProductCategoryRepository extends ServiceEntityRepository implements
     public function remove(ProductCategory $category): void
     {
         $this->getEntityManager()->remove($category);
-        $this->getEntityManager()->flush();
+        try {
+            $this->getEntityManager()->flush();
+        } catch (ForeignKeyConstraintViolationException $e) {
+            // The foreign key that refused names the table that refers to the category.
+            throw str_contains($e->getMessage(), 'on table "product"')
+                ? ProductCategoryInUseException::hasProducts($category->getId()->toRfc4122())
+                : ProductCategoryInUseException::hasSubcategories($category->getId()->toRfc4122());
+        }
     }
 
     private function flush(ProductCategory $category): void

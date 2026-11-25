@@ -139,6 +139,14 @@ api_platform:
         App\Purchasing\Domain\Exception\ProductCategoryParentNotFoundException: 422
         App\Purchasing\Domain\Exception\ProductCategoryCycleException: 409
         App\Purchasing\Domain\Exception\ProductCategoryInUseException: 409
+        App\Purchasing\Domain\Exception\InvalidProductNameException: 422
+        App\Purchasing\Domain\Exception\InvalidProductReferenceQuantityException: 422
+        App\Purchasing\Domain\Exception\ProductNameTakenException: 409
+        App\Purchasing\Domain\Exception\ProductNotFoundException: 404
+        App\Purchasing\Domain\Exception\ProductInUseException: 409
+        App\Purchasing\Domain\Exception\ProductMergeTargetNotFoundException: 404
+        App\Purchasing\Domain\Exception\ProductMergeIntoItselfException: 422
+        App\Purchasing\Domain\Exception\UnknownProductCategoryException: 422
         # KSeF errors are recorded by the sync, not thrown at HTTP clients; mapped in case one escapes.
         App\Ksef\Domain\Exception\KsefCredentialsRejectedException: 422
         App\Ksef\Domain\Exception\KsefRateLimitedException: 429

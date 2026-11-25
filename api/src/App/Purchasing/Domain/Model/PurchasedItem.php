@@ -23,7 +23,7 @@ use Symfony\Component\Uid\Uuid;
  * - It is named by the invoice's id and the item's index in the document, unique together, which makes
  *   recording an invoice's items again a no-op (RecordPurchasedItemsHandler). The invoice is not a
  *   foreign key: Purchasing refers to Expenses by id only, and imported invoices are never deleted.
- * - Until a product exists for it (#241) and a person or matching links one (#233, #242), the item is
+ * - Until a person or matching links it to a product (#233, #242), the item is
  *   `unassigned` with no product and no package size, and counts in spend only.
  * - Quantities and prices are NUMERIC decimal strings (ADR 0040); the package size is a decimal string
  *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3).
@@ -113,9 +113,10 @@ class PurchasedItem implements TenantAwareInterface
     #[ORM\Column]
     private bool $beforeCorrection;
 
-    /** The product it is linked to; null until it is. Becomes a foreign key with the products (#241). */
-    #[ORM\Column(type: UuidType::NAME, nullable: true)]
-    private ?Uuid $productId = null;
+    /** The product it is linked to; null until it is. No ON DELETE: a product with items cannot be deleted (Product::assertDeletable()). */
+    #[ORM\ManyToOne(targetEntity: Product::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Product $product = null;
 
     #[ORM\Column(length: 16, enumType: PurchasedItemStatus::class)]
     private PurchasedItemStatus $status = PurchasedItemStatus::Unassigned;
@@ -273,7 +274,7 @@ class PurchasedItem implements TenantAwareInterface
 
     public function getProductId(): ?Uuid
     {
-        return $this->productId;
+        return $this->product?->getId();
     }
 
     public function getStatus(): PurchasedItemStatus

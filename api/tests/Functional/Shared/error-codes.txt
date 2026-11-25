@@ -172,6 +172,9 @@ payroll.run_not_found
 payroll.run_status.not_approved
 payroll.run_status.not_draft
 purchasing.invalid_product_category_name
+purchasing.invalid_product_name
+purchasing.invalid_product_reference_quantity.not_allowed_for_measure
+purchasing.invalid_product_reference_quantity.not_positive
 purchasing.management_forbidden
 purchasing.product_category_cycle
 purchasing.product_category_in_use.has_products
@@ -179,6 +182,12 @@ purchasing.product_category_in_use.has_subcategories
 purchasing.product_category_name_taken
 purchasing.product_category_not_found
 purchasing.product_category_parent_not_found
+purchasing.product_in_use
+purchasing.product_merge_into_itself
+purchasing.product_merge_target_not_found
+purchasing.product_name_taken
+purchasing.product_not_found
+purchasing.unknown_product_category
 reporting.business_summary_forbidden
 reporting.business_summary_month_in_the_future
 reporting.business_summary_period_too_long
