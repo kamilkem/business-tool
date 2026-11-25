@@ -8,7 +8,10 @@ use App\Expenses\Domain\Model\PurchaseInvoice;
 
 final readonly class PurchaseInvoiceView
 {
-    /** @param list<PurchaseInvoiceVatLineView> $vatLines highest rate first, exempt last */
+    /**
+     * @param list<PurchaseInvoiceVatLineView>  $vatLines highest rate first, exempt last
+     * @param ?list<PurchaseInvoiceItemView>    $items    by position; null when the query does not read them (lists)
+     */
     public function __construct(
         public string $id,
         public string $source,
@@ -29,10 +32,12 @@ final readonly class PurchaseInvoiceView
         /** The format of the original document; null when the invoice has none. */
         public ?string $documentFormat,
         public \DateTimeImmutable $createdAt,
+        public ?array $items,
     ) {
     }
 
-    public static function of(PurchaseInvoice $invoice, ?string $documentFormat): self
+    /** @param bool $withItems false for lists, which never load the items */
+    public static function of(PurchaseInvoice $invoice, ?string $documentFormat, bool $withItems = false): self
     {
         return new self(
             $invoice->getId()->toRfc4122(),
@@ -52,6 +57,7 @@ final readonly class PurchaseInvoiceView
             array_map(PurchaseInvoiceVatLineView::fromAmount(...), $invoice->getVatLines()),
             $documentFormat,
             $invoice->getCreatedAt(),
+            $withItems ? array_map(PurchaseInvoiceItemView::fromDetails(...), $invoice->getItems()) : null,
         );
     }
 }

@@ -9,6 +9,7 @@ use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -81,6 +82,7 @@ final readonly class ImportPurchaseInvoiceHandler implements CommandHandlerInter
             $command->grossTotal,
             array_map(static fn (array $line): PurchaseInvoiceVatAmount => new PurchaseInvoiceVatAmount($line['rate'], $line['net'], $line['vat'], $line['vatInTaxCurrency']), $command->vatLines),
             $command->correctedExternalId,
+            array_map(static fn (array $item): PurchaseInvoiceItemDetails => new PurchaseInvoiceItemDetails(...$item), $command->items),
         );
     }
 }

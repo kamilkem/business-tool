@@ -7,7 +7,8 @@ namespace App\Expenses\Domain\Exception;
 /**
  * A purchase invoice's data breaks a rule of the aggregate: a required text is empty or too long, a
  * currency is not an ISO 4217 code, a VAT line uses a rate the organization's country does not have
- * or appears twice, or the VAT in the tax currency is missing or superfluous.
+ * or appears twice, the VAT in the tax currency is missing or superfluous, or an item breaks a rule
+ * (or is given for a manual invoice).
  */
 final class InvalidPurchaseInvoiceException extends ExpensesException
 {
@@ -49,6 +50,11 @@ final class InvalidPurchaseInvoiceException extends ExpensesException
     public static function correctedInvoiceOnNonCorrection(string $kind): self
     {
         return new self(\sprintf('Only a correction refers to a corrected invoice; this invoice is "%s".', $kind), ['kind' => $kind], variant: __FUNCTION__);
+    }
+
+    public static function itemsOnManual(): self
+    {
+        return new self('An invoice entered by hand has no items.', [], variant: __FUNCTION__);
     }
 
     public static function unknownVatRate(string $rate, string $countryCode): self

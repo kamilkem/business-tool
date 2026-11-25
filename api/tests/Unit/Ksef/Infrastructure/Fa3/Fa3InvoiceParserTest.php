@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Ksef\Infrastructure\Fa3;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -194,6 +195,8 @@ final class Fa3InvoiceParserTest extends TestCase
         yield 'another currency' => ['Fa3/foreign-currency.xml'];
         yield 'correction' => ['Fa3/correction.xml'];
         yield 'advance' => ['Fa3/advance.xml'];
+        yield 'gross-based items' => ['Fa3/gross-based.xml'];
+        yield 'correction before and after' => ['Fa3/correction-before-after.xml'];
         yield 'groups without a code' => ['Fa3/unsupported-vat-groups.xml'];
         yield 'client fixture' => ['invoice-fa3.xml'];
     }
@@ -208,6 +211,124 @@ final class Fa3InvoiceParserTest extends TestCase
         self::assertSame($details->grossTotal, $invoice->getGrossTotal());
         self::assertSame($details->correctedExternalId, $invoice->getCorrectedExternalId());
         self::assertCount(\count($details->vatLines), $invoice->getVatLines());
+        self::assertCount(\count($details->items), $invoice->getItems());
+    }
+
+    public function test_it_reads_the_items_of_a_net_based_invoice(): void
+    {
+        $items = $this->parse('Fa3/vat-several-rates.xml')->items;
+
+        self::assertCount(5, $items);
+        self::assertEquals(new PurchaseInvoiceItemDetails(
+            position: 1,
+            name: 'Piwo jasne, keg 30 l',
+            unit: 'szt.',
+            quantity: '4',
+            unitNetPrice: '250.00',
+            netAmount: 100000,
+            vatRate: '23',
+        ), $items[0]);
+        self::assertSame(['23', '8', '5', '0', 'zw'], array_map(static fn (PurchaseInvoiceItemDetails $item): ?string => $item->vatRate, $items));
+        self::assertSame([100000, 25050, 9999, 4000, 1230], array_map(static fn (PurchaseInvoiceItemDetails $item): ?int => $item->netAmount, $items));
+    }
+
+    public function test_it_reads_the_items_of_a_gross_based_invoice_with_decimals_codes_and_a_discount(): void
+    {
+        $items = $this->parse('Fa3/gross-based.xml')->items;
+
+        self::assertEquals([
+            new PurchaseInvoiceItemDetails(
+                position: 1,
+                name: 'Polędwica wołowa',
+                sellerCode: 'MIE-0042',
+                gtin: '5901234123457',
+                unit: 'kg',
+                quantity: '0.700',
+                unitGrossPrice: '12.34567891',
+                grossAmount: 864,
+                vatAmount: 162,
+                vatRate: '23',
+            ),
+            new PurchaseInvoiceItemDetails(
+                position: 2,
+                name: 'Woda mineralna 1,5 l',
+                sellerCode: 'WOD-15',
+                unit: 'but.',
+                quantity: '12',
+                unitGrossPrice: '2.50',
+                discount: '1.50',
+                grossAmount: 2850,
+                vatAmount: 211,
+                vatRate: '8',
+            ),
+            // np I (not taxable in Poland) has no rate code.
+            new PurchaseInvoiceItemDetails(position: 3, name: 'Dostawa poza terytorium kraju', grossAmount: 1000),
+        ], $items);
+    }
+
+    public function test_it_maps_the_rate_of_an_item_as_the_vat_lines_are_mapped(): void
+    {
+        foreach ([['22', '23'], ['7', '8'], ['0 WDT', '0'], ['0 EX', '0'], ['4', null], ['oo', null], ['np II', null]] as [$printed, $code]) {
+            $xml = $this->replace('Fa3/vat-several-rates.xml', '<P_12>23</P_12>', '<P_12>'.$printed.'</P_12>');
+            self::assertSame($code, $this->parser()->parse($xml)->items[0]->vatRate, $printed);
+        }
+    }
+
+    public function test_it_keeps_the_items_of_an_invoice_in_another_currency_in_its_minor_units(): void
+    {
+        $items = $this->parse('Fa3/foreign-currency.xml')->items;
+
+        self::assertCount(3, $items);
+        self::assertSame('Wino czerwone, karton 6 butelek', $items[0]->name);
+        self::assertSame('50.00', $items[0]->unitNetPrice);
+        self::assertSame(50000, $items[0]->netAmount);
+    }
+
+    public function test_it_marks_the_rows_of_a_correction_before_the_correction(): void
+    {
+        $items = $this->parse('Fa3/correction-before-after.xml')->items;
+
+        self::assertSame([true, false], array_map(static fn (PurchaseInvoiceItemDetails $item): bool => $item->beforeCorrection, $items));
+        self::assertSame(['4', '3'], array_map(static fn (PurchaseInvoiceItemDetails $item): ?string => $item->quantity, $items));
+    }
+
+    public function test_it_keeps_the_negative_quantities_of_a_correction(): void
+    {
+        $items = $this->parse('Fa3/correction.xml')->items;
+
+        self::assertSame('-0.4', $items[0]->quantity);
+        self::assertSame(-10000, $items[0]->netAmount);
+        self::assertFalse($items[0]->beforeCorrection);
+    }
+
+    public function test_it_gives_an_advance_invoice_no_items(): void
+    {
+        self::assertSame([], $this->parse('Fa3/advance.xml')->items);
+
+        // Even when the advance also lists rows.
+        $xml = $this->replace('Fa3/vat-several-rates.xml', '<RodzajFaktury>VAT</RodzajFaktury>', '<RodzajFaktury>ZAL</RodzajFaktury>');
+        self::assertSame([], $this->parser()->parse($xml)->items);
+    }
+
+    public function test_it_skips_an_item_without_a_name(): void
+    {
+        $xml = $this->replace('Fa3/correction.xml', '<P_7>Przekąski (rabat)</P_7>', '');
+
+        $items = $this->parser()->parse($xml)->items;
+
+        self::assertCount(1, $items);
+        self::assertSame(1, $items[0]->position);
+    }
+
+    public function test_it_gives_expenses_the_items_it_stores_exactly(): void
+    {
+        $invoice = $this->import($this->parse('Fa3/gross-based.xml'));
+
+        $items = $invoice->getItems();
+        self::assertCount(3, $items);
+        self::assertSame('0.7', $items[0]->quantity);
+        self::assertSame('12.34567891', $items[0]->unitGrossPrice);
+        self::assertSame('1.5', $items[1]->discount);
     }
 
     /** @return iterable<string, array{\Closure(string): string, class-string<KsefException>, string}> */
@@ -239,6 +360,12 @@ final class Fa3InvoiceParserTest extends TestCase
         yield 'issue date that does not exist' => [$replace('<P_1>2026-11-03</P_1>', '<P_1>2026-02-30</P_1>'), InvalidFa3InvoiceException::class, 'Fa/P_1'];
         yield 'issue date with a time' => [$replace('<P_1>2026-11-03</P_1>', '<P_1>2026-11-03T10:00:00</P_1>'), InvalidFa3InvoiceException::class, 'Fa/P_1'];
         yield 'unknown invoice kind' => [$replace('<RodzajFaktury>VAT</RodzajFaktury>', '<RodzajFaktury>PRO</RodzajFaktury>'), InvalidFa3InvoiceException::class, 'Fa/RodzajFaktury'];
+        yield 'item without a row number' => [$replace('<NrWierszaFa>2</NrWierszaFa>', ''), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/NrWierszaFa'];
+        yield 'item row number 0' => [$replace('<NrWierszaFa>2</NrWierszaFa>', '<NrWierszaFa>0</NrWierszaFa>'), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/NrWierszaFa'];
+        yield 'item quantity with seven decimals' => [$replace('<P_8B>5</P_8B>', '<P_8B>5.0000001</P_8B>'), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/P_8B'];
+        yield 'item unit price with a decimal comma' => [$replace('<P_9A>50.10</P_9A>', '<P_9A>50,10</P_9A>'), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/P_9A'];
+        yield 'item value with three decimals' => [$replace('<P_11>250.50</P_11>', '<P_11>250.505</P_11>'), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/P_11'];
+        yield 'repeated item name' => [$replace('<P_7>Przekąski</P_7>', '<P_7>Przekąski</P_7><P_7>Chipsy</P_7>'), InvalidFa3InvoiceException::class, 'Fa/FaWiersz[2]/P_7'];
         yield 'unknown currency' => [$replace('<KodWaluty>PLN</KodWaluty>', '<KodWaluty>XYZ</KodWaluty>'), InvalidFa3InvoiceException::class, 'Fa/KodWaluty'];
     }
 

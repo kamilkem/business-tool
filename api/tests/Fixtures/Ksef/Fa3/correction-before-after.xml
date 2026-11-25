@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+	<Naglowek>
+		<KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+		<WariantFormularza>3</WariantFormularza>
+		<DataWytworzeniaFa>2026-11-03T09:15:00Z</DataWytworzeniaFa>
+		<SystemInfo>Fixture</SystemInfo>
+	</Naglowek>
+	<Podmiot1>
+		<DaneIdentyfikacyjne>
+			<NIP>4882338469</NIP>
+			<Nazwa>Hurtownia Testowa Sp. z o.o.</Nazwa>
+		</DaneIdentyfikacyjne>
+		<Adres>
+			<KodKraju>PL</KodKraju>
+			<AdresL1>ul. Przykładowa 1</AdresL1>
+			<AdresL2>00-001 Warszawa</AdresL2>
+		</Adres>
+	</Podmiot1>
+	<Podmiot2>
+		<DaneIdentyfikacyjne>
+			<NIP>7010840722</NIP>
+			<Nazwa>Bar Testowy</Nazwa>
+		</DaneIdentyfikacyjne>
+		<Adres>
+			<KodKraju>PL</KodKraju>
+			<AdresL1>ul. Testowa 2</AdresL1>
+			<AdresL2>00-002 Warszawa</AdresL2>
+		</Adres>
+		<JST>2</JST>
+		<GV>2</GV>
+	</Podmiot2>
+	<Fa>
+		<KodWaluty>PLN</KodWaluty>
+		<P_1>2026-11-10</P_1>
+		<P_2>FK/2026/11/0004</P_2>
+		<P_13_1>-250.00</P_13_1>
+		<P_14_1>-57.50</P_14_1>
+		<P_15>-307.50</P_15>
+		<Adnotacje>
+			<P_16>2</P_16>
+			<P_17>2</P_17>
+			<P_18>2</P_18>
+			<P_18A>2</P_18A>
+			<Zwolnienie>
+				<P_19N>1</P_19N>
+			</Zwolnienie>
+			<NoweSrodkiTransportu>
+				<P_22N>1</P_22N>
+			</NoweSrodkiTransportu>
+			<P_23>2</P_23>
+			<PMarzy>
+				<P_PMarzyN>1</P_PMarzyN>
+			</PMarzy>
+		</Adnotacje>
+		<RodzajFaktury>KOR</RodzajFaktury>
+		<PrzyczynaKorekty>Błędna ilość</PrzyczynaKorekty>
+		<TypKorekty>2</TypKorekty>
+		<DaneFaKorygowanej>
+			<DataWystFaKorygowanej>2026-11-03</DataWystFaKorygowanej>
+			<NrFaKorygowanej>FV/2026/11/0042</NrFaKorygowanej>
+			<NrKSeF>1</NrKSeF>
+			<NrKSeFFaKorygowanej>4882338469-20261103-0A1B2C-3D4E5F-7A</NrKSeFFaKorygowanej>
+		</DaneFaKorygowanej>
+		<FaWiersz>
+			<NrWierszaFa>1</NrWierszaFa>
+			<P_7>Piwo jasne, keg 30 l</P_7>
+			<P_8A>szt.</P_8A>
+			<P_8B>4</P_8B>
+			<P_9A>250.00</P_9A>
+			<P_11>1000.00</P_11>
+			<P_12>23</P_12>
+			<StanPrzed>1</StanPrzed>
+		</FaWiersz>
+		<FaWiersz>
+			<NrWierszaFa>2</NrWierszaFa>
+			<P_7>Piwo jasne, keg 30 l</P_7>
+			<P_8A>szt.</P_8A>
+			<P_8B>3</P_8B>
+			<P_9A>250.00</P_9A>
+			<P_11>750.00</P_11>
+			<P_12>23</P_12>
+		</FaWiersz>
+	</Fa>
+</Faktura>

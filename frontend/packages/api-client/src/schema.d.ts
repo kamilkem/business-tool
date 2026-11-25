@@ -513,7 +513,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * One expense of the selected organization, with its VAT lines.
+         * One expense of the selected organization, with its VAT lines and items.
          * @description Owners and managers only (403 otherwise). An expense that is not the selected organization's is a 404.
          */
         get: operations["api_expenses_id_get"];
@@ -3074,6 +3074,8 @@ export interface components {
              * @description When the expense was imported or entered.
              */
             createdAt: string;
+            /** @description The items as printed, by position (ADR 0040); [] for a manual expense or one imported before items were kept. */
+            items: components["schemas"]["ExpenseItem"][];
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
@@ -3176,6 +3178,8 @@ export interface components {
              * @description When the expense was imported or entered.
              */
             createdAt: string;
+            /** @description The items as printed, by position (ADR 0040); [] for a manual expense or one imported before items were kept. */
+            items: components["schemas"]["ExpenseItem.binary"][];
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
@@ -3219,6 +3223,8 @@ export interface components {
              * @description When the expense was imported or entered.
              */
             createdAt: string;
+            /** @description The items as printed, by position (ADR 0040); [] for a manual expense or one imported before items were kept. */
+            items: components["schemas"]["ExpenseItem.jsonld"][];
         };
         /**
          * @description A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
@@ -3262,6 +3268,8 @@ export interface components {
              * @description When the expense was imported or entered.
              */
             createdAt: string;
+            /** @description The items as printed, by position (ADR 0040); [] for a manual expense or one imported before items were kept. */
+            items: components["schemas"]["ExpenseItem.xml"][];
         };
         /**
          * @description An expense category of the organization selected by the X-Organization-Id header: what an expense
@@ -3341,6 +3349,114 @@ export interface components {
             /** @description per VAT rate used, highest rate first, exempt last */
             vatLines: components["schemas"]["ExpenseVatLine.jsonld"][];
         };
+        ExpenseItem: {
+            /** @description The row number printed on the invoice; items are ordered by it. Not unique. */
+            position: number;
+            name: string;
+            /** @description The seller's own product code. */
+            sellerCode: string | null;
+            /** @description The Global Trade Item Number (EAN), when printed. */
+            gtin: string | null;
+            /** @description The unit as printed (`szt.`, `l`, `kg`). */
+            unit: string | null;
+            /** @description Decimal string. */
+            quantity: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitNetPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitGrossPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            discount: string | null;
+            /** @description Minor units; an invoice gives the net or the gross value, or both. */
+            netAmount: number | null;
+            grossAmount: number | null;
+            vatAmount: number | null;
+            /** @description A rate code of the organization's country (GET /vat-rates); null when the printed rate has none. */
+            vatRate: string | null;
+            /** @description In a correction: the row as it was before the correction. */
+            beforeCorrection: boolean;
+        };
+        "ExpenseItem.binary": {
+            /** @description The row number printed on the invoice; items are ordered by it. Not unique. */
+            position: number;
+            name: string;
+            /** @description The seller's own product code. */
+            sellerCode: string | null;
+            /** @description The Global Trade Item Number (EAN), when printed. */
+            gtin: string | null;
+            /** @description The unit as printed (`szt.`, `l`, `kg`). */
+            unit: string | null;
+            /** @description Decimal string. */
+            quantity: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitNetPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitGrossPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            discount: string | null;
+            /** @description Minor units; an invoice gives the net or the gross value, or both. */
+            netAmount: number | null;
+            grossAmount: number | null;
+            vatAmount: number | null;
+            /** @description A rate code of the organization's country (GET /vat-rates); null when the printed rate has none. */
+            vatRate: string | null;
+            /** @description In a correction: the row as it was before the correction. */
+            beforeCorrection: boolean;
+        };
+        "ExpenseItem.jsonld": {
+            /** @description The row number printed on the invoice; items are ordered by it. Not unique. */
+            position: number;
+            name: string;
+            /** @description The seller's own product code. */
+            sellerCode: string | null;
+            /** @description The Global Trade Item Number (EAN), when printed. */
+            gtin: string | null;
+            /** @description The unit as printed (`szt.`, `l`, `kg`). */
+            unit: string | null;
+            /** @description Decimal string. */
+            quantity: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitNetPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitGrossPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            discount: string | null;
+            /** @description Minor units; an invoice gives the net or the gross value, or both. */
+            netAmount: number | null;
+            grossAmount: number | null;
+            vatAmount: number | null;
+            /** @description A rate code of the organization's country (GET /vat-rates); null when the printed rate has none. */
+            vatRate: string | null;
+            /** @description In a correction: the row as it was before the correction. */
+            beforeCorrection: boolean;
+        };
+        "ExpenseItem.xml": {
+            /** @description The row number printed on the invoice; items are ordered by it. Not unique. */
+            position: number;
+            name: string;
+            /** @description The seller's own product code. */
+            sellerCode: string | null;
+            /** @description The Global Trade Item Number (EAN), when printed. */
+            gtin: string | null;
+            /** @description The unit as printed (`szt.`, `l`, `kg`). */
+            unit: string | null;
+            /** @description Decimal string. */
+            quantity: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitNetPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            unitGrossPrice: string | null;
+            /** @description Decimal string in the expense's currency. */
+            discount: string | null;
+            /** @description Minor units; an invoice gives the net or the gross value, or both. */
+            netAmount: number | null;
+            grossAmount: number | null;
+            vatAmount: number | null;
+            /** @description A rate code of the organization's country (GET /vat-rates); null when the printed rate has none. */
+            vatRate: string | null;
+            /** @description In a correction: the row as it was before the correction. */
+            beforeCorrection: boolean;
+        };
         /**
          * @description The expenses of the organization selected by the X-Organization-Id header issued in a period of
          *     business dates (ADR 0017), with their totals per currency. Owners and managers only.
@@ -3350,8 +3466,8 @@ export interface components {
             from: string;
             /** @description Last issue date of the period, inclusive, `YYYY-MM-DD`. */
             to: string;
-            /** @description The expenses, newest issue date first. */
-            items: components["schemas"]["Expense"][];
+            /** @description The expenses, newest issue date first, without their items (GET /expenses/{id}). */
+            items: components["schemas"]["ExpenseListItem"][];
             /** @description Totals of the listed expenses per currency: the organization's current currency first, always present. */
             totals: components["schemas"]["ExpenseCurrencyTotal"][];
         };
@@ -3364,10 +3480,82 @@ export interface components {
             from: string;
             /** @description Last issue date of the period, inclusive, `YYYY-MM-DD`. */
             to: string;
-            /** @description The expenses, newest issue date first. */
-            items: components["schemas"]["Expense.jsonld"][];
+            /** @description The expenses, newest issue date first, without their items (GET /expenses/{id}). */
+            items: components["schemas"]["ExpenseListItem.jsonld"][];
             /** @description Totals of the listed expenses per currency: the organization's current currency first, always present. */
             totals: components["schemas"]["ExpenseCurrencyTotal.jsonld"][];
+        };
+        ExpenseListItem: {
+            id: string;
+            /** @description Where the expense came from: `ksef` (imported) or `manual`. */
+            source: string;
+            /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
+            externalId: string | null;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
+            sellerName: string;
+            /** @description The issue date, `YYYY-MM-DD`. */
+            issueDate: string;
+            /** @description `regular`, `correction`, `advance`, `settlement`, `simplified`, `advance_correction` or `settlement_correction`. */
+            kind: string;
+            /** @description For a correction: the corrected invoice's id in the same source, when the correction gives it. */
+            correctedExternalId: string | null;
+            /** @description ISO 4217 code of the amounts. */
+            currency: string;
+            /** @description ISO 4217 code VAT is settled in: the organization's currency when the expense was stored. */
+            taxCurrency: string;
+            netTotal: number;
+            vatTotal: number;
+            grossTotal: number;
+            /** @description The VAT breakdown as printed, highest rate first, exempt last; may be empty. */
+            vatLines: components["schemas"]["ExpenseVatLine"][];
+            /** @description True when the original document is stored (GET /expenses/{id}/document). */
+            hasDocument: boolean;
+            /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
+            documentFormat: string | null;
+            /**
+             * Format: date-time
+             * @description When the expense was imported or entered.
+             */
+            createdAt: string;
+        };
+        "ExpenseListItem.jsonld": {
+            id: string;
+            /** @description Where the expense came from: `ksef` (imported) or `manual`. */
+            source: string;
+            /** @description The invoice's id in its source (for KSeF, the KSeF number); null for a manual expense. */
+            externalId: string | null;
+            /** @description Null for a manual expense without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description Null for a manual expense whose seller has none. */
+            sellerTaxId: string | null;
+            sellerName: string;
+            /** @description The issue date, `YYYY-MM-DD`. */
+            issueDate: string;
+            /** @description `regular`, `correction`, `advance`, `settlement`, `simplified`, `advance_correction` or `settlement_correction`. */
+            kind: string;
+            /** @description For a correction: the corrected invoice's id in the same source, when the correction gives it. */
+            correctedExternalId: string | null;
+            /** @description ISO 4217 code of the amounts. */
+            currency: string;
+            /** @description ISO 4217 code VAT is settled in: the organization's currency when the expense was stored. */
+            taxCurrency: string;
+            netTotal: number;
+            vatTotal: number;
+            grossTotal: number;
+            /** @description The VAT breakdown as printed, highest rate first, exempt last; may be empty. */
+            vatLines: components["schemas"]["ExpenseVatLine.jsonld"][];
+            /** @description True when the original document is stored (GET /expenses/{id}/document). */
+            hasDocument: boolean;
+            /** @description What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
+            documentFormat: string | null;
+            /**
+             * Format: date-time
+             * @description When the expense was imported or entered.
+             */
+            createdAt: string;
         };
         ExpenseVatLine: {
             /** @description A rate code of the organization's country (GET /vat-rates): "23", "zw". */
@@ -5554,7 +5742,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_category_name_taken" | "expenses.expense_category_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_expense_category_name" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.items_on_manual" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;

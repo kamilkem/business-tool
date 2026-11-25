@@ -37,6 +37,7 @@ function expense(overrides: Partial<Expense> = {}): Expense {
     hasDocument: true,
     documentFormat: "FA (3)",
     createdAt: "2026-11-04T03:00:00+00:00",
+    items: [],
     ...overrides,
   }
 }

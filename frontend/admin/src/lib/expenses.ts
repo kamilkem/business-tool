@@ -9,7 +9,10 @@ import type { KsefConnection } from "./ksef"
  * issue date with totals per currency.
  */
 
+/** GET /expenses/{id}, and what POST and PATCH /expenses return: an expense with its items (ADR 0040). */
 export type Expense = components["schemas"]["Expense"]
+/** An expense as GET /expenses lists it: everything but its items. Every Expense is one. */
+export type ExpenseListItem = components["schemas"]["ExpenseListItem"]
 export type ExpenseList = components["schemas"]["ExpenseList"]
 export type ExpenseCurrencyTotal = components["schemas"]["ExpenseCurrencyTotal"]
 
