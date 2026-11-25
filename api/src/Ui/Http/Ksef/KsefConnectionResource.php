@@ -181,6 +181,16 @@ final readonly class KsefConnectionResource
         public ?\DateTimeImmutable $syncRetryNotBefore,
         /** When "Import now" was last requested; another request is accepted 15 minutes later. */
         public ?\DateTimeImmutable $lastImportRequestedAt,
+        /** How the last import fetched the invoices: `single` (one at a time) or `export` (a package, when more than 64 were waiting); null before the first. */
+        public ?string $lastImportMethod,
+        /** Invoices the last import knew were still waiting; null when it could not tell (none ran, or KSeF is preparing a package). */
+        public ?int $importBacklogCount,
+        /** Whether more than importBacklogCount may be waiting: the last import did not reach the end. */
+        public bool $importBacklogIsMinimum,
+        /** KSeF is preparing a package of invoices; the next import picks it up. */
+        public bool $exportPending,
+        /** The start of the scheduled import expected to finish the backlog; null when nothing is known to be waiting. */
+        public ?\DateTimeImmutable $importEstimatedAt,
         public \DateTimeImmutable $createdAt,
     ) {
     }
@@ -208,6 +218,11 @@ final readonly class KsefConnectionResource
             $view->lastSyncSkippedCount,
             $view->syncRetryNotBefore,
             $view->lastImportRequestedAt,
+            $view->lastImportMethod,
+            $view->importBacklogCount,
+            $view->importBacklogIsMinimum,
+            $view->exportPending,
+            $view->importEstimatedAt,
             $view->createdAt,
         );
     }

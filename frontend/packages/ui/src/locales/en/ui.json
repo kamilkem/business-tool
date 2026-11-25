@@ -165,6 +165,7 @@
       "rate_limited": "KSeF is receiving too many requests. Try again later.",
       "request_failed": {
         "malformed_response": "KSeF sent an answer that could not be read. Try again later.",
+        "no_symmetric_key_encryption_key": "KSeF offers no key to encrypt the invoice package with. Try again later.",
         "no_token_encryption_key": "KSeF offers no key to encrypt the token with. Try again later.",
         "unexpected_status": "KSeF refused the request (status {{httpStatus}}). Try again later."
       },

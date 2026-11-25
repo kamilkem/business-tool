@@ -1,0 +1,7 @@
+{
+  "status": {
+    "code": 420,
+    "description": "Zakres filtrowania wykracza poza dostępny zakres danych",
+    "details": ["Parametr dateRange.from jest późniejszy niż PermanentStorageHwmDate przy włączonym restrictToPermanentStorageHwmDate."]
+  }
+}

@@ -124,6 +124,7 @@ ksef.not_available.invalid_nip
 ksef.not_available.outside_poland
 ksef.rate_limited
 ksef.request_failed.malformed_response
+ksef.request_failed.no_symmetric_key_encryption_key
 ksef.request_failed.no_token_encryption_key
 ksef.request_failed.unexpected_status
 ksef.token_not_set

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Scheduler;
 
 use App\Ksef\Application\Job\StartKsefImports\StartKsefImportsJob;
+use App\Ksef\Domain\Model\KsefImportSchedule;
 use App\Shared\Application\Job\ScheduledJob;
 use App\TimeTracking\Application\Job\StartLongShiftReports\StartLongShiftReportsJob;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -24,9 +25,9 @@ use Symfony\Contracts\Cache\CacheInterface;
 #[AsSchedule('default')]
 final readonly class DefaultSchedule implements ScheduleProviderInterface
 {
-    /** KSeF import: hourly from 20:00 to 06:00 Polish time, when KSeF's limits are higher (ADR 0023 §5). */
-    public const string KSEF_IMPORT_CRON = '0 20-23,0-6 * * *';
-    public const string KSEF_IMPORT_TIME_ZONE = 'Europe/Warsaw';
+    /** KSeF import: hourly from 20:00 to 06:00 Polish time, when KSeF's limits are higher (ADR 0023 §5, ADR 0039 §7). */
+    public const string KSEF_IMPORT_CRON = KsefImportSchedule::CRON;
+    public const string KSEF_IMPORT_TIME_ZONE = KsefImportSchedule::TIME_ZONE;
 
     /**
      * Long shifts (#33): hourly, in UTC. The fan-out picks the organizations with an open shift that

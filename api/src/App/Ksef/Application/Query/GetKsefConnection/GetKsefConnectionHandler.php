@@ -13,12 +13,14 @@ use App\Secret\Application\Query\GetOrganizationSecret\GetOrganizationSecretQuer
 use App\Secret\Application\Query\GetOrganizationSecret\OrganizationSecretView;
 use App\Shared\Application\Query\QueryBusInterface;
 use App\Shared\Application\Query\QueryHandlerInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class GetKsefConnectionHandler implements QueryHandlerInterface
 {
     public function __construct(
         private KsefConnectionRepositoryInterface $connections,
         private QueryBusInterface $queryBus,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -40,6 +42,6 @@ final readonly class GetKsefConnectionHandler implements QueryHandlerInterface
         /** @var OrganizationSecretView|null $secret */
         $secret = null === $secretId ? null : $this->queryBus->ask(new GetOrganizationSecretQuery($query->organizationId, $secretId->toRfc4122()));
 
-        return KsefConnectionView::fromConnection($connection, $secret?->setAt, Nip::tryFromTaxId($actor->taxId)?->value, new \DateTimeZone($actor->timeZone));
+        return KsefConnectionView::fromConnection($connection, $secret?->setAt, Nip::tryFromTaxId($actor->taxId)?->value, new \DateTimeZone($actor->timeZone), $this->clock->now());
     }
 }

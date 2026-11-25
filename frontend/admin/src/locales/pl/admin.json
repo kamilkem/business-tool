@@ -252,7 +252,24 @@
       "import": "Import",
       "noToken": "Wstrzymany: nie zapisano tokenu KSeF.",
       "saveInSettings": "Zapisz go w ustawieniach",
-      "ownerSaves": "Token zapisuje właściciel w ustawieniach."
+      "ownerSaves": "Token zapisuje właściciel w ustawieniach.",
+      "methodLabel": "Sposób",
+      "method": {
+        "single": "Po jednej fakturze",
+        "export": "Eksport paczki (czeka ponad 64 faktury)"
+      },
+      "leftLabel": "Do zaimportowania",
+      "left_one": "{{count}} faktura",
+      "left_few": "{{count}} faktury",
+      "left_many": "{{count}} faktur",
+      "left_other": "{{count}} faktury",
+      "leftAtLeast_one": "Co najmniej {{count}} faktura",
+      "leftAtLeast_few": "Co najmniej {{count}} faktury",
+      "leftAtLeast_many": "Co najmniej {{count}} faktur",
+      "leftAtLeast_other": "Co najmniej {{count}} faktury",
+      "preparingPackage": "KSeF przygotowuje paczkę faktur; pobierze ją najbliższy import.",
+      "estimateLabel": "Przewidywany koniec",
+      "estimate": "Z importem o {{when}}"
     },
     "rejected": {
       "title": "Import z KSeF wstrzymany: token został odrzucony",

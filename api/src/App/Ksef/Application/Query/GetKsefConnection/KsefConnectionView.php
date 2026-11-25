@@ -30,11 +30,16 @@ final readonly class KsefConnectionView
         public int $lastSyncSkippedCount,
         public ?\DateTimeImmutable $syncRetryNotBefore,
         public ?\DateTimeImmutable $lastImportRequestedAt,
+        public ?string $lastImportMethod,
+        public ?int $importBacklogCount,
+        public bool $importBacklogIsMinimum,
+        public bool $exportPending,
+        public ?\DateTimeImmutable $importEstimatedAt,
         public \DateTimeImmutable $createdAt,
     ) {
     }
 
-    public static function fromConnection(KsefConnection $connection, ?\DateTimeImmutable $tokenSetAt, ?string $nip, \DateTimeZone $timeZone): self
+    public static function fromConnection(KsefConnection $connection, ?\DateTimeImmutable $tokenSetAt, ?string $nip, \DateTimeZone $timeZone, \DateTimeImmutable $now): self
     {
         return new self(
             $connection->getId()->toRfc4122(),
@@ -57,6 +62,11 @@ final readonly class KsefConnectionView
             $connection->getLastSyncSkippedCount(),
             $connection->getSyncRetryNotBefore(),
             $connection->getLastImportRequestedAt(),
+            $connection->getLastSyncMethod()?->value,
+            $connection->getImportBacklogCount(),
+            $connection->isImportBacklogMinimum(),
+            null !== $connection->getPendingExport(),
+            $connection->importEstimatedAt($now),
             $connection->getCreatedAt(),
         );
     }

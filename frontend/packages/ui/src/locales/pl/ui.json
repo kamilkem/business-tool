@@ -167,6 +167,7 @@
       "rate_limited": "KSeF otrzymuje zbyt wiele zapytań. Spróbuj ponownie później.",
       "request_failed": {
         "malformed_response": "KSeF wysłał odpowiedź, której nie udało się odczytać. Spróbuj ponownie później.",
+        "no_symmetric_key_encryption_key": "KSeF nie udostępnia klucza do zaszyfrowania paczki faktur. Spróbuj ponownie później.",
         "no_token_encryption_key": "KSeF nie udostępnia klucza do zaszyfrowania tokenu. Spróbuj ponownie później.",
         "unexpected_status": "KSeF odrzucił zapytanie (status {{httpStatus}}). Spróbuj ponownie później."
       },

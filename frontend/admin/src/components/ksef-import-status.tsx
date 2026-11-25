@@ -15,7 +15,7 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { type Membership, can } from "@/lib/access"
 import { api } from "@/lib/api"
 import { importAvailability, isImportPending } from "@/lib/expenses"
-import { type KsefConnection, ksefErrorLabel, ksefState } from "@/lib/ksef"
+import { type KsefConnection, ksefBacklogLabel, ksefErrorLabel, ksefImportMethodLabel, ksefState } from "@/lib/ksef"
 import { ksefConnectionQuery } from "@/lib/queries"
 
 /** How often the status is asked for while a requested import has not run yet. */
@@ -144,12 +144,32 @@ function ImportDetails({
 }) {
   const format = useDateTimeFormat()
   const { t } = useTranslation("admin")
+  const backlog = ksefBacklogLabel(connection)
+  const method = ksefImportMethodLabel(connection.lastImportMethod)
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
       <dt className="text-muted-foreground">{t("ksef.import.lastRunLabel")}</dt>
       <dd>{connection.lastSyncAt ? format.dateTime(connection.lastSyncAt) : t("ksef.card.notYet")}</dd>
       <dt className="text-muted-foreground">{t("ksef.import.lastSuccess")}</dt>
       <dd>{connection.lastSyncSucceededAt ? format.dateTime(connection.lastSyncSucceededAt) : t("ksef.card.notYet")}</dd>
+      {method && (
+        <>
+          <dt className="text-muted-foreground">{t("ksef.import.methodLabel")}</dt>
+          <dd>{method}</dd>
+        </>
+      )}
+      {backlog && (
+        <>
+          <dt className="text-muted-foreground">{t("ksef.import.leftLabel")}</dt>
+          <dd>{backlog}</dd>
+        </>
+      )}
+      {connection.importEstimatedAt && (
+        <>
+          <dt className="text-muted-foreground">{t("ksef.import.estimateLabel")}</dt>
+          <dd>{t("ksef.import.estimate", { when: format.dateTime(connection.importEstimatedAt) })}</dd>
+        </>
+      )}
       {connection.lastSyncError && (
         <>
           <dt className="text-muted-foreground">{t("ksef.import.lastError")}</dt>

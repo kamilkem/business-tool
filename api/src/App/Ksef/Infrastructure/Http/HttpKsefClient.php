@@ -9,9 +9,13 @@ use App\Ksef\Domain\Exception\KsefRateLimitedException;
 use App\Ksef\Domain\Exception\KsefRequestFailedException;
 use App\Ksef\Domain\Exception\KsefUnavailableException;
 use App\Ksef\Domain\KsefClientInterface;
+use App\Ksef\Domain\KsefInvoicePackageContentsInterface;
 use App\Ksef\Domain\Model\KsefFormCode;
+use App\Ksef\Domain\Model\KsefInvoiceExportStatus;
 use App\Ksef\Domain\Model\KsefInvoiceMetadata;
 use App\Ksef\Domain\Model\KsefInvoiceMetadataPage;
+use App\Ksef\Domain\Model\KsefInvoicePackage;
+use App\Ksef\Domain\Model\KsefInvoicePackagePart;
 use App\Ksef\Domain\Model\KsefPurchaseInvoiceQuery;
 use App\Ksef\Domain\Model\KsefSession;
 use App\Shared\Domain\Time\BusinessDate;
@@ -34,6 +38,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * integrator guide (https://github.com/CIRFMF/ksef-docs: uwierzytelnianie.md, auth/sesje.md,
  * pobieranie-faktur/, limity/limity-api.md).
  *
+ * Package exports (ADR 0039): the AES-256 key and IV come from KsefExportKey, the key is encrypted with
+ * KSeF's SymmetricKeyEncryption key, and the parts are downloaded from their own URLs (no access
+ * token, no API limits), checked, decrypted with AES-256-CBC and joined into a temporary ZIP file.
+ *
  * Every request except the public auth challenge first waits for room within KSeF's API limits
  * (KsefRequestPacer, KsefApiLimit). Network errors and 5xx answers are retried up to 3 times with
  * exponential backoff; a 429 is never retried (ADR 0023 §5). Access and refresh tokens stay in the
@@ -48,7 +56,20 @@ final readonly class HttpKsefClient implements KsefClientInterface
     /** The access token is refreshed when it expires within this margin. */
     public const int REFRESH_MARGIN_SECONDS = 60;
 
+    /** How often the export status is asked for while KSeF builds the package (ADR 0039 §4). */
+    public const float EXPORT_POLL_INTERVAL_SECONDS = 5.0;
+
     private const string TOKEN_ENCRYPTION_USAGE = 'KsefTokenEncryption';
+    private const string SYMMETRIC_KEY_ENCRYPTION_USAGE = 'SymmetricKeyEncryption';
+
+    /** Statuses of `GET /invoices/exports/{referenceNumber}` (OpenAPI, InvoiceExportStatusResponse). */
+    private const int EXPORT_IN_PROGRESS = 100;
+    private const int EXPORT_SUCCEEDED = 200;
+    private const int EXPORT_EXPIRED = 210;
+    private const int EXPORT_BEYOND_HWM = 420;
+    /** Unknown error and "cancelled by the system, try again". */
+    private const array EXPORT_TRANSIENT_FAILURES = [500, 550];
+    private const string PACKAGE_METADATA_FILE = '_metadata.json';
 
     /** Statuses of `GET /auth/{referenceNumber}` (OpenAPI, AuthenticationOperationStatusResponse). */
     private const int AUTH_IN_PROGRESS = 100;
@@ -63,12 +84,15 @@ final readonly class HttpKsefClient implements KsefClientInterface
         private KsefRequestPacer $pacer,
         #[Autowire(env: 'KSEF_API_URL')]
         private string $apiUrl,
+        #[Autowire('%kernel.secret%')]
+        #[\SensitiveParameter]
+        private string $exportKeySecret,
     ) {
     }
 
     public function authenticateWithKsefToken(string $nip, #[\SensitiveParameter] string $ksefToken): KsefSession
     {
-        $key = $this->tokenEncryptionKey();
+        $key = $this->encryptionKey(self::TOKEN_ENCRYPTION_USAGE);
 
         $challenge = $this->json('auth challenge', $this->send('auth challenge', 'POST', 'auth/challenge', limit: null), 200);
         $timestampMs = self::int($challenge, 'timestampMs', 'auth challenge');
@@ -122,27 +146,8 @@ final readonly class HttpKsefClient implements KsefClientInterface
             ],
         ], KsefApiLimit::InvoiceMetadataQuery), 200);
 
-        $invoices = [];
-        foreach (self::list($page, 'invoices', $what) as $record) {
-            if (!\is_array($record)) {
-                throw KsefRequestFailedException::malformedResponse($what, 'an invoice record is not an object');
-            }
-            $formCode = self::object($record, 'formCode', $what);
-            $invoices[] = new KsefInvoiceMetadata(
-                self::string($record, 'ksefNumber', $what),
-                new KsefFormCode(
-                    self::string($formCode, 'systemCode', $what),
-                    self::string($formCode, 'schemaVersion', $what),
-                    self::string($formCode, 'value', $what),
-                ),
-                self::string($record, 'invoiceHash', $what),
-                self::date($record, 'permanentStorageDate', $what),
-                self::businessDate($record, 'issueDate', $what),
-            );
-        }
-
         return new KsefInvoiceMetadataPage(
-            $invoices,
+            self::metadataRecords($page, $what),
             self::bool($page, 'hasMore', $what),
             self::bool($page, 'isTruncated', $what),
             null === ($page['permanentStorageHwmDate'] ?? null) ? null : self::date($page, 'permanentStorageHwmDate', $what),
@@ -163,6 +168,129 @@ final readonly class HttpKsefClient implements KsefClientInterface
         }
 
         return $xml;
+    }
+
+    public function startPurchaseInvoiceExport(KsefSession $session, KsefPurchaseInvoiceQuery $range, string $keyId): string
+    {
+        $what = 'invoice export';
+        $publicKey = $this->encryptionKey(self::SYMMETRIC_KEY_ENCRYPTION_USAGE);
+        $exportKey = KsefExportKey::derive($this->exportKeySecret, $session->contextNip, $keyId);
+        $encryptedKey = $publicKey['key']->encrypt($exportKey->key);
+        if (!\is_string($encryptedKey)) {
+            throw KsefRequestFailedException::malformedResponse('public key certificates', 'the SymmetricKeyEncryption key cannot encrypt the export key');
+        }
+
+        $body = $this->json($what, $this->sendAuthorized($session, $what, 'POST', 'invoices/exports', [
+            'json' => [
+                'encryption' => [
+                    'encryptedSymmetricKey' => base64_encode($encryptedKey),
+                    'initializationVector' => base64_encode($exportKey->iv),
+                    'publicKeyId' => $publicKey['publicKeyId'],
+                ],
+                'filters' => [
+                    'subjectType' => 'Subject2',
+                    'dateRange' => [
+                        'dateType' => 'PermanentStorage',
+                        'from' => $range->from->format('Y-m-d\TH:i:s.vP'),
+                        'to' => $range->to->format('Y-m-d\TH:i:s.vP'),
+                        'restrictToPermanentStorageHwmDate' => true,
+                    ],
+                ],
+                'compressionType' => 'Zip',
+            ],
+        ], KsefApiLimit::InvoiceExport), 201);
+
+        return self::string($body, 'referenceNumber', $what);
+    }
+
+    public function getPurchaseInvoiceExport(KsefSession $session, string $referenceNumber, int $waitSeconds): KsefInvoiceExportStatus
+    {
+        $what = 'invoice export status';
+        $waitUntil = (float) $this->clock->now()->format('U.u') + max(0, $waitSeconds);
+        while (true) {
+            $response = $this->sendAuthorized($session, $what, 'GET', 'invoices/exports/'.rawurlencode($referenceNumber), [], KsefApiLimit::InvoiceExportStatus);
+            // The status is kept for 7 days.
+            if (410 === $response->getStatusCode()) {
+                return KsefInvoiceExportStatus::expired();
+            }
+            $body = $this->json($what, $response, 200);
+            $status = self::object($body, 'status', $what);
+            $code = self::int($status, 'code', $what);
+
+            switch (true) {
+                case self::EXPORT_SUCCEEDED === $code:
+                    return KsefInvoiceExportStatus::ready(self::package(self::object($body, 'package', $what), $what));
+                case self::EXPORT_EXPIRED === $code:
+                    return KsefInvoiceExportStatus::expired();
+                case self::EXPORT_BEYOND_HWM === $code:
+                    return KsefInvoiceExportStatus::nothingToExport();
+                case self::EXPORT_IN_PROGRESS !== $code:
+                    $details = self::strings($status['details'] ?? []);
+
+                    return KsefInvoiceExportStatus::failed(
+                        trim(\sprintf('%d %s %s', $code, self::string($status, 'description', $what), implode('; ', $details))),
+                        \in_array($code, self::EXPORT_TRANSIENT_FAILURES, true),
+                    );
+            }
+
+            if ((float) $this->clock->now()->format('U.u') + self::EXPORT_POLL_INTERVAL_SECONDS > $waitUntil) {
+                return KsefInvoiceExportStatus::inProgress();
+            }
+            $this->clock->sleep(self::EXPORT_POLL_INTERVAL_SECONDS);
+        }
+    }
+
+    public function openInvoicePackage(KsefSession $session, string $keyId, KsefInvoicePackage $package): KsefInvoicePackageContentsInterface
+    {
+        $what = 'invoice package';
+        $exportKey = KsefExportKey::derive($this->exportKeySecret, $session->contextNip, $keyId);
+        $path = tempnam(sys_get_temp_dir(), 'ksef-package-');
+        if (false === $path) {
+            throw new \RuntimeException('No temporary file for the KSeF invoice package.');
+        }
+
+        $zip = new \ZipArchive();
+        $opened = false;
+        try {
+            $file = fopen($path, 'wb') ?: throw new \RuntimeException('The temporary file for the KSeF invoice package cannot be written.');
+            try {
+                foreach ($package->parts as $part) {
+                    fwrite($file, $this->downloadPart($what, $part, $exportKey));
+                }
+            } finally {
+                fclose($file);
+            }
+
+            if (true !== $zip->open($path, \ZipArchive::RDONLY)) {
+                throw KsefRequestFailedException::malformedResponse($what, 'the decrypted package is not a ZIP archive');
+            }
+            $opened = true;
+            $metadata = $zip->getFromName(self::PACKAGE_METADATA_FILE);
+            if (!\is_string($metadata)) {
+                throw KsefRequestFailedException::malformedResponse($what, 'it holds no _metadata.json');
+            }
+            try {
+                $decoded = json_decode($metadata, true, 64, \JSON_THROW_ON_ERROR);
+            } catch (\JsonException $e) {
+                throw KsefRequestFailedException::malformedResponse($what, '_metadata.json is not JSON: '.$e->getMessage());
+            }
+            if (!\is_array($decoded)) {
+                throw KsefRequestFailedException::malformedResponse($what, '_metadata.json is not an object');
+            }
+            $invoices = self::metadataRecords($decoded, $what);
+            usort($invoices, static fn (KsefInvoiceMetadata $a, KsefInvoiceMetadata $b): int => $a->permanentStorageDate <=> $b->permanentStorageDate);
+
+            return new ZipInvoicePackage($zip, $path, $invoices);
+        } catch (\Throwable $e) {
+            if ($opened) {
+                $zip->close();
+            }
+            if (is_file($path)) {
+                unlink($path);
+            }
+
+            throw $e;
+        }
     }
 
     public function endSession(KsefSession $session): void
@@ -237,15 +365,105 @@ final readonly class HttpKsefClient implements KsefClientInterface
     }
 
     /**
-     * KSeF's public key for KSeF token encryption, cached until the certificate's `validTo`.
+     * One part of an export package: downloaded from its URL (no access token, outside the API limits),
+     * checked against its SHA-256 before and after AES-256-CBC decryption.
+     */
+    private function downloadPart(string $what, KsefInvoicePackagePart $part, KsefExportKey $exportKey): string
+    {
+        $response = $this->send($what, 'GET', $part->url, ['headers' => ['Accept' => 'application/octet-stream']], limit: null, absolute: true);
+        $this->expectStatus($what, $response, 200);
+
+        $encrypted = $response->getContent(false);
+        if (!hash_equals($part->encryptedPartHash, base64_encode(hash('sha256', $encrypted, true)))) {
+            throw KsefRequestFailedException::malformedResponse($what, \sprintf('part %d does not match its encrypted SHA-256 hash', $part->ordinalNumber));
+        }
+        $plain = openssl_decrypt($encrypted, 'aes-256-cbc', $exportKey->key, \OPENSSL_RAW_DATA, $exportKey->iv);
+        if (false === $plain) {
+            throw KsefRequestFailedException::malformedResponse($what, \sprintf('part %d does not decrypt with the export key', $part->ordinalNumber));
+        }
+        if (!hash_equals($part->partHash, base64_encode(hash('sha256', $plain, true)))) {
+            throw KsefRequestFailedException::malformedResponse($what, \sprintf('part %d does not match its SHA-256 hash', $part->ordinalNumber));
+        }
+
+        return $plain;
+    }
+
+    /**
+     * The `package` of a finished export.
+     *
+     * @param array<array-key, mixed> $package
+     */
+    private static function package(array $package, string $what): KsefInvoicePackage
+    {
+        $compression = $package['compressionType'] ?? 'Zip';
+        if ('Zip' !== $compression) {
+            throw KsefRequestFailedException::malformedResponse($what, \sprintf('the package is compressed as "%s", not Zip', \is_string($compression) ? $compression : get_debug_type($compression)));
+        }
+        $parts = [];
+        foreach (self::list($package, 'parts', $what) as $part) {
+            if (!\is_array($part)) {
+                throw KsefRequestFailedException::malformedResponse($what, 'a package part is not an object');
+            }
+            $parts[] = new KsefInvoicePackagePart(
+                self::int($part, 'ordinalNumber', $what),
+                self::string($part, 'url', $what),
+                self::string($part, 'partHash', $what),
+                self::string($part, 'encryptedPartHash', $what),
+            );
+        }
+        usort($parts, static fn (KsefInvoicePackagePart $a, KsefInvoicePackagePart $b): int => $a->ordinalNumber <=> $b->ordinalNumber);
+
+        return new KsefInvoicePackage(
+            self::int($package, 'invoiceCount', $what),
+            $parts,
+            self::bool($package, 'isTruncated', $what),
+            null === ($package['lastPermanentStorageDate'] ?? null) ? null : self::date($package, 'lastPermanentStorageDate', $what),
+            null === ($package['permanentStorageHwmDate'] ?? null) ? null : self::date($package, 'permanentStorageHwmDate', $what),
+        );
+    }
+
+    /**
+     * The `invoices` of a metadata page or of a package's `_metadata.json` (InvoiceMetadata).
+     *
+     * @param array<array-key, mixed> $data
+     *
+     * @return list<KsefInvoiceMetadata>
+     */
+    private static function metadataRecords(array $data, string $what): array
+    {
+        $invoices = [];
+        foreach (self::list($data, 'invoices', $what) as $record) {
+            if (!\is_array($record)) {
+                throw KsefRequestFailedException::malformedResponse($what, 'an invoice record is not an object');
+            }
+            $formCode = self::object($record, 'formCode', $what);
+            $invoices[] = new KsefInvoiceMetadata(
+                self::string($record, 'ksefNumber', $what),
+                new KsefFormCode(
+                    self::string($formCode, 'systemCode', $what),
+                    self::string($formCode, 'schemaVersion', $what),
+                    self::string($formCode, 'value', $what),
+                ),
+                self::string($record, 'invoiceHash', $what),
+                self::date($record, 'permanentStorageDate', $what),
+                self::businessDate($record, 'issueDate', $what),
+            );
+        }
+
+        return $invoices;
+    }
+
+    /**
+     * KSeF's public key for `$usage` (KsefTokenEncryption, SymmetricKeyEncryption), cached until the
+     * certificate's `validTo`.
      *
      * @return array{key: RSA\PublicKey, publicKeyId: string}
      */
-    private function tokenEncryptionKey(): array
+    private function encryptionKey(string $usage): array
     {
         /** @var array{certificate: string, publicKeyId: string} $certificate */
-        $certificate = $this->cache->get('ksef_token_encryption_key_'.hash('xxh128', $this->apiUrl), function (ItemInterface $item): array {
-            $certificate = $this->fetchTokenEncryptionCertificate();
+        $certificate = $this->cache->get('ksef_public_key_'.hash('xxh128', $this->apiUrl."\0".$usage), function (ItemInterface $item) use ($usage): array {
+            $certificate = $this->fetchEncryptionCertificate($usage);
             $item->expiresAt($certificate['validTo']);
 
             return ['certificate' => $certificate['certificate'], 'publicKeyId' => $certificate['publicKeyId']];
@@ -258,11 +476,12 @@ final readonly class HttpKsefClient implements KsefClientInterface
             $key = null;
         }
         if (!$key instanceof RSA\PublicKey) {
-            throw KsefRequestFailedException::malformedResponse('public key certificates', 'the KsefTokenEncryption certificate holds no RSA key');
+            throw KsefRequestFailedException::malformedResponse('public key certificates', \sprintf('the %s certificate holds no RSA key', $usage));
         }
 
         return [
-            // RSA-OAEP with SHA-256 and MGF1-SHA-256 (uwierzytelnianie.md, "Uwierzytelnianie tokenem KSeF").
+            // RSA-OAEP with SHA-256 and MGF1-SHA-256 (uwierzytelnianie.md, "Uwierzytelnianie tokenem KSeF";
+            // the OpenAPI's EncryptionInfo for the export key).
             'key' => $key->withPadding(RSA::ENCRYPTION_OAEP)->withHash('sha256')->withMGFHash('sha256'),
             'publicKeyId' => $certificate['publicKeyId'],
         ];
@@ -280,7 +499,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
     }
 
     /** @return array{certificate: string, publicKeyId: string, validTo: \DateTimeImmutable} */
-    private function fetchTokenEncryptionCertificate(): array
+    private function fetchEncryptionCertificate(string $usage): array
     {
         $what = 'public key certificates';
         $certificates = $this->json($what, $this->send($what, 'GET', 'security/public-key-certificates'), 200);
@@ -288,7 +507,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
 
         $chosen = null;
         foreach ($certificates as $certificate) {
-            if (!\is_array($certificate) || !\in_array(self::TOKEN_ENCRYPTION_USAGE, self::list($certificate, 'usage', $what), true)) {
+            if (!\is_array($certificate) || !\in_array($usage, self::list($certificate, 'usage', $what), true)) {
                 continue;
             }
             $validFrom = self::date($certificate, 'validFrom', $what);
@@ -305,7 +524,7 @@ final readonly class HttpKsefClient implements KsefClientInterface
         }
 
         if (null === $chosen) {
-            throw KsefRequestFailedException::noTokenEncryptionKey();
+            throw self::TOKEN_ENCRYPTION_USAGE === $usage ? KsefRequestFailedException::noTokenEncryptionKey() : KsefRequestFailedException::noSymmetricKeyEncryptionKey();
         }
 
         return ['certificate' => $chosen['certificate'], 'publicKeyId' => $chosen['publicKeyId'], 'validTo' => $chosen['validTo']];
@@ -315,20 +534,21 @@ final readonly class HttpKsefClient implements KsefClientInterface
      * Sends a request, retrying network errors and 5xx answers; the body is read inside the retry
      * loop so that a connection dropped mid-body is retried too. Every attempt is paced within
      * `$limit` for `$context` (the NIP; none for public endpoints), and `$what` names the endpoint's
-     * counter. A 429 throws at once.
+     * counter. A 429 throws at once. `$path` is relative to the API URL, or a whole URL when `$absolute`
+     * (the parts of an export package).
      *
      * @param array<string, mixed> $options
      *
      * @throws KsefRateLimitedException
      */
-    private function send(string $what, string $method, string $path, array $options = [], ?KsefApiLimit $limit = KsefApiLimit::Other, string $context = ''): ResponseInterface
+    private function send(string $what, string $method, string $path, array $options = [], ?KsefApiLimit $limit = KsefApiLimit::Other, string $context = '', bool $absolute = false): ResponseInterface
     {
         $options['headers'] = ($options['headers'] ?? []) + [
             'Accept' => 'application/json',
             // Errors as RFC 9457 problem details (every operation's description in the OpenAPI).
             'X-Error-Format' => 'problem-details',
         ];
-        $url = rtrim($this->apiUrl, '/').'/'.$path;
+        $url = $absolute ? $path : rtrim($this->apiUrl, '/').'/'.$path;
 
         for ($attempt = 1; ; ++$attempt) {
             if (null !== $limit) {

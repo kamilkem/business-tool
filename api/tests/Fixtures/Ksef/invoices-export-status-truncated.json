@@ -1,0 +1,29 @@
+{
+  "status": {
+    "code": 200,
+    "description": "Eksport faktur zakończony sukcesem"
+  },
+  "completedDate": "2026-11-25T22:00:05.1234567+00:00",
+  "packageExpirationDate": "2026-12-02T22:00:05.1234567+00:00",
+  "package": {
+    "invoiceCount": 10000,
+    "size": 22425060,
+    "parts": [
+      {
+        "ordinalNumber": 1,
+        "partName": "20261125-EH-2D2C11B000-E9C9ED8340-EE-001.zip.aes",
+        "method": "GET",
+        "url": "https://ksef-storage.example/invoice-part/20261125-EH-2D2C11B000-E9C9ED8340-EE-001.zip.aes?sig=fixture-signature",
+        "partSize": 22425060,
+        "partHash": "BKH9Uy1CjBFXiQdDUM2CJYk5LxWTm4fE1lljnl83Ajw=",
+        "encryptedPartSize": 22425072,
+        "encryptedPartHash": "HlvwRLc59EJH7O5GoeHEZxTQO5TJ/WP1QH0aFi4x2Ss=",
+        "expirationDate": "2026-11-25T23:00:00.0000000+00:00"
+      }
+    ],
+    "isTruncated": true,
+    "lastPermanentStorageDate": "2026-09-11T11:40:40.2665781+00:00",
+    "permanentStorageHwmDate": "2026-09-11T12:00:40.2665781+00:00",
+    "compressionType": "Zip"
+  }
+}

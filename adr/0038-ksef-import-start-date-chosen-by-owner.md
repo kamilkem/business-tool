@@ -1,6 +1,6 @@
 # 0038. Owners and managers choose the business date from which KSeF purchase invoices are imported
 
-Status: Accepted
+Status: Accepted (point 6 superseded by [0039](0039-ksef-package-export-for-backlogs.md))
 
 Date: 2026-11-24
 

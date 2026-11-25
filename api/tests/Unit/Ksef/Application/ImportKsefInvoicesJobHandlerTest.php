@@ -16,6 +16,10 @@ use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Ksef\Application\Command\AdvanceKsefSyncCursor\AdvanceKsefSyncCursorCommand;
 use App\Ksef\Application\Command\AdvanceKsefSyncCursor\AdvanceKsefSyncCursorHandler;
+use App\Ksef\Application\Command\FinishKsefInvoiceExport\FinishKsefInvoiceExportCommand;
+use App\Ksef\Application\Command\FinishKsefInvoiceExport\FinishKsefInvoiceExportHandler;
+use App\Ksef\Application\Command\RecordKsefInvoiceExport\RecordKsefInvoiceExportCommand;
+use App\Ksef\Application\Command\RecordKsefInvoiceExport\RecordKsefInvoiceExportHandler;
 use App\Ksef\Application\Command\RecordKsefSyncRun\RecordKsefSyncRunCommand;
 use App\Ksef\Application\Command\RecordKsefSyncRun\RecordKsefSyncRunHandler;
 use App\Ksef\Application\Job\ImportKsefInvoices\ImportKsefInvoicesJob;
@@ -28,6 +32,9 @@ use App\Ksef\Domain\Model\KsefConnection;
 use App\Ksef\Domain\Model\KsefConnectionStatus;
 use App\Ksef\Domain\Model\KsefErrorCode;
 use App\Ksef\Domain\Model\KsefFormCode;
+use App\Ksef\Domain\Model\KsefImportMethod;
+use App\Ksef\Domain\Model\KsefInvoiceExport;
+use App\Ksef\Domain\Model\KsefInvoiceExportStatus;
 use App\Ksef\Infrastructure\Fa3\Fa3InvoiceParser;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
@@ -66,6 +73,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ListStoredExternalIdsHandler::class)]
 #[CoversClass(AdvanceKsefSyncCursorHandler::class)]
 #[CoversClass(RecordKsefSyncRunHandler::class)]
+#[CoversClass(RecordKsefInvoiceExportHandler::class)]
+#[CoversClass(FinishKsefInvoiceExportHandler::class)]
 final class ImportKsefInvoicesJobHandlerTest extends TestCase
 {
     private const string NOW = '2026-11-20 21:00:00';
@@ -115,11 +124,15 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
         $importInvoice = new ImportPurchaseInvoiceHandler($this->invoices, $this->tenantContext, $this->clock, new SellerCategorySuggestion($this->invoices, new InMemoryExpenseCategoryRepository()));
         $advanceCursor = new AdvanceKsefSyncCursorHandler($this->connections);
         $recordRun = new RecordKsefSyncRunHandler($this->connections);
-        $this->commandBus = new RecordingCommandBus(function (CommandInterface $command) use ($importInvoice, $advanceCursor, $recordRun): void {
+        $recordExport = new RecordKsefInvoiceExportHandler($this->connections);
+        $finishExport = new FinishKsefInvoiceExportHandler($this->connections);
+        $this->commandBus = new RecordingCommandBus(function (CommandInterface $command) use ($importInvoice, $advanceCursor, $recordRun, $recordExport, $finishExport): void {
             match (true) {
                 $command instanceof ImportPurchaseInvoiceCommand => $importInvoice($command),
                 $command instanceof AdvanceKsefSyncCursorCommand => $advanceCursor($command),
                 $command instanceof RecordKsefSyncRunCommand => $recordRun($command),
+                $command instanceof RecordKsefInvoiceExportCommand => $recordExport($command),
+                $command instanceof FinishKsefInvoiceExportCommand => $finishExport($command),
                 default => throw new \LogicException(\sprintf('Unexpected command %s.', $command::class)),
             };
             if (null !== $this->afterCommand) {
@@ -509,6 +522,232 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
 
         self::assertSame(['KSEF-1', 'KSEF-2', 'KSEF-3'], $this->storedNumbers());
         self::assertSame(1, $this->connection->getLastSyncImportedCount(), 'KSEF-2 was stored before the interruption.');
+    }
+
+    public function test_it_downloads_one_at_a_time_while_at_most_64_invoices_are_waiting(): void
+    {
+        $this->addInvoices(64);
+
+        $this->runJob();
+
+        self::assertCount(64, $this->storedNumbers());
+        self::assertCount(64, $this->ksef->downloaded);
+        self::assertSame([], $this->ksef->exports);
+        self::assertSame(KsefImportMethod::Single, $this->connection->getLastSyncMethod());
+        self::assertSame(0, $this->connection->getImportBacklogCount());
+        self::assertFalse($this->connection->isImportBacklogMinimum());
+    }
+
+    public function test_it_counts_only_new_fa3_invoices_issued_from_the_start_date_as_waiting(): void
+    {
+        $this->addInvoices(64);
+        for ($i = 0; $i < 10; ++$i) {
+            $this->ksef->addInvoice(self::NIP, 'KSEF-FA2-'.$i, new \DateTimeImmutable('2026-10-20 08:00:00 UTC')->modify(\sprintf('+%d minutes', $i)), $this->xml, new KsefFormCode('FA (2)', '1-0E', 'FA'));
+            $this->ksef->addInvoice(self::NIP, 'KSEF-SEPTEMBER-'.$i, new \DateTimeImmutable('2026-10-21 08:00:00 UTC')->modify(\sprintf('+%d minutes', $i)), $this->xml, issueDate: BusinessDate::fromString('2026-09-28'));
+        }
+
+        $this->runJob();
+
+        self::assertSame([], $this->ksef->exports);
+        self::assertCount(64, $this->storedNumbers());
+        self::assertSame(10, $this->connection->getLastSyncSkippedCount());
+    }
+
+    public function test_it_imports_more_than_64_waiting_invoices_with_a_package_export(): void
+    {
+        $this->addInvoices(65);
+
+        $this->runJob();
+
+        self::assertCount(65, $this->storedNumbers());
+        self::assertSame([], $this->ksef->downloaded, 'nothing downloaded one at a time');
+        self::assertCount(1, $this->ksef->exports);
+        $export = $this->ksef->exports['export-1'];
+        self::assertEquals(new \DateTimeImmutable(self::FIRST_RUN_FROM), $export['from']);
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $export['to']);
+        self::assertSame(['export-1'], $this->ksef->openedPackages);
+        self::assertSame(0, $this->ksef->openPackages, 'the package is closed');
+        self::assertNull($this->connection->getPendingExport());
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->connection->getSyncCursor());
+        self::assertSame(65, $this->connection->getLastSyncImportedCount());
+        self::assertSame(KsefImportMethod::Export, $this->connection->getLastSyncMethod());
+        self::assertSame(0, $this->connection->getImportBacklogCount());
+        self::assertNull($this->connection->getLastSyncError());
+    }
+
+    public function test_it_switches_to_the_export_from_the_cursor_once_more_than_64_turn_out_to_wait(): void
+    {
+        // Pages of 50: the first one is imported one at a time, the second shows 70 waiting in all.
+        $this->ksef->truncateAfter = 50;
+        $this->addInvoices(70);
+
+        $this->runJob();
+
+        self::assertCount(70, $this->storedNumbers());
+        self::assertCount(50, $this->ksef->downloaded);
+        self::assertCount(1, $this->ksef->exports);
+        self::assertEquals(new \DateTimeImmutable('2026-10-10 08:49:00 UTC'), $this->ksef->exports['export-1']['from'], 'the cursor after the 50th invoice');
+        self::assertSame(70, $this->connection->getLastSyncImportedCount());
+        self::assertSame(KsefImportMethod::Export, $this->connection->getLastSyncMethod());
+    }
+
+    public function test_it_leaves_a_package_ksef_has_not_finished_to_the_next_run(): void
+    {
+        $this->ksef->exportReadyAfterChecks = 1;
+        $this->addInvoices(80);
+
+        $this->runJob();
+
+        self::assertSame([], $this->storedNumbers());
+        $pending = $this->connection->getPendingExport();
+        self::assertNotNull($pending);
+        self::assertSame('export-1', $pending->referenceNumber);
+        self::assertSame($this->ksef->exports['export-1']['keyId'], $pending->keyId);
+        self::assertNull($this->connection->getLastSyncError());
+        self::assertNull($this->connection->getImportBacklogCount(), 'unknown until the package is ready');
+        self::assertNotNull($this->connection->importEstimatedAt($this->clock->now()));
+
+        $this->clock->modify('+1 hour');
+        $this->runJob();
+
+        self::assertCount(80, $this->storedNumbers());
+        self::assertCount(1, $this->ksef->exports, 'the same export, not a new one');
+        self::assertNull($this->connection->getPendingExport());
+        self::assertSame(0, $this->connection->getImportBacklogCount());
+        self::assertNull($this->connection->importEstimatedAt($this->clock->now()));
+    }
+
+    public function test_it_resumes_a_package_it_had_no_time_to_finish_without_storing_an_invoice_twice(): void
+    {
+        $this->addInvoices(100);
+        // Each stored invoice takes a minute: the budget of 45 minutes ends in the middle of the package.
+        $this->afterCommand = function (CommandInterface $command): void {
+            if ($command instanceof ImportPurchaseInvoiceCommand) {
+                $this->clock->sleep(60);
+            }
+        };
+
+        $this->runJob();
+
+        self::assertCount(45, $this->storedNumbers());
+        self::assertNotNull($this->connection->getPendingExport());
+        self::assertSame(55, $this->connection->getImportBacklogCount());
+        self::assertTrue($this->connection->isImportBacklogMinimum());
+
+        $this->afterCommand = null;
+        $this->runJob();
+
+        self::assertCount(100, $this->storedNumbers());
+        self::assertSame(55, $this->connection->getLastSyncImportedCount());
+        self::assertCount(1, $this->ksef->exports);
+        self::assertSame(['export-1', 'export-1'], $this->ksef->openedPackages);
+        self::assertNull($this->connection->getPendingExport());
+    }
+
+    public function test_it_passes_over_packaged_invoices_already_in_expenses(): void
+    {
+        $this->addInvoices(5, 'KSEF-EARLY', '2026-10-02 08:00:00 UTC');
+        $this->runJob();
+        self::assertSame([], $this->ksef->exports);
+        // An earlier start reads the same days again, now with more than 64 waiting.
+        $this->chooseStartDate('2026-09-01');
+        $this->addInvoices(65, 'KSEF-SEPTEMBER', '2026-09-02 08:00:00 UTC');
+
+        $this->runJob();
+
+        self::assertCount(70, $this->storedNumbers());
+        self::assertSame(65, $this->connection->getLastSyncImportedCount());
+        self::assertCount(1, $this->ksef->exports);
+    }
+
+    public function test_it_continues_with_a_new_export_after_a_truncated_package(): void
+    {
+        $this->ksef->packageLimit = 40;
+        $this->addInvoices(100);
+
+        $this->runJob();
+
+        self::assertCount(100, $this->storedNumbers());
+        self::assertCount(3, $this->ksef->exports);
+        self::assertEquals(new \DateTimeImmutable('2026-10-10 08:39:00 UTC'), $this->ksef->exports['export-2']['from'], 'the last invoice of the first package');
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $this->connection->getSyncCursor());
+        self::assertSame(0, $this->connection->getImportBacklogCount());
+    }
+
+    public function test_it_requests_a_new_export_when_the_pending_one_expired(): void
+    {
+        $this->ksef->exportReadyAfterChecks = 1;
+        $this->addInvoices(70);
+        $this->runJob();
+        $this->ksef->answerExportWith('export-1', KsefInvoiceExportStatus::expired());
+        $this->ksef->exportReadyAfterChecks = 0;
+
+        $this->runJob();
+
+        self::assertCount(70, $this->storedNumbers());
+        self::assertSame(['export-2'], $this->ksef->openedPackages);
+        self::assertNull($this->connection->getPendingExport());
+    }
+
+    public function test_it_drops_a_failed_export_and_records_why(): void
+    {
+        $this->ksef->exportReadyAfterChecks = 1;
+        $this->addInvoices(70);
+        $this->runJob();
+        $this->ksef->answerExportWith('export-1', KsefInvoiceExportStatus::failed('550 Operacja została anulowana przez system', true));
+
+        $this->runJob();
+
+        self::assertSame([], $this->storedNumbers());
+        self::assertSame(KsefErrorCode::Unavailable, $this->connection->getLastSyncError());
+        self::assertStringContainsString('export-1 failed: 550', (string) $this->connection->getLastSyncErrorMessage());
+        self::assertNull($this->connection->getPendingExport(), 'the next run requests a new one');
+    }
+
+    public function test_it_gives_up_a_pending_export_whose_range_no_longer_holds_the_cursor(): void
+    {
+        $this->addInvoices(70);
+        $this->connection->exportStarted(new KsefInvoiceExport('export-stale', Uuid::v7()->toRfc4122(), new \DateTimeImmutable('2026-11-01 00:00 UTC'), new \DateTimeImmutable('2026-11-02 00:00 UTC'), new \DateTimeImmutable('2026-11-02 00:00 UTC')));
+
+        $this->runJob();
+
+        self::assertCount(70, $this->storedNumbers());
+        self::assertSame(['export-1'], $this->ksef->openedPackages);
+        self::assertNull($this->connection->getPendingExport());
+    }
+
+    public function test_it_stops_at_a_packaged_invoice_that_does_not_match_its_hash_and_drops_the_export(): void
+    {
+        $this->addInvoices(70);
+        $this->ksef->corruptDownloadOf('KSEF-011');
+
+        $this->runJob();
+
+        self::assertCount(11, $this->storedNumbers());
+        self::assertSame(KsefErrorCode::RequestFailed, $this->connection->getLastSyncError());
+        self::assertEquals(new \DateTimeImmutable('2026-10-10 08:10:00 UTC'), $this->connection->getSyncCursor(), 'before the corrupted invoice');
+        self::assertNull($this->connection->getPendingExport());
+        self::assertSame(0, $this->ksef->openPackages);
+    }
+
+    public function test_it_records_at_least_the_invoices_it_counted_when_it_stops_early(): void
+    {
+        $this->addInvoices(30);
+        $this->ksef->failDownloadOf('KSEF-010', new KsefRateLimitedException(600, 'Too many requests.'));
+
+        $this->runJob();
+
+        self::assertSame(20, $this->connection->getImportBacklogCount());
+        self::assertTrue($this->connection->isImportBacklogMinimum());
+        self::assertSame(KsefImportMethod::Single, $this->connection->getLastSyncMethod());
+    }
+
+    /** `$count` FA(3) invoices stored a minute apart from `$from`, numbered from 000. */
+    private function addInvoices(int $count, string $prefix = 'KSEF', string $from = '2026-10-10 08:00:00 UTC'): void
+    {
+        for ($i = 0; $i < $count; ++$i) {
+            $this->ksef->addInvoice(self::NIP, \sprintf('%s-%03d', $prefix, $i), new \DateTimeImmutable($from)->modify(\sprintf('+%d minutes', $i)), $this->xml);
+        }
     }
 
     private function chooseStartDate(string $date): void

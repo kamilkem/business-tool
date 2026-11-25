@@ -17,6 +17,10 @@ https://api.ksef.mf.gov.pl/docs/v2/openapi.json (PROD), checked on 2026-11-12.
 | `invoices-query-metadata*.json` | `POST /invoices/query/metadata` | OpenAPI example, random NIPs |
 | `invoice-fa3.xml` | `GET /invoices/ksef/{ksefNumber}` | a minimal FA(3) document, random NIPs; valid against the FA(3) XSD |
 | `error-*.json` | any | OpenAPI problem details (`X-Error-Format: problem-details`) |
+| `invoices-export.json` | `POST /invoices/exports` (201) | OpenAPI `ExportInvoicesResponse` |
+| `invoices-export-status-{in-progress,expired,beyond-hwm,cancelled}.json` | `GET /invoices/exports/{referenceNumber}` | OpenAPI `InvoiceExportStatusResponse`, codes and texts from its status table (100, 210, 420, 550); checked on 2026-11-25 |
+| `invoices-export-status-truncated.json` | same | OpenAPI example (a truncated package), placeholder storage URL |
+| `invoices-export-status-succeeded.json`, `export-package/*.zip.aes` | same, and the package part links | built by `export-package/build.php` (below) |
 
 Files built from the OpenAPI should be replaced by recordings when someone has a TEST token.
 
@@ -46,6 +50,21 @@ xmllint --noout --nonet --schema fa3-local.xsd <repo>/api/tests/Fixtures/Ksef/in
 ```
 
 Error cases are built in the test by changing one of these files.
+
+## Export package (`export-package/`)
+
+A package as `POST /invoices/exports` delivers it (adr/0039 §5): a ZIP with `_metadata.json` and two FA(3)
+invoices of this folder, split into two parts, each encrypted on its own with AES-256-CBC (PKCS#7). The
+key and IV are what `KsefExportKey` derives from the test secret `fixture-export-key-secret`, the NIP
+7251964308 and the key id in the script. The script also writes the matching
+`invoices-export-status-succeeded.json` (part hashes, sizes, placeholder storage URLs). Rebuild both
+after changing the invoices or the key derivation, from `api/`:
+
+```bash
+docker compose exec php php tests/Fixtures/Ksef/export-package/build.php
+```
+
+Replace them with a package recorded from TEST (and its key) when someone has a TEST token.
 
 ## Rules
 

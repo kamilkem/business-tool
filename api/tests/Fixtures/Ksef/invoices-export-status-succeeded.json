@@ -1,0 +1,39 @@
+{
+    "status": {
+        "code": 200,
+        "description": "Eksport faktur zakończony sukcesem"
+    },
+    "completedDate": "2026-11-25T22:00:05.1234567+00:00",
+    "packageExpirationDate": "2026-12-02T22:00:05.1234567+00:00",
+    "package": {
+        "invoiceCount": 2,
+        "size": 2585,
+        "parts": [
+            {
+                "ordinalNumber": 2,
+                "partName": "20261125-EH-2D2C11B000-E9C9ED8340-EE-002.zip.aes",
+                "method": "GET",
+                "url": "https://ksef-storage.example/invoice-part/20261125-EH-2D2C11B000-E9C9ED8340-EE-002.zip.aes?sig=fixture-signature",
+                "partSize": 1292,
+                "partHash": "j9uKg3mVRg0Zc7bxmkSUXfnac4puV1V8kb69yH7Lma0=",
+                "encryptedPartSize": 1296,
+                "encryptedPartHash": "+TXHX1Gg84PvQhSP/xrTFSIBgxfo0OOvSkg0UmMFdhs=",
+                "expirationDate": "2026-11-25T23:00:00.0000000+00:00"
+            },
+            {
+                "ordinalNumber": 1,
+                "partName": "20261125-EH-2D2C11B000-E9C9ED8340-EE-001.zip.aes",
+                "method": "GET",
+                "url": "https://ksef-storage.example/invoice-part/20261125-EH-2D2C11B000-E9C9ED8340-EE-001.zip.aes?sig=fixture-signature",
+                "partSize": 1293,
+                "partHash": "nx2LL3VRmX2RCwEC9wgdoZjA4nntEd31eYtD5boW/gQ=",
+                "encryptedPartSize": 1296,
+                "encryptedPartHash": "nMbajIeA1by+FnIaQoamQh+lYDk3tX1h0fu+pvgGFko=",
+                "expirationDate": "2026-11-25T23:00:00.0000000+00:00"
+            }
+        ],
+        "isTruncated": false,
+        "permanentStorageHwmDate": "2026-11-25T21:30:00.1234567+00:00",
+        "compressionType": "Zip"
+    }
+}

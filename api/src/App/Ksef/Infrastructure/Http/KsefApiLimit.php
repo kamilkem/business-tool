@@ -16,6 +16,10 @@ enum KsefApiLimit
     case InvoiceMetadataQuery;
     /** `GET /invoices/ksef/{ksefNumber}`. */
     case InvoiceDownload;
+    /** `POST /invoices/exports` (ADR 0039 §2). */
+    case InvoiceExport;
+    /** `GET /invoices/exports/{referenceNumber}` (ADR 0039 §4). */
+    case InvoiceExportStatus;
     /** Every other protected endpoint ("Pozostałe"), each with its own counter. */
     case Other;
 
@@ -25,6 +29,8 @@ enum KsefApiLimit
         return match ($this) {
             self::InvoiceMetadataQuery => [1 => 8, 60 => 16, 3600 => 20],
             self::InvoiceDownload => [1 => 8, 60 => 16, 3600 => 64],
+            self::InvoiceExport => [1 => 8, 60 => 16, 3600 => 20],
+            self::InvoiceExportStatus => [1 => 10, 60 => 60, 3600 => 600],
             self::Other => [1 => 10, 60 => 30, 3600 => 120],
         };
     }
