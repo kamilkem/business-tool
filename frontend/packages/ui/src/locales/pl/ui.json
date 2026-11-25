@@ -273,6 +273,7 @@
       "product_merge_target_not_found": "Produkt, z którym miało nastąpić scalenie, już nie istnieje. Odśwież stronę.",
       "product_name_taken": "Produkt o nazwie „{{name}}” już istnieje.",
       "product_not_found": "Ten produkt już nie istnieje. Odśwież stronę.",
+      "purchase_analysis_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni.",
       "purchased_item_not_found": "Ta pozycja zakupu już nie istnieje. Odśwież stronę.",
       "purchased_item_product_not_found": "Produkt wybrany dla tych pozycji już nie istnieje. Odśwież stronę.",
       "unknown_product_category": "Kategoria wybrana dla tego produktu już nie istnieje. Odśwież stronę."
