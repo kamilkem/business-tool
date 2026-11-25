@@ -48,3 +48,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0038](0038-ksef-import-start-date-chosen-by-owner.md) | Owners and managers choose the business date from which KSeF purchase invoices are imported | Accepted (point 6 superseded by [0039](0039-ksef-package-export-for-backlogs.md)) |
 | [0039](0039-ksef-package-export-for-backlogs.md) | KSeF backlogs of more than 64 invoices are imported with the package export, and the import shows what is left and when it should be done | Accepted |
 | [0040](0040-purchase-invoice-items-as-printed.md) | A purchase invoice keeps its items as printed: amounts in minor units, quantities and unit prices as decimal strings | Accepted |
+| [0041](0041-purchase-analysis-products-and-category-tree.md) | The purchase analysis is a Purchasing module: invoice items grouped into products, a category tree, and prices per a reference quantity the owner picks | Accepted |
