@@ -254,6 +254,18 @@
         "not_draft": "Ta lista płac jest zatwierdzona: najpierw otwórz ją ponownie."
       }
     },
+    "purchasing": {
+      "invalid_product_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
+      "management_forbidden": "Zakupami mogą zarządzać tylko właściciele i menedżerowie.",
+      "product_category_cycle": "Kategorii nie można przenieść pod nią samą ani pod jej podkategorię.",
+      "product_category_in_use": {
+        "has_products": "Ta kategoria ma produkty: najpierw przenieś je do innej kategorii.",
+        "has_subcategories": "Ta kategoria ma podkategorie: najpierw przenieś je lub usuń."
+      },
+      "product_category_name_taken": "Kategoria o nazwie „{{name}}” już tu istnieje.",
+      "product_category_not_found": "Ta kategoria już nie istnieje. Odśwież stronę.",
+      "product_category_parent_not_found": "Kategoria, pod którą miała się znaleźć ta kategoria, już nie istnieje. Odśwież stronę."
+    },
     "reporting": {
       "business_summary_forbidden": "Podsumowanie firmy widzą tylko właściciele i menedżerowie.",
       "business_summary_month_in_the_future": "{{month}} jeszcze się nie zaczął.",

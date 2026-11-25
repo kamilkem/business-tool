@@ -49,6 +49,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/App/Expenses/Domain/Model'
                 prefix: 'App\Expenses\Domain\Model'
                 alias: AppExpenses
+            AppPurchasing:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/App/Purchasing/Domain/Model'
+                prefix: 'App\Purchasing\Domain\Model'
+                alias: AppPurchasing
             AppKsef:
                 type: attribute
                 is_bundle: false
