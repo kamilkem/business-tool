@@ -23,6 +23,7 @@ import { Route as AppCashFlowIndexRouteImport } from './routes/_app/cash-flow/in
 import { Route as AppCashFlowDenominationsRouteImport } from './routes/_app/cash-flow/denominations'
 import { Route as AppCashFlowStoragesRouteImport } from './routes/_app/cash-flow/storages'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
+import { Route as AppExpensesAnalysisRouteImport } from './routes/_app/expenses/analysis'
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
 import { Route as AppIncomePaymentMethodsRouteImport } from './routes/_app/income/payment-methods'
@@ -104,6 +105,11 @@ const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
   path: '/expenses/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppExpensesAnalysisRoute = AppExpensesAnalysisRouteImport.update({
+  id: '/expenses/analysis',
+  path: '/expenses/analysis',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExpensesCategoriesRoute = AppExpensesCategoriesRouteImport.update({
   id: '/expenses/categories',
   path: '/expenses/categories',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/time': typeof AppTimeRoute
   '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/cash-flow/storages': typeof AppCashFlowStoragesRoute
+  '/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/cash-flow/storages': typeof AppCashFlowStoragesRoute
+  '/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/_app/cash-flow/storages': typeof AppCashFlowStoragesRoute
+  '/_app/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
   '/_app/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/time'
     | '/cash-flow/denominations'
     | '/cash-flow/storages'
+    | '/expenses/analysis'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cash-flow/denominations'
     | '/cash-flow/storages'
+    | '/expenses/analysis'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/cash-flow/denominations'
     | '/_app/cash-flow/storages'
+    | '/_app/expenses/analysis'
     | '/_app/expenses/categories'
     | '/_app/income/payment-methods'
     | '/_app/income/registers'
@@ -420,6 +432,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExpensesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/expenses/analysis': {
+      id: '/_app/expenses/analysis'
+      path: '/expenses/analysis'
+      fullPath: '/expenses/analysis'
+      preLoaderRoute: typeof AppExpensesAnalysisRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/expenses/categories': {
       id: '/_app/expenses/categories'
       path: '/expenses/categories'
@@ -502,6 +521,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppCashFlowDenominationsRoute: typeof AppCashFlowDenominationsRoute
   AppCashFlowStoragesRoute: typeof AppCashFlowStoragesRoute
+  AppExpensesAnalysisRoute: typeof AppExpensesAnalysisRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
   AppIncomePaymentMethodsRoute: typeof AppIncomePaymentMethodsRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
@@ -525,6 +545,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppCashFlowDenominationsRoute: AppCashFlowDenominationsRoute,
   AppCashFlowStoragesRoute: AppCashFlowStoragesRoute,
+  AppExpensesAnalysisRoute: AppExpensesAnalysisRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
   AppIncomePaymentMethodsRoute: AppIncomePaymentMethodsRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,

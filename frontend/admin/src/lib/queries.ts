@@ -81,6 +81,17 @@ export const productCategoriesQuery = (organizationId: string) =>
     queryFn: () => unwrap(api.GET("/api/product-categories")),
   })
 
+/**
+ * The purchase analysis of the period (GET /purchase-analysis, ADR 0041 §8): the category tree, the
+ * products and what was left out, on both net and gross, so the toggle needs no request. Whatever
+ * changes products, categories or purchased items invalidates `["purchase-analysis", organizationId]`.
+ */
+export const purchaseAnalysisQuery = (organizationId: string, period: BusinessPeriod) =>
+  queryOptions({
+    queryKey: ["purchase-analysis", organizationId, period],
+    queryFn: () => unwrap(api.GET("/api/purchase-analysis", { params: { query: period } })),
+  })
+
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
 export const shiftsQuery = (organizationId: string, period: BusinessPeriod, userId?: string) =>
   queryOptions({
