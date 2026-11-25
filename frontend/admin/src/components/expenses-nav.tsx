@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[status=active]:bg-background data-[status=active]:text-foreground data-[status=active]:shadow-sm"
 
-/** The Expenses module's two pages: the purchase invoices and the categories they are sorted into. */
+/** The Expenses module's two pages: the purchase invoices and the product category tree. */
 export function ExpensesNav() {
   const { t } = useTranslation("admin")
   return (

@@ -27,7 +27,7 @@ export type Capability =
   | "income"
   /** Income: close and reopen a month, which locks its entries; owners only (ADR 0034 §1). */
   | "incomeClose"
-  /** Expenses: purchase invoices and the categories they are sorted into. */
+  /** Expenses: purchase invoices, and the product category tree (ADR 0041). */
   | "expenses"
   /** Cash flow: review, correct, delete and record end-of-day closes (ADR 0033 §6, §7). */
   | "cashFlow"

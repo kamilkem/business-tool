@@ -8,8 +8,6 @@ use App\CashFlow\Domain\Model\CashStorage;
 use App\CashFlow\Domain\Model\DefaultCashStorages;
 use App\CashFlow\Domain\Model\DefaultDenominations;
 use App\CashFlow\Domain\Model\Denomination;
-use App\Expenses\Domain\Model\DefaultExpenseCategories;
-use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
@@ -56,7 +54,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * "Demo Bar" has the registers "Bar" and "Kitchen" with an entry for each of the last 31 days
  * (the kitchen is closed on Mondays), and a deactivated register "Terrace". Both organizations
- * have the default expense categories and payment methods of their country, as a new organization
+ * have the default product categories and payment methods of their country, as a new organization
  * gets them; "Demo Bar" also has a "BLIK" payment method, used on some days.
  *
  * "Demo Bar" (NIP 526-025-09-95) has a KSeF connection with a dev-only token whose last import
@@ -106,8 +104,6 @@ final class AppFixtures extends Fixture
         $this->paymentMethods($manager, $cafe, $mixed->getId(), $now);
         $manager->flush();
 
-        $this->expenseCategories($manager, $bar, $owner->getId(), $now);
-        $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
         $this->productCategories($manager, $bar, $owner->getId(), $now);
         $this->productCategories($manager, $cafe, $mixed->getId(), $now);
 
@@ -205,16 +201,6 @@ final class AppFixtures extends Fixture
         foreach (DefaultCashStorages::forCountry($organization->getCountryCode()) as $default) {
             $manager->persist(CashStorage::create(Uuid::v7(), $default['name'], $default['mode'], null, $ownerId, MembershipRole::Owner, $now));
         }
-    }
-
-    /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */
-    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
-    {
-        $this->tenantContext->switchTo($organization);
-        foreach (DefaultExpenseCategories::forCountry($organization->getCountryCode()) as $name) {
-            $manager->persist(ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now));
-        }
-        $manager->flush();
     }
 
     /** The default tree of the organization's country (#238), as AddDefaultProductCategoriesOnOrganizationCreated adds it. */

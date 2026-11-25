@@ -380,40 +380,48 @@
     }
   },
   "categories": {
-    "error": {
-      "nameTakenByArchived": "Zarchiwizowana kategoria ma już nazwę „{{name}}”. Przywróć ją albo wybierz inną nazwę.",
-      "nameTaken": "Kategoria o nazwie „{{name}}” już istnieje.",
-      "archive": "Nie udało się zarchiwizować kategorii",
-      "restore": "Nie udało się przywrócić kategorii"
-    },
-    "title": "Kategorie wydatków",
-    "description": "Na co są wydatki, np. czynsz albo napoje. Faktury zakupowe przypisuje się do tych kategorii.",
+    "title": "Kategorie",
+    "description": "To, co kupujesz, jest pogrupowane w kategorie o dowolnej głębokości, np. Alkohol › Whisky. Produkty trafiają do nich.",
     "add": "Dodaj kategorię",
-    "noneActive": "Brak aktywnych kategorii. Dodaj nową albo przywróć zarchiwizowaną.",
-    "archivedCount_one": "Zarchiwizowane kategorie ({{count}})",
-    "archivedCount_few": "Zarchiwizowane kategorie ({{count}})",
-    "archivedCount_many": "Zarchiwizowane kategorie ({{count}})",
-    "archivedCount_other": "Zarchiwizowane kategorie ({{count}})",
-    "archivedDescription": "Nie można ich wybrać dla nowych wydatków. Wydatki, które je mają, zachowują je. Przywróć kategorię, aby znów jej używać.",
-    "added": "Dodana",
-    "archivedOn": "Zarchiwizowana",
-    "restore": "Przywróć",
-    "archive": "Archiwizuj",
+    "addSub": "Dodaj podkategorię",
+    "edit": "Zmień nazwę lub przenieś",
+    "delete": "Usuń",
+    "none": "Brak kategorii. Dodaj pierwszą, aby grupować to, co kupujesz.",
+    "expandAll": "Rozwiń wszystkie",
+    "collapseAll": "Zwiń wszystkie",
+    "expand": "Pokaż podkategorie: {{name}}",
+    "collapse": "Ukryj podkategorie: {{name}}",
+    "subcategories_one": "{{count}} podkategoria",
+    "subcategories_few": "{{count}} podkategorie",
+    "subcategories_many": "{{count}} podkategorii",
+    "subcategories_other": "{{count}} podkategorii",
+    "error": {
+      "delete": "Nie udało się usunąć kategorii"
+    },
     "toast": {
       "added": "Dodano kategorię {{name}}",
-      "renamed": "Nowa nazwa kategorii: {{name}}",
-      "archived": "Kategoria {{name}} zarchiwizowana",
-      "archivedDescription": "Nie można jej już wybrać dla nowych wydatków.",
-      "undo": "Cofnij",
-      "restored": "Kategoria {{name}} przywrócona"
+      "saved": "Zapisano kategorię {{name}}",
+      "deleted": "Usunięto kategorię {{name}}"
+    },
+    "confirmDelete": {
+      "title": "Usunąć kategorię {{name}}?",
+      "description": "Kategorię można usunąć, tylko gdy nie ma podkategorii ani produktów. Tej operacji nie można cofnąć."
     },
     "dialog": {
-      "renameDescription": "Wydatki z tej kategorii, także dawne, będą pokazywać nową nazwę.",
-      "addDescription": "Na co był wydatek, np. czynsz albo napoje. Faktury zakupowe przypisujesz do kategorii.",
-      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych kategorii.",
-      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych kategorii.",
-      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych kategorii.",
-      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych kategorii."
+      "editTitle": "Edytuj kategorię {{name}}",
+      "editDescription": "Zmień jej nazwę albo przenieś ją razem z podkategoriami pod inną kategorię.",
+      "addDescription": "Grupuj to, co kupujesz, np. Wódka i Whisky pod Alkoholem.",
+      "name": "Nazwa",
+      "nameDescription_one": "Najwyżej {{count}} znak, inna niż pozostałych kategorii w tym samym miejscu.",
+      "nameDescription_few": "Najwyżej {{count}} znaki, inna niż pozostałych kategorii w tym samym miejscu.",
+      "nameDescription_many": "Najwyżej {{count}} znaków, inna niż pozostałych kategorii w tym samym miejscu.",
+      "nameDescription_other": "Najwyżej {{count}} znaku, inna niż pozostałych kategorii w tym samym miejscu.",
+      "parent": "Pod kategorią",
+      "topLevel": "Najwyższy poziom",
+      "parentDescription": "Wybierz kategorię, aby dodać do niej podkategorię.",
+      "parentMoveDescription": "Przenosi się ona razem z podkategoriami. Kategorii nie można przenieść pod nią samą ani pod jej podkategorie.",
+      "save": "Zapisz",
+      "add": "Dodaj"
     }
   },
   "shiftRequests": {

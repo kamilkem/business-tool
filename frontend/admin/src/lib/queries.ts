@@ -74,15 +74,11 @@ export const paymentMethodsQuery = (organizationId: string) =>
     queryFn: () => unwrap(api.GET("/api/payment-methods", { params: { query: { includeDeactivated: true } } })),
   })
 
-/**
- * Expense categories of the organization: active ones by name, then (with includeArchived) the
- * archived ones.
- */
-export const expenseCategoriesQuery = (organizationId: string, includeArchived: boolean) =>
+/** The organization's product category tree (ADR 0041 §5), flat by name, each with its parent's id. */
+export const productCategoriesQuery = (organizationId: string) =>
   queryOptions({
-    queryKey: ["expense-categories", organizationId, { includeArchived }],
-    queryFn: () =>
-      unwrap(api.GET("/api/expense-categories", { params: { query: includeArchived ? { includeArchived: true } : {} } })),
+    queryKey: ["product-categories", organizationId],
+    queryFn: () => unwrap(api.GET("/api/product-categories")),
   })
 
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */

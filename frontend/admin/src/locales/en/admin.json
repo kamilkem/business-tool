@@ -352,36 +352,44 @@
     }
   },
   "categories": {
-    "error": {
-      "nameTakenByArchived": "An archived category is already named “{{name}}”. Restore it, or pick another name.",
-      "nameTaken": "A category named “{{name}}” already exists.",
-      "archive": "Could not archive the category",
-      "restore": "Could not restore the category"
-    },
-    "title": "Expense categories",
-    "description": "What expenses are for, such as rent or drinks. Purchase invoices are sorted into them.",
+    "title": "Categories",
+    "description": "What you buy is grouped in categories, as deep as you need, such as Alcohol › Whisky. Products go into them.",
     "add": "Add category",
-    "noneActive": "No active categories. Add one, or restore an archived one.",
-    "archivedCount_one": "Archived categories ({{count}})",
-    "archivedCount_other": "Archived categories ({{count}})",
-    "archivedDescription": "They are not offered for new expenses. Expenses that have one keep it. Restore one to use it again.",
-    "added": "Added",
-    "archivedOn": "Archived",
-    "restore": "Restore",
-    "archive": "Archive",
+    "addSub": "Add subcategory",
+    "edit": "Rename or move",
+    "delete": "Delete",
+    "none": "No categories yet. Add one to start grouping what you buy.",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "expand": "Show the subcategories of {{name}}",
+    "collapse": "Hide the subcategories of {{name}}",
+    "subcategories_one": "{{count}} subcategory",
+    "subcategories_other": "{{count}} subcategories",
+    "error": {
+      "delete": "Could not delete the category"
+    },
     "toast": {
       "added": "Category {{name}} added",
-      "renamed": "Category renamed to {{name}}",
-      "archived": "{{name}} archived",
-      "archivedDescription": "It is no longer offered for new expenses.",
-      "undo": "Undo",
-      "restored": "{{name}} restored"
+      "saved": "Category {{name}} saved",
+      "deleted": "Category {{name}} deleted"
+    },
+    "confirmDelete": {
+      "title": "Delete {{name}}?",
+      "description": "A category can be deleted only while it has no subcategories and no products. This cannot be undone."
     },
     "dialog": {
-      "renameDescription": "Expenses in this category, past ones included, show the new name.",
-      "addDescription": "What an expense was for, such as rent or drinks. You sort purchase invoices into categories.",
-      "nameDescription_one": "Up to {{count}} character, different from your other categories.",
-      "nameDescription_other": "Up to {{count}} characters, different from your other categories."
+      "editTitle": "Edit {{name}}",
+      "editDescription": "Rename it, or move it, with its subcategories, under another category.",
+      "addDescription": "Group what you buy, such as Alcohol or Whisky under Alcohol.",
+      "name": "Name",
+      "nameDescription_one": "Up to {{count}} character, different from the other categories in the same place.",
+      "nameDescription_other": "Up to {{count}} characters, different from the other categories in the same place.",
+      "parent": "Under",
+      "topLevel": "Top level",
+      "parentDescription": "Pick a category to add a subcategory to it.",
+      "parentMoveDescription": "It and its subcategories move together. A category cannot go under itself or its own subcategories.",
+      "save": "Save",
+      "add": "Add"
     }
   },
   "shiftRequests": {
