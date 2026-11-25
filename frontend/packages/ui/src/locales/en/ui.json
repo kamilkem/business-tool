@@ -263,6 +263,7 @@
       "product_merge_target_not_found": "The product to merge into no longer exists. Reload the page.",
       "product_name_taken": "A product named “{{name}}” already exists.",
       "product_not_found": "This product no longer exists. Reload the page.",
+      "purchase_analysis_period_too_long": "Choose a period of at most {{maxDays}} days.",
       "purchased_item_not_found": "This purchased item no longer exists. Reload the page.",
       "purchased_item_product_not_found": "The product chosen for these items no longer exists. Reload the page.",
       "unknown_product_category": "The category chosen for this product no longer exists. Reload the page."

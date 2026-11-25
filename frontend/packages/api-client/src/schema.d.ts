@@ -1457,6 +1457,46 @@ export interface paths {
         patch: operations["api_product-categories_id_patch"];
         trace?: never;
     };
+    "/api/products/{id}/price-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The price points of a product, oldest first.
+         * @description Owners and managers only (403 otherwise); a product that is not the selected organization's is a 404. A price point is a purchased item with a known package size and a positive quantity, in the organization's currency, on an invoice that is not a correction; prices are per the product's reference quantity, integer minor units. Each point's change is against the product's previous price point on the same basis, from any seller, also when that one is before `from`. `from` and `to` are optional and not limited in length; a product without a unit or an excluded one has no points. Invalid dates and to before from are a 422.
+         */
+        get: operations["api_products_idprice-history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/purchase-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The purchase analysis of the selected organization for invoices issued from one date to another.
+         * @description Owners and managers only (403 otherwise). Counts the purchased items of invoices issued in the period, in the organization's currency, of products that are not excluded; a correction's "before" rows count negative. Amounts are integer minor units on both bases: `net` is the printed net or the gross less VAT, `gross` the printed gross or the net plus VAT. `categories` holds every category, by name, as a flat list with `parentId` (own spend and spend with all subcategories); `products` those with items in the period, by name; `uncategorized` is the spend of listed products with no category and `notAssigned` that of items with no product; `total` adds up all products and `notAssigned`. For a product with a unit, `quantity`, the average and the last price come from its price points and are per `referenceQuantity`; a product without a unit has its spend only. `leftOut` counts what could not be counted. Invalid dates, to before from and periods longer than 366 days are a 422.
+         */
+        get: operations["api_purchase-analysis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/purchased-items/assign": {
         parameters: {
             query?: never;
@@ -5065,6 +5105,260 @@ export interface components {
             createdAt: string;
         };
         /**
+         * @description The price points of one product of the organization selected by the X-Organization-Id header (ADR
+         *     0041 §7), for the product detail's price chart. Owners and managers only.
+         */
+        ProductPriceHistory: {
+            productId: string;
+            productName: string;
+            /** @description `volume` (L), `mass` (kg), `count` (pc) or `none` (no points). */
+            measure: string;
+            /** @description The quantity the prices are per, a decimal string in the base unit; null when the measure is `none`. */
+            referenceQuantity: string | null;
+            /** @description ISO 4217 code of the organization's currency: the only one counted. */
+            currency: string;
+            /** @description The requested first issue date, `YYYY-MM-DD`; null when not given. */
+            from: string | null;
+            to: string | null;
+            /** @description The price points, oldest first (by issue date, then when the invoice was stored). */
+            points: components["schemas"]["ProductPricePoint"][];
+        };
+        /**
+         * @description The price points of one product of the organization selected by the X-Organization-Id header (ADR
+         *     0041 §7), for the product detail's price chart. Owners and managers only.
+         */
+        "ProductPriceHistory.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            productId: string;
+            productName: string;
+            /** @description `volume` (L), `mass` (kg), `count` (pc) or `none` (no points). */
+            measure: string;
+            /** @description The quantity the prices are per, a decimal string in the base unit; null when the measure is `none`. */
+            referenceQuantity: string | null;
+            /** @description ISO 4217 code of the organization's currency: the only one counted. */
+            currency: string;
+            /** @description The requested first issue date, `YYYY-MM-DD`; null when not given. */
+            from: string | null;
+            to: string | null;
+            /** @description The price points, oldest first (by issue date, then when the invoice was stored). */
+            points: components["schemas"]["ProductPricePoint.jsonld"][];
+        };
+        ProductPricePoint: {
+            /** @description The purchased item (GET /purchased-items/{id}). */
+            itemId: string;
+            /** @description The invoice's issue date, `YYYY-MM-DD`. */
+            date: string;
+            sellerTaxId: string | null;
+            sellerName: string;
+            /** @description Expenses' invoice the item is on. */
+            invoiceId: string;
+            /** @description The invoice's number as Expenses has it now; null for an invoice without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description The item as printed. */
+            itemName: string;
+            /** @description The item's quantity as printed, a decimal string. */
+            quantity: string;
+            /** @description In the product's base unit per unit of the quantity: a decimal string. */
+            packageSize: string;
+            /** @description The net price per reference quantity; null when the item has no net value to derive. */
+            net: components["schemas"]["PurchaseAnalysisPrice"] | null;
+            gross: components["schemas"]["PurchaseAnalysisPrice"] | null;
+        };
+        "ProductPricePoint.jsonld": {
+            /** @description The purchased item (GET /purchased-items/{id}). */
+            itemId: string;
+            /** @description The invoice's issue date, `YYYY-MM-DD`. */
+            date: string;
+            sellerTaxId: string | null;
+            sellerName: string;
+            /** @description Expenses' invoice the item is on. */
+            invoiceId: string;
+            /** @description The invoice's number as Expenses has it now; null for an invoice without one (a receipt). */
+            invoiceNumber: string | null;
+            /** @description The item as printed. */
+            itemName: string;
+            /** @description The item's quantity as printed, a decimal string. */
+            quantity: string;
+            /** @description In the product's base unit per unit of the quantity: a decimal string. */
+            packageSize: string;
+            /** @description The net price per reference quantity; null when the item has no net value to derive. */
+            net: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
+            gross: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
+        };
+        /**
+         * @description The overview of what the organization selected by the X-Organization-Id header bought in a period
+         *     (ADR 0041 §6–8): the category tree and the products with their spend, quantities and prices, the
+         *     items without a product or a category, and what was left out. Owners and managers only.
+         */
+        PurchaseAnalysis: {
+            /** @description First issue date of the period, `YYYY-MM-DD`. */
+            from: string;
+            /** @description Last issue date of the period, inclusive, `YYYY-MM-DD`. */
+            to: string;
+            /** @description ISO 4217 code of the organization's currency: the only one counted. */
+            currency: string;
+            /** @description Everything counted: all products and the items without a product. */
+            total: components["schemas"]["PurchaseAnalysisAmounts"];
+            /** @description Every category of the organization, by name; `parentId` builds the tree. */
+            categories: components["schemas"]["PurchaseAnalysisCategory"][];
+            /** @description The products with items in the period, by name; `categoryId` places them in the tree. */
+            products: components["schemas"]["PurchaseAnalysisProduct"][];
+            /** @description The products in no category: their spend and how many they are. */
+            uncategorized: components["schemas"]["PurchaseAnalysisBucket"];
+            /** @description Items linked to no product: their spend and how many they are (the review queue holds them). */
+            notAssigned: components["schemas"]["PurchaseAnalysisBucket"];
+            leftOut: components["schemas"]["PurchaseAnalysisLeftOut"];
+        };
+        /**
+         * @description The overview of what the organization selected by the X-Organization-Id header bought in a period
+         *     (ADR 0041 §6–8): the category tree and the products with their spend, quantities and prices, the
+         *     items without a product or a category, and what was left out. Owners and managers only.
+         */
+        "PurchaseAnalysis.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description First issue date of the period, `YYYY-MM-DD`. */
+            from: string;
+            /** @description Last issue date of the period, inclusive, `YYYY-MM-DD`. */
+            to: string;
+            /** @description ISO 4217 code of the organization's currency: the only one counted. */
+            currency: string;
+            /** @description Everything counted: all products and the items without a product. */
+            total: components["schemas"]["PurchaseAnalysisAmounts.jsonld"];
+            /** @description Every category of the organization, by name; `parentId` builds the tree. */
+            categories: components["schemas"]["PurchaseAnalysisCategory.jsonld"][];
+            /** @description The products with items in the period, by name; `categoryId` places them in the tree. */
+            products: components["schemas"]["PurchaseAnalysisProduct.jsonld"][];
+            /** @description The products in no category: their spend and how many they are. */
+            uncategorized: components["schemas"]["PurchaseAnalysisBucket.jsonld"];
+            /** @description Items linked to no product: their spend and how many they are (the review queue holds them). */
+            notAssigned: components["schemas"]["PurchaseAnalysisBucket.jsonld"];
+            leftOut: components["schemas"]["PurchaseAnalysisLeftOut.jsonld"];
+        };
+        PurchaseAnalysisAmounts: {
+            /** @description Printed net, or gross less VAT; items with neither are left out (see `leftOut`). */
+            net: number;
+            /** @description Printed gross, or net plus VAT; items with neither are left out (see `leftOut`). */
+            gross: number;
+        };
+        "PurchaseAnalysisAmounts.jsonld": {
+            /** @description Printed net, or gross less VAT; items with neither are left out (see `leftOut`). */
+            net: number;
+            /** @description Printed gross, or net plus VAT; items with neither are left out (see `leftOut`). */
+            gross: number;
+        };
+        PurchaseAnalysisBucket: {
+            /** @description Minor units. */
+            net: number;
+            gross: number;
+            /** @description Products for `uncategorized`, purchased items for `notAssigned`. */
+            count: number;
+        };
+        "PurchaseAnalysisBucket.jsonld": {
+            /** @description Minor units. */
+            net: number;
+            gross: number;
+            /** @description Products for `uncategorized`, purchased items for `notAssigned`. */
+            count: number;
+        };
+        PurchaseAnalysisCategory: {
+            id: string;
+            name: string;
+            /** @description The parent category; null at the top. */
+            parentId: string | null;
+            /** @description On the products directly in this category. */
+            own: components["schemas"]["PurchaseAnalysisAmounts"];
+            /** @description On this category and every subcategory, at any depth. */
+            total: components["schemas"]["PurchaseAnalysisAmounts"];
+        };
+        "PurchaseAnalysisCategory.jsonld": {
+            id: string;
+            name: string;
+            /** @description The parent category; null at the top. */
+            parentId: string | null;
+            /** @description On the products directly in this category. */
+            own: components["schemas"]["PurchaseAnalysisAmounts.jsonld"];
+            /** @description On this category and every subcategory, at any depth. */
+            total: components["schemas"]["PurchaseAnalysisAmounts.jsonld"];
+        };
+        PurchaseAnalysisLeftOut: {
+            /** @description Items of invoices in another currency than the organization's: in no figure. */
+            otherCurrency: number;
+            /** @description Items with neither a net value nor the gross value and VAT to derive it: not in any net figure. */
+            withoutNet: number;
+            /** @description Items with neither a gross value nor the net value and VAT to derive it: not in any gross figure. */
+            withoutGross: number;
+            /** @description Items of products with a unit whose package size is unknown: in the spend, but not in quantities or prices. */
+            withoutPackageSize: number;
+        };
+        "PurchaseAnalysisLeftOut.jsonld": {
+            /** @description Items of invoices in another currency than the organization's: in no figure. */
+            otherCurrency: number;
+            /** @description Items with neither a net value nor the gross value and VAT to derive it: not in any net figure. */
+            withoutNet: number;
+            /** @description Items with neither a gross value nor the net value and VAT to derive it: not in any gross figure. */
+            withoutGross: number;
+            /** @description Items of products with a unit whose package size is unknown: in the spend, but not in quantities or prices. */
+            withoutPackageSize: number;
+        };
+        PurchaseAnalysisPrice: {
+            /** @description Minor units, rounded half away from zero from exact decimals. */
+            price: number;
+            /** @description The difference to the previous price point's price, from any seller; null for the first purchase. */
+            change: number | null;
+            /** @description The difference as a percentage of the previous price, a decimal string with at most 2 decimals (`"-3.45"`); null for the first purchase or when the previous price was 0. */
+            changePercent: string | null;
+        };
+        "PurchaseAnalysisPrice.jsonld": {
+            /** @description Minor units, rounded half away from zero from exact decimals. */
+            price: number;
+            /** @description The difference to the previous price point's price, from any seller; null for the first purchase. */
+            change: number | null;
+            /** @description The difference as a percentage of the previous price, a decimal string with at most 2 decimals (`"-3.45"`); null for the first purchase or when the previous price was 0. */
+            changePercent: string | null;
+        };
+        PurchaseAnalysisProduct: {
+            id: string;
+            name: string;
+            /** @description The product's category; null under "Uncategorized". */
+            categoryId: string | null;
+            /** @description `volume` (L), `mass` (kg), `count` (pc) or `none` (spend only). */
+            measure: string;
+            /** @description A decimal string in the base unit; null when the measure is `none`. */
+            referenceQuantity: string | null;
+            /** @description Every item of the period counts, corrections included. */
+            spend: components["schemas"]["PurchaseAnalysisAmounts"];
+            /** @description Bought in the period, in reference quantities: a decimal string with at most 3 decimals; null without a price point. */
+            quantity: string | null;
+            /** @description Minor units per reference quantity: Σ amount ÷ Σ quantity bought; null without a price point on that basis. */
+            averageNetPrice: number | null;
+            averageGrossPrice: number | null;
+            /** @description The issue date of the period's last price point, `YYYY-MM-DD`; null without one. */
+            lastPriceDate: string | null;
+            /** @description The last price point's net price and its change against the previous one, which may be before the period; null when it has no net value. */
+            lastNetPrice: components["schemas"]["PurchaseAnalysisPrice"] | null;
+            lastGrossPrice: components["schemas"]["PurchaseAnalysisPrice"] | null;
+        };
+        "PurchaseAnalysisProduct.jsonld": {
+            id: string;
+            name: string;
+            /** @description The product's category; null under "Uncategorized". */
+            categoryId: string | null;
+            /** @description `volume` (L), `mass` (kg), `count` (pc) or `none` (spend only). */
+            measure: string;
+            /** @description A decimal string in the base unit; null when the measure is `none`. */
+            referenceQuantity: string | null;
+            /** @description Every item of the period counts, corrections included. */
+            spend: components["schemas"]["PurchaseAnalysisAmounts.jsonld"];
+            /** @description Bought in the period, in reference quantities: a decimal string with at most 3 decimals; null without a price point. */
+            quantity: string | null;
+            /** @description Minor units per reference quantity: Σ amount ÷ Σ quantity bought; null without a price point on that basis. */
+            averageNetPrice: number | null;
+            averageGrossPrice: number | null;
+            /** @description The issue date of the period's last price point, `YYYY-MM-DD`; null without one. */
+            lastPriceDate: string | null;
+            /** @description The last price point's net price and its change against the previous one, which may be before the period; null when it has no net value. */
+            lastNetPrice: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
+            lastGrossPrice: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
+        };
+        /**
          * @description One item of a purchase invoice of the organization selected by the X-Organization-Id header, as
          *     Purchasing records it (ADR 0041 §3): what the invoice printed, which product the item is linked
          *     to, how, and its package size. Owners and managers only: anyone else gets a 403. Listed by
@@ -6108,7 +6402,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.items_on_manual" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "purchasing.invalid_package_size" | "purchasing.invalid_product_category_name" | "purchasing.invalid_product_name" | "purchasing.invalid_product_reference_quantity.not_allowed_for_measure" | "purchasing.invalid_product_reference_quantity.not_positive" | "purchasing.management_forbidden" | "purchasing.product_category_cycle" | "purchasing.product_category_in_use.has_products" | "purchasing.product_category_in_use.has_subcategories" | "purchasing.product_category_name_taken" | "purchasing.product_category_not_found" | "purchasing.product_category_parent_not_found" | "purchasing.product_in_use" | "purchasing.product_merge_into_itself" | "purchasing.product_merge_target_not_found" | "purchasing.product_name_taken" | "purchasing.product_not_found" | "purchasing.purchased_item_not_found" | "purchasing.purchased_item_product_not_found" | "purchasing.unknown_product_category" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.items_on_manual" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "purchasing.invalid_package_size" | "purchasing.invalid_product_category_name" | "purchasing.invalid_product_name" | "purchasing.invalid_product_reference_quantity.not_allowed_for_measure" | "purchasing.invalid_product_reference_quantity.not_positive" | "purchasing.management_forbidden" | "purchasing.product_category_cycle" | "purchasing.product_category_in_use.has_products" | "purchasing.product_category_in_use.has_subcategories" | "purchasing.product_category_name_taken" | "purchasing.product_category_not_found" | "purchasing.product_category_parent_not_found" | "purchasing.product_in_use" | "purchasing.product_merge_into_itself" | "purchasing.product_merge_target_not_found" | "purchasing.product_name_taken" | "purchasing.product_not_found" | "purchasing.purchase_analysis_period_too_long" | "purchasing.purchased_item_not_found" | "purchasing.purchased_item_product_not_found" | "purchasing.unknown_product_category" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -11385,6 +11679,107 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+        };
+    };
+    "api_products_idprice-history_get": {
+        parameters: {
+            query?: {
+                /** @description Only the purchases on invoices issued on this date (YYYY-MM-DD) or later. */
+                from?: string;
+                /** @description Only the purchases on invoices issued on this date (YYYY-MM-DD) or earlier. */
+                to?: string;
+            };
+            header?: never;
+            path: {
+                /** @description ProductPriceHistory identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ProductPriceHistory resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ProductPriceHistory.jsonld"];
+                    "application/json": components["schemas"]["ProductPriceHistory"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The product is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A date is invalid or to is before from. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_purchase-analysis_get": {
+        parameters: {
+            query: {
+                /** @description First issue date, inclusive (YYYY-MM-DD). */
+                from: string;
+                /** @description Last issue date, inclusive (YYYY-MM-DD); at most 366 days from the first. */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PurchaseAnalysis resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PurchaseAnalysis.jsonld"];
+                    "application/json": components["schemas"]["PurchaseAnalysis"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A date is missing or invalid, to is before from, or the period is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
