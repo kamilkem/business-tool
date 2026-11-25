@@ -228,7 +228,7 @@ interface NotAssignedProps {
 
 /**
  * The items bought but not yet linked to a product (ADR 0041 §8), after the tree. They are in the
- * total, so the shares add up; the review queue (#246) is where they get a product.
+ * total, so the shares add up; the review queue (#246) is where they get a product, linked from the row.
  */
 export function NotAssignedRow({ total, amount, count }: NotAssignedProps) {
   const { t } = useTranslation("admin")
@@ -253,7 +253,10 @@ export function NotAssignedRow({ total, amount, count }: NotAssignedProps) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground @5xl:col-span-full" style={{ paddingLeft: 8 + CHEVRON }}>
-        {t("analysis.notAssigned.hint")}
+        {t("analysis.notAssigned.hint")}{" "}
+        <Link to="/expenses/analysis/review" className="font-medium text-foreground underline underline-offset-2">
+          {t("analysis.notAssigned.review")}
+        </Link>
       </p>
     </div>
   )

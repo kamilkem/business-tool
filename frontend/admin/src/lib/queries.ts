@@ -1,9 +1,10 @@
 import { ApiError, unwrap } from "@business-tool/api-client"
 import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
-import { type QueryClient, queryOptions } from "@tanstack/react-query"
+import { type QueryClient, infiniteQueryOptions, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
 import type { ExpensesFilter } from "./expenses"
+import { QUEUE_PAGE_SIZE, QUEUE_STATUSES } from "./review-queue"
 import type { RequestsFilter } from "./shift-change-requests"
 
 export const meQuery = queryOptions({
@@ -132,11 +133,49 @@ export const productItemsQuery = (organizationId: string, productId: string, per
       ),
   })
 
-/** After a write to products or purchased items: the product screens and the overview show what the API has now. */
+/** The `status` filter as the API reads it: comma-separated (`unassigned,suggested`). */
+const QUEUE_QUERY_SERIALIZER = { array: { style: "form", explode: false } } as const
+
+/**
+ * The review queue (GET /purchased-items, status `unassigned` and `suggested`, newest invoice first),
+ * a page of QUEUE_PAGE_SIZE items at a time; `search` is a part of the printed name. Under
+ * `["purchased-items", organizationId]`, with the queue's count.
+ */
+export const reviewQueueQuery = (organizationId: string, search: string | undefined) =>
+  infiniteQueryOptions({
+    queryKey: ["purchased-items", organizationId, "review-queue", search ?? null],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        api.GET("/api/purchased-items", {
+          params: { query: { status: QUEUE_STATUSES, ...(search ? { search } : {}), page: pageParam, itemsPerPage: QUEUE_PAGE_SIZE } },
+          querySerializer: QUEUE_QUERY_SERIALIZER,
+        }),
+      ),
+    getNextPageParam: (last) => (last.page * last.itemsPerPage < last.total ? last.page + 1 : undefined),
+  })
+
+/** How many items wait in the review queue, for the badge on the Analiza tab: the total of a page of one. */
+export const reviewQueueCountQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["purchased-items", organizationId, "review-count"],
+    queryFn: async () =>
+      (
+        await unwrap(
+          api.GET("/api/purchased-items", {
+            params: { query: { status: QUEUE_STATUSES, page: 1, itemsPerPage: 1 } },
+            querySerializer: QUEUE_QUERY_SERIALIZER,
+          }),
+        )
+      ).total,
+  })
+
+/** After a write to products or purchased items: the product screens, the overview and the review queue show what the API has now. */
 export async function invalidatePurchasing(queryClient: QueryClient, organizationId: string) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["products", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-analysis", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["purchased-items", organizationId] }),
   ])
 }
 
