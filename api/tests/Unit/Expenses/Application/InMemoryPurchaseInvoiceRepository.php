@@ -87,6 +87,19 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
         throw new \LogicException('Spans organizations: tested against the database.');
     }
 
+    public function findInvoiceNumbers(array $ids): array
+    {
+        $numbers = [];
+        foreach ($ids as $id) {
+            $number = ($this->byId[$id->toRfc4122()] ?? null)?->getInvoiceNumber();
+            if (null !== $number) {
+                $numbers[$id->toRfc4122()] = $number;
+            }
+        }
+
+        return $numbers;
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         $invoices = array_values(array_filter($this->byId, static function (PurchaseInvoice $invoice) use ($filter): bool {

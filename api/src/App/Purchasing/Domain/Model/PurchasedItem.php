@@ -7,8 +7,11 @@ namespace App\Purchasing\Domain\Model;
 use App\Expenses\Domain\Model\DecimalString;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceItem;
+use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
+use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
+use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Shared\Domain\Time\BusinessDate;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -25,12 +28,16 @@ use Symfony\Component\Uid\Uuid;
  *   foreign key: Purchasing refers to Expenses by id only, and imported invoices are never deleted.
  * - Until a person or matching links it to a product (#233, #242), the item is
  *   `unassigned` with no product and no package size, and counts in spend only.
+ * - A person links it with link(): any change by a person makes the item `confirmed` when it has a
+ *   product and `unassigned` when it has none, whatever it was before (ADR 0041 §3). Matching (#233)
+ *   will change only the items that are not `confirmed`.
  * - Quantities and prices are NUMERIC decimal strings (ADR 0040); the package size is a decimal string
  *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchased_item')]
 #[ORM\UniqueConstraint(name: self::ONE_PER_INVOICE_ITEM, columns: ['invoice_id', 'item_index'])]
+#[ORM\Index(name: self::BY_STATUS_AND_DATE, columns: ['organization_id', 'status', 'invoice_issue_date'])]
 class PurchasedItem implements TenantAwareInterface
 {
     use TenantAwareTrait;
@@ -38,9 +45,15 @@ class PurchasedItem implements TenantAwareInterface
     /** Name of the unique constraint on (invoice, item index). */
     public const string ONE_PER_INVOICE_ITEM = 'purchased_item_one_per_invoice_item';
 
+    /** The review queue's index: an organization's items in a status, by issue date. */
+    public const string BY_STATUS_AND_DATE = 'purchased_item_by_status_and_date';
+
     /** Digits of the package size: NUMERIC(22, 6). */
     public const int PACKAGE_SIZE_SCALE = 6;
     public const int PACKAGE_SIZE_INTEGER_DIGITS = 16;
+
+    /** The shape of a package size as a request writes it, for the Ui's validation. */
+    public const string PACKAGE_SIZE_PATTERN = '/^\d{1,16}(\.\d{1,6})?$/D';
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -161,6 +174,28 @@ class PurchasedItem implements TenantAwareInterface
         return new self($id, $details, $now);
     }
 
+    /**
+     * A person links the item to a product, or takes it off its product (`$product` null), and sets
+     * its package size: the product's base unit (L, kg, pc) per one unit of the item's quantity. The
+     * caller sends the package size the item is to have, so the current one when it is not changing. The
+     * item is `confirmed` with a product and `unassigned` without one; the package size is kept either
+     * way, and counts only for a product with a measure other than `none`.
+     *
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     *
+     * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
+     * @throws InvalidPackageSizeException            when the package size is not a positive decimal
+     */
+    public function link(?Product $product, ?string $packageSize, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        PurchasingAccess::assertCanManage($actorId, $actorRole);
+        $packageSize = self::packageSizeFor($packageSize);
+
+        $this->product = $product;
+        $this->packageSize = $packageSize;
+        $this->status = null === $product ? PurchasedItemStatus::Unassigned : PurchasedItemStatus::Confirmed;
+    }
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -277,6 +312,11 @@ class PurchasedItem implements TenantAwareInterface
         return $this->product?->getId();
     }
 
+    public function getProduct(): ?Product
+    {
+        return $this->product;
+    }
+
     public function getStatus(): PurchasedItemStatus
     {
         return $this->status;
@@ -291,5 +331,24 @@ class PurchasedItem implements TenantAwareInterface
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    /**
+     * The package size to store: null, or the given positive decimal in normal form.
+     *
+     * @throws InvalidPackageSizeException
+     */
+    private static function packageSizeFor(?string $value): ?string
+    {
+        if (null === $value) {
+            return null;
+        }
+
+        $normalized = DecimalString::normalized($value, self::PACKAGE_SIZE_INTEGER_DIGITS, self::PACKAGE_SIZE_SCALE);
+        if (null === $normalized || '0' === $normalized || str_starts_with($normalized, '-')) {
+            throw InvalidPackageSizeException::of($value);
+        }
+
+        return $normalized;
     }
 }
