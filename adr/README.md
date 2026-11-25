@@ -49,3 +49,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0039](0039-ksef-package-export-for-backlogs.md) | KSeF backlogs of more than 64 invoices are imported with the package export, and the import shows what is left and when it should be done | Accepted |
 | [0040](0040-purchase-invoice-items-as-printed.md) | A purchase invoice keeps its items as printed: amounts in minor units, quantities and unit prices as decimal strings | Accepted |
 | [0041](0041-purchase-analysis-products-and-category-tree.md) | The purchase analysis is a Purchasing module: invoice items grouped into products, a category tree, and prices per a reference quantity the owner picks | Accepted |
+| [0042](0042-automatic-matching-of-purchased-items.md) | Purchased items are matched to products by remembered aliases first and trigram suggestions second; the package size is read from the name and the unit | Proposed |
