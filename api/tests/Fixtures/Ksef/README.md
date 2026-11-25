@@ -33,10 +33,12 @@ NIPs with a valid check digit, and amounts chosen for the case:
 
 | File | Case |
 |---|---|
-| `vat-several-rates.xml` | `VAT` in PLN: 23 %, 8 %, 5 %, 0 % (`P_13_6_1`) and exempt (`P_13_7`) |
+| `vat-several-rates.xml` | `VAT` in PLN: 23 %, 8 %, 5 %, 0 % (`P_13_6_1`) and exempt (`P_13_7`); net-based items (`P_9A`, `P_11`) |
+| `gross-based.xml` | `VAT` in PLN with gross-based items (`P_9B`, `P_11A`, `P_11Vat`): a decimal quantity, an 8-decimal unit price, `Indeks`, `GTIN`, a discount (`P_10`) and a rate without a PL code (`np I`) |
 | `foreign-currency.xml` | `VAT` in EUR with the VAT in PLN (`P_14_xW`) |
 | `correction.xml` | `KOR` with negative amounts and the corrected invoice's KSeF number |
-| `advance.xml` | `ZAL` with an order (`Zamowienie`) |
+| `correction-before-after.xml` | `KOR` whose items show the row before (`StanPrzed`) and after the correction |
+| `advance.xml` | `ZAL` with an order (`Zamowienie`) and no items |
 | `unsupported-vat-groups.xml` | groups with no PL rate code: taxi flat rate (`P_13_4`) and reverse charge (`P_13_10`) |
 
 Every FA(3) file here validates against `schemat_FA(3)_v1-0E.xsd` (https://github.com/CIRFMF/ksef-docs,

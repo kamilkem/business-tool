@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+	<Naglowek>
+		<KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+		<WariantFormularza>3</WariantFormularza>
+		<DataWytworzeniaFa>2026-11-03T09:15:00Z</DataWytworzeniaFa>
+		<SystemInfo>Fixture</SystemInfo>
+	</Naglowek>
+	<Podmiot1>
+		<DaneIdentyfikacyjne>
+			<NIP>4882338469</NIP>
+			<Nazwa>Hurtownia Testowa Sp. z o.o.</Nazwa>
+		</DaneIdentyfikacyjne>
+		<Adres>
+			<KodKraju>PL</KodKraju>
+			<AdresL1>ul. Przykładowa 1</AdresL1>
+			<AdresL2>00-001 Warszawa</AdresL2>
+		</Adres>
+	</Podmiot1>
+	<Podmiot2>
+		<DaneIdentyfikacyjne>
+			<NIP>7010840722</NIP>
+			<Nazwa>Bar Testowy</Nazwa>
+		</DaneIdentyfikacyjne>
+		<Adres>
+			<KodKraju>PL</KodKraju>
+			<AdresL1>ul. Testowa 2</AdresL1>
+			<AdresL2>00-002 Warszawa</AdresL2>
+		</Adres>
+		<JST>2</JST>
+		<GV>2</GV>
+	</Podmiot2>
+	<Fa>
+		<KodWaluty>PLN</KodWaluty>
+		<P_1>2026-11-03</P_1>
+		<P_1M>Warszawa</P_1M>
+		<P_2>PAR/2026/11/0815</P_2>
+		<P_6>2026-11-02</P_6>
+		<P_13_1>7.02</P_13_1>
+		<P_14_1>1.62</P_14_1>
+		<P_13_2>26.39</P_13_2>
+		<P_14_2>2.11</P_14_2>
+		<P_13_8>10.00</P_13_8>
+		<P_15>47.14</P_15>
+		<Adnotacje>
+			<P_16>2</P_16>
+			<P_17>2</P_17>
+			<P_18>2</P_18>
+			<P_18A>2</P_18A>
+			<Zwolnienie>
+				<P_19N>1</P_19N>
+			</Zwolnienie>
+			<NoweSrodkiTransportu>
+				<P_22N>1</P_22N>
+			</NoweSrodkiTransportu>
+			<P_23>2</P_23>
+			<PMarzy>
+				<P_PMarzyN>1</P_PMarzyN>
+			</PMarzy>
+		</Adnotacje>
+		<RodzajFaktury>VAT</RodzajFaktury>
+		<FaWiersz>
+			<NrWierszaFa>1</NrWierszaFa>
+			<P_7>Polędwica wołowa</P_7>
+			<Indeks>MIE-0042</Indeks>
+			<GTIN>5901234123457</GTIN>
+			<P_8A>kg</P_8A>
+			<P_8B>0.700</P_8B>
+			<P_9B>12.34567891</P_9B>
+			<P_11A>8.64</P_11A>
+			<P_11Vat>1.62</P_11Vat>
+			<P_12>23</P_12>
+		</FaWiersz>
+		<FaWiersz>
+			<NrWierszaFa>2</NrWierszaFa>
+			<P_7>Woda mineralna 1,5 l</P_7>
+			<Indeks>WOD-15</Indeks>
+			<P_8A>but.</P_8A>
+			<P_8B>12</P_8B>
+			<P_9B>2.50</P_9B>
+			<P_10>1.50</P_10>
+			<P_11A>28.50</P_11A>
+			<P_11Vat>2.11</P_11Vat>
+			<P_12>8</P_12>
+		</FaWiersz>
+		<FaWiersz>
+			<NrWierszaFa>3</NrWierszaFa>
+			<P_7>Dostawa poza terytorium kraju</P_7>
+			<P_11A>10.00</P_11A>
+			<P_12>np I</P_12>
+		</FaWiersz>
+	</Fa>
+</Faktura>

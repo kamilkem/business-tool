@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Expenses\Application\Command\ImportPurchaseInvoice;
 
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Shared\Application\Command\CommandInterface;
 
@@ -19,6 +20,7 @@ final readonly class ImportPurchaseInvoiceCommand implements CommandInterface
     /**
      * @param string                                                                      $issueDate Y-m-d
      * @param list<array{rate: string, net: int, vat: int, vatInTaxCurrency: int|null}> $vatLines
+     * @param list<array{position: int, name: string, sellerCode: ?string, gtin: ?string, unit: ?string, quantity: ?string, unitNetPrice: ?string, unitGrossPrice: ?string, discount: ?string, netAmount: ?int, grossAmount: ?int, vatAmount: ?int, vatRate: ?string, beforeCorrection: bool}> $items in the document's order; quantities and prices are decimal strings (ADR 0040)
      */
     public function __construct(
         public string $organizationId,
@@ -38,6 +40,7 @@ final readonly class ImportPurchaseInvoiceCommand implements CommandInterface
         public ?string $correctedExternalId,
         public string $documentContent,
         public string $documentFormat,
+        public array $items,
     ) {
     }
 
@@ -74,6 +77,22 @@ final readonly class ImportPurchaseInvoiceCommand implements CommandInterface
             $details->correctedExternalId,
             $documentContent,
             $documentFormat,
+            array_map(static fn (PurchaseInvoiceItemDetails $item): array => [
+                'position' => $item->position,
+                'name' => $item->name,
+                'sellerCode' => $item->sellerCode,
+                'gtin' => $item->gtin,
+                'unit' => $item->unit,
+                'quantity' => $item->quantity,
+                'unitNetPrice' => $item->unitNetPrice,
+                'unitGrossPrice' => $item->unitGrossPrice,
+                'discount' => $item->discount,
+                'netAmount' => $item->netAmount,
+                'grossAmount' => $item->grossAmount,
+                'vatAmount' => $item->vatAmount,
+                'vatRate' => $item->vatRate,
+                'beforeCorrection' => $item->beforeCorrection,
+            ], $details->items),
         );
     }
 }

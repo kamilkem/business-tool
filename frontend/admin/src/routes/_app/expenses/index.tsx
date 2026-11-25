@@ -23,7 +23,7 @@ import { KsefImportStatus } from "@/components/ksef-import-status"
 import { can, requireCapability } from "@/lib/access"
 import {
   EXPENSES_MAX_DAYS,
-  type Expense,
+  type ExpenseListItem,
   type ExpenseCurrencyTotal,
   type ExpensesSearch,
   expensesFilter,
@@ -80,7 +80,7 @@ function ExpensesPage() {
   const { t } = useTranslation("admin")
 
   // The drawer keeps its own copy: an expense that leaves a filtered list stays open.
-  const [selected, setSelected] = useState<Expense | null>(null)
+  const [selected, setSelected] = useState<ExpenseListItem | null>(null)
 
   const setSearch = useCallback(
     (next: Partial<ExpensesSearch>) => void navigate({ search: (previous) => ({ ...previous, ...next }) }),
@@ -265,7 +265,7 @@ function Totals({
 
 // --- The list --------------------------------------------------------------------------------------
 
-function ExpensesTable({ expenses, onOpen }: { expenses: readonly Expense[]; onOpen: (expense: Expense) => void }) {
+function ExpensesTable({ expenses, onOpen }: { expenses: readonly ExpenseListItem[]; onOpen: (expense: ExpenseListItem) => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
   const { t } = useTranslation("admin")

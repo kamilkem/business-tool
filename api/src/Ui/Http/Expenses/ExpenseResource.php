@@ -35,7 +35,7 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
             uriVariables: ['id'],
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
-                summary: 'One expense of the selected organization, with its VAT lines.',
+                summary: 'One expense of the selected organization, with its VAT lines and items.',
                 description: 'Owners and managers only (403 otherwise). An expense that is not the selected organization\'s is a 404.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
@@ -117,7 +117,10 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
 )]
 final readonly class ExpenseResource
 {
-    /** @param list<ExpenseVatLine> $vatLines */
+    /**
+     * @param list<ExpenseVatLine> $vatLines
+     * @param list<ExpenseItem>    $items
+     */
     public function __construct(
         public string $id,
         /** Where the expense came from: `ksef` (imported) or `manual`. */
@@ -150,6 +153,8 @@ final readonly class ExpenseResource
         public ?string $documentFormat,
         /** When the expense was imported or entered. */
         public \DateTimeImmutable $createdAt,
+        /** The items as printed, by position (ADR 0040); [] for a manual expense or one imported before items were kept. */
+        public array $items,
     ) {
     }
 
@@ -174,6 +179,7 @@ final readonly class ExpenseResource
             hasDocument: null !== $view->documentFormat,
             documentFormat: $view->documentFormat,
             createdAt: $view->createdAt,
+            items: array_map(ExpenseItem::fromView(...), $view->items ?? []),
         );
     }
 }

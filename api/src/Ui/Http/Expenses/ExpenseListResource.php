@@ -56,7 +56,7 @@ use Ui\Http\Expenses\Provider\ExpenseListProvider;
 final readonly class ExpenseListResource
 {
     /**
-     * @param list<ExpenseResource>      $items
+     * @param list<ExpenseListItem>      $items
      * @param list<ExpenseCurrencyTotal> $totals
      */
     public function __construct(
@@ -64,7 +64,7 @@ final readonly class ExpenseListResource
         public string $from,
         /** Last issue date of the period, inclusive, `YYYY-MM-DD`. */
         public string $to,
-        /** The expenses, newest issue date first. */
+        /** The expenses, newest issue date first, without their items (GET /expenses/{id}). */
         #[ApiProperty(readableLink: true)]
         public array $items,
         /** Totals of the listed expenses per currency: the organization's current currency first, always present. */
@@ -77,7 +77,7 @@ final readonly class ExpenseListResource
         return new self(
             $view->from,
             $view->to,
-            array_map(ExpenseResource::fromView(...), $view->items),
+            array_map(ExpenseListItem::fromView(...), $view->items),
             array_map(ExpenseCurrencyTotal::fromView(...), $view->totals),
         );
     }

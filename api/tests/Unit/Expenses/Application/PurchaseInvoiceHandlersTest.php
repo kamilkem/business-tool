@@ -8,6 +8,7 @@ use App\Expenses\Application\Command\ChangePurchaseInvoice\ChangePurchaseInvoice
 use App\Expenses\Application\Command\ChangePurchaseInvoice\ChangePurchaseInvoiceHandler;
 use App\Expenses\Application\Query\GetPurchaseInvoice\GetPurchaseInvoiceHandler;
 use App\Expenses\Application\Query\GetPurchaseInvoice\GetPurchaseInvoiceQuery;
+use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceItemView;
 use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceVatLineView;
 use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceView;
 use App\Expenses\Application\Query\GetPurchaseInvoiceDocument\GetPurchaseInvoiceDocumentHandler;
@@ -22,6 +23,7 @@ use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Organization\Application\Query\GetMember\GetMemberHandler;
@@ -54,6 +56,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ChangePurchaseInvoiceHandler::class)]
 #[CoversClass(PurchaseInvoiceView::class)]
 #[CoversClass(PurchaseInvoiceVatLineView::class)]
+#[CoversClass(PurchaseInvoiceItemView::class)]
 #[CoversClass(PurchaseInvoiceCurrencyTotalView::class)]
 #[CoversClass(PurchaseInvoiceDocumentView::class)]
 final class PurchaseInvoiceHandlersTest extends TestCase
@@ -177,12 +180,16 @@ final class PurchaseInvoiceHandlersTest extends TestCase
         self::assertCount(1, $this->listed($this->owner, '2028-01-01', '2028-12-31')->items);
     }
 
-    public function test_it_gets_one_invoice_with_its_lines_and_document(): void
+    public function test_it_gets_one_invoice_with_its_lines_items_and_document(): void
     {
         $invoice = $this->store(PurchaseInvoiceMother::imported(
             externalId: 'K-1',
             totals: [20_000, 3_100, 23_100],
             vatLines: [new PurchaseInvoiceVatAmount('8', 10_000, 800), new PurchaseInvoiceVatAmount('23', 10_000, 2_300)],
+            items: [
+                new PurchaseInvoiceItemDetails(position: 2, name: 'Przekąski', unit: 'kg', quantity: '0.700', unitNetPrice: '12.34567891', netAmount: 10_000, vatRate: '8'),
+                new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo', sellerCode: 'P-1', gtin: '5901234123457', quantity: '4', unitGrossPrice: '30.75', discount: '1', grossAmount: 12_300, vatAmount: 2_300, vatRate: '23', beforeCorrection: true),
+            ],
         ), document: true);
 
         $view = $this->get($this->manager, $invoice->getId()->toRfc4122());
@@ -205,7 +212,28 @@ final class PurchaseInvoiceHandlersTest extends TestCase
             [new PurchaseInvoiceVatLineView('23', 10_000, 2_300, null), new PurchaseInvoiceVatLineView('8', 10_000, 800, null)],
             'FA (3)',
             new \DateTimeImmutable(PurchaseInvoiceMother::IMPORTED_AT),
+            [
+                new PurchaseInvoiceItemView(1, 'Piwo', 'P-1', '5901234123457', null, '4', null, '30.75', '1', null, 12_300, 2_300, '23', true),
+                new PurchaseInvoiceItemView(2, 'Przekąski', null, null, 'kg', '0.7', '12.34567891', null, null, 10_000, null, null, '8', false),
+            ],
         ), $view);
+    }
+
+    public function test_it_lists_invoices_without_their_items(): void
+    {
+        $this->store(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')]));
+
+        $list = $this->listed($this->owner);
+
+        self::assertCount(1, $list->items);
+        self::assertNull($list->items[0]->items);
+    }
+
+    public function test_it_gets_an_invoice_without_items_with_none(): void
+    {
+        $invoice = $this->store(PurchaseInvoiceMother::manual());
+
+        self::assertSame([], $this->get($this->owner, $invoice->getId()->toRfc4122())?->items);
     }
 
     public function test_it_gets_nothing_for_an_unknown_invoice_or_a_stranger(): void

@@ -71,6 +71,7 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
             'hasDocument' => false,
             'documentFormat' => null,
             'createdAt' => '2026-11-20T10:00:00+00:00',
+            'items' => [],
         ], $expense);
         self::assertSame($expense, self::get($actor, $organization, $expense['id'])->toArray());
     }

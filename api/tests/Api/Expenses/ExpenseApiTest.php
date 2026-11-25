@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api\Expenses;
 
 use App\Expenses\Domain\Model\PurchaseInvoice;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Organization\Domain\Model\MembershipRole;
@@ -212,7 +213,100 @@ final class ExpenseApiTest extends ExpensesApiTestCase
             'hasDocument' => false,
             'documentFormat' => null,
             'createdAt' => '2026-11-12T21:00:00+00:00',
+            'items' => [],
         ], $expense);
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_shows_the_items_of_an_expense_by_position_with_decimals_trimmed(MembershipRole $role): void
+    {
+        [$actor, $organization] = self::memberWithRole($role);
+        $invoice = self::addInvoice($organization, PurchaseInvoiceMother::imported(externalId: 'K-1', items: [
+            new PurchaseInvoiceItemDetails(position: 2, name: 'Woda mineralna 1,5 l', sellerCode: 'WOD-15', unit: 'but.', quantity: '12.000', unitGrossPrice: '2.50', discount: '1.50', grossAmount: 2_850, vatAmount: 211, vatRate: '8'),
+            new PurchaseInvoiceItemDetails(position: 1, name: 'Polędwica wołowa', sellerCode: 'MIE-0042', gtin: '5901234123457', unit: 'kg', quantity: '0.7', unitNetPrice: '12.34567891', netAmount: 864, vatRate: '23', beforeCorrection: true),
+            new PurchaseInvoiceItemDetails(position: 3, name: 'Dostawa'),
+        ]));
+
+        $expense = self::get($actor, $organization, $invoice->getId()->toRfc4122())->toArray();
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([
+            [
+                'position' => 1,
+                'name' => 'Polędwica wołowa',
+                'sellerCode' => 'MIE-0042',
+                'gtin' => '5901234123457',
+                'unit' => 'kg',
+                'quantity' => '0.7',
+                'unitNetPrice' => '12.34567891',
+                'unitGrossPrice' => null,
+                'discount' => null,
+                'netAmount' => 864,
+                'grossAmount' => null,
+                'vatAmount' => null,
+                'vatRate' => '23',
+                'beforeCorrection' => true,
+            ],
+            [
+                'position' => 2,
+                'name' => 'Woda mineralna 1,5 l',
+                'sellerCode' => 'WOD-15',
+                'gtin' => null,
+                'unit' => 'but.',
+                'quantity' => '12',
+                'unitNetPrice' => null,
+                'unitGrossPrice' => '2.5',
+                'discount' => '1.5',
+                'netAmount' => null,
+                'grossAmount' => 2_850,
+                'vatAmount' => 211,
+                'vatRate' => '8',
+                'beforeCorrection' => false,
+            ],
+            [
+                'position' => 3,
+                'name' => 'Dostawa',
+                'sellerCode' => null,
+                'gtin' => null,
+                'unit' => null,
+                'quantity' => null,
+                'unitNetPrice' => null,
+                'unitGrossPrice' => null,
+                'discount' => null,
+                'netAmount' => null,
+                'grossAmount' => null,
+                'vatAmount' => null,
+                'vatRate' => null,
+                'beforeCorrection' => false,
+            ],
+        ], $expense['items']);
+    }
+
+    public function test_it_lists_expenses_without_their_items(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        self::addInvoice($organization, PurchaseInvoiceMother::imported(externalId: 'K-1', items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo', quantity: '4')]));
+
+        $list = self::list($owner, $organization, self::NOVEMBER)->toArray();
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertCount(1, $list['items']);
+        self::assertArrayNotHasKey('items', $list['items'][0]);
+        self::assertArrayHasKey('vatLines', $list['items'][0]);
+    }
+
+    public function test_it_hides_another_organizations_expense_and_its_items(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        [$ownerElsewhere, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
+        $foreign = self::addInvoice($elsewhere, PurchaseInvoiceMother::imported(externalId: 'K-1', items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')]));
+        $id = $foreign->getId()->toRfc4122();
+
+        $response = self::get($owner, $organization, $id);
+        self::assertResponseStatusCodeSame(404);
+        self::assertStringNotContainsString('Piwo', $response->getContent(false));
+
+        self::assertSame('Piwo', self::get($ownerElsewhere, $elsewhere, $id)->toArray()['items'][0]['name']);
     }
 
     public function test_it_answers_404_for_an_unknown_expense(): void

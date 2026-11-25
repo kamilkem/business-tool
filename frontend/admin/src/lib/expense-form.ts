@@ -4,7 +4,7 @@ import type { MinorUnits } from "@business-tool/ui/lib/money"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { i18n } from "../i18n"
-import { type Expense, isCorrection } from "./expenses"
+import { type ExpenseListItem, isCorrection } from "./expenses"
 import type { VatRate } from "./income"
 
 /*
@@ -36,7 +36,7 @@ export const INVOICE_NUMBER_MAX_LENGTH = 256
 const CURRENCY_CODE = /^[A-Z]{3}$/
 
 /** Only an expense entered by hand can be changed or deleted; an imported one keeps what the source says. */
-export function isEditable(expense: Pick<Expense, "source">): boolean {
+export function isEditable(expense: Pick<ExpenseListItem, "source">): boolean {
   return expense.source === "manual"
 }
 
@@ -85,7 +85,7 @@ export function emptyExpenseForm(currency: string, issueDate: BusinessDate): Exp
   }
 }
 
-export function expenseFormFrom(expense: Expense): ExpenseFormValues {
+export function expenseFormFrom(expense: ExpenseListItem): ExpenseFormValues {
   return {
     sellerName: expense.sellerName,
     sellerTaxId: expense.sellerTaxId ?? "",

@@ -27,12 +27,12 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
 import { isEditable } from "@/lib/expense-form"
-import { type Expense, documentFileName, isCorrection, kindLabel, sourceLabel, vatRateLabel } from "@/lib/expenses"
+import { type ExpenseListItem, documentFileName, isCorrection, kindLabel, sourceLabel, vatRateLabel } from "@/lib/expenses"
 
 interface ExpenseActions {
   organizationId: string
   /** Opens the form for an expense entered by hand. */
-  onEdit: (expense: Expense) => void
+  onEdit: (expense: ExpenseListItem) => void
 }
 
 /**
@@ -45,7 +45,7 @@ export function ExpenseSheet({
   onClose,
   ...actions
 }: ExpenseActions & {
-  expense: Expense | null
+  expense: ExpenseListItem | null
   onClose: () => void
 }) {
   return (
@@ -62,7 +62,7 @@ function ExpenseDetails({
   organizationId,
   onEdit,
   onDeleted,
-}: ExpenseActions & { expense: Expense; onDeleted: () => void }) {
+}: ExpenseActions & { expense: ExpenseListItem; onDeleted: () => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
   const { t } = useTranslation("admin")
@@ -198,9 +198,9 @@ function ManualExpenseActions({
   onEdit,
   onDeleted,
 }: {
-  expense: Expense
+  expense: ExpenseListItem
   organizationId: string
-  onEdit: (expense: Expense) => void
+  onEdit: (expense: ExpenseListItem) => void
   onDeleted: () => void
 }) {
   const queryClient = useQueryClient()
@@ -257,7 +257,7 @@ function ManualExpenseActions({
 }
 
 /** Downloads the stored copy (GET /expenses/{id}/document): the API answers XML, not JSON. */
-function DocumentDownload({ expense }: { expense: Expense }) {
+function DocumentDownload({ expense }: { expense: ExpenseListItem }) {
   const { t } = useTranslation("admin")
   const [busy, setBusy] = useState(false)
 

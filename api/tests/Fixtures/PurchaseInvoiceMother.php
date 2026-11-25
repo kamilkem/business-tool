@@ -6,6 +6,7 @@ namespace App\Tests\Fixtures;
 
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -20,7 +21,8 @@ final class PurchaseInvoiceMother
 
     /**
      * @param array{int, int, int}           $totals   net, VAT, gross
-     * @param list<PurchaseInvoiceVatAmount> $vatLines
+     * @param list<PurchaseInvoiceVatAmount>   $vatLines
+     * @param list<PurchaseInvoiceItemDetails> $items
      */
     public static function imported(
         ?string $externalId = null,
@@ -34,8 +36,9 @@ final class PurchaseInvoiceMother
         array $vatLines = [new PurchaseInvoiceVatAmount('23', 20_000, 4_600)],
         ?string $correctedExternalId = null,
         string $importedAt = self::IMPORTED_AT,
+        array $items = [],
     ): PurchaseInvoice {
-        $details = new PurchaseInvoiceDetails($invoiceNumber, $sellerTaxId, $sellerName, BusinessDate::fromString($issueDate), $kind, $currency, $totals[0], $totals[1], $totals[2], $vatLines, $correctedExternalId);
+        $details = new PurchaseInvoiceDetails($invoiceNumber, $sellerTaxId, $sellerName, BusinessDate::fromString($issueDate), $kind, $currency, $totals[0], $totals[1], $totals[2], $vatLines, $correctedExternalId, $items);
 
         return PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId ?? 'K-'.Uuid::v4()->toBase58(), $details, 'PL', 'PLN', new \DateTimeImmutable($importedAt));
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ksef\Infrastructure\Fa3;
 
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Ksef\Domain\Exception\InvalidFa3InvoiceException;
@@ -34,7 +35,16 @@ use Symfony\Component\Intl\Currencies;
  *   invoice's KSeF number (`DaneFaKorygowanej/NrKSeFFaKorygowanej`) becomes `correctedExternalId`
  *   when the correction names exactly one corrected invoice and it is in KSeF; a correction of several
  *   invoices, or of one issued outside KSeF, has none.
- * - Line items (`FaWiersz`) and the metadata's amounts are not read.
+ * - Items (ADR 0040): every `Fa/FaWiersz` in the document's order, as printed: `NrWierszaFa` position,
+ *   `P_7` name, `Indeks` seller code, `GTIN`, `P_8A` unit, `P_8B` quantity (`TIlosci`, up to 6
+ *   decimals), `P_9A`/`P_9B` unit net/gross price and `P_10` discount (`TKwotowy2`, up to 8 decimals),
+ *   the last four as decimal strings; `P_11`/`P_11A` net/gross value and `P_11Vat` VAT in minor units;
+ *   `P_12` mapped to the rate codes above (23/22 → 23, 8/7 → 8, 5 → 5, `0 KR`/`0 WDT`/`0 EX` → 0,
+ *   zw → zw; 4, 3, oo, np I and np II have no code: null); `StanPrzed` marks a correction's row as it
+ *   was before. A row without `P_7` (allowed only in a correction that discounts a whole period) is
+ *   skipped, since an item needs a name. An advance invoice (`ZAL`) lists its order in `Zamowienie`
+ *   instead and gets no items.
+ * - The metadata's amounts are not read.
  */
 final readonly class Fa3InvoiceParser implements Fa3InvoiceParserInterface
 {
@@ -67,6 +77,19 @@ final readonly class Fa3InvoiceParser implements Fa3InvoiceParserInterface
         '0' => [['P_13_6_1', 'P_13_6_2', 'P_13_6_3'], null, null],
         'zw' => [['P_13_7'], null, null],
     ];
+
+    /** `P_12` (`TStawkaPodatku`) => the rate code of VatRates; a value not here has no code. */
+    private const array ITEM_RATES = [
+        '23' => '23', '22' => '23',
+        '8' => '8', '7' => '8',
+        '5' => '5',
+        '0 KR' => '0', '0 WDT' => '0', '0 EX' => '0',
+        'zw' => 'zw',
+    ];
+
+    /** `TIlosci` (quantities) and `TKwotowy2` (unit prices, discounts) of schemat_FA(3)_v1-0E.xsd, anchored. */
+    private const string QUANTITY_PATTERN = '/^-?([1-9]\d{0,15}|0)(\.\d{1,6})?$/D';
+    private const string PRICE_PATTERN = '/^-?([1-9]\d{0,13}|0)(\.\d{1,8})?$/D';
 
     /** Every net (`P_13_x`) and VAT (`P_14_x`, invoice currency) field, for the totals. */
     private const array NET_FIELDS = ['P_13_1', 'P_13_2', 'P_13_3', 'P_13_4', 'P_13_5', 'P_13_6_1', 'P_13_6_2', 'P_13_6_3', 'P_13_7', 'P_13_8', 'P_13_9', 'P_13_10', 'P_13_11'];
@@ -101,7 +124,91 @@ final readonly class Fa3InvoiceParser implements Fa3InvoiceParserInterface
             grossTotal: Fa3Amount::toMinorUnits($this->text($xpath, 'Fa/P_15'), $digits, 'Fa/P_15'),
             vatLines: $this->vatLines($xpath, $digits, $inTaxCurrency),
             correctedExternalId: $kind->isCorrection() ? $this->correctedKsefNumber($xpath) : null,
+            items: PurchaseInvoiceKind::Advance === $kind ? [] : $this->items($xpath, $digits),
         );
+    }
+
+    /**
+     * @return list<PurchaseInvoiceItemDetails>
+     *
+     * @throws InvalidFa3InvoiceException
+     */
+    private function items(\DOMXPath $xpath, int $digits): array
+    {
+        $items = [];
+        foreach ($this->query($xpath, 'Fa/FaWiersz') as $index => $row) {
+            $path = \sprintf('Fa/FaWiersz[%d]', $index + 1);
+            $name = $this->childText($xpath, $row, $path, 'P_7');
+            if (null === $name) {
+                continue;
+            }
+
+            $position = $this->childText($xpath, $row, $path, 'NrWierszaFa') ?? throw InvalidFa3InvoiceException::missing($path.'/NrWierszaFa');
+            if (1 !== preg_match('/^\d{1,14}$/D', $position) || (int) $position < 1) {
+                throw InvalidFa3InvoiceException::invalidValue($path.'/NrWierszaFa', $position, 'a row number (a positive integer)');
+            }
+            $rate = $this->childText($xpath, $row, $path, 'P_12');
+
+            $items[] = new PurchaseInvoiceItemDetails(
+                position: (int) $position,
+                name: $name,
+                sellerCode: $this->childText($xpath, $row, $path, 'Indeks'),
+                gtin: $this->childText($xpath, $row, $path, 'GTIN'),
+                unit: $this->childText($xpath, $row, $path, 'P_8A'),
+                quantity: $this->childDecimal($xpath, $row, $path, 'P_8B', self::QUANTITY_PATTERN, 'an FA(3) quantity (TIlosci)'),
+                unitNetPrice: $this->childDecimal($xpath, $row, $path, 'P_9A', self::PRICE_PATTERN, 'an FA(3) unit price (TKwotowy2)'),
+                unitGrossPrice: $this->childDecimal($xpath, $row, $path, 'P_9B', self::PRICE_PATTERN, 'an FA(3) unit price (TKwotowy2)'),
+                discount: $this->childDecimal($xpath, $row, $path, 'P_10', self::PRICE_PATTERN, 'an FA(3) discount (TKwotowy2)'),
+                netAmount: $this->childAmount($xpath, $row, $path, 'P_11', $digits),
+                grossAmount: $this->childAmount($xpath, $row, $path, 'P_11A', $digits),
+                vatAmount: $this->childAmount($xpath, $row, $path, 'P_11Vat', $digits),
+                vatRate: null === $rate ? null : (self::ITEM_RATES[$rate] ?? null),
+                beforeCorrection: '1' === $this->childText($xpath, $row, $path, 'StanPrzed'),
+            );
+        }
+
+        return $items;
+    }
+
+    /**
+     * The trimmed text of the child `$name` of a row, or null when there is none or it is empty.
+     *
+     * @param string $path the row's path, for error messages
+     *
+     * @throws InvalidFa3InvoiceException when it is repeated
+     */
+    private function childText(\DOMXPath $xpath, \DOMElement $row, string $path, string $name): ?string
+    {
+        $nodes = $xpath->query('fa:'.$name, $row) ?: throw new \LogicException(\sprintf('Invalid XPath expression "fa:%s".', $name));
+        if ($nodes->length > 1) {
+            throw InvalidFa3InvoiceException::repeated($path.'/'.$name);
+        }
+        $value = trim($nodes->item(0)->textContent ?? '');
+
+        return '' === $value ? null : $value;
+    }
+
+    /**
+     * A decimal kept as a string (ADR 0040), checked against its FA(3) pattern.
+     *
+     * @throws InvalidFa3InvoiceException
+     */
+    private function childDecimal(\DOMXPath $xpath, \DOMElement $row, string $path, string $name, string $pattern, string $expected): ?string
+    {
+        $value = $this->childText($xpath, $row, $path, $name);
+        if (null !== $value && 1 !== preg_match($pattern, $value)) {
+            throw InvalidFa3InvoiceException::invalidValue($path.'/'.$name, $value, $expected);
+        }
+
+        return $value;
+    }
+
+    /** @throws InvalidFa3InvoiceException */
+    private function childAmount(\DOMXPath $xpath, \DOMElement $row, string $path, string $name, int $digits): ?int
+    {
+        $value = $this->childText($xpath, $row, $path, $name);
+
+        return null === $value ? null : Fa3Amount::toMinorUnits($value, $digits, $path.'/'.$name);
     }
 
     /** @throws InvalidFa3InvoiceException */

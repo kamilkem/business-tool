@@ -8,6 +8,8 @@ use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
+use App\Expenses\Domain\Model\PurchaseInvoiceItem;
+use App\Expenses\Domain\Model\PurchaseInvoiceItemDetails;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -105,6 +107,42 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertEquals([new PurchaseInvoiceVatAmount('23', -1_000, -230)], $found->getVatLines());
         self::assertSame('K-1', $found->getCorrectedExternalId());
         self::assertNull($this->documents->findByInvoiceId($invoice->getId()));
+    }
+
+    public function test_it_stores_the_items_with_their_decimals_exactly(): void
+    {
+        $organization = $this->switchToNewOrganization();
+        $invoice = PurchaseInvoiceMother::imported(externalId: 'K-1', items: [
+            new PurchaseInvoiceItemDetails(position: 2, name: 'Woda', quantity: '-9999999999999999.123456', unitNetPrice: '99999999999999.12345678', discount: '0.00000001', netAmount: -9_000_000_000_000, vatRate: '8'),
+            new PurchaseInvoiceItemDetails(position: 1, name: 'Polędwica', sellerCode: 'MIE-0042', gtin: '5901234123457', unit: 'kg', quantity: '0.7', unitGrossPrice: '12.34567891', grossAmount: 864, vatAmount: 162, vatRate: '23', beforeCorrection: true),
+        ]);
+        $this->invoices->add($invoice);
+        $this->entityManager->clear();
+
+        $found = $this->invoices->findById($invoice->getId()) ?? self::fail('Stored invoice expected.');
+        self::assertEquals([
+            new PurchaseInvoiceItemDetails(position: 1, name: 'Polędwica', sellerCode: 'MIE-0042', gtin: '5901234123457', unit: 'kg', quantity: '0.7', unitGrossPrice: '12.34567891', grossAmount: 864, vatAmount: 162, vatRate: '23', beforeCorrection: true),
+            new PurchaseInvoiceItemDetails(position: 2, name: 'Woda', quantity: '-9999999999999999.123456', unitNetPrice: '99999999999999.12345678', discount: '0.00000001', netAmount: -9_000_000_000_000, vatRate: '8'),
+        ], $found->getItems());
+
+        $stored = $this->entityManager->getConnection()->fetchAllAssociative('SELECT quantity, unit_gross_price, organization_id FROM purchase_invoice_item WHERE purchase_invoice_id = ? ORDER BY ordinal', [$invoice->getId()->toRfc4122()]);
+        self::assertSame(['-9999999999999999.123456', '0.700000'], array_column($stored, 'quantity'));
+        self::assertSame('12.34567891', $stored[1]['unit_gross_price']);
+        self::assertSame([$organization->getId()->toRfc4122(), $organization->getId()->toRfc4122()], array_column($stored, 'organization_id'));
+    }
+
+    public function test_it_removes_the_items_with_their_invoice_and_hides_another_organizations(): void
+    {
+        $this->switchToNewOrganization();
+        $foreign = $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')]));
+        $this->switchToNewOrganization();
+        $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Wino'), new PurchaseInvoiceItemDetails(position: 2, name: 'Woda')]));
+        $this->entityManager->clear();
+
+        self::assertSame(2, (int) $this->entityManager->createQuery(\sprintf('SELECT COUNT(IDENTITY(i.purchaseInvoice)) FROM %s i', PurchaseInvoiceItem::class))->getSingleScalarResult());
+
+        $this->entityManager->getConnection()->executeStatement('DELETE FROM purchase_invoice WHERE id = ?', [$foreign->getId()->toRfc4122()]);
+        self::assertSame(2, (int) $this->entityManager->getConnection()->fetchOne('SELECT COUNT(*) FROM purchase_invoice_item'));
     }
 
     public function test_it_rejects_an_external_id_already_stored_in_the_organization(): void

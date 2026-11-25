@@ -37,6 +37,8 @@ use Symfony\Component\Uid\Uuid;
  *   foreign invoice, which may lack an invoice number or a seller tax ID. Only such an invoice can be
  *   changed (change()) or deleted (assertCanBeDeleted()); an imported one stays as its source says.
  * - It has no category: categorization belongs to its line items and products (#228).
+ * - An imported invoice keeps its items as printed (PurchaseInvoiceItem, ADR 0040): never changed,
+ *   not checked against the totals. A manual invoice has none.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchase_invoice')]
@@ -120,6 +122,10 @@ class PurchaseInvoice implements TenantAwareInterface
     #[ORM\OneToMany(targetEntity: PurchaseInvoiceVatLine::class, mappedBy: 'purchaseInvoice', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $vatLines;
 
+    /** @var Collection<int, PurchaseInvoiceItem> */
+    #[ORM\OneToMany(targetEntity: PurchaseInvoiceItem::class, mappedBy: 'purchaseInvoice', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $items;
+
     /** When the invoice was imported or entered. */
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -149,6 +155,10 @@ class PurchaseInvoice implements TenantAwareInterface
         $this->vatLines = new ArrayCollection();
         foreach ($details->vatLines as $line) {
             $this->vatLines->add(new PurchaseInvoiceVatLine($this, $line->rate, $line->net, $line->vat, $line->vatInTaxCurrency));
+        }
+        $this->items = new ArrayCollection();
+        foreach ($details->items as $index => $item) {
+            $this->items->add(new PurchaseInvoiceItem($this, $index + 1, $item));
         }
     }
 
@@ -335,6 +345,15 @@ class PurchaseInvoice implements TenantAwareInterface
         return $lines;
     }
 
+    /** @return list<PurchaseInvoiceItemDetails> by printed position, then in the document's order */
+    public function getItems(): array
+    {
+        $items = array_map(static fn (PurchaseInvoiceItem $item): array => [$item->getOrdinal(), $item->toDetails()], $this->items->getValues());
+        usort($items, static fn (array $a, array $b): int => [$a[1]->position, $a[0]] <=> [$b[1]->position, $b[0]]);
+
+        return array_map(static fn (array $item): PurchaseInvoiceItemDetails => $item[1], $items);
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -442,6 +461,10 @@ class PurchaseInvoice implements TenantAwareInterface
         }
 
         self::assertValidVatLines($details->vatLines, $countryCode, $currency !== $taxCurrency, $taxCurrency);
+        if ([] !== $details->items && !$imported) {
+            throw InvalidPurchaseInvoiceException::itemsOnManual();
+        }
+        $items = array_map(static fn (PurchaseInvoiceItemDetails $item): PurchaseInvoiceItemDetails => self::normalizedItem($item, $countryCode), $details->items);
 
         return new PurchaseInvoiceDetails(
             $invoiceNumber,
@@ -455,7 +478,61 @@ class PurchaseInvoice implements TenantAwareInterface
             $details->grossTotal,
             $details->vatLines,
             $corrected,
+            $items,
         );
+    }
+
+    /**
+     * Checks an item and returns it with texts trimmed (blank optional texts are null) and decimals
+     * normalized (DecimalString). Its amounts are not checked against anything (ADR 0040).
+     *
+     * @throws InvalidPurchaseInvoiceException
+     */
+    private static function normalizedItem(PurchaseInvoiceItemDetails $item, string $countryCode): PurchaseInvoiceItemDetails
+    {
+        if ($item->position < 1) {
+            throw InvalidPurchaseInvoiceException::invalid('item position', (string) $item->position);
+        }
+        $vatRate = self::optionalText($item->vatRate);
+        if (null !== $vatRate) {
+            $vatRate = (VatRates::find($countryCode, $vatRate) ?? throw InvalidPurchaseInvoiceException::unknownVatRate($vatRate, $countryCode))->code;
+        }
+
+        return new PurchaseInvoiceItemDetails(
+            position: $item->position,
+            name: self::requiredText('item name', $item->name, PurchaseInvoiceItem::MAX_NAME_LENGTH),
+            sellerCode: self::optionalLimitedText('item seller code', $item->sellerCode, PurchaseInvoiceItem::MAX_SELLER_CODE_LENGTH),
+            gtin: self::optionalLimitedText('item GTIN', $item->gtin, PurchaseInvoiceItem::MAX_GTIN_LENGTH),
+            unit: self::optionalLimitedText('item unit', $item->unit, PurchaseInvoiceItem::MAX_UNIT_LENGTH),
+            quantity: self::decimal('item quantity', $item->quantity, PurchaseInvoiceItem::QUANTITY_INTEGER_DIGITS, PurchaseInvoiceItem::QUANTITY_SCALE),
+            unitNetPrice: self::decimal('item unit net price', $item->unitNetPrice, PurchaseInvoiceItem::PRICE_INTEGER_DIGITS, PurchaseInvoiceItem::PRICE_SCALE),
+            unitGrossPrice: self::decimal('item unit gross price', $item->unitGrossPrice, PurchaseInvoiceItem::PRICE_INTEGER_DIGITS, PurchaseInvoiceItem::PRICE_SCALE),
+            discount: self::decimal('item discount', $item->discount, PurchaseInvoiceItem::PRICE_INTEGER_DIGITS, PurchaseInvoiceItem::PRICE_SCALE),
+            netAmount: $item->netAmount,
+            grossAmount: $item->grossAmount,
+            vatAmount: $item->vatAmount,
+            vatRate: $vatRate,
+            beforeCorrection: $item->beforeCorrection,
+        );
+    }
+
+    /** @throws InvalidPurchaseInvoiceException */
+    private static function optionalLimitedText(string $field, ?string $value, int $maxLength): ?string
+    {
+        $value = self::optionalText($value);
+        if (null !== $value) {
+            self::assertMaxLength($field, $value, $maxLength);
+        }
+
+        return $value;
+    }
+
+    /** @throws InvalidPurchaseInvoiceException */
+    private static function decimal(string $field, ?string $value, int $maxIntegerDigits, int $maxFractionDigits): ?string
+    {
+        $value = self::optionalText($value);
+
+        return null === $value ? null : (DecimalString::normalized($value, $maxIntegerDigits, $maxFractionDigits) ?? throw InvalidPurchaseInvoiceException::invalid($field, $value));
     }
 
     /**

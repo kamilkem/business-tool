@@ -52,11 +52,11 @@ import {
   isForeign,
   normalizeCurrency,
 } from "@/lib/expense-form"
-import { type Expense, isCorrection, kindLabel, vatRateLabel } from "@/lib/expenses"
+import { type Expense, type ExpenseListItem, isCorrection, kindLabel, vatRateLabel } from "@/lib/expenses"
 import type { VatRate } from "@/lib/income"
 
 /** A new expense, or a manual one to change. */
-export type ExpenseTarget = { kind: "add" } | { kind: "edit"; expense: Expense }
+export type ExpenseTarget = { kind: "add" } | { kind: "edit"; expense: ExpenseListItem }
 
 interface ExpenseDialogProps {
   organizationId: string

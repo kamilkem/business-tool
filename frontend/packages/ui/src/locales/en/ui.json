@@ -79,6 +79,7 @@
         "empty_document": "The invoice document is empty.",
         "invalid": "“{{value}}” is not a valid value ({{field}}).",
         "invalid_currency": "“{{currency}}” is not a currency code ({{field}}).",
+        "items_on_manual": "An invoice entered by hand has no items.",
         "missing_external_id": "An imported invoice needs its id in the system it came from.",
         "missing_vat_in_tax_currency": "Give the VAT for the rate {{rate}} in {{taxCurrency}} too: the invoice is in another currency.",
         "not_imported": "An imported invoice cannot be marked as entered by hand.",

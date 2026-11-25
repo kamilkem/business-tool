@@ -79,6 +79,7 @@
         "empty_document": "Dokument faktury jest pusty.",
         "invalid": "„{{value}}” nie jest prawidłową wartością ({{field}}).",
         "invalid_currency": "„{{currency}}” nie jest kodem waluty ({{field}}).",
+        "items_on_manual": "Faktura wprowadzona ręcznie nie ma pozycji.",
         "missing_external_id": "Zaimportowana faktura wymaga swojego identyfikatora z systemu, z którego pochodzi.",
         "missing_vat_in_tax_currency": "Podaj VAT dla stawki {{rate}} także w {{taxCurrency}}: faktura jest w innej walucie.",
         "not_imported": "Zaimportowana faktura nie może być oznaczona jako wprowadzona ręcznie.",

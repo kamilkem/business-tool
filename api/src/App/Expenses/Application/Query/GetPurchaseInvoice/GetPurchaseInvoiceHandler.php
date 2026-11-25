@@ -35,6 +35,6 @@ final readonly class GetPurchaseInvoiceHandler implements QueryHandlerInterface
 
         $formats = $this->documents->findFormatsByInvoiceIds([$invoice->getId()]);
 
-        return PurchaseInvoiceView::of($invoice, $formats[$invoice->getId()->toRfc4122()] ?? null);
+        return PurchaseInvoiceView::of($invoice, $formats[$invoice->getId()->toRfc4122()] ?? null, withItems: true);
     }
 }
