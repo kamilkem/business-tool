@@ -64,6 +64,21 @@ docker compose -p business-tool-production exec php bin/console app:organization
   --name="…" --country=PL --currency=PLN --timezone=Europe/Warsaw --tax-id=…
 ```
 
+## One-off tasks after a deploy
+
+Some releases need a console command run once per environment after they are deployed. Running one
+again is safe; it only queues jobs for the `jobs-worker`, so the command returns at once.
+
+- **KSeF invoice items** (#230): invoices imported from KSeF before items were kept (#229) get them
+  from their stored XML. Run once on staging and once on production after the deploy that brings it:
+
+  ```bash
+  docker compose -p business-tool-production exec php bin/console app:ksef:read-invoice-items
+  ```
+
+  `--organization=<id>` limits it to one organization. The worker's log shows how many invoices got
+  items and how many were skipped.
+
 ## Rollback
 
 Run the workflow again for the previous good commit or tag (*Run workflow* on that ref, or re-run its

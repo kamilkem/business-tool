@@ -53,6 +53,21 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
         return $stored;
     }
 
+    public function findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource $source, ?Uuid $after, int $limit): array
+    {
+        $ids = [];
+        foreach ($this->byId as $id => $invoice) {
+            if ($invoice->getSource() === $source && isset($this->documents[$id]) && [] === $invoice->getItems()
+                && (null === $after || strcmp($id, $after->toRfc4122()) > 0)) {
+                $ids[] = $id;
+            }
+        }
+        // Lowercase RFC 4122 strings sort as PostgreSQL sorts UUIDs.
+        sort($ids);
+
+        return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         $invoices = array_values(array_filter($this->byId, static function (PurchaseInvoice $invoice) use ($filter): bool {

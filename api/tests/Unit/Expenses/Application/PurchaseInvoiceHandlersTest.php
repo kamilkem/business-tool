@@ -38,6 +38,7 @@ use App\Shared\Domain\Time\Exception\TimeException;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\PurchaseInvoiceMother;
 use App\Tests\Fixtures\UserMother;
+use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\User\Domain\Model\User;
@@ -373,7 +374,7 @@ final class PurchaseInvoiceHandlersTest extends TestCase
 
     private function document(User $user, string $invoiceId): ?PurchaseInvoiceDocumentView
     {
-        $handler = new GetPurchaseInvoiceDocumentHandler($this->invoices, $this->queryBus);
+        $handler = new GetPurchaseInvoiceDocumentHandler($this->invoices, $this->queryBus, new InMemoryTenantContext());
 
         return $handler(new GetPurchaseInvoiceDocumentQuery($this->organization->getId()->toRfc4122(), $user->getId()->toRfc4122(), $invoiceId));
     }

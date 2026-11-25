@@ -29,6 +29,13 @@ final class InMemoryKsefConnectionRepository implements KsefConnectionRepository
         return null === $organization ? [] : [$organization->getId()->toRfc4122()];
     }
 
+    public function findOrganizationIds(): array
+    {
+        $organization = $this->connection?->getOrganization();
+
+        return null === $organization ? [] : [$organization->getId()->toRfc4122()];
+    }
+
     public function add(KsefConnection $connection): void
     {
         if (null !== $this->connection) {

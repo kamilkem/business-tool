@@ -41,6 +41,15 @@ final class KsefConnectionRepository extends ServiceEntityRepository implements 
         return $ids;
     }
 
+    public function findOrganizationIds(): array
+    {
+        // Plain SQL for the same reason as findOrganizationIdsToSync().
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn('SELECT organization_id FROM ksef_connection ORDER BY organization_id');
+
+        return $ids;
+    }
+
     public function add(KsefConnection $connection): void
     {
         $this->getEntityManager()->persist($connection);

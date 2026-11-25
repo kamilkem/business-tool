@@ -266,6 +266,37 @@ class PurchaseInvoice implements TenantAwareInterface
         return new self($id, $source, $externalId, self::normalized($details, $countryCode, $taxCurrency, imported: true), strtoupper($taxCurrency), $now);
     }
 
+    /**
+     * Gives an imported invoice that has no items the items its document lists, when an importer
+     * reads the document again (#230). It changes nothing for an invoice that already has items, so a
+     * run done twice never replaces items that may be linked to products (ADR 0040); giving none
+     * changes nothing either (an advance invoice lists none).
+     *
+     * @param list<PurchaseInvoiceItemDetails> $items       in the document's order
+     * @param string                           $countryCode the organization's country, which gives the VAT rates
+     *
+     * @return bool whether the items were set
+     *
+     * @throws InvalidPurchaseInvoiceException when the invoice was entered by hand or an item breaks a rule
+     */
+    public function recordItems(array $items, string $countryCode): bool
+    {
+        if (PurchaseInvoiceSource::Manual === $this->source) {
+            throw InvalidPurchaseInvoiceException::itemsOnManual();
+        }
+        if ([] === $items || !$this->items->isEmpty()) {
+            return false;
+        }
+
+        // All are checked before the first one is added: either all or none.
+        $items = array_map(static fn (PurchaseInvoiceItemDetails $item): PurchaseInvoiceItemDetails => self::normalizedItem($item, $countryCode), $items);
+        foreach ($items as $index => $item) {
+            $this->items->add(new PurchaseInvoiceItem($this, $index + 1, $item));
+        }
+
+        return true;
+    }
+
     public function getId(): Uuid
     {
         return $this->id;

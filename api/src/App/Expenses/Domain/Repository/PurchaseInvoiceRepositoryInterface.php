@@ -27,6 +27,14 @@ interface PurchaseInvoiceRepositoryInterface
     public function findStoredExternalIds(PurchaseInvoiceSource $source, array $externalIds): array;
 
     /**
+     * The invoices imported from the source that have a document and no items, by id, after `$after`
+     * (keyset paging), at most `$limit`: what an importer may read again (#230).
+     *
+     * @return list<Uuid>
+     */
+    public function findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource $source, ?Uuid $after, int $limit): array;
+
+    /**
      * The invoices the filter selects, newest issue date first, then by seller name and invoice number.
      *
      * @return list<PurchaseInvoice>
