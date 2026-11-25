@@ -455,6 +455,139 @@
       "retry": "Try again"
     }
   },
+  "product": {
+    "back": "Back to the analysis",
+    "notFound": {
+      "title": "Product not found",
+      "description": "It may have been merged into another product or deleted. Go back to the analysis to find it."
+    },
+    "error": {
+      "title": "Could not load the product",
+      "retry": "Try again"
+    },
+    "excluded": "Excluded",
+    "pricePer": "Prices per {{reference}}",
+    "noUnit": "No unit: counted in spend only",
+    "last12Months": "Last 12 months",
+    "cancel": "Cancel",
+    "measure": {
+      "volume": "Volume (L)",
+      "mass": "Weight (kg)",
+      "count": "Pieces (pc)",
+      "none": "No unit (not goods)"
+    },
+    "noPrices": {
+      "excluded": {
+        "title": "This product is excluded",
+        "description": "It and its items are left out of every total, so it has no prices. Turn that off in its settings to count it again."
+      },
+      "noUnit": {
+        "title": "This product has no unit",
+        "description": "Things like rent, electricity or deposits count in the spend only, with no quantity, price or price history."
+      }
+    },
+    "stats": {
+      "latest": "Latest price",
+      "lowest": "Lowest price",
+      "highest": "Highest price"
+    },
+    "chart": {
+      "title": "Price history",
+      "description": "Price, {{basis}}, by invoice issue date. Each point is a purchase.",
+      "descriptionPer": "Price per {{reference}}, {{basis}}, by invoice issue date. Each point is a purchase.",
+      "none": "No purchases with a price for {{period}}. Pick a longer period, or give the items below a package size.",
+      "label": "Price history chart. The same purchases are listed in the table below.",
+      "date": "Date",
+      "price": "Price",
+      "sellers": "Sellers",
+      "otherSellers_one": "{{count}} other seller",
+      "otherSellers_other": "{{count}} other sellers",
+      "firstPurchase": "First purchase",
+      "withoutPrice_one": "{{count}} purchase has no {{basis}} price, so it is not on the chart.",
+      "withoutPrice_other": "{{count}} purchases have no {{basis}} price, so they are not on the chart."
+    },
+    "purchases": {
+      "title": "Purchases",
+      "description_one": "{{count}} purchase with a price, newest first. Open the invoice to see everything on it.",
+      "description_other": "{{count}} purchases with a price, newest first. Open the invoice to see everything on it.",
+      "none": "No purchases with a price in this period.",
+      "noNumber": "No invoice number",
+      "columns": {
+        "date": "Date",
+        "seller": "Seller / invoice",
+        "item": "Item as printed",
+        "quantity": "Quantity × package",
+        "price_net": "Price (net)",
+        "price_gross": "Price (gross)"
+      }
+    },
+    "items": {
+      "title": "Other items",
+      "description": "Bought in this period and counted in the spend, but in no price: a correction, no package size, another currency.",
+      "none": "Every item on this page is in the prices above.",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}} of {{pages}}",
+      "reason": {
+        "excluded": "Product excluded",
+        "noUnit": "Product has no unit",
+        "correction": "On a correction",
+        "otherCurrency": "Another currency",
+        "noPackageSize": "No package size",
+        "noQuantity": "No quantity"
+      }
+    },
+    "item": {
+      "title": "Move or correct this item",
+      "description": "{{name}}",
+      "moveTo": "Move to another product",
+      "packageSize": "Package size",
+      "packageSizeDescription": "In the product's unit per one unit of the quantity: 0.7 for a 0.7 L bottle. Leave it empty if unknown.",
+      "remove": "Take off this product",
+      "move": "Move",
+      "save": "Save",
+      "actions": "Actions for {{name}}",
+      "menu": "Move or set the package size…",
+      "toast": {
+        "size": "Item saved",
+        "removed": "Item taken off the product",
+        "moved": "Item moved to {{name}}"
+      }
+    },
+    "picker": {
+      "search": "Search products",
+      "list": "Products",
+      "none": "No products found."
+    },
+    "merge": {
+      "title": "Merge {{name}} into another product",
+      "description": "Pick the product that keeps everything. The items of {{name}} move to it and {{name}} is deleted.",
+      "action": "Continue",
+      "confirmTitle": "Merge {{from}} into {{into}}?",
+      "confirmDescription": "All the items of {{from}} move to {{into}}, and {{from}} is deleted. This cannot be undone.",
+      "confirm": "Merge",
+      "toast": "{{from}} merged into {{into}}"
+    },
+    "settings": {
+      "open": "Product settings",
+      "title": "Product settings",
+      "description": "Rename it, put it in a category, and choose what its prices are compared per.",
+      "name": "Name",
+      "category": "Category",
+      "categoryDescription": "Every item of this product follows it.",
+      "measure": "Counted in",
+      "measureDescription": "Prices are compared per the same quantity whatever the package size.",
+      "measureNoneDescription": "For what is not goods, such as rent, electricity or deposits: it counts in the spend, with no prices.",
+      "reference": "Compare prices per ({{unit}})",
+      "referenceDescription": "Beer per 0.5, coffee per 1. Left empty, it is 1.",
+      "excluded": "Leave out of every total",
+      "excludedDescription": "The product and all its items are not counted anywhere in the analysis.",
+      "merge": "Merge into another product…",
+      "mergeDescription": "For the same thing printed under two names. Its items move to the other product.",
+      "save": "Save",
+      "saved": "{{name}} saved"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Pending",

@@ -499,6 +499,145 @@
       "retry": "Spróbuj ponownie"
     }
   },
+  "product": {
+    "back": "Wróć do analizy",
+    "notFound": {
+      "title": "Nie znaleziono produktu",
+      "description": "Mógł zostać scalony z innym produktem albo usunięty. Wróć do analizy, żeby go znaleźć."
+    },
+    "error": {
+      "title": "Nie udało się wczytać produktu",
+      "retry": "Spróbuj ponownie"
+    },
+    "excluded": "Wyłączony",
+    "pricePer": "Ceny za {{reference}}",
+    "noUnit": "Bez jednostki: wliczany tylko do wydatków",
+    "last12Months": "Ostatnie 12 miesięcy",
+    "cancel": "Anuluj",
+    "measure": {
+      "volume": "Objętość (L)",
+      "mass": "Waga (kg)",
+      "count": "Sztuki (szt.)",
+      "none": "Bez jednostki (nie towar)"
+    },
+    "noPrices": {
+      "excluded": {
+        "title": "Ten produkt jest wyłączony",
+        "description": "On i jego pozycje nie wchodzą do żadnych sum, więc nie ma cen. Wyłącz tę opcję w ustawieniach produktu, żeby znów go liczyć."
+      },
+      "noUnit": {
+        "title": "Ten produkt nie ma jednostki",
+        "description": "Rzeczy takie jak czynsz, prąd czy kaucje wchodzą tylko do wydatków, bez ilości, ceny i historii cen."
+      }
+    },
+    "stats": {
+      "latest": "Ostatnia cena",
+      "lowest": "Najniższa cena",
+      "highest": "Najwyższa cena"
+    },
+    "chart": {
+      "title": "Historia cen",
+      "description": "Cena {{basis}} według daty wystawienia faktury. Każdy punkt to zakup.",
+      "descriptionPer": "Cena {{basis}} za {{reference}} według daty wystawienia faktury. Każdy punkt to zakup.",
+      "none": "{{period}}: brak zakupów z ceną. Wybierz dłuższy okres albo uzupełnij wielkość opakowania pozycji poniżej.",
+      "label": "Wykres historii cen. Te same zakupy są w tabeli poniżej.",
+      "date": "Data",
+      "price": "Cena",
+      "sellers": "Sprzedawcy",
+      "otherSellers_one": "{{count}} inny sprzedawca",
+      "otherSellers_few": "{{count}} innych sprzedawców",
+      "otherSellers_many": "{{count}} innych sprzedawców",
+      "otherSellers_other": "{{count}} innego sprzedawcy",
+      "firstPurchase": "Pierwszy zakup",
+      "withoutPrice_one": "{{count}} zakup nie ma ceny {{basis}}, więc nie ma go na wykresie.",
+      "withoutPrice_few": "{{count}} zakupy nie mają ceny {{basis}}, więc nie ma ich na wykresie.",
+      "withoutPrice_many": "{{count}} zakupów nie ma ceny {{basis}}, więc nie ma ich na wykresie.",
+      "withoutPrice_other": "{{count}} zakupu nie ma ceny {{basis}}, więc nie ma ich na wykresie."
+    },
+    "purchases": {
+      "title": "Zakupy",
+      "description_one": "{{count}} zakup z ceną, od najnowszego. Otwórz fakturę, żeby zobaczyć wszystko, co na niej jest.",
+      "description_few": "{{count}} zakupy z ceną, od najnowszego. Otwórz fakturę, żeby zobaczyć wszystko, co na niej jest.",
+      "description_many": "{{count}} zakupów z ceną, od najnowszego. Otwórz fakturę, żeby zobaczyć wszystko, co na niej jest.",
+      "description_other": "{{count}} zakupu z ceną, od najnowszego. Otwórz fakturę, żeby zobaczyć wszystko, co na niej jest.",
+      "none": "W tym okresie brak zakupów z ceną.",
+      "noNumber": "Bez numeru faktury",
+      "columns": {
+        "date": "Data",
+        "seller": "Sprzedawca / faktura",
+        "item": "Pozycja jak na fakturze",
+        "quantity": "Ilość × opakowanie",
+        "price_net": "Cena (netto)",
+        "price_gross": "Cena (brutto)"
+      }
+    },
+    "items": {
+      "title": "Pozostałe pozycje",
+      "description": "Kupione w tym okresie i wliczone w wydatki, ale bez wpływu na ceny: korekta, brak wielkości opakowania, inna waluta.",
+      "none": "Wszystkie pozycje z tej strony są w cenach powyżej.",
+      "previous": "Poprzednia",
+      "next": "Następna",
+      "page": "Strona {{page}} z {{pages}}",
+      "reason": {
+        "excluded": "Produkt wyłączony",
+        "noUnit": "Produkt bez jednostki",
+        "correction": "Na korekcie",
+        "otherCurrency": "Inna waluta",
+        "noPackageSize": "Brak wielkości opakowania",
+        "noQuantity": "Brak ilości"
+      }
+    },
+    "item": {
+      "title": "Przenieś lub popraw pozycję",
+      "description": "{{name}}",
+      "moveTo": "Przenieś do innego produktu",
+      "packageSize": "Wielkość opakowania",
+      "packageSizeDescription": "W jednostce produktu na jedną jednostkę ilości: 0,7 dla butelki 0,7 L. Zostaw puste, jeśli nieznana.",
+      "remove": "Odepnij od produktu",
+      "move": "Przenieś",
+      "save": "Zapisz",
+      "actions": "Działania dla pozycji {{name}}",
+      "menu": "Przenieś lub ustaw opakowanie…",
+      "toast": {
+        "size": "Pozycja zapisana",
+        "removed": "Pozycja odpięta od produktu",
+        "moved": "Pozycja przeniesiona do: {{name}}"
+      }
+    },
+    "picker": {
+      "search": "Szukaj produktów",
+      "list": "Produkty",
+      "none": "Nie znaleziono produktów."
+    },
+    "merge": {
+      "title": "Scal {{name}} z innym produktem",
+      "description": "Wybierz produkt, który zachowa wszystko. Pozycje produktu {{name}} przejdą do niego, a {{name}} zostanie usunięty.",
+      "action": "Dalej",
+      "confirmTitle": "Scalić {{from}} z {{into}}?",
+      "confirmDescription": "Wszystkie pozycje produktu {{from}} przejdą do produktu {{into}}, a {{from}} zostanie usunięty. Tego nie można cofnąć.",
+      "confirm": "Scal",
+      "toast": "{{from}} scalono z {{into}}"
+    },
+    "settings": {
+      "open": "Ustawienia produktu",
+      "title": "Ustawienia produktu",
+      "description": "Zmień nazwę, wybierz kategorię i ustal, za jaką ilość porównywane są ceny.",
+      "name": "Nazwa",
+      "category": "Kategoria",
+      "categoryDescription": "Wszystkie pozycje tego produktu trafiają do tej kategorii.",
+      "measure": "Liczony w",
+      "measureDescription": "Ceny są porównywane za tę samą ilość, niezależnie od wielkości opakowania.",
+      "measureNoneDescription": "Dla tego, co nie jest towarem, np. czynszu, prądu czy kaucji: wchodzi do wydatków, bez cen.",
+      "reference": "Porównuj ceny za ({{unit}})",
+      "referenceDescription": "Piwo za 0,5, kawa za 1. Puste oznacza 1.",
+      "excluded": "Pomijaj we wszystkich sumach",
+      "excludedDescription": "Produkt i wszystkie jego pozycje nie są liczone nigdzie w analizie.",
+      "merge": "Scal z innym produktem…",
+      "mergeDescription": "Dla tej samej rzeczy zapisanej pod dwiema nazwami. Jego pozycje przejdą do drugiego produktu.",
+      "save": "Zapisz",
+      "saved": "Zapisano: {{name}}"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Oczekujące",

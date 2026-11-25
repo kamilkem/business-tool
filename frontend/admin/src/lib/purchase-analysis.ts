@@ -212,7 +212,7 @@ export function formatShare(tenths: number, locale?: string): string {
 
 // --- Quantities and prices -------------------------------------------------------------------------
 
-function unitOf(measure: string): string | null {
+export function unitOf(measure: string): string | null {
   switch (measure) {
     case "volume":
       return i18n.t("analysis.unit.volume", { ns: "admin" })
@@ -231,7 +231,10 @@ const ONE = /^1(\.0*)?$/
  * What one price is per: the reference quantity with its unit, "0.5 L"; just "L" for a reference of
  * 1, which is how most products are compared. Null for a product without a unit.
  */
-export function referenceLabel(product: AnalysisProduct, locale?: string): string | null {
+export function referenceLabel(
+  product: Pick<AnalysisProduct, "measure" | "referenceQuantity">,
+  locale?: string,
+): string | null {
   const unit = unitOf(product.measure)
   if (unit === null || product.referenceQuantity === null) return null
   return ONE.test(product.referenceQuantity) ? unit : `${formatDecimal(product.referenceQuantity, locale)} ${unit}`

@@ -1,4 +1,5 @@
-import { ArrowDownIcon, ArrowRightIcon, ArrowUpIcon, ChevronRightIcon } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ChevronRightIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@business-tool/ui/components/badge"
@@ -8,11 +9,11 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 import { useMoneyFormat } from "@business-tool/ui/hooks/use-organization-currency"
 import { cn } from "@business-tool/ui/lib/utils"
 
+import { PriceChangeLabel } from "@/components/price-change"
 import {
   type AnalysisNode,
   type AnalysisProduct,
   type Basis,
-  type ChangeDirection,
   averagePriceOf,
   formatShare,
   lastPriceOf,
@@ -119,9 +120,17 @@ function AnalysisBranch({ node, depth, basis, total, expanded, onToggle }: Branc
               </Button>
             )}
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 self-center">
-              <span className={cn("break-words @5xl:truncate", node.kind !== "product" && "font-medium")}>
-                {node.kind === "product" ? node.product.name : node.name}
-              </span>
+              {node.kind === "product" ? (
+                <Link
+                  to="/expenses/analysis/products/$productId"
+                  params={{ productId: node.product.id }}
+                  className="break-words underline-offset-4 hover:underline focus-visible:underline @5xl:truncate"
+                >
+                  {node.product.name}
+                </Link>
+              ) : (
+                <span className="font-medium break-words @5xl:truncate">{node.name}</span>
+              )}
               {node.kind !== "product" && (
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {t("analysis.productsIn", { count: countProducts(node) })}
@@ -160,15 +169,6 @@ function countProducts(node: AnalysisNode): number {
   return node.kind === "product" ? 1 : node.children.reduce((sum, child) => sum + countProducts(child), 0)
 }
 
-const CHANGE_STYLE: Record<ChangeDirection, string> = {
-  // A higher price is bad news for a buyer, a lower one good.
-  up: "text-destructive",
-  down: "text-emerald-700 dark:text-emerald-400",
-  flat: "text-muted-foreground",
-}
-
-const CHANGE_ICON = { up: ArrowUpIcon, down: ArrowDownIcon, flat: ArrowRightIcon } as const
-
 /** The quantity, average price, last price and its change, on the wide layout's columns or under the name when stacked. */
 function ProductDetails({ product, basis }: { product: AnalysisProduct; basis: Basis }) {
   const { t } = useTranslation("admin")
@@ -180,7 +180,6 @@ function ProductDetails({ product, basis }: { product: AnalysisProduct; basis: B
   const average = averagePriceOf(product, basis)
   const last = lastPriceOf(product, basis)
   const change = priceChangeOf(last, locale)
-  const ChangeIcon = change ? CHANGE_ICON[change.direction] : null
   const none = <span className="text-muted-foreground">—</span>
 
   return (
@@ -205,18 +204,7 @@ function ProductDetails({ product, basis }: { product: AnalysisProduct; basis: B
         )}
       </Cell>
       <Cell label={t("analysis.columns.change")}>
-        {change === null || ChangeIcon === null ? none : (
-          <span
-            className={cn("inline-flex items-center gap-1 whitespace-nowrap tabular-nums", CHANGE_STYLE[change.direction])}
-            title={t(`analysis.change.${change.direction}`)}
-          >
-            <ChangeIcon className="size-3.5" aria-label={t(`analysis.change.${change.direction}`)} />
-            <span>
-              {change.direction === "flat" ? money(0) : `${change.amount > 0 ? "+" : "−"}${money(Math.abs(change.amount))}`}
-              {change.percent && <span className="text-xs"> ({change.percent})</span>}
-            </span>
-          </span>
-        )}
+        {change === null ? none : <PriceChangeLabel change={change} />}
       </Cell>
     </div>
   )

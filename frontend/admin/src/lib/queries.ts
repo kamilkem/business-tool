@@ -92,6 +92,54 @@ export const purchaseAnalysisQuery = (organizationId: string, period: BusinessPe
     queryFn: () => unwrap(api.GET("/api/purchase-analysis", { params: { query: period } })),
   })
 
+/** The organization's products by name (GET /products), to pick one to merge into or to move an item to. */
+export const productsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["products", organizationId, "list"],
+    queryFn: () => unwrap(api.GET("/api/products")),
+  })
+
+/** One product's settings (GET /products/{id}). Under `["products", organizationId]`, with the lists and the price history. */
+export const productQuery = (organizationId: string, id: string) =>
+  queryOptions({
+    queryKey: ["products", organizationId, "detail", id],
+    queryFn: () => unwrap(api.GET("/api/products/{id}", { params: { path: { id } } })),
+  })
+
+/**
+ * The price points of a product in a period, oldest first (GET /products/{id}/price-history; ADR
+ * 0041 §8), on both net and gross.
+ */
+export const priceHistoryQuery = (organizationId: string, productId: string, period: BusinessPeriod) =>
+  queryOptions({
+    queryKey: ["products", organizationId, "price-history", productId, period],
+    queryFn: () =>
+      unwrap(api.GET("/api/products/{id}/price-history", { params: { path: { id: productId }, query: period } })),
+  })
+
+/** How many purchased items of a product the product page lists at once. */
+export const PRODUCT_ITEMS_PER_PAGE = 50
+
+/** A page of the purchased items linked to a product, issued in the period (GET /purchased-items). */
+export const productItemsQuery = (organizationId: string, productId: string, period: BusinessPeriod, page: number) =>
+  queryOptions({
+    queryKey: ["products", organizationId, "items", productId, period, page],
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/purchased-items", {
+          params: { query: { productId, ...period, page, itemsPerPage: PRODUCT_ITEMS_PER_PAGE } },
+        }),
+      ),
+  })
+
+/** After a write to products or purchased items: the product screens and the overview show what the API has now. */
+export async function invalidatePurchasing(queryClient: QueryClient, organizationId: string) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["products", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["purchase-analysis", organizationId] }),
+  ])
+}
+
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
 export const shiftsQuery = (organizationId: string, period: BusinessPeriod, userId?: string) =>
   queryOptions({
