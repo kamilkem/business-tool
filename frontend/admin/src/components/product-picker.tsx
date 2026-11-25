@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react"
 import { SearchIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { Badge } from "@business-tool/ui/components/badge"
 import { Input } from "@business-tool/ui/components/input"
 import { cn } from "@business-tool/ui/lib/utils"
 
@@ -11,8 +12,8 @@ import { type Product, matchProducts } from "@/lib/product-prices"
 interface ProductPickerProps {
   products: readonly Product[]
   categories: readonly ProductCategory[]
-  /** The product being edited, which cannot be its own target. */
-  exceptId: string
+  /** The product being edited, which cannot be its own target; null when any product can be picked. */
+  exceptId: string | null
   value: string | null
   onChange: (productId: string) => void
 }
@@ -58,7 +59,10 @@ export function ProductPicker({ products, categories, exceptId, value, onChange 
                   value === product.id && "bg-muted font-medium",
                 )}
               >
-                <span>{product.name}</span>
+                <span className="flex flex-wrap items-center gap-x-2">
+                  {product.name}
+                  {product.excluded && <Badge variant="secondary">{t("product.excluded")}</Badge>}
+                </span>
                 <span className="text-xs font-normal text-muted-foreground">
                   {(product.categoryId && paths.get(product.categoryId)) || t("analysis.uncategorized")}
                 </span>

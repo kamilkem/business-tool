@@ -32,6 +32,7 @@ import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index
 import { Route as AppPayrollRatesRouteImport } from './routes/_app/payroll/rates'
 import { Route as AppCashFlowClosesIndexRouteImport } from './routes/_app/cash-flow/closes/index'
 import { Route as AppCashFlowClosesNewRouteImport } from './routes/_app/cash-flow/closes/new'
+import { Route as AppExpensesAnalysisReviewRouteImport } from './routes/_app/expenses/analysis_.review'
 import { Route as AppCashFlowClosesCloseIdIndexRouteImport } from './routes/_app/cash-flow/closes/$closeId/index'
 import { Route as AppCashFlowClosesCloseIdCorrectRouteImport } from './routes/_app/cash-flow/closes/$closeId/correct'
 import { Route as AppExpensesAnalysisProductsProductIdRouteImport } from './routes/_app/expenses/analysis_.products.$productId'
@@ -151,6 +152,12 @@ const AppCashFlowClosesNewRoute = AppCashFlowClosesNewRouteImport.update({
   path: '/cash-flow/closes/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppExpensesAnalysisReviewRoute =
+  AppExpensesAnalysisReviewRouteImport.update({
+    id: '/expenses/analysis_/review',
+    path: '/expenses/analysis/review',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppCashFlowClosesCloseIdIndexRoute =
   AppCashFlowClosesCloseIdIndexRouteImport.update({
     id: '/cash-flow/closes/$closeId/',
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/income/': typeof AppIncomeIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
   '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/expenses/analysis/review': typeof AppExpensesAnalysisReviewRoute
   '/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
   '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
   '/expenses/analysis/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
@@ -219,6 +227,7 @@ export interface FileRoutesByTo {
   '/income': typeof AppIncomeIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
   '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/expenses/analysis/review': typeof AppExpensesAnalysisReviewRoute
   '/cash-flow/closes': typeof AppCashFlowClosesIndexRoute
   '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
   '/expenses/analysis/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
@@ -248,6 +257,7 @@ export interface FileRoutesById {
   '/_app/income/': typeof AppIncomeIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
   '/_app/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
+  '/_app/expenses/analysis_/review': typeof AppExpensesAnalysisReviewRoute
   '/_app/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
   '/_app/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
   '/_app/expenses/analysis_/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/income/'
     | '/payroll/'
     | '/cash-flow/closes/new'
+    | '/expenses/analysis/review'
     | '/cash-flow/closes/'
     | '/cash-flow/closes/$closeId/correct'
     | '/expenses/analysis/products/$productId'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/income'
     | '/payroll'
     | '/cash-flow/closes/new'
+    | '/expenses/analysis/review'
     | '/cash-flow/closes'
     | '/cash-flow/closes/$closeId/correct'
     | '/expenses/analysis/products/$productId'
@@ -332,6 +344,7 @@ export interface FileRouteTypes {
     | '/_app/income/'
     | '/_app/payroll/'
     | '/_app/cash-flow/closes/new'
+    | '/_app/expenses/analysis_/review'
     | '/_app/cash-flow/closes/'
     | '/_app/cash-flow/closes/$closeId/correct'
     | '/_app/expenses/analysis_/products/$productId'
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashFlowClosesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/expenses/analysis_/review': {
+      id: '/_app/expenses/analysis_/review'
+      path: '/expenses/analysis/review'
+      fullPath: '/expenses/analysis/review'
+      preLoaderRoute: typeof AppExpensesAnalysisReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cash-flow/closes/$closeId/': {
       id: '/_app/cash-flow/closes/$closeId/'
       path: '/cash-flow/closes/$closeId'
@@ -551,6 +571,7 @@ interface AppRouteChildren {
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
   AppCashFlowClosesNewRoute: typeof AppCashFlowClosesNewRoute
+  AppExpensesAnalysisReviewRoute: typeof AppExpensesAnalysisReviewRoute
   AppCashFlowClosesIndexRoute: typeof AppCashFlowClosesIndexRoute
   AppCashFlowClosesCloseIdCorrectRoute: typeof AppCashFlowClosesCloseIdCorrectRoute
   AppExpensesAnalysisProductsProductIdRoute: typeof AppExpensesAnalysisProductsProductIdRoute
@@ -576,6 +597,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIncomeIndexRoute: AppIncomeIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
   AppCashFlowClosesNewRoute: AppCashFlowClosesNewRoute,
+  AppExpensesAnalysisReviewRoute: AppExpensesAnalysisReviewRoute,
   AppCashFlowClosesIndexRoute: AppCashFlowClosesIndexRoute,
   AppCashFlowClosesCloseIdCorrectRoute: AppCashFlowClosesCloseIdCorrectRoute,
   AppExpensesAnalysisProductsProductIdRoute:

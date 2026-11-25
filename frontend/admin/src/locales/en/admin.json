@@ -432,7 +432,8 @@
       "name": "Not assigned",
       "items_one": "{{count}} item",
       "items_other": "{{count}} items",
-      "hint": "Bought, but not yet linked to a product. They count in the total."
+      "hint": "Bought, but not yet linked to a product. They count in the total.",
+      "review": "Review them"
     },
     "leftOut": {
       "title": "Not counted in these figures",
@@ -588,6 +589,97 @@
       "saved": "{{name}} saved"
     }
   },
+  "review": {
+    "title": "Review queue",
+    "description": "Items from your purchase invoices that have no product yet. Link them to products so they appear in the analysis, with prices.",
+    "search": "Search by printed name",
+    "selectAll": "Select all loaded",
+    "summary_one": "{{count}} item waiting",
+    "summary_other": "{{count}} items waiting",
+    "showing": "Showing the newest {{loaded}} of {{total}} items",
+    "loadMore": "Show more",
+    "loadingMore": "Loading…",
+    "empty": "Nothing to review: every item has a product.",
+    "noMatch": "No waiting item has “{{search}}” in its name.",
+    "error": {
+      "title": "Could not load the review queue",
+      "retry": "Try again"
+    },
+    "group": {
+      "select": "Select all items named {{name}}",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "show": "Show the items",
+      "hide": "Hide the items",
+      "moreSellers": "+{{count}} more",
+      "suggested": "Suggested: {{name}} ({{count}}×)",
+      "confirm": "Confirm",
+      "confirmFor": "Confirm the suggestion for {{name}}",
+      "assign": "Assign…",
+      "assignFor": "Assign {{name}} to a product",
+      "actions": "More actions for {{name}}"
+    },
+    "item": {
+      "select": "Select the item from {{date}}, {{seller}}",
+      "actions": "Actions for the item from {{date}}, {{seller}}",
+      "beforeCorrection": "before the correction",
+      "suggested": "Suggested: {{name}}"
+    },
+    "menu": {
+      "assign": "Assign to a product…",
+      "create": "New product…",
+      "exclude": "Exclude…",
+      "confirm": "Confirm the suggestion"
+    },
+    "selection": {
+      "label": "Selected items",
+      "count_one": "{{count}} item selected",
+      "count_other": "{{count}} items selected",
+      "confirm_one": "Confirm {{count}} suggestion",
+      "confirm_other": "Confirm {{count}} suggestions",
+      "clear": "Clear the selection"
+    },
+    "assign": {
+      "title": {
+        "assign": "Assign to a product",
+        "create": "Create a product",
+        "exclude": "Exclude from the analysis"
+      },
+      "loading": "Loading the products…",
+      "loadFailed": "The products could not be loaded.",
+      "summary_one": "{{count}} item: “{{name}}”",
+      "summary_other": "{{count}} items printed as “{{name}}”",
+      "summaryMixed_one": "{{count}} item with {{names}} different names",
+      "summaryMixed_other": "{{count}} items with {{names}} different names",
+      "mode": {
+        "label": "Product",
+        "existing": "Existing product",
+        "new": "New product"
+      },
+      "product": "Product",
+      "excludedOnly": "Only excluded products are listed. To exclude something for the first time, create an excluded product.",
+      "name": "Product name",
+      "nameDescription": "Prefilled with the printed name: rename it to what you call the product.",
+      "packageSize": "Package size",
+      "packageSizeIn": "Package size ({{unit}})",
+      "packageSizeDescription": "In the product's unit, per one unit of the quantity on the invoice: 0.7 for a 0.7 L bottle, also when 6 were bought. Every item gets it; leave empty to keep each item's own. An item without one counts in spend, but not in prices.",
+      "tooMany": "At most {{max}} items can be assigned at once. Select fewer.",
+      "createdKept": "The product “{{name}}” was created. Try again to assign the items to it.",
+      "cancel": "Cancel",
+      "submit_one": "Assign {{count}} item",
+      "submit_other": "Assign {{count}} items",
+      "submitExclude_one": "Exclude {{count}} item",
+      "submitExclude_other": "Exclude {{count}} items"
+    },
+    "toast": {
+      "assigned_one": "{{count}} item assigned to {{name}}",
+      "assigned_other": "{{count}} items assigned to {{name}}",
+      "excluded_one": "{{count}} item excluded (in {{name}})",
+      "excluded_other": "{{count}} items excluded (in {{name}})",
+      "confirmed_one": "{{count}} suggestion confirmed",
+      "confirmed_other": "{{count}} suggestions confirmed"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Pending",
@@ -664,7 +756,9 @@
     "nav": {
       "invoices": "Invoices",
       "analysis": "Analysis",
-      "categories": "Categories"
+      "categories": "Categories",
+      "waiting_one": "{{count}} item waiting for review",
+      "waiting_other": "{{count}} items waiting for review"
     },
     "source": {
       "manual": "Entered by hand",

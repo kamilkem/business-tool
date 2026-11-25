@@ -468,7 +468,8 @@
       "items_few": "{{count}} pozycje",
       "items_many": "{{count}} pozycji",
       "items_other": "{{count}} pozycji",
-      "hint": "Kupione, ale jeszcze niepowiązane z produktem. Wliczają się do sumy."
+      "hint": "Kupione, ale jeszcze niepowiązane z produktem. Wliczają się do sumy.",
+      "review": "Przejrzyj je"
     },
     "leftOut": {
       "title": "Nieuwzględnione w tych danych",
@@ -638,6 +639,119 @@
       "saved": "Zapisano: {{name}}"
     }
   },
+  "review": {
+    "title": "Kolejka do przejrzenia",
+    "description": "Pozycje z faktur zakupowych, które nie mają jeszcze produktu. Powiąż je z produktami, żeby pojawiły się w analizie razem z cenami.",
+    "search": "Szukaj po nazwie z faktury",
+    "selectAll": "Zaznacz wszystkie wczytane",
+    "summary_one": "{{count}} pozycja czeka",
+    "summary_few": "{{count}} pozycje czekają",
+    "summary_many": "{{count}} pozycji czeka",
+    "summary_other": "{{count}} pozycji czeka",
+    "showing": "Wyświetlono najnowsze {{loaded}} z {{total}} pozycji",
+    "loadMore": "Pokaż więcej",
+    "loadingMore": "Wczytywanie…",
+    "empty": "Nic do przejrzenia: każda pozycja ma produkt.",
+    "noMatch": "Żadna czekająca pozycja nie ma w nazwie „{{search}}”.",
+    "error": {
+      "title": "Nie udało się wczytać kolejki",
+      "retry": "Spróbuj ponownie"
+    },
+    "group": {
+      "select": "Zaznacz wszystkie pozycje o nazwie {{name}}",
+      "items_one": "{{count}} pozycja",
+      "items_few": "{{count}} pozycje",
+      "items_many": "{{count}} pozycji",
+      "items_other": "{{count}} pozycji",
+      "show": "Pokaż pozycje",
+      "hide": "Ukryj pozycje",
+      "moreSellers": "+{{count}} więcej",
+      "suggested": "Propozycja: {{name}} ({{count}}×)",
+      "confirm": "Potwierdź",
+      "confirmFor": "Potwierdź propozycję dla {{name}}",
+      "assign": "Przypisz…",
+      "assignFor": "Przypisz {{name}} do produktu",
+      "actions": "Więcej działań dla {{name}}"
+    },
+    "item": {
+      "select": "Zaznacz pozycję z {{date}}, {{seller}}",
+      "actions": "Działania dla pozycji z {{date}}, {{seller}}",
+      "beforeCorrection": "przed korektą",
+      "suggested": "Propozycja: {{name}}"
+    },
+    "menu": {
+      "assign": "Przypisz do produktu…",
+      "create": "Nowy produkt…",
+      "exclude": "Pomiń…",
+      "confirm": "Potwierdź propozycję"
+    },
+    "selection": {
+      "label": "Zaznaczone pozycje",
+      "count_one": "Zaznaczona {{count}} pozycja",
+      "count_few": "Zaznaczone {{count}} pozycje",
+      "count_many": "Zaznaczono {{count}} pozycji",
+      "count_other": "Zaznaczono {{count}} pozycji",
+      "confirm_one": "Potwierdź {{count}} propozycję",
+      "confirm_few": "Potwierdź {{count}} propozycje",
+      "confirm_many": "Potwierdź {{count}} propozycji",
+      "confirm_other": "Potwierdź {{count}} propozycji",
+      "clear": "Wyczyść zaznaczenie"
+    },
+    "assign": {
+      "title": {
+        "assign": "Przypisz do produktu",
+        "create": "Utwórz produkt",
+        "exclude": "Pomiń w analizie"
+      },
+      "loading": "Wczytywanie produktów…",
+      "loadFailed": "Nie udało się wczytać produktów.",
+      "summary_one": "{{count}} pozycja: „{{name}}”",
+      "summary_few": "{{count}} pozycje zapisane jako „{{name}}”",
+      "summary_many": "{{count}} pozycji zapisanych jako „{{name}}”",
+      "summary_other": "{{count}} pozycji zapisanych jako „{{name}}”",
+      "summaryMixed_one": "{{count}} pozycja o {{names}} różnych nazwach",
+      "summaryMixed_few": "{{count}} pozycje o {{names}} różnych nazwach",
+      "summaryMixed_many": "{{count}} pozycji o {{names}} różnych nazwach",
+      "summaryMixed_other": "{{count}} pozycji o {{names}} różnych nazwach",
+      "mode": {
+        "label": "Produkt",
+        "existing": "Istniejący produkt",
+        "new": "Nowy produkt"
+      },
+      "product": "Produkt",
+      "excludedOnly": "Wyświetlane są tylko produkty pomijane. Żeby pominąć coś po raz pierwszy, utwórz produkt pomijany.",
+      "name": "Nazwa produktu",
+      "nameDescription": "Wypełniona nazwą z faktury: zmień ją na to, jak nazywasz produkt.",
+      "packageSize": "Wielkość opakowania",
+      "packageSizeIn": "Wielkość opakowania ({{unit}})",
+      "packageSizeDescription": "W jednostce produktu na jedną jednostkę ilości z faktury: 0,7 dla butelki 0,7 L, także gdy kupiono 6. Dostaje ją każda pozycja; zostaw puste, żeby każda zachowała własną. Pozycja bez niej liczy się w wydatkach, ale nie w cenach.",
+      "tooMany": "Naraz można przypisać najwyżej {{max}} pozycji. Zaznacz mniej.",
+      "createdKept": "Produkt „{{name}}” został utworzony. Spróbuj ponownie przypisać do niego pozycje.",
+      "cancel": "Anuluj",
+      "submit_one": "Przypisz {{count}} pozycję",
+      "submit_few": "Przypisz {{count}} pozycje",
+      "submit_many": "Przypisz {{count}} pozycji",
+      "submit_other": "Przypisz {{count}} pozycji",
+      "submitExclude_one": "Pomiń {{count}} pozycję",
+      "submitExclude_few": "Pomiń {{count}} pozycje",
+      "submitExclude_many": "Pomiń {{count}} pozycji",
+      "submitExclude_other": "Pomiń {{count}} pozycji"
+    },
+    "toast": {
+      "assigned_one": "{{count}} pozycja przypisana do: {{name}}",
+      "assigned_few": "{{count}} pozycje przypisane do: {{name}}",
+      "assigned_many": "{{count}} pozycji przypisanych do: {{name}}",
+      "assigned_other": "{{count}} pozycji przypisanych do: {{name}}",
+      "excluded_one": "{{count}} pozycja pominięta (w: {{name}})",
+      "excluded_few": "{{count}} pozycje pominięte (w: {{name}})",
+      "excluded_many": "{{count}} pozycji pominiętych (w: {{name}})",
+      "excluded_other": "{{count}} pozycji pominiętych (w: {{name}})",
+      "confirmed_one": "Potwierdzono {{count}} propozycję",
+      "confirmed_few": "Potwierdzono {{count}} propozycje",
+      "confirmed_many": "Potwierdzono {{count}} propozycji",
+      "confirmed_other": "Potwierdzono {{count}} propozycji"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Oczekujące",
@@ -716,7 +830,11 @@
     "nav": {
       "invoices": "Faktury",
       "analysis": "Analiza",
-      "categories": "Kategorie"
+      "categories": "Kategorie",
+      "waiting_one": "{{count}} pozycja czeka na przejrzenie",
+      "waiting_few": "{{count}} pozycje czekają na przejrzenie",
+      "waiting_many": "{{count}} pozycji czeka na przejrzenie",
+      "waiting_other": "{{count}} pozycji czeka na przejrzenie"
     },
     "source": {
       "manual": "Wpisany ręcznie",
