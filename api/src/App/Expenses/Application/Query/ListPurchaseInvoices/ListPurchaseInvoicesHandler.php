@@ -6,12 +6,9 @@ namespace App\Expenses\Application\Query\ListPurchaseInvoices;
 
 use App\Expenses\Application\ExpensesActor;
 use App\Expenses\Application\Query\GetPurchaseInvoice\PurchaseInvoiceView;
-use App\Expenses\Domain\Exception\ExpenseCategoryNotFoundException;
 use App\Expenses\Domain\Exception\ExpensePeriodTooLongException;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
-use App\Expenses\Domain\Exception\InvalidExpenseFilterException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
-use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
@@ -32,7 +29,6 @@ final readonly class ListPurchaseInvoicesHandler implements QueryHandlerInterfac
     public function __construct(
         private PurchaseInvoiceRepositoryInterface $invoices,
         private PurchaseInvoiceDocumentRepositoryInterface $documents,
-        private ExpenseCategoryRepositoryInterface $categories,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -40,18 +36,13 @@ final readonly class ListPurchaseInvoicesHandler implements QueryHandlerInterfac
     /**
      * @throws TimeException                        when $from or $to is not a date, or $to is before $from
      * @throws ExpensePeriodTooLongException        when the period is longer than ListPurchaseInvoicesQuery::MAX_DAYS
-     * @throws InvalidExpenseFilterException        when both a category and uncategorized are asked for
      * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
-     * @throws ExpenseCategoryNotFoundException     when $categoryId is not a category of the organization
      */
     public function __invoke(ListPurchaseInvoicesQuery $query): ?PurchaseInvoiceListView
     {
         $period = BusinessPeriod::fromStrings($query->from, $query->to);
         if ($period->dayCount() > ListPurchaseInvoicesQuery::MAX_DAYS) {
             throw ExpensePeriodTooLongException::of($period, ListPurchaseInvoicesQuery::MAX_DAYS);
-        }
-        if (null !== $query->categoryId && $query->uncategorized) {
-            throw InvalidExpenseFilterException::categoryAndUncategorized();
         }
 
         if (null === ExpensesActor::resolveOrNull($this->queryBus, $query->organizationId, $query->actorId)) {
@@ -63,32 +54,16 @@ final readonly class ListPurchaseInvoicesHandler implements QueryHandlerInterfac
             return null;
         }
 
-        $categoryId = null;
-        if (null !== $query->categoryId) {
-            $category = Uuid::isValid($query->categoryId) ? $this->categories->findById(Uuid::fromString($query->categoryId)) : null;
-            $categoryId = ($category ?? throw ExpenseCategoryNotFoundException::withId($query->categoryId))->getId();
-        }
-
-        $invoices = $this->invoices->findByFilter(new PurchaseInvoiceFilter($period, $categoryId, $query->uncategorized, $query->seller));
-
-        $categoryNames = [];
-        foreach ($this->categories->findAll(includeArchived: true) as $category) {
-            $categoryNames[$category->getId()->toRfc4122()] = $category->getName();
-        }
+        $invoices = $this->invoices->findByFilter(new PurchaseInvoiceFilter($period, $query->seller));
         $formats = $this->documents->findFormatsByInvoiceIds(array_map(static fn (PurchaseInvoice $invoice): Uuid => $invoice->getId(), $invoices));
 
         return new PurchaseInvoiceListView(
             $period->first->toString(),
             $period->last->toString(),
-            array_map(static function (PurchaseInvoice $invoice) use ($categoryNames, $formats): PurchaseInvoiceView {
-                $categoryId = $invoice->getCategoryId()?->toRfc4122();
-
-                return PurchaseInvoiceView::of(
-                    $invoice,
-                    null === $categoryId ? null : ($categoryNames[$categoryId] ?? null),
-                    $formats[$invoice->getId()->toRfc4122()] ?? null,
-                );
-            }, $invoices),
+            array_map(
+                static fn (PurchaseInvoice $invoice): PurchaseInvoiceView => PurchaseInvoiceView::of($invoice, $formats[$invoice->getId()->toRfc4122()] ?? null),
+                $invoices,
+            ),
             self::totals($organization->currency, $invoices),
         );
     }

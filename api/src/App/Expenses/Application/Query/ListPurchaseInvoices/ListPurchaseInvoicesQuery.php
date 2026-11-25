@@ -8,9 +8,8 @@ use App\Shared\Application\Query\QueryInterface;
 
 /**
  * The purchase invoices of the current organization (TenantFilter) issued from $from to $to (both
- * inclusive, YYYY-MM-DD; ADR 0017), newest first, with their totals per currency. Narrowed to one
- * category ($categoryId) or to invoices without one ($uncategorized), not both, and to sellers whose
- * name or tax ID contains $seller.
+ * inclusive, YYYY-MM-DD; ADR 0017), newest first, with their totals per currency. Narrowed to
+ * sellers whose name or tax ID contains $seller.
  *
  * Owners and managers only (ADR 0021). Returns null when the actor is not an active member.
  */
@@ -24,8 +23,6 @@ final readonly class ListPurchaseInvoicesQuery implements QueryInterface
         public string $actorId,
         public string $from,
         public string $to,
-        public ?string $categoryId = null,
-        public bool $uncategorized = false,
         public ?string $seller = null,
     ) {
     }

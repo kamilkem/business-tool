@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Expenses;
 
-use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
-use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
@@ -17,10 +15,9 @@ use App\Tests\Factory\UserFactory;
 use App\Tests\Fixtures\OrganizationMother;
 use App\User\Domain\Model\User;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
-/** Arranges expenses and categories in an organization's tenant, as the Expenses API tests share them. */
+/** Arranges expenses in an organization's tenant, as the Expenses API tests share them. */
 abstract class ExpensesApiTestCase extends ApiTestCase
 {
     protected const string XML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Faktura><P_2>FV/1/2026</P_2></Faktura>\n";
@@ -31,18 +28,9 @@ abstract class ExpensesApiTestCase extends ApiTestCase
         return static::clientFor($user, $organization)->request('GET', '/api/expenses/'.$id);
     }
 
-    /** @param bool $suggested the category is pre-filled as an import suggests it (#55) instead of chosen by the owner */
-    protected static function addInvoice(Organization $organization, PurchaseInvoice $invoice, bool $document = false, ?ExpenseCategory $category = null, bool $suggested = false): PurchaseInvoice
+    protected static function addInvoice(Organization $organization, PurchaseInvoice $invoice, bool $document = false): PurchaseInvoice
     {
-        self::inTenant($organization, static function () use ($organization, $invoice, $document, $category, $suggested): void {
-            if (null !== $category) {
-                $managed = static::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->findById($category->getId()) ?? throw new \LogicException('Category expected.');
-                if ($suggested) {
-                    $invoice->suggestCategory($managed);
-                } else {
-                    $invoice->categorize($managed, OrganizationMother::ownerOf($organization)->getId(), MembershipRole::Owner);
-                }
-            }
+        self::inTenant($organization, static function () use ($invoice, $document): void {
             static::getContainer()->get(PurchaseInvoiceRepositoryInterface::class)->add(
                 $invoice,
                 $document ? PurchaseInvoiceDocument::of($invoice, self::XML, 'FA (3)', new \DateTimeImmutable('2026-11-12 21:00:05')) : null,
@@ -50,28 +38,6 @@ abstract class ExpensesApiTestCase extends ApiTestCase
         });
 
         return $invoice;
-    }
-
-    protected static function addCategory(Organization $organization, string $name): ExpenseCategory
-    {
-        $owner = OrganizationMother::ownerOf($organization);
-        $category = ExpenseCategory::create(Uuid::v7(), $name, null, $owner->getId(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
-
-        self::inTenant($organization, static fn () => static::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->add($category));
-
-        return $category;
-    }
-
-    protected static function archiveCategory(Organization $organization, ExpenseCategory $category): void
-    {
-        $owner = OrganizationMother::ownerOf($organization);
-
-        self::inTenant($organization, static function () use ($category, $owner): void {
-            $categories = static::getContainer()->get(ExpenseCategoryRepositoryInterface::class);
-            $managed = $categories->findById($category->getId()) ?? throw new \LogicException('Category expected.');
-            $managed->archive($owner->getId(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-02 10:00:00'));
-            $categories->save($managed);
-        });
     }
 
     protected static function addMember(Organization $organization, MembershipRole $role): User

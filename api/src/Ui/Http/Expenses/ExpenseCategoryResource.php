@@ -105,7 +105,7 @@ use Ui\Http\Expenses\Provider\UpdateExpenseCategoryInputProvider;
             status: 200,
             openapi: new Operation(
                 summary: 'Archives an expense category.',
-                description: 'Owners and managers only (403 otherwise); a category that is not the selected organization\'s is a 404. The category is no longer offered for new expenses; the expenses that have it keep it. The request has no body. Archiving an archived category changes nothing.',
+                description: 'Owners and managers only (403 otherwise); a category that is not the selected organization\'s is a 404. The category is no longer offered. The request has no body. Archiving an archived category changes nothing.',
                 responses: [
                     '200' => new Response('The archived category.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),

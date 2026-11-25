@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Expenses\Domain\Model;
 
-use App\Expenses\Domain\Exception\ExpenseCategoryArchivedException;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceReadOnlyException;
@@ -36,18 +35,15 @@ use Symfony\Component\Uid\Uuid;
  *   PurchaseInvoiceDocument in its own table, never loaded with the invoice.
  * - An owner or manager may enter an invoice by hand (source manual, #54): a cash receipt or a
  *   foreign invoice, which may lack an invoice number or a seller tax ID. Only such an invoice can be
- *   changed (change()) or deleted (assertCanBeDeleted()); an imported one stays as its source says,
- *   except for its category.
- * - When it is imported without a category, the importer may suggest one from the seller's history
- *   (suggestCategory(), #55): it is stored like any category but marked as suggested until an owner
- *   or manager sets or confirms a category (categorize()).
+ *   changed (change()) or deleted (assertCanBeDeleted()); an imported one stays as its source says.
+ * - It has no category: categorization belongs to its line items and products (#228).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchase_invoice')]
 #[ORM\UniqueConstraint(name: self::ONE_PER_EXTERNAL_ID, columns: ['organization_id', 'source', 'external_id'])]
 // Lists by issue date (#53) within one organization.
 #[ORM\Index(name: 'purchase_invoice_organization_issue_date', columns: ['organization_id', 'issue_date'])]
-// The seller's history (#55) within one organization.
+// The seller's invoices within one organization (#55; matching items to products, #233).
 #[ORM\Index(name: 'purchase_invoice_organization_seller_tax_id_key', columns: ['organization_id', 'seller_tax_id_key'])]
 #[ORM\Index(name: 'purchase_invoice_organization_seller_name_key', columns: ['organization_id', 'seller_name_key'])]
 class PurchaseInvoice implements TenantAwareInterface
@@ -124,14 +120,6 @@ class PurchaseInvoice implements TenantAwareInterface
     #[ORM\OneToMany(targetEntity: PurchaseInvoiceVatLine::class, mappedBy: 'purchaseInvoice', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $vatLines;
 
-    /** The expense category (#48); null until categorized (categorize()). */
-    #[ORM\Column(type: UuidType::NAME, nullable: true)]
-    private ?Uuid $categoryId = null;
-
-    /** True while the category is one the importer suggested (suggestCategory()) and nobody has confirmed it. */
-    #[ORM\Column(options: ['default' => false])]
-    private bool $categorySuggested = false;
-
     /** When the invoice was imported or entered. */
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -193,7 +181,7 @@ class PurchaseInvoice implements TenantAwareInterface
      * Replaces what a manual invoice says with the given details, VAT lines included (a rate not
      * given is removed). The tax currency stays the one copied when it was entered. An imported
      * invoice stays as its source says: giving it the details it already has changes nothing (so a
-     * client may send them back unchanged with a new category), anything else is refused.
+     * client may send them back unchanged), anything else is refused.
      *
      * @param string $countryCode the organization's country, which gives the VAT rates
      *
@@ -345,69 +333,6 @@ class PurchaseInvoice implements TenantAwareInterface
         usort($lines, static fn (PurchaseInvoiceVatAmount $a, PurchaseInvoiceVatAmount $b): int => VatRates::compare($a->rate, $b->rate));
 
         return $lines;
-    }
-
-    /**
-     * Sets the expense category, or clears it with null. Whatever the source, an invoice's category
-     * can always be changed. An archived category cannot be newly assigned, but an invoice that has
-     * it keeps it, so assigning its current category again changes only this: a suggested category
-     * (suggestCategory()) is confirmed.
-     *
-     * @param ?ExpenseCategory $category a category of the invoice's organization
-     *                                   (ExpenseCategoryRepositoryInterface::findById()), or null
-     *
-     * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
-     * @throws ExpenseCategoryArchivedException     when the category is archived and not the current one
-     */
-    public function categorize(?ExpenseCategory $category, Uuid $actorId, MembershipRole $actorRole): void
-    {
-        ExpensesAccess::assertCanManage($actorId, $actorRole);
-        // Whatever the category, an owner or manager chose it: a suggestion is now confirmed.
-        $this->categorySuggested = false;
-        if (null === $category) {
-            $this->categoryId = null;
-
-            return;
-        }
-        if (null !== $this->categoryId && $this->categoryId->equals($category->getId())) {
-            return;
-        }
-        if ($category->isArchived()) {
-            throw ExpenseCategoryArchivedException::of($category->getName());
-        }
-
-        $this->categoryId = $category->getId();
-    }
-
-    public function getCategoryId(): ?Uuid
-    {
-        return $this->categoryId;
-    }
-
-    /**
-     * Gives an invoice that has no category yet the category its importer suggests (#55), marked as
-     * suggested. Nothing changes for an invoice that already has one, so a suggestion never replaces
-     * a person's choice.
-     *
-     * @throws ExpenseCategoryArchivedException when the category is archived
-     */
-    public function suggestCategory(ExpenseCategory $category): void
-    {
-        if (null !== $this->categoryId) {
-            return;
-        }
-        if ($category->isArchived()) {
-            throw ExpenseCategoryArchivedException::of($category->getName());
-        }
-
-        $this->categoryId = $category->getId();
-        $this->categorySuggested = true;
-    }
-
-    /** True while the category was suggested (suggestCategory()) and not yet confirmed (categorize()). */
-    public function isCategorySuggested(): bool
-    {
-        return $this->categorySuggested;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

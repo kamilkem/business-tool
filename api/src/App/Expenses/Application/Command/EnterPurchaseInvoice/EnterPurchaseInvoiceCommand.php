@@ -28,7 +28,6 @@ final readonly class EnterPurchaseInvoiceCommand implements CommandInterface
         public int $vatTotal,
         public int $grossTotal,
         public array $vatLines,
-        public ?string $categoryId,
     ) {
     }
 }

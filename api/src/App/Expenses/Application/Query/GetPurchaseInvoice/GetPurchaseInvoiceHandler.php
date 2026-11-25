@@ -6,7 +6,6 @@ namespace App\Expenses\Application\Query\GetPurchaseInvoice;
 
 use App\Expenses\Application\ExpensesActor;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
-use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Shared\Application\Query\QueryBusInterface;
@@ -18,7 +17,6 @@ final readonly class GetPurchaseInvoiceHandler implements QueryHandlerInterface
     public function __construct(
         private PurchaseInvoiceRepositoryInterface $invoices,
         private PurchaseInvoiceDocumentRepositoryInterface $documents,
-        private ExpenseCategoryRepositoryInterface $categories,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -35,10 +33,8 @@ final readonly class GetPurchaseInvoiceHandler implements QueryHandlerInterface
             return null;
         }
 
-        $categoryId = $invoice->getCategoryId();
-        $category = null === $categoryId ? null : $this->categories->findById($categoryId);
         $formats = $this->documents->findFormatsByInvoiceIds([$invoice->getId()]);
 
-        return PurchaseInvoiceView::of($invoice, $category?->getName(), $formats[$invoice->getId()->toRfc4122()] ?? null);
+        return PurchaseInvoiceView::of($invoice, $formats[$invoice->getId()->toRfc4122()] ?? null);
     }
 }

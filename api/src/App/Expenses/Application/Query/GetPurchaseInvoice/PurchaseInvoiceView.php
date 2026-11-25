@@ -26,17 +26,13 @@ final readonly class PurchaseInvoiceView
         public int $vatTotal,
         public int $grossTotal,
         public array $vatLines,
-        public ?string $categoryId,
-        public ?string $categoryName,
-        /** True while the category was pre-filled from the seller's history and nobody confirmed it (#55). */
-        public bool $categorySuggested,
         /** The format of the original document; null when the invoice has none. */
         public ?string $documentFormat,
         public \DateTimeImmutable $createdAt,
     ) {
     }
 
-    public static function of(PurchaseInvoice $invoice, ?string $categoryName, ?string $documentFormat): self
+    public static function of(PurchaseInvoice $invoice, ?string $documentFormat): self
     {
         return new self(
             $invoice->getId()->toRfc4122(),
@@ -54,9 +50,6 @@ final readonly class PurchaseInvoiceView
             $invoice->getVatTotal(),
             $invoice->getGrossTotal(),
             array_map(PurchaseInvoiceVatLineView::fromAmount(...), $invoice->getVatLines()),
-            $invoice->getCategoryId()?->toRfc4122(),
-            $categoryName,
-            $invoice->isCategorySuggested(),
             $documentFormat,
             $invoice->getCreatedAt(),
         );

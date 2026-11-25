@@ -34,14 +34,6 @@ interface PurchaseInvoiceRepositoryInterface
     public function findByFilter(PurchaseInvoiceFilter $filter): array;
 
     /**
-     * The category owners and managers chose most often for one seller's invoices (#55): by its tax
-     * ID key when given, else by its name key (SellerKey). Suggested categories nobody confirmed and
-     * archived categories do not count. A tie goes to the category of the seller's latest invoice by
-     * issue date (then by when it was stored). Null when there is none.
-     */
-    public function findMostUsedCategoryIdOfSeller(?string $sellerTaxIdKey, string $sellerNameKey): ?Uuid;
-
-    /**
      * Stores a new invoice and, when given, its original document, both or neither.
      *
      * @throws PurchaseInvoiceAlreadyImportedException when the source's id is already stored (the unique constraint caught it)

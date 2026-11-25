@@ -15,7 +15,7 @@ use Ui\Http\Expenses\UpdateExpenseInput;
 use Ui\Http\Shared\Security\CurrentUser;
 
 /**
- * Pre-fills the merge-patch input with the expense's current category; API Platform then applies
+ * Pre-fills the merge-patch input with the expense's current values; API Platform then applies
  * the request body onto it. An employee is refused here (403) and an expense that is not the
  * organization's is a 404, before the body is read.
  *

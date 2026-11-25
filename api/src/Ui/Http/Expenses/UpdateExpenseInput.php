@@ -13,7 +13,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * Merge-patch input. Mutable on purpose: UpdateExpenseInputProvider pre-fills it from the current
  * expense and API Platform applies the request body onto it, so a field the client did not send
  * keeps its value. A `vatLines` list that is sent replaces the current one whole; null or [] removes
- * the breakdown. Only a manual expense takes new details; an imported one only a new category (409).
+ * the breakdown. Only a manual expense takes new details; an imported one only its own (409 otherwise).
  */
 final class UpdateExpenseInput
 {
@@ -61,10 +61,6 @@ final class UpdateExpenseInput
     #[Assert\Valid]
     public ?array $vatLines = null;
 
-    /** A category of the organization, not archived unless it is the expense's already; null clears it. */
-    #[Assert\Uuid]
-    public ?string $categoryId = null;
-
     public static function fromView(PurchaseInvoiceView $view): self
     {
         $input = new self();
@@ -78,7 +74,6 @@ final class UpdateExpenseInput
         $input->vatTotal = $view->vatTotal;
         $input->grossTotal = $view->grossTotal;
         $input->vatLines = array_map(ExpenseVatLineInput::fromView(...), $view->vatLines);
-        $input->categoryId = $view->categoryId;
 
         return $input;
     }

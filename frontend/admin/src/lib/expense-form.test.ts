@@ -44,9 +44,6 @@ function expense(overrides: Partial<Expense> = {}): Expense {
     vatTotal: 2300,
     grossTotal: 12300,
     vatLines: [{ rate: "23", net: 10000, vat: 2300, vatInTaxCurrency: null }],
-    categoryId: null,
-    categoryName: null,
-    categorySuggested: false,
     hasDocument: false,
     documentFormat: null,
     createdAt: "2026-11-04T03:00:00+00:00",
@@ -70,7 +67,7 @@ describe("isEditable", () => {
 
 describe("expenseFormFrom", () => {
   it("test_it_fills_the_form_from_an_expense_with_empty_text_for_missing_values", () => {
-    const values = expenseFormFrom(expense({ categoryId: "c1", categoryName: "Food" }))
+    const values = expenseFormFrom(expense())
 
     expect(values).toEqual({
       sellerName: "Makro",
@@ -82,7 +79,6 @@ describe("expenseFormFrom", () => {
       grossTotal: 12300,
       vatTotal: 2300,
       vatLines: { "23": { net: 10000, vat: 2300, vatInTaxCurrency: null } },
-      categoryId: "c1",
     })
   })
 })
@@ -130,7 +126,6 @@ describe("expenseBody", () => {
         invoiceNumber: " P/1 ",
         currency: "pln",
         vatLines: { "23": { net: 10000, vat: 2300, vatInTaxCurrency: 999 }, zw: { net: 500, vat: null, vatInTaxCurrency: null } },
-        categoryId: "c1",
       }),
       RATES,
       "PLN",
@@ -152,7 +147,6 @@ describe("expenseBody", () => {
           { rate: "23", net: 10000, vat: 2300, vatInTaxCurrency: null },
           { rate: "zw", net: 500, vat: 0, vatInTaxCurrency: null },
         ],
-        categoryId: "c1",
       },
     })
   })

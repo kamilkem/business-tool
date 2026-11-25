@@ -48,12 +48,10 @@ cash_flow.storage_deactivated
 cash_flow.storage_in_use
 cash_flow.storage_name_taken
 cash_flow.storage_not_found
-expenses.expense_category_archived
 expenses.expense_category_name_taken
 expenses.expense_category_not_found
 expenses.expense_period_too_long
 expenses.invalid_expense_category_name
-expenses.invalid_expense_filter
 expenses.invalid_purchase_invoice.blank
 expenses.invalid_purchase_invoice.corrected_invoice_on_manual
 expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction

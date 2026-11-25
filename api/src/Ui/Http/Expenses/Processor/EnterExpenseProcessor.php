@@ -55,7 +55,6 @@ final readonly class EnterExpenseProcessor implements ProcessorInterface
             vatTotal: $data->vatTotal,
             grossTotal: $data->grossTotal,
             vatLines: ExpenseInputRules::vatLines($data->vatLines),
-            categoryId: $data->categoryId,
         ));
 
         /** @var PurchaseInvoiceView $view */

@@ -3,7 +3,6 @@ import type { BusinessPeriod } from "@business-tool/ui/lib/date-time"
 import { type QueryClient, queryOptions } from "@tanstack/react-query"
 
 import { api } from "./api"
-import type { SuggestionSeller } from "./category-suggestion"
 import type { ExpensesFilter } from "./expenses"
 import type { RequestsFilter } from "./shift-change-requests"
 
@@ -77,22 +76,13 @@ export const paymentMethodsQuery = (organizationId: string) =>
 
 /**
  * Expense categories of the organization: active ones by name, then (with includeArchived) the
- * archived ones. Forms that pick a category for an expense need the active ones only.
+ * archived ones.
  */
 export const expenseCategoriesQuery = (organizationId: string, includeArchived: boolean) =>
   queryOptions({
     queryKey: ["expense-categories", organizationId, { includeArchived }],
     queryFn: () =>
       unwrap(api.GET("/api/expense-categories", { params: { query: includeArchived ? { includeArchived: true } : {} } })),
-  })
-
-/** The category to suggest for an expense of this seller (#55); disabled without one. */
-export const expenseCategorySuggestionQuery = (organizationId: string, seller: SuggestionSeller | null) =>
-  queryOptions({
-    queryKey: ["expense-category-suggestion", organizationId, seller],
-    queryFn: () => unwrap(api.GET("/api/expense-category-suggestion", { params: { query: seller ?? {} } })),
-    enabled: seller !== null,
-    staleTime: 60_000,
   })
 
 /** Shifts that started in the period (business dates in the organization's time zone), optionally one person's. */
@@ -173,7 +163,7 @@ export function invalidateRevenue(queryClient: QueryClient, organizationId: stri
 
 /**
  * Expenses of the period by issue date, newest first, with totals per currency (GET /expenses).
- * Category changes update every list under `["expenses", organizationId]`.
+ * Writes invalidate every list under `["expenses", organizationId]`.
  */
 export const expensesQuery = (organizationId: string, filter: ExpensesFilter) =>
   queryOptions({

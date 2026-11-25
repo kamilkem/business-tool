@@ -10,7 +10,7 @@ import type { VatRate } from "./income"
 /*
  * The form for an expense entered by hand (#58): a cash receipt or an invoice that is not in KSeF.
  * Owners and managers add, change and delete them (POST, PATCH, DELETE /expenses); an imported
- * expense is read-only apart from its category.
+ * expense is read-only.
  */
 
 export type EnterExpenseInput = components["schemas"]["Expense.EnterExpenseInput"]
@@ -62,12 +62,11 @@ export interface ExpenseFormValues {
   vatTotal: MinorUnits | null
   /** By rate code; a rate with every field empty is not on the document. */
   vatLines: Record<string, ExpenseVatLineValues>
-  categoryId: string | null
 }
 
 /**
  * Errors keyed by form field: `sellerName`, `sellerTaxId`, `invoiceNumber`, `issueDate`, `kind`,
- * `currency`, `grossTotal`, `vatTotal`, `categoryId`, `vatLines` (the group),
+ * `currency`, `grossTotal`, `vatTotal`, `vatLines` (the group),
  * `vat.<rate>.net|vat|vatInTaxCurrency`, and `form` for anything that names no field.
  */
 export type ExpenseFormErrors = Record<string, string>
@@ -83,7 +82,6 @@ export function emptyExpenseForm(currency: string, issueDate: BusinessDate): Exp
     grossTotal: null,
     vatTotal: null,
     vatLines: {},
-    categoryId: null,
   }
 }
 
@@ -103,7 +101,6 @@ export function expenseFormFrom(expense: Expense): ExpenseFormValues {
         { net: line.net, vat: line.vat, vatInTaxCurrency: line.vatInTaxCurrency },
       ]),
     ),
-    categoryId: expense.categoryId,
   }
 }
 
@@ -230,7 +227,6 @@ export function expenseBody(
       vatTotal: values.vatTotal,
       grossTotal: values.grossTotal,
       vatLines,
-      categoryId: values.categoryId,
     },
   }
 }
@@ -246,7 +242,6 @@ const FIELDS = [
   "currency",
   "grossTotal",
   "vatTotal",
-  "categoryId",
   "vatLines",
 ] as const
 

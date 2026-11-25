@@ -25,14 +25,13 @@ use Ui\Http\Expenses\Provider\ExpenseListProvider;
             uriTemplate: '/expenses',
             openapi: new Operation(
                 summary: 'Lists the expenses of the selected organization issued from one date to another, with totals per currency.',
-                description: 'Owners and managers only (403 otherwise). Newest issue date first, then by seller name and invoice number. Filters: categoryId (a category of the selected organization, archived ones included; 404 otherwise) or uncategorized=true, not both (422); seller matches a part of the seller\'s name (case-insensitive) or tax ID (spaces and dashes in the search ignored). Totals add up the listed expenses per currency: `totals[0]` is always the organization\'s current currency, also when nothing is listed (all 0), and other currencies follow by code; corrections count with their negative amounts. Invalid dates, to before from and periods longer than '.ListPurchaseInvoicesQuery::MAX_DAYS.' days are a 422.',
+                description: 'Owners and managers only (403 otherwise). Newest issue date first, then by seller name and invoice number. Filter: seller matches a part of the seller\'s name (case-insensitive) or tax ID (spaces and dashes in the search ignored). Totals add up the listed expenses per currency: `totals[0]` is always the organization\'s current currency, also when nothing is listed (all 0), and other currencies follow by code; corrections count with their negative amounts. Invalid dates, to before from and periods longer than '.ListPurchaseInvoicesQuery::MAX_DAYS.' days are a 422.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
-                    '404' => new Response('The categoryId is not a category of the selected organization.'),
-                    '422' => new Response('A date is missing or invalid, to is before from, the period is too long, or a filter is invalid.'),
+                    '422' => new Response('A date is missing or invalid, to is before from, the period is too long, or the seller is too long.'),
                 ],
             ),
-            // ListExpensesInput validates the parameters, cross-field rules included; the schemas below only document them.
+            // ListExpensesInput validates the parameters, the period rules included; the schemas below only document them.
             queryParameterValidationEnabled: false,
             provider: ExpenseListProvider::class,
             parameters: [
@@ -45,14 +44,6 @@ use Ui\Http\Expenses\Provider\ExpenseListProvider;
                     schema: ['type' => 'string', 'format' => 'date'],
                     description: 'Last issue date, inclusive (YYYY-MM-DD); at most '.ListPurchaseInvoicesQuery::MAX_DAYS.' days from the first.',
                     required: true,
-                ),
-                'categoryId' => new QueryParameter(
-                    schema: ['type' => 'string', 'format' => 'uuid'],
-                    description: 'Only expenses of this category.',
-                ),
-                'uncategorized' => new QueryParameter(
-                    schema: ['type' => 'boolean', 'default' => false],
-                    description: 'Only expenses without a category.',
                 ),
                 'seller' => new QueryParameter(
                     schema: ['type' => 'string'],

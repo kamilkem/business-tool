@@ -474,18 +474,6 @@
       "advance_correction": "Advance correction",
       "settlement_correction": "Settlement correction"
     },
-    "archivedCategory": "Archived category",
-    "categorized": "Categorized as {{category}}",
-    "categoryCleared": "Category cleared",
-    "categoryConfirmed": "Confirmed {{category}}",
-    "suggested": "Suggested",
-    "suggestedHint": "Suggested from this seller's earlier expenses. Confirm it or pick another category.",
-    "confirmCategory": "Confirm",
-    "confirmCategoryOf": "Confirm {{category}} for {{expense}}",
-    "categorizeFailed": "Could not change the category",
-    "categoryOf": "Category of {{expense}}",
-    "uncategorized": "Uncategorized",
-    "archived": "(archived)",
     "title": "Expenses",
     "description": "Purchase invoices by issue date. Click one for its details.",
     "descriptionKsef": "Purchase invoices by issue date, imported from KSeF or entered by hand. Click one for its details.",
@@ -493,8 +481,6 @@
     "noneMatching": "No expenses match the filters in this period.",
     "none": "No expenses for {{period}}.",
     "none_month": "No expenses in {{period}}.",
-    "category": "Category",
-    "allCategories": "All categories",
     "seller": "Seller",
     "sellerPlaceholder": "Seller name or tax ID",
     "clearFilters": "Clear filters",
@@ -516,7 +502,7 @@
     "sheet": {
       "issued": "{{number}}, issued {{date}}",
       "noNumber": "No invoice number",
-      "importedFrom": "Imported from {{source}}: only the category can be changed.",
+      "importedFrom": "Imported from {{source}}: it cannot be changed.",
       "sellerTaxId": "Seller tax ID",
       "issueDate": "Issue date",
       "kind": "Kind",
@@ -572,8 +558,7 @@
     "totalsEmpty": "The totals are empty.",
     "useBreakdown": "Use the breakdown's totals",
     "netAt": "Net at {{rate}}",
-    "vatInAt": "VAT in {{currency}} at {{rate}}",
-    "categorySuggested": "Suggested from this seller's earlier expenses."
+    "vatInAt": "VAT in {{currency}} at {{rate}}"
   },
   "income": {
     "nav": {

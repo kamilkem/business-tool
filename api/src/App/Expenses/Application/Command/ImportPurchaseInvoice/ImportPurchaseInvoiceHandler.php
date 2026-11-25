@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Expenses\Application\Command\ImportPurchaseInvoice;
 
-use App\Expenses\Application\SellerCategorySuggestion;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
@@ -27,7 +26,6 @@ final readonly class ImportPurchaseInvoiceHandler implements CommandHandlerInter
         private PurchaseInvoiceRepositoryInterface $invoices,
         private TenantContextInterface $tenantContext,
         private ClockInterface $clock,
-        private SellerCategorySuggestion $categorySuggestion,
     ) {
     }
 
@@ -58,12 +56,6 @@ final readonly class ImportPurchaseInvoiceHandler implements CommandHandlerInter
             $organization->getCurrency(),
             $now,
         );
-
-        // Pre-filled from the seller's history, marked as suggested until someone confirms it (#55).
-        $category = $this->categorySuggestion->forImported($invoice);
-        if (null !== $category) {
-            $invoice->suggestCategory($category);
-        }
 
         $this->invoices->add($invoice, PurchaseInvoiceDocument::of($invoice, $command->documentContent, $command->documentFormat, $now));
     }

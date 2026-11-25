@@ -12,13 +12,10 @@ use App\Expenses\Application\Command\EnterPurchaseInvoice\EnterPurchaseInvoiceCo
 use App\Expenses\Application\Command\EnterPurchaseInvoice\EnterPurchaseInvoiceHandler;
 use App\Expenses\Application\Command\PurchaseInvoiceDetailsInput;
 use App\Expenses\Application\ExpensesActor;
-use App\Expenses\Domain\Exception\ExpenseCategoryArchivedException;
-use App\Expenses\Domain\Exception\ExpenseCategoryNotFoundException;
 use App\Expenses\Domain\Exception\ExpensesManagementForbiddenException;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceReadOnlyException;
-use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
@@ -45,7 +42,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Entering, changing and deleting expenses by hand (#54) in a Polish organization (PLN) with an
- * owner, a manager, an employee and the categories "Beverages" and "Old rent" (archived).
+ * owner, a manager and an employee.
  */
 #[CoversClass(EnterPurchaseInvoiceHandler::class)]
 #[CoversClass(ChangePurchaseInvoiceHandler::class)]
@@ -57,20 +54,16 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
     private const string NOW = '2026-11-20 10:00:00';
 
     private InMemoryPurchaseInvoiceRepository $invoices;
-    private InMemoryExpenseCategoryRepository $categories;
     private StubQueryBus $queryBus;
     private Organization $organization;
     private User $owner;
     private User $manager;
     private User $employee;
-    private ExpenseCategory $beverages;
-    private ExpenseCategory $oldRent;
 
     protected function setUp(): void
     {
         $organizations = new InMemoryOrganizationRepository();
         $this->invoices = new InMemoryPurchaseInvoiceRepository();
-        $this->categories = new InMemoryExpenseCategoryRepository();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -79,12 +72,6 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
         OrganizationMother::addMember($this->organization, $this->manager, MembershipRole::Manager, $joined);
         OrganizationMother::addMember($this->organization, $this->employee, MembershipRole::Employee, $joined);
         $organizations->add($this->organization);
-
-        $this->beverages = ExpenseCategory::create(Uuid::v7(), 'Beverages', null, $this->owner->getId(), MembershipRole::Owner, $joined);
-        $this->oldRent = ExpenseCategory::create(Uuid::v7(), 'Old rent', null, $this->owner->getId(), MembershipRole::Owner, $joined);
-        $this->oldRent->archive($this->owner->getId(), MembershipRole::Owner, $joined);
-        $this->categories->add($this->beverages);
-        $this->categories->add($this->oldRent);
 
         $this->queryBus = new StubQueryBus(static fn (QueryInterface $query): mixed => match (true) {
             $query instanceof GetMemberQuery => (new GetMemberHandler($organizations))($query),
@@ -101,11 +88,11 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
     }
 
     #[DataProvider('managers')]
-    public function test_it_enters_an_expense_in_the_organizations_currency_with_a_category(string $actor): void
+    public function test_it_enters_an_expense_in_the_organizations_currency(string $actor): void
     {
         $id = Uuid::v7()->toRfc4122();
 
-        $this->enter($this->user($actor), $id, currency: null, categoryId: $this->beverages->getId()->toRfc4122());
+        $this->enter($this->user($actor), $id, currency: null);
 
         $invoice = $this->invoices->findById(Uuid::fromString($id)) ?? self::fail('Stored invoice expected.');
         self::assertSame(PurchaseInvoiceSource::Manual, $invoice->getSource());
@@ -118,7 +105,6 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
         self::assertSame('PLN', $invoice->getTaxCurrency());
         self::assertSame(5_400, $invoice->getGrossTotal());
         self::assertEquals([new PurchaseInvoiceVatAmount('8', 5_000, 400)], $invoice->getVatLines());
-        self::assertTrue($this->beverages->getId()->equals($invoice->getCategoryId()));
         self::assertEquals(new \DateTimeImmutable(self::NOW), $invoice->getCreatedAt());
     }
 
@@ -132,21 +118,6 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
         self::assertSame('EUR', $invoice->getCurrency());
         self::assertSame('PLN', $invoice->getTaxCurrency());
         self::assertEquals([new PurchaseInvoiceVatAmount('23', 1_000, 230, 990)], $invoice->getVatLines());
-    }
-
-    public function test_it_stores_nothing_when_the_category_is_unknown_or_archived(): void
-    {
-        $refused = [];
-        foreach ([Uuid::v7()->toRfc4122(), 'not-a-uuid', $this->oldRent->getId()->toRfc4122()] as $categoryId) {
-            try {
-                $this->enter($this->owner, Uuid::v7()->toRfc4122(), categoryId: $categoryId);
-            } catch (ExpenseCategoryNotFoundException|ExpenseCategoryArchivedException $e) {
-                $refused[] = $e::class;
-            }
-        }
-
-        self::assertSame([ExpenseCategoryNotFoundException::class, ExpenseCategoryNotFoundException::class, ExpenseCategoryArchivedException::class], $refused);
-        self::assertSame([], $this->invoices->all());
     }
 
     public function test_it_refuses_an_unknown_kind_or_an_invalid_date(): void
@@ -181,52 +152,39 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
     }
 
     #[DataProvider('managers')]
-    public function test_it_changes_a_manual_expense_and_its_category_in_one_save(string $actor): void
+    public function test_it_changes_a_manual_expense_in_one_save(string $actor): void
     {
         $invoice = PurchaseInvoiceMother::manual();
         $this->invoices->add($invoice);
 
-        $this->change($this->user($actor), $invoice->getId()->toRfc4122(), sellerName: 'Hala Targowa', grossTotal: 6_000, vatLines: [], categoryId: $this->beverages->getId()->toRfc4122());
+        $this->change($this->user($actor), $invoice->getId()->toRfc4122(), sellerName: 'Hala Targowa', grossTotal: 6_000, vatLines: []);
 
         self::assertSame('Hala Targowa', $invoice->getSellerName());
         self::assertSame(6_000, $invoice->getGrossTotal());
         self::assertSame([], $invoice->getVatLines());
-        self::assertTrue($this->beverages->getId()->equals($invoice->getCategoryId()));
         self::assertSame(1, $this->invoices->saveCallCount);
     }
 
-    public function test_it_refuses_new_details_for_an_imported_expense_and_keeps_its_category(): void
+    public function test_it_refuses_new_details_for_an_imported_expense(): void
     {
         $invoice = PurchaseInvoiceMother::imported();
         $this->invoices->add($invoice);
 
         try {
-            $this->change($this->owner, $invoice->getId()->toRfc4122(), sellerName: 'Someone else', categoryId: $this->beverages->getId()->toRfc4122());
+            $this->change($this->owner, $invoice->getId()->toRfc4122(), sellerName: 'Someone else');
             self::fail('Read-only expected.');
         } catch (PurchaseInvoiceReadOnlyException) {
         }
 
         self::assertSame('Hurtownia Napojów', $invoice->getSellerName());
-        self::assertNull($invoice->getCategoryId());
         self::assertSame(0, $this->invoices->saveCallCount);
     }
 
-    public function test_it_refuses_changing_an_unknown_expense_or_to_an_archived_category(): void
+    public function test_it_refuses_changing_an_unknown_expense(): void
     {
-        $invoice = PurchaseInvoiceMother::manual();
-        $this->invoices->add($invoice);
+        $this->expectException(PurchaseInvoiceNotFoundException::class);
 
-        $refused = [];
-        foreach ([[Uuid::v7()->toRfc4122(), null], [$invoice->getId()->toRfc4122(), $this->oldRent->getId()->toRfc4122()]] as [$invoiceId, $categoryId]) {
-            try {
-                $this->change($this->owner, $invoiceId, sellerName: 'Hala Targowa', categoryId: $categoryId);
-            } catch (PurchaseInvoiceNotFoundException|ExpenseCategoryArchivedException $e) {
-                $refused[] = $e::class;
-            }
-        }
-
-        self::assertSame([PurchaseInvoiceNotFoundException::class, ExpenseCategoryArchivedException::class], $refused);
-        self::assertSame(0, $this->invoices->saveCallCount);
+        $this->change($this->owner, Uuid::v7()->toRfc4122(), sellerName: 'Hala Targowa');
     }
 
     public function test_it_refuses_changing_to_an_employee(): void
@@ -278,9 +236,8 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
         string $kind = 'regular',
         string $issueDate = '2026-11-14',
         array $vatLines = [['rate' => '8', 'net' => 5_000, 'vat' => 400, 'vatInTaxCurrency' => null]],
-        ?string $categoryId = null,
     ): void {
-        $handler = new EnterPurchaseInvoiceHandler($this->invoices, $this->categories, $this->queryBus, new MockClock(self::NOW));
+        $handler = new EnterPurchaseInvoiceHandler($this->invoices, $this->queryBus, new MockClock(self::NOW));
 
         $handler(new EnterPurchaseInvoiceCommand(
             $this->organization->getId()->toRfc4122(),
@@ -296,7 +253,6 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
             400,
             5_400,
             $vatLines,
-            $categoryId,
         ));
     }
 
@@ -307,9 +263,8 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
         string $sellerName = 'Targ Rybny',
         int $grossTotal = 5_400,
         array $vatLines = [['rate' => '8', 'net' => 5_000, 'vat' => 400, 'vatInTaxCurrency' => null]],
-        ?string $categoryId = null,
     ): void {
-        $handler = new ChangePurchaseInvoiceHandler($this->invoices, $this->categories, $this->queryBus);
+        $handler = new ChangePurchaseInvoiceHandler($this->invoices, $this->queryBus);
 
         $handler(new ChangePurchaseInvoiceCommand(
             $this->organization->getId()->toRfc4122(),
@@ -325,7 +280,6 @@ final class ManualPurchaseInvoiceHandlersTest extends TestCase
             400,
             $grossTotal,
             $vatLines,
-            $categoryId,
         ));
     }
 

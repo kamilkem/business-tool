@@ -36,8 +36,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
     public function test_it_lists_the_periods_expenses_newest_first_with_totals_per_currency(MembershipRole $role): void
     {
         [$actor, $organization] = self::memberWithRole($role);
-        $food = self::addCategory($organization, 'Food');
-        $first = self::addInvoice($organization, PurchaseInvoiceMother::imported(externalId: 'K-1', issueDate: '2026-11-01', sellerName: 'Zakład Mięsny'), document: true, category: $food);
+        $first = self::addInvoice($organization, PurchaseInvoiceMother::imported(externalId: 'K-1', issueDate: '2026-11-01', sellerName: 'Zakład Mięsny'), document: true);
         $correction = self::addInvoice($organization, PurchaseInvoiceMother::imported(
             externalId: 'K-2',
             issueDate: '2026-11-30',
@@ -77,19 +76,15 @@ final class ExpenseApiTest extends ExpensesApiTestCase
             'vatTotal' => 4_600,
             'grossTotal' => 24_600,
             'vatLines' => [['rate' => '23', 'net' => 20_000, 'vat' => 4_600, 'vatInTaxCurrency' => null]],
-            'categoryId' => $food->getId()->toRfc4122(),
-            'categoryName' => 'Food',
-            'categorySuggested' => false,
             'hasDocument' => true,
             'documentFormat' => 'FA (3)',
             'createdAt' => '2026-11-12T21:00:00+00:00',
         ], $list['items'][2]);
-        self::assertSame(['correction', 'K-0', -1_080, false, null], [
+        self::assertSame(['correction', 'K-0', -1_080, false], [
             $list['items'][0]['kind'],
             $list['items'][0]['correctedExternalId'],
             $list['items'][0]['grossTotal'],
             $list['items'][0]['hasDocument'],
-            $list['items'][0]['categoryId'],
         ]);
         self::assertSame([
             [
@@ -126,22 +121,15 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         ], self::list($owner, $organization, self::NOVEMBER)->toArray());
     }
 
-    public function test_it_filters_by_category_uncategorized_and_seller(): void
+    public function test_it_filters_by_seller(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        $beverages = self::addCategory($organization, 'Beverages');
-        $oldRent = self::addCategory($organization, 'Old rent');
-        $beer = self::addInvoice($organization, PurchaseInvoiceMother::imported(sellerName: 'Browar Kormoran', sellerTaxId: '7393010870'), category: $beverages);
-        $rent = self::addInvoice($organization, PurchaseInvoiceMother::imported(sellerName: 'Kamienica', sellerTaxId: '1132853869'), category: $oldRent);
+        $beer = self::addInvoice($organization, PurchaseInvoiceMother::imported(sellerName: 'Browar Kormoran', sellerTaxId: '7393010870'));
+        self::addInvoice($organization, PurchaseInvoiceMother::imported(sellerName: 'Kamienica', sellerTaxId: '1132853869'));
         $meat = self::addInvoice($organization, PurchaseInvoiceMother::imported(sellerName: 'Zakład Mięsny', sellerTaxId: '5265877635'));
-        self::archiveCategory($organization, $oldRent);
 
         foreach ([
-            '&categoryId='.$beverages->getId()->toRfc4122() => [$beer],
-            '&categoryId='.$oldRent->getId()->toRfc4122() => [$rent],
-            '&uncategorized=true' => [$meat],
-            '&uncategorized=1' => [$meat],
-            '&uncategorized=false&seller=kormoran' => [$beer],
+            '&seller=kormoran' => [$beer],
             '&seller='.rawurlencode(' MIĘSNY') => [$meat],
             '&seller=739-301-08-70' => [$beer],
             '&seller=nobody' => [],
@@ -173,9 +161,6 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         yield 'to before from' => ['?from=2026-11-02&to=2026-11-01', ['to']];
         yield '367 days' => ['?from=2026-01-01&to=2027-01-02', ['to']];
         yield 'from as an array' => ['?from[]=2026-11-01&to=2026-11-30', ['from']];
-        yield 'category not a UUID' => [self::NOVEMBER.'&categoryId=food', ['categoryId']];
-        yield 'uncategorized not a boolean' => [self::NOVEMBER.'&uncategorized=maybe', ['uncategorized']];
-        yield 'category and uncategorized' => [self::NOVEMBER.'&categoryId=0196f0b4-0000-7000-8000-000000000000&uncategorized=true', ['uncategorized']];
         yield 'seller too long' => [self::NOVEMBER.'&seller='.str_repeat('a', 513), ['seller']];
     }
 
@@ -189,18 +174,6 @@ final class ExpenseApiTest extends ExpensesApiTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame($paths, array_values(array_unique(array_column($response->toArray(false)['violations'] ?? [], 'propertyPath'))));
-    }
-
-    public function test_it_answers_404_for_a_category_filter_of_another_organization(): void
-    {
-        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
-        $foreign = self::addCategory($elsewhere, 'Food');
-
-        self::list($owner, $organization, self::NOVEMBER.'&categoryId='.$foreign->getId()->toRfc4122());
-        self::assertResponseStatusCodeSame(404);
-        self::list($owner, $organization, self::NOVEMBER.'&categoryId='.Uuid::v7()->toRfc4122());
-        self::assertResponseStatusCodeSame(404);
     }
 
     #[DataProvider('managingRoles')]
@@ -236,9 +209,6 @@ final class ExpenseApiTest extends ExpensesApiTestCase
                 ['rate' => '8', 'net' => 10_000, 'vat' => 800, 'vatInTaxCurrency' => 3_400],
                 ['rate' => 'zw', 'net' => 1_000, 'vat' => 0, 'vatInTaxCurrency' => 0],
             ],
-            'categoryId' => null,
-            'categoryName' => null,
-            'categorySuggested' => false,
             'hasDocument' => false,
             'documentFormat' => null,
             'createdAt' => '2026-11-12T21:00:00+00:00',
@@ -254,7 +224,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         self::assertResponseStatusCodeSame(404);
         self::document($owner, $organization, $unknown);
         self::assertResponseStatusCodeSame(404);
-        self::categorize($owner, $organization, $unknown, ['categoryId' => null]);
+        self::patch($owner, $organization, $unknown, []);
         self::assertResponseStatusCodeSame(404);
         static::clientFor($owner, $organization)->request('GET', '/api/expenses/not-a-uuid');
         self::assertResponseStatusCodeSame(404);
@@ -294,84 +264,19 @@ final class ExpenseApiTest extends ExpensesApiTestCase
     }
 
     #[DataProvider('managingRoles')]
-    public function test_it_sets_changes_and_clears_the_category(MembershipRole $role): void
+    public function test_it_changes_nothing_when_an_imported_expense_gets_its_own_values_back(MembershipRole $role): void
     {
         [$actor, $organization] = self::memberWithRole($role);
-        $food = self::addCategory($organization, 'Food');
-        $beverages = self::addCategory($organization, 'Beverages');
         $id = self::addInvoice($organization, PurchaseInvoiceMother::imported())->getId()->toRfc4122();
+        $before = self::get($actor, $organization, $id)->toArray();
 
-        $expense = self::categorize($actor, $organization, $id, ['categoryId' => $food->getId()->toRfc4122()])->toArray();
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame([$food->getId()->toRfc4122(), 'Food'], [$expense['categoryId'], $expense['categoryName']]);
-        self::assertSame($expense, self::get($actor, $organization, $id)->toArray());
-
-        $expense = self::categorize($actor, $organization, $id, ['categoryId' => $beverages->getId()->toRfc4122()])->toArray();
-        self::assertSame([$beverages->getId()->toRfc4122(), 'Beverages'], [$expense['categoryId'], $expense['categoryName']]);
-
-        self::categorize($actor, $organization, $id, []);
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame($beverages->getId()->toRfc4122(), self::get($actor, $organization, $id)->toArray()['categoryId']);
-
-        $expense = self::categorize($actor, $organization, $id, ['categoryId' => null])->toArray();
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame([null, null], [$expense['categoryId'], $expense['categoryName']]);
-        self::assertSame([null, null], [self::get($actor, $organization, $id)->toArray()['categoryId'], self::get($actor, $organization, $id)->toArray()['categoryName']]);
-    }
-
-    public function test_it_refuses_an_archived_category_but_keeps_one_already_assigned(): void
-    {
-        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        $rent = self::addCategory($organization, 'Rent');
-        $oldRent = self::addCategory($organization, 'Old rent');
-        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported(), category: $rent)->getId()->toRfc4122();
-        self::archiveCategory($organization, $rent);
-        self::archiveCategory($organization, $oldRent);
-
-        $response = self::categorize($owner, $organization, $id, ['categoryId' => $oldRent->getId()->toRfc4122()]);
-        self::assertResponseStatusCodeSame(422);
-        self::assertStringContainsString('archived', $response->getContent(false));
-        self::assertSame($rent->getId()->toRfc4122(), self::get($owner, $organization, $id)->toArray()['categoryId']);
-
-        $expense = self::categorize($owner, $organization, $id, ['categoryId' => $rent->getId()->toRfc4122()])->toArray();
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame([$rent->getId()->toRfc4122(), 'Rent'], [$expense['categoryId'], $expense['categoryName']]);
-    }
-
-    /** @return iterable<string, array{array<string, mixed>}> */
-    public static function invalidCategorizations(): iterable
-    {
-        yield 'not a UUID' => [['categoryId' => 'food']];
-        yield 'a number' => [['categoryId' => 123]];
-    }
-
-    /** @param array<string, mixed> $body */
-    #[DataProvider('invalidCategorizations')]
-    public function test_it_answers_422_with_violations_for_an_invalid_category(array $body): void
-    {
-        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported())->getId()->toRfc4122();
-
-        $response = self::categorize($owner, $organization, $id, $body);
-
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(['categoryId'], array_values(array_unique(array_column($response->toArray(false)['violations'] ?? [], 'propertyPath'))));
-        self::assertNull(self::get($owner, $organization, $id)->toArray()['categoryId']);
-    }
-
-    public function test_it_answers_404_for_a_category_of_another_organization_or_an_unknown_one(): void
-    {
-        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
-        $foreign = self::addCategory($elsewhere, 'Food');
-        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported())->getId()->toRfc4122();
-
-        foreach ([$foreign->getId()->toRfc4122(), Uuid::v7()->toRfc4122()] as $categoryId) {
-            self::categorize($owner, $organization, $id, ['categoryId' => $categoryId]);
-            self::assertResponseStatusCodeSame(404);
+        foreach ([[], ['sellerName' => 'Hurtownia Napojów', 'grossTotal' => 24_600]] as $body) {
+            $expense = self::patch($actor, $organization, $id, $body)->toArray();
+            self::assertResponseStatusCodeSame(200);
+            self::assertSame($before, $expense);
         }
 
-        self::assertNull(self::get($owner, $organization, $id)->toArray()['categoryId']);
+        self::assertSame($before, self::get($actor, $organization, $id)->toArray());
     }
 
     public function test_it_hides_another_organizations_expenses(): void
@@ -380,7 +285,6 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         [$ownerElsewhere, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
         $mine = self::addInvoice($organization, PurchaseInvoiceMother::imported(externalId: 'K-1'));
         $foreign = self::addInvoice($elsewhere, PurchaseInvoiceMother::imported(externalId: 'K-1'), document: true);
-        $food = self::addCategory($organization, 'Food');
         $id = $foreign->getId()->toRfc4122();
         // A member elsewhere too, as an employee: the selected organization decides what is visible.
         OrganizationMother::addMember($elsewhere, $owner, MembershipRole::Employee);
@@ -394,7 +298,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         self::assertResponseStatusCodeSame(404);
         self::document($owner, $organization, $id);
         self::assertResponseStatusCodeSame(404);
-        self::categorize($owner, $organization, $id, ['categoryId' => $food->getId()->toRfc4122()]);
+        self::patch($owner, $organization, $id, []);
         self::assertResponseStatusCodeSame(404);
 
         self::assertSame($before, self::get($ownerElsewhere, $elsewhere, $id)->toArray());
@@ -406,7 +310,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         yield 'GET list' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::list($user, $organization, self::NOVEMBER)];
         yield 'GET' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::get($user, $organization, $id)];
         yield 'GET document' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::document($user, $organization, $id)];
-        yield 'PATCH' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::categorize($user, $organization, $id, ['categoryId' => null])];
+        yield 'PATCH' => [static fn (User $user, Organization $organization, string $id): ResponseInterface => self::patch($user, $organization, $id, [])];
     }
 
     /** @param \Closure(User, Organization, string): ResponseInterface $request */
@@ -420,8 +324,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         OrganizationMother::deactivateMember($organization, $formerManager);
         OrganizationMother::deactivateMember($organization, $formerOwner);
         static::getContainer()->get(EntityManagerInterface::class)->flush();
-        $food = self::addCategory($organization, 'Food');
-        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported(), document: true, category: $food)->getId()->toRfc4122();
+        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported(), document: true)->getId()->toRfc4122();
         $before = self::get($owner, $organization, $id)->toArray();
 
         foreach ([$employee, $formerManager, $formerOwner] as $user) {
@@ -442,9 +345,9 @@ final class ExpenseApiTest extends ExpensesApiTestCase
         self::assertResponseStatusCodeSame(403);
         self::document($employee, $organization, $unknown);
         self::assertResponseStatusCodeSame(403);
-        self::categorize($employee, $organization, $unknown, ['categoryId' => null]);
+        self::patch($employee, $organization, $unknown, []);
         self::assertResponseStatusCodeSame(403);
-        self::list($employee, $organization, '?from=2026-11-01&to=2026-11-30&categoryId='.$unknown);
+        self::list($employee, $organization, self::NOVEMBER.'&seller='.$unknown);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -459,7 +362,7 @@ final class ExpenseApiTest extends ExpensesApiTestCase
     }
 
     /** @param array<string, mixed> $body */
-    private static function categorize(User $user, Organization $organization, string $id, array $body): ResponseInterface
+    private static function patch(User $user, Organization $organization, string $id, array $body): ResponseInterface
     {
         return static::clientFor($user, $organization)->request('PATCH', '/api/expenses/'.$id, [
             'json' => $body,

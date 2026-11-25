@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Expenses\Domain;
 
-use App\Expenses\Domain\Exception\InvalidExpenseFilterException;
 use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Shared\Domain\Time\BusinessPeriod;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(PurchaseInvoiceFilter::class)]
 final class PurchaseInvoiceFilterTest extends TestCase
@@ -33,24 +31,6 @@ final class PurchaseInvoiceFilterTest extends TestCase
 
         self::assertSame($seller, $filter->seller);
         self::assertSame($taxId, $filter->sellerTaxId());
-    }
-
-    public function test_it_takes_a_category_or_uncategorized(): void
-    {
-        $categoryId = Uuid::v7();
-
-        $byCategory = new PurchaseInvoiceFilter(self::period(), $categoryId);
-        $uncategorized = new PurchaseInvoiceFilter(self::period(), uncategorized: true);
-
-        self::assertSame([$categoryId, false], [$byCategory->categoryId, $byCategory->uncategorized]);
-        self::assertSame([null, true], [$uncategorized->categoryId, $uncategorized->uncategorized]);
-    }
-
-    public function test_it_refuses_a_category_and_uncategorized_together(): void
-    {
-        $this->expectException(InvalidExpenseFilterException::class);
-
-        new PurchaseInvoiceFilter(self::period(), Uuid::v7(), true);
     }
 
     private static function period(): BusinessPeriod

@@ -67,12 +67,10 @@
       "storage_not_found": "This cash storage no longer exists. Reload the page."
     },
     "expenses": {
-      "expense_category_archived": "The category “{{name}}” is archived. Restore it to assign it.",
       "expense_category_name_taken": "A category named “{{name}}” already exists.",
       "expense_category_not_found": "This category no longer exists. Reload the page.",
       "expense_period_too_long": "Choose a period of at most {{maxDays}} days.",
       "invalid_expense_category_name": "A category name must have 1 to {{maxLength}} characters.",
-      "invalid_expense_filter": "Filter either by a category or by uncategorized expenses, not both.",
       "invalid_purchase_invoice": {
         "blank": "A required value of the invoice is missing ({{field}}).",
         "corrected_invoice_on_manual": "An invoice entered by hand cannot refer to a corrected invoice in another source.",
@@ -94,7 +92,7 @@
       "purchase_invoice_already_imported": "This invoice is already stored.",
       "purchase_invoice_document_not_found": "This expense has no original document.",
       "purchase_invoice_not_found": "This expense no longer exists. Reload the page.",
-      "purchase_invoice_read_only": "This expense was imported: only its category can be changed."
+      "purchase_invoice_read_only": "This expense was imported: it cannot be changed or deleted."
     },
     "income": {
       "cash_payment_method_taken": "Another active payment method is already marked as cash. Remove its mark first.",
