@@ -390,6 +390,62 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertEquals([new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')], $this->invoices->findById(Uuid::fromString($ids[0]))?->getItems());
     }
 
+    public function test_it_pages_the_invoices_with_items_by_id_with_all_their_items(): void
+    {
+        $this->switchToNewOrganization();
+        $foreign = $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Foreign')]));
+        $this->entityManager->clear();
+        $this->switchToNewOrganization();
+        $invoices = [];
+        foreach (['Piwo', 'Wino', 'Woda'] as $name) {
+            $invoices[] = $this->add(PurchaseInvoiceMother::imported(items: [
+                new PurchaseInvoiceItemDetails(position: 1, name: $name.' 1', quantity: '0.700', netAmount: 3_150),
+                new PurchaseInvoiceItemDetails(position: 1, name: $name.' 2', beforeCorrection: true),
+            ]));
+        }
+        $this->add(PurchaseInvoiceMother::imported());
+        $this->add(PurchaseInvoiceMother::manual());
+        $this->entityManager->clear();
+        $ids = self::idsOf($invoices);
+        sort($ids);
+
+        $first = $this->invoices->findWithItemsAfter(null, 2);
+        $rest = $this->invoices->findWithItemsAfter($first[1]->getId(), 2);
+
+        self::assertSame(\array_slice($ids, 0, 2), self::idsOf($first));
+        self::assertSame([$ids[2]], self::idsOf($rest));
+        self::assertNotContains($foreign->getId()->toRfc4122(), $ids);
+        self::assertSame([], $this->invoices->findWithItemsAfter($rest[0]->getId(), 2));
+        $this->entityManager->clear();
+        $all = $this->invoices->findWithItemsAfter(null, 10);
+        self::assertSame($ids, self::idsOf($all));
+        foreach ($all as $invoice) {
+            $items = $invoice->getItemsByIndex();
+            self::assertSame([1, 2], array_keys($items));
+            self::assertSame(['0.7', null], array_map(static fn (PurchaseInvoiceItemDetails $item): ?string => $item->quantity, array_values($items)));
+            self::assertTrue($items[2]->beforeCorrection);
+        }
+    }
+
+    public function test_it_lists_the_organizations_that_have_invoice_items(): void
+    {
+        $withItemsA = $this->switchToNewOrganization();
+        $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Piwo')]));
+        $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Wino')]));
+        $this->entityManager->clear();
+        $this->switchToNewOrganization();
+        $this->add(PurchaseInvoiceMother::imported());
+        $this->entityManager->clear();
+        $withItemsB = $this->switchToNewOrganization();
+        $this->add(PurchaseInvoiceMother::imported(items: [new PurchaseInvoiceItemDetails(position: 1, name: 'Woda')]));
+        $this->entityManager->clear();
+        $this->tenantContext->reset();
+        $expected = [$withItemsA->getId()->toRfc4122(), $withItemsB->getId()->toRfc4122()];
+        sort($expected);
+
+        self::assertSame($expected, $this->invoices->findOrganizationIdsWithItems());
+    }
+
     private function withDocument(PurchaseInvoice $invoice): PurchaseInvoice
     {
         $this->invoices->add($invoice, PurchaseInvoiceDocument::of($invoice, self::XML, 'FA (3)', new \DateTimeImmutable('2026-11-12 21:00:05')));

@@ -68,6 +68,25 @@ final class InMemoryPurchaseInvoiceRepository implements PurchaseInvoiceReposito
         return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
     }
 
+    public function findWithItemsAfter(?Uuid $after, int $limit): array
+    {
+        $ids = [];
+        foreach ($this->byId as $id => $invoice) {
+            if ([] !== $invoice->getItems() && (null === $after || strcmp($id, $after->toRfc4122()) > 0)) {
+                $ids[] = $id;
+            }
+        }
+        // Lowercase RFC 4122 strings sort as PostgreSQL sorts UUIDs.
+        sort($ids);
+
+        return array_map(fn (string $id): PurchaseInvoice => $this->byId[$id], \array_slice($ids, 0, $limit));
+    }
+
+    public function findOrganizationIdsWithItems(): array
+    {
+        throw new \LogicException('Spans organizations: tested against the database.');
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         $invoices = array_values(array_filter($this->byId, static function (PurchaseInvoice $invoice) use ($filter): bool {

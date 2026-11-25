@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Expenses\Application\Command\ImportPurchaseInvoice;
 
 use App\Expenses\Application\Command\PurchaseInvoiceItemPrimitives;
+use App\Expenses\Domain\Event\PurchaseInvoiceItemsRecorded;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
 use App\Expenses\Domain\Model\PurchaseInvoice;
@@ -16,6 +17,7 @@ use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Shared\Domain\Time\Exception\InvalidBusinessDateException;
 use Psr\Clock\ClockInterface;
@@ -27,10 +29,13 @@ final readonly class ImportPurchaseInvoiceHandler implements CommandHandlerInter
         private PurchaseInvoiceRepositoryInterface $invoices,
         private TenantContextInterface $tenantContext,
         private ClockInterface $clock,
+        private EventPublisherInterface $events,
     ) {
     }
 
     /**
+     * Publishes PurchaseInvoiceItemsRecorded when the invoice has items (ADR 0041 §2).
+     *
      * @throws PurchaseInvoiceAlreadyImportedException when the source's id is already stored
      * @throws InvalidPurchaseInvoiceException         when the source, kind, date or data break a rule
      */
@@ -59,6 +64,10 @@ final readonly class ImportPurchaseInvoiceHandler implements CommandHandlerInter
         );
 
         $this->invoices->add($invoice, PurchaseInvoiceDocument::of($invoice, $command->documentContent, $command->documentFormat, $now));
+
+        if ([] !== $command->items) {
+            $this->events->publish(PurchaseInvoiceItemsRecorded::ofInvoice($command->organizationId, $invoice));
+        }
     }
 
     /** @throws InvalidPurchaseInvoiceException */
