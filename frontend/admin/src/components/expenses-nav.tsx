@@ -4,13 +4,16 @@ import { useTranslation } from "react-i18next"
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[status=active]:bg-background data-[status=active]:text-foreground data-[status=active]:shadow-sm"
 
-/** The Expenses module's two pages: the purchase invoices and the product category tree. */
+/** The Expenses module's pages: the purchase invoices, the purchase analysis and the product category tree. */
 export function ExpensesNav() {
   const { t } = useTranslation("admin")
   return (
     <nav aria-label={t("nav.expenses")} className="inline-flex w-fit gap-1 rounded-lg bg-muted p-1">
       <Link to="/expenses" activeOptions={{ exact: true, includeSearch: false }} className={linkClass}>
         {t("expenses.nav.invoices")}
+      </Link>
+      <Link to="/expenses/analysis" className={linkClass}>
+        {t("expenses.nav.analysis")}
       </Link>
       <Link to="/expenses/categories" className={linkClass}>
         {t("expenses.nav.categories")}

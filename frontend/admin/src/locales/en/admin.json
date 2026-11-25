@@ -392,6 +392,69 @@
       "add": "Add"
     }
   },
+  "analysis": {
+    "title": "Purchase analysis",
+    "description": "What you buy, how much it costs and how prices change, from your purchase invoices.",
+    "total_net": "Total spend, net:",
+    "total_gross": "Total spend, gross:",
+    "uncategorized": "Uncategorized",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "expand": "Show what is in {{name}}",
+    "collapse": "Hide what is in {{name}}",
+    "productsIn_one": "{{count}} product",
+    "productsIn_other": "{{count}} products",
+    "none": "No purchases for {{period}}.",
+    "none_month": "No purchases in {{period}}.",
+    "basis": {
+      "label": "Amounts",
+      "net": "Net",
+      "gross": "Gross"
+    },
+    "columns": {
+      "name": "Category / product",
+      "spend_net": "Spend (net)",
+      "spend_gross": "Spend (gross)",
+      "share": "Share",
+      "quantity": "Quantity",
+      "averagePrice_net": "Average price (net)",
+      "averagePrice_gross": "Average price (gross)",
+      "lastPrice_net": "Last price (net)",
+      "lastPrice_gross": "Last price (gross)",
+      "change": "Change"
+    },
+    "change": {
+      "up": "Price went up",
+      "down": "Price went down",
+      "flat": "Price unchanged"
+    },
+    "notAssigned": {
+      "name": "Not assigned",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "hint": "Bought, but not yet linked to a product. They count in the total."
+    },
+    "leftOut": {
+      "title": "Not counted in these figures",
+      "otherCurrency_one": "{{count}} item on an invoice in another currency",
+      "otherCurrency_other": "{{count}} items on invoices in another currency",
+      "withoutNet_one": "{{count}} item without a net amount",
+      "withoutNet_other": "{{count}} items without a net amount",
+      "withoutGross_one": "{{count}} item without a gross amount",
+      "withoutGross_other": "{{count}} items without a gross amount",
+      "withoutPackageSize_one": "{{count}} item without a package size: in the spend, but not in quantities or prices",
+      "withoutPackageSize_other": "{{count}} items without a package size: in the spend, but not in quantities or prices"
+    },
+    "unit": {
+      "volume": "L",
+      "mass": "kg",
+      "count": "pc"
+    },
+    "error": {
+      "title": "Could not load the analysis",
+      "retry": "Try again"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Pending",
@@ -467,6 +530,7 @@
   "expenses": {
     "nav": {
       "invoices": "Invoices",
+      "analysis": "Analysis",
       "categories": "Categories"
     },
     "source": {

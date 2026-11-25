@@ -424,6 +424,81 @@
       "add": "Dodaj"
     }
   },
+  "analysis": {
+    "title": "Analiza zakupów",
+    "description": "Co kupujesz, ile to kosztuje i jak zmieniają się ceny, na podstawie faktur zakupu.",
+    "total_net": "Suma wydatków, netto:",
+    "total_gross": "Suma wydatków, brutto:",
+    "uncategorized": "Bez kategorii",
+    "expandAll": "Rozwiń wszystkie",
+    "collapseAll": "Zwiń wszystkie",
+    "expand": "Pokaż zawartość: {{name}}",
+    "collapse": "Ukryj zawartość: {{name}}",
+    "productsIn_one": "{{count}} produkt",
+    "productsIn_few": "{{count}} produkty",
+    "productsIn_many": "{{count}} produktów",
+    "productsIn_other": "{{count}} produktu",
+    "none": "{{period}}: brak zakupów.",
+    "none_month": "{{period}}: brak zakupów.",
+    "basis": {
+      "label": "Kwoty",
+      "net": "Netto",
+      "gross": "Brutto"
+    },
+    "columns": {
+      "name": "Kategoria / produkt",
+      "spend_net": "Wydatki (netto)",
+      "spend_gross": "Wydatki (brutto)",
+      "share": "Udział",
+      "quantity": "Ilość",
+      "averagePrice_net": "Średnia cena (netto)",
+      "averagePrice_gross": "Średnia cena (brutto)",
+      "lastPrice_net": "Ostatnia cena (netto)",
+      "lastPrice_gross": "Ostatnia cena (brutto)",
+      "change": "Zmiana"
+    },
+    "change": {
+      "up": "Cena wzrosła",
+      "down": "Cena spadła",
+      "flat": "Cena bez zmian"
+    },
+    "notAssigned": {
+      "name": "Nieprzypisane",
+      "items_one": "{{count}} pozycja",
+      "items_few": "{{count}} pozycje",
+      "items_many": "{{count}} pozycji",
+      "items_other": "{{count}} pozycji",
+      "hint": "Kupione, ale jeszcze niepowiązane z produktem. Wliczają się do sumy."
+    },
+    "leftOut": {
+      "title": "Nieuwzględnione w tych danych",
+      "otherCurrency_one": "{{count}} pozycja z faktury w innej walucie",
+      "otherCurrency_few": "{{count}} pozycje z faktur w innej walucie",
+      "otherCurrency_many": "{{count}} pozycji z faktur w innej walucie",
+      "otherCurrency_other": "{{count}} pozycji z faktur w innej walucie",
+      "withoutNet_one": "{{count}} pozycja bez kwoty netto",
+      "withoutNet_few": "{{count}} pozycje bez kwoty netto",
+      "withoutNet_many": "{{count}} pozycji bez kwoty netto",
+      "withoutNet_other": "{{count}} pozycji bez kwoty netto",
+      "withoutGross_one": "{{count}} pozycja bez kwoty brutto",
+      "withoutGross_few": "{{count}} pozycje bez kwoty brutto",
+      "withoutGross_many": "{{count}} pozycji bez kwoty brutto",
+      "withoutGross_other": "{{count}} pozycji bez kwoty brutto",
+      "withoutPackageSize_one": "{{count}} pozycja bez wielkości opakowania: wliczona w wydatki, ale nie w ilości i ceny",
+      "withoutPackageSize_few": "{{count}} pozycje bez wielkości opakowania: wliczone w wydatki, ale nie w ilości i ceny",
+      "withoutPackageSize_many": "{{count}} pozycji bez wielkości opakowania: wliczone w wydatki, ale nie w ilości i ceny",
+      "withoutPackageSize_other": "{{count}} pozycji bez wielkości opakowania: wliczone w wydatki, ale nie w ilości i ceny"
+    },
+    "unit": {
+      "volume": "l",
+      "mass": "kg",
+      "count": "szt."
+    },
+    "error": {
+      "title": "Nie udało się wczytać analizy",
+      "retry": "Spróbuj ponownie"
+    }
+  },
   "shiftRequests": {
     "filter": {
       "pending": "Oczekujące",
@@ -501,6 +576,7 @@
   "expenses": {
     "nav": {
       "invoices": "Faktury",
+      "analysis": "Analiza",
       "categories": "Kategorie"
     },
     "source": {
