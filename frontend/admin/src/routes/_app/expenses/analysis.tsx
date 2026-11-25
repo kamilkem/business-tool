@@ -14,6 +14,7 @@ import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time
 import { type BusinessPeriod, isWholeMonth, thisMonth } from "@business-tool/ui/lib/date-time"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { BasisToggle } from "@/components/basis-toggle"
 import { AnalysisHeader, AnalysisTree, NotAssignedRow } from "@/components/purchase-analysis-tree"
 import { ExpensesNav } from "@/components/expenses-nav"
 import { requireCapability } from "@/lib/access"
@@ -36,8 +37,8 @@ import { purchaseAnalysisQuery } from "@/lib/queries"
  * Analiza (#244, ADR 0041 §9): what the organization bought in a period, as the category tree
  * drilled down to products, with spend, share, quantity, prices and the last price change. The
  * toggle picks net or gross (net by default, remembered in this browser); both come in one
- * response, so it needs no request. Products and the review queue of items without a product come
- * with #245 and #246.
+ * response, so it needs no request. A product opens its detail (#245); the review queue of items
+ * without a product comes with #246.
  */
 export const Route = createFileRoute("/_app/expenses/analysis")({
   validateSearch: (search: Record<string, unknown>): AnalysisSearch => validateAnalysisSearch(search),
@@ -225,27 +226,6 @@ function AnalysisPage() {
           </Card>
         </>
       )}
-    </div>
-  )
-}
-
-/** Net or gross: two buttons of one group, as ExpensesNav's links are. */
-function BasisToggle({ basis, onChange }: { basis: Basis; onChange: (basis: Basis) => void }) {
-  const { t } = useTranslation("admin")
-  const options: Basis[] = ["net", "gross"]
-  return (
-    <div role="group" aria-label={t("analysis.basis.label")} className="inline-flex gap-1 rounded-lg bg-muted p-1">
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          aria-pressed={basis === option}
-          onClick={() => onChange(option)}
-          className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
-        >
-          {t(`analysis.basis.${option}`)}
-        </button>
-      ))}
     </div>
   )
 }
