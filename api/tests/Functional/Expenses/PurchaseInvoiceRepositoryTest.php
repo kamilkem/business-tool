@@ -12,8 +12,6 @@ use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatAmount;
 use App\Expenses\Domain\Model\PurchaseInvoiceVatLine;
-use App\Expenses\Domain\Model\ExpenseCategory;
-use App\Expenses\Domain\Repository\ExpenseCategoryRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceDocumentRepositoryInterface;
 use App\Expenses\Domain\Repository\PurchaseInvoiceFilter;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
@@ -252,24 +250,6 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertEquals([new PurchaseInvoiceVatAmount('23', 20_000, 4_600)], $found[0]->getVatLines());
     }
 
-    public function test_it_finds_invoices_by_category_or_without_one(): void
-    {
-        $organization = $this->switchToNewOrganization();
-        $owner = $organization->getMemberships()->first() ?: self::fail('Owner expected.');
-        $food = ExpenseCategory::create(Uuid::v7(), 'Food', null, $owner->getUser()->getId(), MembershipRole::Owner, new \DateTimeImmutable());
-        self::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->add($food);
-        $categorized = PurchaseInvoiceMother::imported();
-        $categorized->categorize($food, $owner->getUser()->getId(), MembershipRole::Owner);
-        $this->add($categorized);
-        $uncategorized = $this->add(PurchaseInvoiceMother::imported());
-        $this->entityManager->clear();
-        $period = BusinessPeriod::fromStrings('2026-11-01', '2026-11-30');
-
-        self::assertSame(self::idsOf([$categorized]), self::idsOf($this->invoices->findByFilter(new PurchaseInvoiceFilter($period, $food->getId()))));
-        self::assertSame(self::idsOf([$uncategorized]), self::idsOf($this->invoices->findByFilter(new PurchaseInvoiceFilter($period, uncategorized: true))));
-        self::assertSame([], $this->invoices->findByFilter(new PurchaseInvoiceFilter($period, Uuid::v7())));
-    }
-
     public function test_it_finds_sellers_by_a_part_of_the_name_or_tax_id(): void
     {
         $this->switchToNewOrganization();
@@ -335,63 +315,6 @@ final class PurchaseInvoiceRepositoryTest extends KernelTestCase
         self::assertSame(['K-1', 'K-2'], $stored);
         self::assertSame([], $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Manual, ['K-1']));
         self::assertSame([], $this->invoices->findStoredExternalIds(PurchaseInvoiceSource::Ksef, []));
-    }
-
-    public function test_it_finds_the_category_used_most_often_for_a_seller_in_the_current_organization_only(): void
-    {
-        $other = $this->switchToNewOrganization();
-        $otherFood = $this->category($other, 'Food');
-        foreach (range(1, 3) as $i) {
-            $this->add($this->categorized(PurchaseInvoiceMother::imported(sellerTaxId: '5265877635'), $other, $otherFood));
-        }
-        $this->entityManager->clear();
-
-        $organization = $this->switchToNewOrganization();
-        $food = $this->category($organization, 'Food');
-        $beverages = $this->category($organization, 'Beverages');
-        $oldRent = $this->category($organization, 'Old rent');
-        $this->add($this->categorized(PurchaseInvoiceMother::imported(sellerTaxId: '5265877635', issueDate: '2026-10-01'), $organization, $food));
-        $this->add($this->categorized(PurchaseInvoiceMother::imported(sellerTaxId: '5265877635', issueDate: '2026-11-20'), $organization, $beverages));
-        $this->add($this->categorized(PurchaseInvoiceMother::manual(sellerName: 'Hurtownia', sellerTaxId: '526-587-76-35'), $organization, $food));
-        $this->add($this->categorized(PurchaseInvoiceMother::manual(sellerName: 'Hurtownia', sellerTaxId: '526-587-76-35', issueDate: '2026-09-01'), $organization, $beverages));
-        foreach (range(1, 3) as $i) {
-            $this->add($this->categorized(PurchaseInvoiceMother::imported(sellerTaxId: '5265877635'), $organization, $oldRent));
-            $suggested = PurchaseInvoiceMother::imported(sellerTaxId: '5265877635');
-            $suggested->suggestCategory($oldRent);
-            $this->add($suggested);
-        }
-        $this->add($this->categorized(PurchaseInvoiceMother::manual(sellerName: 'Targ Rybny'), $organization, $food));
-        $this->add($this->categorized(PurchaseInvoiceMother::manual(sellerName: 'TARG RYBNY '), $organization, $food));
-        $this->add($this->categorized(PurchaseInvoiceMother::imported(sellerName: 'Targ Rybny', sellerTaxId: '1111111111'), $organization, $beverages));
-        $this->add(PurchaseInvoiceMother::manual(sellerName: 'Uncategorized'));
-        $archived = self::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->findById($oldRent->getId()) ?? self::fail('Category expected.');
-        $owner = $organization->getMemberships()->first() ?: self::fail('Owner expected.');
-        $archived->archive($owner->getUser()->getId(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-21'));
-        $this->entityManager->flush();
-        $this->entityManager->clear();
-
-        // Food and Beverages twice each; Beverages has the latest invoice (2026-11-20). Old rent is archived.
-        self::assertEquals($beverages->getId(), $this->invoices->findMostUsedCategoryIdOfSeller('5265877635', 'ignored'));
-        self::assertEquals($food->getId(), $this->invoices->findMostUsedCategoryIdOfSeller(null, 'targ rybny'));
-        self::assertNull($this->invoices->findMostUsedCategoryIdOfSeller(null, 'uncategorized'));
-        self::assertNull($this->invoices->findMostUsedCategoryIdOfSeller('9999999999', 'targ rybny'));
-    }
-
-    private function category(Organization $organization, string $name): ExpenseCategory
-    {
-        $owner = $organization->getMemberships()->first() ?: self::fail('Owner expected.');
-        $category = ExpenseCategory::create(Uuid::v7(), $name, null, $owner->getUser()->getId(), MembershipRole::Owner, new \DateTimeImmutable());
-        self::getContainer()->get(ExpenseCategoryRepositoryInterface::class)->add($category);
-
-        return $category;
-    }
-
-    private function categorized(PurchaseInvoice $invoice, Organization $organization, ExpenseCategory $category): PurchaseInvoice
-    {
-        $owner = $organization->getMemberships()->first() ?: self::fail('Owner expected.');
-        $invoice->categorize($category, $owner->getUser()->getId(), MembershipRole::Owner);
-
-        return $invoice;
     }
 
     private function add(PurchaseInvoice $invoice): PurchaseInvoice

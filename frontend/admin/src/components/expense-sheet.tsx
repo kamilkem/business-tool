@@ -25,26 +25,20 @@ import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 import { cn } from "@business-tool/ui/lib/utils"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
-import { ExpenseCategorySelect } from "@/components/expense-category-select"
-import { needsConfirmation } from "@/lib/category-suggestion"
 import { api } from "@/lib/api"
-import type { ExpenseCategory } from "@/lib/expense-categories"
 import { isEditable } from "@/lib/expense-form"
 import { type Expense, documentFileName, isCorrection, kindLabel, sourceLabel, vatRateLabel } from "@/lib/expenses"
 
 interface ExpenseActions {
   organizationId: string
-  activeCategories: readonly ExpenseCategory[]
-  categorizing: boolean
-  onCategorize: (expense: Expense, categoryId: string | null) => void
   /** Opens the form for an expense entered by hand. */
   onEdit: (expense: Expense) => void
 }
 
 /**
- * One expense in a drawer: what the invoice says, its VAT lines, where it came from, its category,
- * and the original document (the local copy, never fetched from KSeF again). An expense entered by
- * hand can be edited or deleted here; an imported one only categorized (#58).
+ * One expense in a drawer: what the invoice says, its VAT lines, where it came from, and the
+ * original document (the local copy, never fetched from KSeF again). An expense entered by hand can
+ * be edited or deleted here; an imported one is read-only (#58).
  */
 export function ExpenseSheet({
   expense,
@@ -66,9 +60,6 @@ export function ExpenseSheet({
 function ExpenseDetails({
   expense,
   organizationId,
-  activeCategories,
-  categorizing,
-  onCategorize,
   onEdit,
   onDeleted,
 }: ExpenseActions & { expense: Expense; onDeleted: () => void }) {
@@ -108,18 +99,6 @@ function ExpenseDetails({
       </SheetHeader>
 
       <div className="flex flex-col gap-6 p-4">
-        <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">{t("expenses.category")}</h3>
-          <ExpenseCategorySelect
-            expense={expense}
-            activeCategories={activeCategories}
-            disabled={categorizing}
-            onChange={(categoryId) => onCategorize(expense, categoryId)}
-            className="w-full"
-          />
-          {needsConfirmation(expense) && <p className="text-xs text-muted-foreground">{t("expenses.suggestedHint")}</p>}
-        </section>
-
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted-foreground">{t("expenses.sheet.sellerTaxId")}</dt>
           <dd className="tabular-nums">{expense.sellerTaxId ?? "—"}</dd>

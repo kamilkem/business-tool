@@ -20,7 +20,7 @@ use Ui\Http\Shared\Security\CurrentUser;
 
 /**
  * Lists the expenses of the organization selected by the X-Organization-Id header for
- * ?from=&to=[&categoryId=|&uncategorized=][&seller=], after validating them as a ListExpensesInput (422).
+ * ?from=&to=[&seller=], after validating them as a ListExpensesInput (422).
  *
  * @implements ProviderInterface<ExpenseListResource>
  */
@@ -41,8 +41,6 @@ final readonly class ExpenseListProvider implements ProviderInterface
         $input = new ListExpensesInput(
             from: self::stringParameter($operation, 'from'),
             to: self::stringParameter($operation, 'to'),
-            categoryId: self::stringParameter($operation, 'categoryId'),
-            uncategorized: self::stringParameter($operation, 'uncategorized'),
             seller: self::stringParameter($operation, 'seller'),
         );
         $violations = $this->validator->validate($input);
@@ -56,8 +54,6 @@ final readonly class ExpenseListProvider implements ProviderInterface
             $this->currentUser->id(),
             (string) $input->from,
             (string) $input->to,
-            $input->categoryId,
-            $input->onlyUncategorized(),
             $input->seller,
         ));
 

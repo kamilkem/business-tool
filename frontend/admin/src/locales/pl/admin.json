@@ -508,18 +508,6 @@
       "advance_correction": "Korekta faktury zaliczkowej",
       "settlement_correction": "Korekta faktury rozliczeniowej"
     },
-    "archivedCategory": "Zarchiwizowana kategoria",
-    "categorized": "Kategoria: {{category}}",
-    "categoryCleared": "Usunięto kategorię",
-    "categoryConfirmed": "Zatwierdzono kategorię {{category}}",
-    "suggested": "Sugerowana",
-    "suggestedHint": "Podpowiedź na podstawie wcześniejszych wydatków u tego sprzedawcy. Zatwierdź ją lub wybierz inną kategorię.",
-    "confirmCategory": "Zatwierdź",
-    "confirmCategoryOf": "Zatwierdź kategorię {{category}} dla {{expense}}",
-    "categorizeFailed": "Nie udało się zmienić kategorii",
-    "categoryOf": "Kategoria: {{expense}}",
-    "uncategorized": "Bez kategorii",
-    "archived": "(zarchiwizowana)",
     "title": "Wydatki",
     "description": "Faktury zakupowe według daty wystawienia. Kliknij fakturę, aby zobaczyć szczegóły.",
     "descriptionKsef": "Faktury zakupowe według daty wystawienia, zaimportowane z KSeF lub wpisane ręcznie. Kliknij fakturę, aby zobaczyć szczegóły.",
@@ -527,8 +515,6 @@
     "noneMatching": "W tym okresie żaden wydatek nie pasuje do filtrów.",
     "none": "{{period}}: brak wydatków.",
     "none_month": "{{period}}: brak wydatków.",
-    "category": "Kategoria",
-    "allCategories": "Wszystkie kategorie",
     "seller": "Sprzedawca",
     "sellerPlaceholder": "Nazwa sprzedawcy lub NIP",
     "clearFilters": "Wyczyść filtry",
@@ -554,7 +540,7 @@
     "sheet": {
       "issued": "{{number}}, wystawiona {{date}}",
       "noNumber": "Bez numeru",
-      "importedFrom": "Zaimportowany z {{source}}: można zmienić tylko kategorię.",
+      "importedFrom": "Zaimportowany z {{source}}: nie można go zmienić.",
       "sellerTaxId": "NIP sprzedawcy",
       "issueDate": "Data wystawienia",
       "kind": "Rodzaj",
@@ -610,8 +596,7 @@
     "totalsEmpty": "Sumy są puste.",
     "useBreakdown": "Użyj sum z rozbicia",
     "netAt": "Netto, stawka {{rate}}",
-    "vatInAt": "VAT w {{currency}}, stawka {{rate}}",
-    "categorySuggested": "Podpowiedź na podstawie wcześniejszych wydatków u tego sprzedawcy."
+    "vatInAt": "VAT w {{currency}}, stawka {{rate}}"
   },
   "income": {
     "nav": {

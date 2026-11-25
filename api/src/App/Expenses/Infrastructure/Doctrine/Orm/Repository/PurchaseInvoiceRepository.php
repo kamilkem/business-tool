@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Expenses\Infrastructure\Doctrine\Orm\Repository;
 
 use App\Expenses\Domain\Exception\PurchaseInvoiceAlreadyImportedException;
-use App\Expenses\Domain\Model\ExpenseCategory;
 use App\Expenses\Domain\Model\PurchaseInvoice;
 use App\Expenses\Domain\Model\PurchaseInvoiceDocument;
 use App\Expenses\Domain\Model\PurchaseInvoiceSource;
@@ -14,9 +13,7 @@ use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<PurchaseInvoice> */
@@ -71,12 +68,6 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
             ->addOrderBy('i.invoiceNumber', 'ASC')
             ->addOrderBy('i.id', 'ASC');
 
-        if (null !== $filter->categoryId) {
-            $qb->andWhere('i.categoryId = :categoryId')->setParameter('categoryId', $filter->categoryId, UuidType::NAME);
-        }
-        if ($filter->uncategorized) {
-            $qb->andWhere('i.categoryId IS NULL');
-        }
         if (null !== $filter->seller) {
             $seller = $qb->expr()->orX("LOWER(i.sellerName) LIKE :sellerName ESCAPE '!'");
             $qb->setParameter('sellerName', '%'.self::escapeLike($filter->seller).'%');
@@ -90,37 +81,6 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
 
         /** @var list<PurchaseInvoice> */
         return $qb->getQuery()->getResult();
-    }
-
-    public function findMostUsedCategoryIdOfSeller(?string $sellerTaxIdKey, string $sellerNameKey): ?Uuid
-    {
-        $qb = $this->createQueryBuilder('i')
-            ->select('i.categoryId AS categoryId')
-            ->addSelect('COUNT(i.id) AS HIDDEN uses')
-            ->addSelect('MAX(i.issueDate) AS HIDDEN lastIssued')
-            ->addSelect('MAX(i.createdAt) AS HIDDEN lastStored')
-            // TenantFilter restricts both to the current organization.
-            ->innerJoin(ExpenseCategory::class, 'c', Join::WITH, 'c.id = i.categoryId AND c.archivedAt IS NULL')
-            ->where('i.categorySuggested = false')
-            ->groupBy('i.categoryId')
-            ->orderBy('uses', 'DESC')
-            ->addOrderBy('lastIssued', 'DESC')
-            ->addOrderBy('lastStored', 'DESC')
-            ->setMaxResults(1);
-        if (null !== $sellerTaxIdKey) {
-            $qb->andWhere('i.sellerTaxIdKey = :taxIdKey')->setParameter('taxIdKey', $sellerTaxIdKey);
-        } else {
-            $qb->andWhere('i.sellerNameKey = :nameKey')->setParameter('nameKey', $sellerNameKey);
-        }
-
-        /** @var list<array{categoryId: Uuid|string}> $rows */
-        $rows = $qb->getQuery()->getArrayResult();
-        if ([] === $rows) {
-            return null;
-        }
-        $categoryId = $rows[0]['categoryId'];
-
-        return $categoryId instanceof Uuid ? $categoryId : Uuid::fromString($categoryId);
     }
 
     public function add(PurchaseInvoice $invoice, ?PurchaseInvoiceDocument $document = null): void

@@ -12,7 +12,7 @@ final class ExpenseInputRules
     /**
      * The largest amount, either sign, in minor units: 2^53 - 1 (JavaScript's Number.MAX_SAFE_INTEGER),
      * so a client never loses precision. Far above any real expense, and so no limit on sending an
-     * imported expense's own amounts back with a new category.
+     * imported expense's own amounts back.
      */
     public const int MAX = 9_007_199_254_740_991;
 

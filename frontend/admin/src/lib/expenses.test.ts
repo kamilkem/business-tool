@@ -1,12 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { i18n } from "../i18n"
-import type { ExpenseCategory } from "./expense-categories"
 import {
   type Expense,
   type ExpenseCurrencyTotal,
-  type ExpenseList,
-  categoryOptions,
   documentFileName,
   expensesFilter,
   hasFilters,
@@ -17,11 +14,8 @@ import {
   sourceLabel,
   validateExpensesSearch,
   visibleTotals,
-  withExpense,
 } from "./expenses"
 import type { KsefConnection } from "./ksef"
-
-const CATEGORY_ID = "0196a7a0-0000-7000-8000-000000000001"
 
 function expense(overrides: Partial<Expense> = {}): Expense {
   return {
@@ -40,18 +34,11 @@ function expense(overrides: Partial<Expense> = {}): Expense {
     vatTotal: 23000,
     grossTotal: 123000,
     vatLines: [{ rate: "23", net: 100000, vat: 23000, vatInTaxCurrency: null }],
-    categoryId: null,
-    categoryName: null,
-    categorySuggested: false,
     hasDocument: true,
     documentFormat: "FA (3)",
     createdAt: "2026-11-04T03:00:00+00:00",
     ...overrides,
   }
-}
-
-function category(id: string, name: string, archived = false): ExpenseCategory {
-  return { id, name, archived, createdAt: "2026-11-01T10:00:00+00:00", archivedAt: archived ? "2026-11-02T10:00:00+00:00" : null }
 }
 
 function total(currency: string, invoiceCount: number): ExpenseCurrencyTotal {
@@ -93,8 +80,8 @@ function connection(overrides: Partial<KsefConnection> = {}): KsefConnection {
 describe("validateExpensesSearch", () => {
   it("test_it_keeps_a_valid_period_and_filters", () => {
     expect(
-      validateExpensesSearch({ from: "2026-11-01", to: "2026-11-30", categoryId: CATEGORY_ID, seller: "  hurt " }),
-    ).toEqual({ from: "2026-11-01", to: "2026-11-30", categoryId: CATEGORY_ID, uncategorized: undefined, seller: "hurt" })
+      validateExpensesSearch({ from: "2026-11-01", to: "2026-11-30", seller: "  hurt " }),
+    ).toEqual({ from: "2026-11-01", to: "2026-11-30", seller: "hurt" })
   })
 
   it("test_it_drops_a_period_the_api_would_refuse", () => {
@@ -103,20 +90,9 @@ describe("validateExpensesSearch", () => {
     expect(validateExpensesSearch({ from: "2026-11-01" })).toMatchObject({ from: undefined, to: undefined })
   })
 
-  it("test_it_accepts_the_uncategorized_flag_as_boolean_or_string_and_drops_the_category_with_it", () => {
-    expect(validateExpensesSearch({ uncategorized: true, categoryId: CATEGORY_ID })).toMatchObject({
-      uncategorized: true,
-      categoryId: undefined,
-    })
-    expect(validateExpensesSearch({ uncategorized: "true" }).uncategorized).toBe(true)
-    expect(validateExpensesSearch({ uncategorized: "no" }).uncategorized).toBeUndefined()
-  })
-
-  it("test_it_drops_a_category_id_that_is_not_a_uuid_and_a_blank_seller", () => {
-    expect(validateExpensesSearch({ categoryId: "drinks", seller: "   " })).toMatchObject({
-      categoryId: undefined,
-      seller: undefined,
-    })
+  it("test_it_drops_a_blank_seller_and_the_removed_category_filters", () => {
+    const search = validateExpensesSearch({ categoryId: "0196a7a0-0000-7000-8000-000000000001", uncategorized: "true", seller: "   " })
+    expect(search).toEqual({ from: undefined, to: undefined, seller: undefined })
   })
 })
 
@@ -125,8 +101,7 @@ describe("expensesFilter", () => {
 
   it("test_it_sends_only_the_filters_that_are_set", () => {
     expect(expensesFilter({}, period)).toEqual(period)
-    expect(expensesFilter({ uncategorized: true, seller: "hurt" }, period)).toEqual({ ...period, uncategorized: true, seller: "hurt" })
-    expect(expensesFilter({ categoryId: CATEGORY_ID }, period)).toEqual({ ...period, categoryId: CATEGORY_ID })
+    expect(expensesFilter({ seller: "hurt" }, period)).toEqual({ ...period, seller: "hurt" })
   })
 
   it("test_it_tells_whether_any_filter_is_set", () => {
@@ -147,34 +122,6 @@ describe("kinds", () => {
   it("test_it_labels_known_kinds_and_passes_unknown_ones_through", () => {
     expect(kindLabel("advance_correction")).toBe("Advance correction")
     expect(kindLabel("something_new")).toBe("something_new")
-  })
-})
-
-describe("categoryOptions", () => {
-  const active = [category("a", "Beverages"), category("b", "Rent")]
-
-  it("test_it_offers_the_active_categories", () => {
-    expect(categoryOptions(active, { categoryId: "b", categoryName: "Rent" }).map((o) => o.id)).toEqual(["a", "b"])
-  })
-
-  it("test_it_adds_the_expenses_own_archived_category_marked_as_archived", () => {
-    expect(categoryOptions(active, { categoryId: "x", categoryName: "Old" })).toContainEqual({ id: "x", name: "Old", archived: true })
-  })
-})
-
-describe("withExpense", () => {
-  it("test_it_replaces_the_expense_and_keeps_the_totals", () => {
-    const list: ExpenseList = {
-      from: "2026-11-01",
-      to: "2026-11-30",
-      items: [expense(), expense({ id: "other" })],
-      totals: [total("PLN", 2)],
-    }
-    const updated = expense({ categoryId: "a", categoryName: "Beverages" })
-    const result = withExpense(list, updated)
-    expect(result.items[0]).toBe(updated)
-    expect(result.items[1]).toBe(list.items[1])
-    expect(result.totals).toBe(list.totals)
   })
 })
 
@@ -256,11 +203,5 @@ describe("in Polish", () => {
     expect(kindLabel("unknown_kind")).toBe("unknown_kind")
     expect(sourceLabel("manual")).toBe("Wpisany ręcznie")
     expect(sourceLabel("ksef")).toBe("KSeF")
-  })
-
-  it("test_it_names_an_archived_category_without_a_name_in_polish", () => {
-    expect(categoryOptions([], { categoryId: "gone", categoryName: null })).toEqual([
-      { id: "gone", name: "Zarchiwizowana kategoria", archived: true },
-    ])
   })
 })

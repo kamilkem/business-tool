@@ -19,7 +19,7 @@ use Ui\Http\Shared\Security\CurrentUser;
 
 /**
  * An owner or manager edits an expense of the organization selected by the X-Organization-Id
- * header: what a manual one says and the category of any (#53, #54).
+ * header: what a manual one says (#54).
  *
  * @implements ProcessorInterface<UpdateExpenseInput, ExpenseResource>
  */
@@ -58,7 +58,6 @@ final readonly class UpdateExpenseProcessor implements ProcessorInterface
             vatTotal: $data->vatTotal,
             grossTotal: $data->grossTotal,
             vatLines: ExpenseInputRules::vatLines($data->vatLines ?? []),
-            categoryId: $data->categoryId,
         ));
 
         /** @var PurchaseInvoiceView $view */

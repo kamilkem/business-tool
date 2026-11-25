@@ -58,8 +58,4 @@ final class EnterExpenseInput
     #[Assert\Unique(normalizer: [ExpenseVatLineInput::class, 'rateOf'], message: 'Each VAT rate may appear only once.')]
     #[Assert\Valid]
     public array $vatLines = [];
-
-    /** A category of the organization that is not archived; null leaves the expense uncategorized. */
-    #[Assert\Uuid]
-    public ?string $categoryId = null;
 }

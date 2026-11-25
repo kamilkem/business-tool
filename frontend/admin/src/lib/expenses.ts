@@ -2,12 +2,11 @@ import type { components } from "@business-tool/api-client"
 import { type BusinessPeriod, isBusinessDate, periodError } from "@business-tool/ui/lib/date-time"
 
 import { i18n } from "../i18n"
-import type { ExpenseCategory } from "./expense-categories"
 import type { KsefConnection } from "./ksef"
 
 /*
  * Expenses: purchase invoices imported from KSeF or entered by hand (ADR 0023, ADR 0024), listed by
- * issue date with totals per currency, and sorted into categories.
+ * issue date with totals per currency.
  */
 
 export type Expense = components["schemas"]["Expense"]
@@ -20,17 +19,11 @@ export const EXPENSES_MAX_DAYS = 366
 /** How long after "Import now" another request is accepted (ADR 0023 §5). */
 export const IMPORT_REQUEST_INTERVAL_MS = 15 * 60 * 1000
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 // --- Search params ---------------------------------------------------------------------------------
 
 export interface ExpensesSearch {
   from?: string
   to?: string
-  /** One category's expenses; never together with `uncategorized`. */
-  categoryId?: string
-  /** Only expenses without a category (the quick filter). */
-  uncategorized?: true
   /** A part of the seller's name or tax ID. */
   seller?: string
 }
@@ -41,44 +34,36 @@ export interface ExpensesSearch {
  * the raw search params under the validated ones.
  */
 export function validateExpensesSearch(search: Record<string, unknown>): ExpensesSearch {
-  const { from, to, categoryId, uncategorized, seller } = search
+  const { from, to, seller } = search
   const validPeriod =
     typeof from === "string" &&
     typeof to === "string" &&
     isBusinessDate(from) &&
     isBusinessDate(to) &&
     periodError({ from, to }, EXPENSES_MAX_DAYS) === null
-  const isUncategorized = uncategorized === true || uncategorized === "true"
-  const validCategory = !isUncategorized && typeof categoryId === "string" && UUID.test(categoryId)
   const trimmedSeller = typeof seller === "string" ? seller.trim() : ""
 
   return {
     from: validPeriod ? from : undefined,
     to: validPeriod ? to : undefined,
-    categoryId: validCategory ? categoryId : undefined,
-    uncategorized: isUncategorized ? true : undefined,
     seller: trimmedSeller === "" ? undefined : trimmedSeller,
   }
 }
 
-/** What GET /expenses is asked for: the period and the filters that are set. */
+/** What GET /expenses is asked for: the period and the seller search, when there is one. */
 export interface ExpensesFilter extends BusinessPeriod {
-  categoryId?: string
-  uncategorized?: true
   seller?: string
 }
 
 export function expensesFilter(search: ExpensesSearch, period: BusinessPeriod): ExpensesFilter {
   return {
     ...period,
-    ...(search.categoryId ? { categoryId: search.categoryId } : {}),
-    ...(search.uncategorized ? { uncategorized: true as const } : {}),
     ...(search.seller ? { seller: search.seller } : {}),
   }
 }
 
 export function hasFilters(search: ExpensesSearch): boolean {
-  return Boolean(search.categoryId || search.uncategorized || search.seller)
+  return Boolean(search.seller)
 }
 
 // --- Labels ----------------------------------------------------------------------------------------
@@ -117,32 +102,6 @@ export function isCorrection(kind: string): boolean {
 /** "23%" for a numeric rate code; any other code ("zw", "np") as the invoice prints it. */
 export function vatRateLabel(code: string): string {
   return /^\d+(\.\d+)?$/.test(code) ? `${code}%` : code
-}
-
-// --- Categories ------------------------------------------------------------------------------------
-
-export interface CategoryOption {
-  id: string
-  name: string
-  /** Shown so an archived category an expense still has reads right, but not offered. */
-  archived: boolean
-}
-
-/**
- * The categories an expense's picker shows: the active ones, plus its own category when that one is
- * archived (it keeps it until changed, but nobody can pick it again).
- */
-export function categoryOptions(active: readonly ExpenseCategory[], expense: Pick<Expense, "categoryId" | "categoryName">): CategoryOption[] {
-  const options = active.map((c) => ({ id: c.id, name: c.name, archived: false }))
-  if (expense.categoryId && !options.some((o) => o.id === expense.categoryId)) {
-    options.push({ id: expense.categoryId, name: expense.categoryName ?? i18n.t("expenses.archivedCategory", { ns: "admin" }), archived: true })
-  }
-  return options
-}
-
-/** An expense list with one expense replaced, totals left as they were (a category change moves no money). */
-export function withExpense(list: ExpenseList, updated: Expense): ExpenseList {
-  return { ...list, items: list.items.map((item) => (item.id === updated.id ? updated : item)) }
 }
 
 /**

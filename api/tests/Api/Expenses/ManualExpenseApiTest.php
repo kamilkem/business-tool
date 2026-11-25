@@ -47,9 +47,8 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
     public function test_it_enters_a_receipt_in_the_organizations_currency(MembershipRole $role): void
     {
         [$actor, $organization] = self::memberWithRole($role);
-        $food = self::addCategory($organization, 'Food');
 
-        $expense = self::enter($actor, $organization, [...self::RECEIPT, 'categoryId' => $food->getId()->toRfc4122()])->toArray();
+        $expense = self::enter($actor, $organization, self::RECEIPT)->toArray();
 
         self::assertResponseStatusCodeSame(201);
         self::assertTrue(Uuid::isValid($expense['id']));
@@ -69,9 +68,6 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
             'vatTotal' => 400,
             'grossTotal' => 5_400,
             'vatLines' => [['rate' => '8', 'net' => 5_000, 'vat' => 400, 'vatInTaxCurrency' => null]],
-            'categoryId' => $food->getId()->toRfc4122(),
-            'categoryName' => 'Food',
-            'categorySuggested' => false,
             'hasDocument' => false,
             'documentFormat' => null,
             'createdAt' => '2026-11-20T10:00:00+00:00',
@@ -137,7 +133,6 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
         yield 'seller tax ID too long' => [[...self::RECEIPT, 'sellerTaxId' => str_repeat('1', 33)], ['sellerTaxId']];
         yield 'a rate twice' => [[...self::RECEIPT, 'vatLines' => [['rate' => '8', 'net' => 1, 'vat' => 0], ['rate' => '8', 'net' => 1, 'vat' => 0]]], ['vatLines']];
         yield 'a line without VAT' => [[...self::RECEIPT, 'vatLines' => [['rate' => '8', 'net' => 1]]], ['vatLines[0].vat']];
-        yield 'category not a UUID' => [[...self::RECEIPT, 'categoryId' => 'food'], ['categoryId']];
     }
 
     /**
@@ -178,27 +173,10 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
         self::assertSame([], self::list($owner, $organization)->toArray()['items']);
     }
 
-    public function test_it_refuses_a_category_of_another_organization_or_an_archived_one(): void
-    {
-        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        [, $elsewhere] = self::memberWithRole(MembershipRole::Owner);
-        $foreign = self::addCategory($elsewhere, 'Food');
-        $archived = self::addCategory($organization, 'Old rent');
-        self::archiveCategory($organization, $archived);
-
-        self::enter($owner, $organization, [...self::RECEIPT, 'categoryId' => $foreign->getId()->toRfc4122()]);
-        self::assertResponseStatusCodeSame(404);
-        self::enter($owner, $organization, [...self::RECEIPT, 'categoryId' => $archived->getId()->toRfc4122()]);
-        self::assertResponseStatusCodeSame(422);
-
-        self::assertSame([], self::list($owner, $organization)->toArray()['items']);
-    }
-
     #[DataProvider('managingRoles')]
     public function test_it_edits_a_manual_expense(MembershipRole $role): void
     {
         [$actor, $organization] = self::memberWithRole($role);
-        $food = self::addCategory($organization, 'Food');
         $id = self::enter($actor, $organization, [...self::RECEIPT, 'invoiceNumber' => 'PAR/1', 'vatLines' => [['rate' => '8', 'net' => 4_000, 'vat' => 320], ['rate' => '23', 'net' => 1_000, 'vat' => 230]]])->toArray()['id'];
 
         $expense = self::patch($actor, $organization, $id, [
@@ -209,14 +187,12 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
             'vatTotal' => 530,
             'grossTotal' => 6_530,
             'vatLines' => [['rate' => '8', 'net' => 4_000, 'vat' => 320], ['rate' => '5', 'net' => 2_000, 'vat' => 100]],
-            'categoryId' => $food->getId()->toRfc4122(),
         ])->toArray();
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(['Hala Targowa', '5265877635', null, '2026-11-14', 'regular', 'PLN'], [$expense['sellerName'], $expense['sellerTaxId'], $expense['invoiceNumber'], $expense['issueDate'], $expense['kind'], $expense['currency']]);
         self::assertSame([6_000, 530, 6_530], [$expense['netTotal'], $expense['vatTotal'], $expense['grossTotal']]);
         self::assertSame([['rate' => '8', 'net' => 4_000, 'vat' => 320, 'vatInTaxCurrency' => null], ['rate' => '5', 'net' => 2_000, 'vat' => 100, 'vatInTaxCurrency' => null]], $expense['vatLines']);
-        self::assertSame('Food', $expense['categoryName']);
         self::assertSame($expense, self::get($actor, $organization, $id)->toArray());
 
         $expense = self::patch($actor, $organization, $id, ['vatLines' => null])->toArray();
@@ -283,7 +259,7 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
         yield 'no invoice number' => [['invoiceNumber' => null]];
         yield 'gross total' => [['grossTotal' => 1]];
         yield 'VAT lines' => [['vatLines' => []]];
-        yield 'with a category too' => [['issueDate' => '2026-11-11', 'categoryId' => null]];
+        yield 'issue date' => [['issueDate' => '2026-11-11']];
     }
 
     /** @param array<string, mixed> $body */
@@ -291,26 +267,24 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
     public function test_it_answers_409_when_editing_an_imported_expense_and_changes_nothing(array $body): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        $food = self::addCategory($organization, 'Food');
-        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported(), category: $food)->getId()->toRfc4122();
+        $id = self::addInvoice($organization, PurchaseInvoiceMother::imported())->getId()->toRfc4122();
         $before = self::get($owner, $organization, $id)->toArray();
 
         $response = self::patch($owner, $organization, $id, $body);
 
         self::assertResponseStatusCodeSame(409);
-        self::assertStringContainsString('only its category can be changed', $response->getContent(false));
+        self::assertStringContainsString('it cannot be changed or deleted', $response->getContent(false));
         self::assertSame($before, self::get($owner, $organization, $id)->toArray());
     }
 
-    public function test_it_categorizes_an_imported_expense_sent_back_whole(): void
+    public function test_it_accepts_an_imported_expense_sent_back_whole_and_changes_nothing(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        $food = self::addCategory($organization, 'Food');
         $id = self::addInvoice($organization, PurchaseInvoiceMother::imported())->getId()->toRfc4122();
         $current = self::get($owner, $organization, $id)->toArray();
         $vatLines = array_map(static fn (array $line): array => ['rate' => $line['rate'], 'net' => $line['net'], 'vat' => $line['vat'], 'vatInTaxCurrency' => $line['vatInTaxCurrency']], $current['vatLines']);
 
-        // A form that sends every field back unchanged, with a new category.
+        // A form that sends every field back unchanged.
         $expense = self::patch($owner, $organization, $id, [
             'sellerName' => $current['sellerName'],
             'sellerTaxId' => $current['sellerTaxId'],
@@ -322,11 +296,10 @@ final class ManualExpenseApiTest extends ExpensesApiTestCase
             'vatTotal' => $current['vatTotal'],
             'grossTotal' => $current['grossTotal'],
             'vatLines' => $vatLines,
-            'categoryId' => $food->getId()->toRfc4122(),
         ])->toArray();
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame([...$current, 'categoryId' => $food->getId()->toRfc4122(), 'categoryName' => 'Food'], $expense);
+        self::assertSame($current, $expense);
     }
 
     #[DataProvider('managingRoles')]

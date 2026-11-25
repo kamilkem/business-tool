@@ -6,7 +6,6 @@ namespace App\Tests\Unit\Ksef\Application;
 
 use App\Expenses\Application\Command\ImportPurchaseInvoice\ImportPurchaseInvoiceCommand;
 use App\Expenses\Application\Command\ImportPurchaseInvoice\ImportPurchaseInvoiceHandler;
-use App\Expenses\Application\SellerCategorySuggestion;
 use App\Expenses\Application\Query\ListStoredExternalIds\ListStoredExternalIdsHandler;
 use App\Expenses\Application\Query\ListStoredExternalIds\ListStoredExternalIdsQuery;
 use App\Expenses\Domain\Model\PurchaseInvoice;
@@ -46,7 +45,6 @@ use App\Shared\Application\Query\QueryInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Tests\Fixtures\Ksef\InMemoryKsefClient;
 use App\Tests\Fixtures\UserMother;
-use App\Tests\Unit\Expenses\Application\InMemoryExpenseCategoryRepository;
 use App\Tests\Unit\Expenses\Application\InMemoryPurchaseInvoiceRepository;
 use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
 use App\Tests\Unit\Shared\Application\RecordingCommandBus;
@@ -121,7 +119,7 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
         $this->token = new RevealedSecretView(Uuid::v7()->toRfc4122(), 'ksef_token', self::TOKEN);
 
         $this->invoices = new InMemoryPurchaseInvoiceRepository();
-        $importInvoice = new ImportPurchaseInvoiceHandler($this->invoices, $this->tenantContext, $this->clock, new SellerCategorySuggestion($this->invoices, new InMemoryExpenseCategoryRepository()));
+        $importInvoice = new ImportPurchaseInvoiceHandler($this->invoices, $this->tenantContext, $this->clock);
         $advanceCursor = new AdvanceKsefSyncCursorHandler($this->connections);
         $recordRun = new RecordKsefSyncRunHandler($this->connections);
         $recordExport = new RecordKsefInvoiceExportHandler($this->connections);

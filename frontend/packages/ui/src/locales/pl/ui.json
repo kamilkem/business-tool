@@ -67,12 +67,10 @@
       "storage_not_found": "To miejsce na gotówkę już nie istnieje. Odśwież stronę."
     },
     "expenses": {
-      "expense_category_archived": "Kategoria „{{name}}” jest zarchiwizowana. Przywróć ją, aby ją przypisać.",
       "expense_category_name_taken": "Kategoria o nazwie „{{name}}” już istnieje.",
       "expense_category_not_found": "Ta kategoria już nie istnieje. Odśwież stronę.",
       "expense_period_too_long": "Wybierz okres nie dłuższy niż {{maxDays}} dni.",
       "invalid_expense_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
-      "invalid_expense_filter": "Filtruj według kategorii albo wydatków bez kategorii, nie obu naraz.",
       "invalid_purchase_invoice": {
         "blank": "Brakuje wymaganej wartości faktury ({{field}}).",
         "corrected_invoice_on_manual": "Faktura wprowadzona ręcznie nie może wskazywać korygowanej faktury z innego źródła.",
@@ -94,7 +92,7 @@
       "purchase_invoice_already_imported": "Ta faktura jest już zapisana.",
       "purchase_invoice_document_not_found": "Ten wydatek nie ma oryginalnego dokumentu.",
       "purchase_invoice_not_found": "Ten wydatek już nie istnieje. Odśwież stronę.",
-      "purchase_invoice_read_only": "Ten wydatek został zaimportowany: można zmienić tylko jego kategorię."
+      "purchase_invoice_read_only": "Ten wydatek został zaimportowany: nie można go zmienić ani usunąć."
     },
     "income": {
       "cash_payment_method_taken": "Inna aktywna metoda płatności jest już oznaczona jako gotówka. Najpierw usuń jej oznaczenie.",

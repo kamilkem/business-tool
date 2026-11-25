@@ -23,8 +23,7 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
 /**
  * A purchase invoice of the organization selected by the X-Organization-Id header: one expense,
  * imported (e.g. from KSeF) or entered by hand (source `manual`; ADR 0024, #54). Owners and managers
- * only: anyone else gets a 403. Only a manual expense can be edited or deleted; an imported one only
- * categorized. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
+ * only: anyone else gets a 403. Only a manual expense can be edited or deleted. Amounts are integer minor units of `currency` (ADR 0010), stored as printed:
  * negative ones for corrections, and totals not checked against the VAT lines. GET /expenses lists
  * them with totals.
  */
@@ -68,12 +67,11 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
             uriTemplate: '/expenses',
             openapi: new Operation(
                 summary: 'Enters an expense by hand: a cash receipt, a foreign invoice.',
-                description: 'Owners and managers only (403 otherwise). The expense gets the source `manual`. The invoice number and the seller tax ID are optional; the kind defaults to `regular` and the currency to the organization\'s, which is also the tax currency. Amounts are integer minor units, stored as given (totals are not checked against each other or the lines). VAT lines are optional, use the rates of GET /vat-rates, each once, with vat 0 at a 0% or exempt rate, and give vatInTaxCurrency exactly when the currency is not the organization\'s (422). categoryId, when given, must be a category of the selected organization (404) that is not archived (422).',
+                description: 'Owners and managers only (403 otherwise). The expense gets the source `manual`. The invoice number and the seller tax ID are optional; the kind defaults to `regular` and the currency to the organization\'s, which is also the tax currency. Amounts are integer minor units, stored as given (totals are not checked against each other or the lines). VAT lines are optional, use the rates of GET /vat-rates, each once, with vat 0 at a 0% or exempt rate, and give vatInTaxCurrency exactly when the currency is not the organization\'s (422).',
                 responses: [
                     '201' => new Response('The entered expense.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
-                    '404' => new Response('The category is not one of the selected organization\'s.'),
-                    '422' => new Response('A field is missing or invalid, a VAT line breaks a rule, or the category is archived.'),
+                    '422' => new Response('A field is missing or invalid, or a VAT line breaks a rule.'),
                 ],
             ),
             input: EnterExpenseInput::class,
@@ -85,13 +83,13 @@ use Ui\Http\Expenses\Provider\UpdateExpenseInputProvider;
             uriVariables: ['id'],
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
-                summary: 'Edits a manual expense, or sets or clears the category of any expense.',
-                description: 'Owners and managers only (403 otherwise); an expense that is not the selected organization\'s is a 404. A manual expense takes any of the fields of POST /expenses; a `vatLines` list replaces the current one whole (null or [] removes it), and a blank or null invoiceNumber or sellerTaxId removes it. The tax currency does not change. An imported expense says what its source says: sending other values than its own for anything but categoryId is a 409. categoryId must be a category of the selected organization (404) that is not archived (422), unless it is the expense\'s category already; null clears it.',
+                summary: 'Edits a manual expense.',
+                description: 'Owners and managers only (403 otherwise); an expense that is not the selected organization\'s is a 404. A manual expense takes any of the fields of POST /expenses; a `vatLines` list replaces the current one whole (null or [] removes it), and a blank or null invoiceNumber or sellerTaxId removes it. The tax currency does not change. An imported expense says what its source says: sending back its own values changes nothing, and any other value is a 409.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
-                    '404' => new Response('The expense or the category is not one of the selected organization\'s.'),
-                    '409' => new Response('The expense is imported: only its category can change.'),
-                    '422' => new Response('A field is invalid, a VAT line breaks a rule, or the category is archived.'),
+                    '404' => new Response('The expense is not one of the selected organization\'s.'),
+                    '409' => new Response('The expense is imported and cannot be changed.'),
+                    '422' => new Response('A field is invalid, or a VAT line breaks a rule.'),
                 ],
             ),
             input: UpdateExpenseInput::class,
@@ -146,11 +144,6 @@ final readonly class ExpenseResource
         public int $grossTotal,
         /** The VAT breakdown as printed, highest rate first, exempt last; may be empty. */
         public array $vatLines,
-        public ?string $categoryId,
-        /** The category's name (it may be archived); null when uncategorized. */
-        public ?string $categoryName,
-        /** True while the category was pre-filled on import from the seller's history (#55) and nobody has confirmed it; any PATCH of the expense confirms it. */
-        public bool $categorySuggested,
         /** True when the original document is stored (GET /expenses/{id}/document). */
         public bool $hasDocument,
         /** What the document is, as its importer named it (for KSeF, the FA form code); null without a document. */
@@ -178,9 +171,6 @@ final readonly class ExpenseResource
             vatTotal: $view->vatTotal,
             grossTotal: $view->grossTotal,
             vatLines: array_map(ExpenseVatLine::fromView(...), $view->vatLines),
-            categoryId: $view->categoryId,
-            categoryName: $view->categoryName,
-            categorySuggested: $view->categorySuggested,
             hasDocument: null !== $view->documentFormat,
             documentFormat: $view->documentFormat,
             createdAt: $view->createdAt,

@@ -52,7 +52,6 @@ final class PurchaseInvoiceTest extends TestCase
             [new PurchaseInvoiceVatAmount('23', 20_000, 4_600), new PurchaseInvoiceVatAmount('8', 10_000, 800), new PurchaseInvoiceVatAmount('zw', 500, 0)],
             $invoice->getVatLines(),
         );
-        self::assertNull($invoice->getCategoryId());
         self::assertSame($now, $invoice->getCreatedAt());
     }
 

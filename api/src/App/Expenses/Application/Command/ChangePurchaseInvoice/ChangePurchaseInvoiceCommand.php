@@ -7,9 +7,8 @@ namespace App\Expenses\Application\Command\ChangePurchaseInvoice;
 use App\Shared\Application\Command\CommandInterface;
 
 /**
- * An owner or manager edits an expense (#54): the whole of what a manual one says, and the category
- * of any. An imported expense accepts only the details it already has, so its category can change
- * alone. A null category clears it.
+ * An owner or manager edits an expense (#54): the whole of what a manual one says. An imported
+ * expense accepts only the details it already has, so sending them back changes nothing.
  */
 final readonly class ChangePurchaseInvoiceCommand implements CommandInterface
 {
@@ -29,7 +28,6 @@ final readonly class ChangePurchaseInvoiceCommand implements CommandInterface
         public int $vatTotal,
         public int $grossTotal,
         public array $vatLines,
-        public ?string $categoryId,
     ) {
     }
 }

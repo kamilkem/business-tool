@@ -21,8 +21,8 @@ use Symfony\Component\Uid\Uuid;
  * (ExpenseCategoryRepositoryInterface::findByName()), and the unique constraint below stops two
  * concurrent writes.
  *
- * Categories are archived, never deleted, because invoices refer to them (#53). An archived category
- * keeps its invoices and can be restored.
+ * Categories are archived, never deleted (#53), and an archived one can be restored. Purchase
+ * invoices no longer have a category (#228); whether these become product categories is open (#232).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'expense_category')]
@@ -96,8 +96,7 @@ class ExpenseCategory implements TenantAwareInterface
     }
 
     /**
-     * The category is no longer offered for new expenses; the ones that have it keep it. Archiving
-     * it again keeps the first moment.
+     * The category is no longer offered. Archiving it again keeps the first moment.
      *
      * @throws ExpensesManagementForbiddenException when the actor is not an owner or manager
      */

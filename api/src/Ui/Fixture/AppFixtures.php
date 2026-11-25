@@ -58,8 +58,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * "Demo Bar" (NIP 526-025-09-95) has a KSeF connection with a dev-only token whose last import
  * succeeded, and purchase invoices of this month and the last two: imported from KSeF (with their
- * XML, a correction with negative amounts and one in EUR) and entered by hand, some without a
- * category.
+ * XML, a correction with negative amounts and one in EUR) and entered by hand.
  *
  * For payroll, Eve Employee and Mia Mixed have hourly rates from the first day of the month before
  * last (Eve also a day rate on the 31st of last month), Max Manager has none, and the three have
@@ -104,7 +103,7 @@ final class AppFixtures extends Fixture
         $this->paymentMethods($manager, $cafe, $mixed->getId(), $now);
         $manager->flush();
 
-        $barCategories = $this->expenseCategories($manager, $bar, $owner->getId(), $now);
+        $this->expenseCategories($manager, $bar, $owner->getId(), $now);
         $this->expenseCategories($manager, $cafe, $mixed->getId(), $now);
 
         $this->denominations($manager, $bar, $owner->getId(), $now);
@@ -115,7 +114,7 @@ final class AppFixtures extends Fixture
         $manager->flush();
 
         $this->ksefConnection($manager, $bar, $owner->getId(), $now);
-        $this->purchaseInvoices($manager, $bar, $barCategories, $owner->getId(), $now);
+        $this->purchaseInvoices($manager, $bar, $owner->getId(), $now);
 
         $this->payroll($manager, $bar, $owner->getId(), [$employee->getId(), $mixed->getId(), $barManager->getId()], $now);
         $manager->flush();
@@ -204,18 +203,13 @@ final class AppFixtures extends Fixture
     }
 
     /** The defaults of the organization's country (#48), as AddDefaultCategoriesOnOrganizationCreated adds them. */
-    /** @return array<string, ExpenseCategory> by name */
-    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): array
+    private function expenseCategories(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
     {
         $this->tenantContext->switchTo($organization);
-        $categories = [];
         foreach (DefaultExpenseCategories::forCountry($organization->getCountryCode()) as $name) {
-            $categories[$name] = ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now);
-            $manager->persist($categories[$name]);
+            $manager->persist(ExpenseCategory::create(Uuid::v7(), $name, null, $ownerId, MembershipRole::Owner, $now));
         }
         $manager->flush();
-
-        return $categories;
     }
 
     /**
@@ -248,10 +242,8 @@ final class AppFixtures extends Fixture
     /**
      * Purchase invoices of this month and the two before (#52, #54). Amounts are in grosze; the
      * KSeF ones carry a small FA(3)-shaped XML as their document.
-     *
-     * @param array<string, ExpenseCategory> $categories by name
      */
-    private function purchaseInvoices(ObjectManager $manager, Organization $organization, array $categories, Uuid $ownerId, \DateTimeImmutable $now): void
+    private function purchaseInvoices(ObjectManager $manager, Organization $organization, Uuid $ownerId, \DateTimeImmutable $now): void
     {
         $this->tenantContext->switchTo($organization);
         $today = BusinessDate::containing($now, new \DateTimeZone($organization->getTimezone()));
@@ -270,43 +262,33 @@ final class AppFixtures extends Fixture
         $landlord = ['5272738219', 'Demo Nieruchomości S.A.'];
 
         $imported = [
-            // [days ago, number, seller, kind, currency, lines [rate, net, vat, vatInTaxCurrency], category, corrected]
-            [2, 'FV/HN/0412', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 184_500, 42_435, null], ['8', 22_000, 1_760, null]], 'Napoje', null],
-            [5, 'FV/HN/0398', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 312_040, 71_769, null]], 'Napoje', null],
-            [6, 'KOR/HN/0021', $wholesaler, PurchaseInvoiceKind::Correction, 'PLN', [['23', -12_000, -2_760, null]], 'Napoje', 'DEMO-KSEF-FV-HN-0398'],
-            [9, '118/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 96_380, 4_819, null]], 'Żywność', null],
-            [12, 'FA/2026/77', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
-            [10, 'INV-DE-5521', ['DE811234567', 'Weinhandel Demo GmbH'], PurchaseInvoiceKind::Regular, 'EUR', [['23', 48_000, 11_040, 47_472]], 'Napoje', null],
-            [36, 'FV/HN/0351', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 278_900, 64_147, null], ['8', 18_500, 1_480, null]], 'Napoje', null],
-            [44, 'FA/2026/71', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], 'Czynsz', null],
-            [61, '097/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 88_210, 4_411, null]], 'Żywność', null],
+            // [days ago, number, seller, kind, currency, lines [rate, net, vat, vatInTaxCurrency], corrected]
+            [2, 'FV/HN/0412', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 184_500, 42_435, null], ['8', 22_000, 1_760, null]], null],
+            [5, 'FV/HN/0398', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 312_040, 71_769, null]], null],
+            [6, 'KOR/HN/0021', $wholesaler, PurchaseInvoiceKind::Correction, 'PLN', [['23', -12_000, -2_760, null]], 'DEMO-KSEF-FV-HN-0398'],
+            [9, '118/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 96_380, 4_819, null]], null],
+            [12, 'FA/2026/77', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], null],
+            [10, 'INV-DE-5521', ['DE811234567', 'Weinhandel Demo GmbH'], PurchaseInvoiceKind::Regular, 'EUR', [['23', 48_000, 11_040, 47_472]], null],
+            [36, 'FV/HN/0351', $wholesaler, PurchaseInvoiceKind::Regular, 'PLN', [['23', 278_900, 64_147, null], ['8', 18_500, 1_480, null]], null],
+            [44, 'FA/2026/71', $landlord, PurchaseInvoiceKind::Regular, 'PLN', [['23', 650_000, 149_500, null]], null],
+            [61, '097/MS/2026', $butcher, PurchaseInvoiceKind::Regular, 'PLN', [['5', 88_210, 4_411, null]], null],
         ];
-        // Pre-filled from the seller's history, as the import does, and not confirmed yet (#55).
-        $suggested = ['FV/HN/0412', '118/MS/2026'];
-        foreach ($imported as [$days, $number, [$taxId, $name], $kind, $invoiceCurrency, $lines, $category, $corrected]) {
+        foreach ($imported as [$days, $number, [$taxId, $name], $kind, $invoiceCurrency, $lines, $corrected]) {
             $details = self::invoiceDetails($number, $taxId, $name, $daysAgo($days), $kind, $invoiceCurrency, $lines, $corrected);
             $externalId = 'DEMO-KSEF-'.strtoupper((string) preg_replace('/\W+/', '-', $number));
             $invoice = PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, $country, $currency, $now);
-            if (\in_array($number, $suggested, true)) {
-                $invoice->suggestCategory($categories[$category]);
-            } else {
-                $invoice->categorize($categories[$category], $ownerId, MembershipRole::Owner);
-            }
             $manager->persist($invoice);
             $manager->persist(PurchaseInvoiceDocument::of($invoice, self::fa3Xml($details, self::DEMO_BAR_NIP), 'FA (3)', $now));
         }
 
         $manual = [
-            // [days ago, number, seller, lines, category]
-            [3, null, [null, 'Sklep Demo (paragon)'], [['23', 4_065, 935, null], ['5', 2_381, 119, null]], null],
-            [15, 'R/2026/311', ['9512345674', 'Serwis Ekspresów Demo'], [['23', 35_000, 8_050, null]], 'Usługi'],
-            [40, null, [null, 'Drukarnia Demo (paragon)'], [['23', 12_195, 2_805, null]], 'Marketing'],
+            // [days ago, number, seller, lines]
+            [3, null, [null, 'Sklep Demo (paragon)'], [['23', 4_065, 935, null], ['5', 2_381, 119, null]]],
+            [15, 'R/2026/311', ['9512345674', 'Serwis Ekspresów Demo'], [['23', 35_000, 8_050, null]]],
+            [40, null, [null, 'Drukarnia Demo (paragon)'], [['23', 12_195, 2_805, null]]],
         ];
-        foreach ($manual as [$days, $number, [$taxId, $name], $lines, $category]) {
+        foreach ($manual as [$days, $number, [$taxId, $name], $lines]) {
             $invoice = PurchaseInvoice::enter(Uuid::v7(), self::invoiceDetails($number, $taxId, $name, $daysAgo($days), PurchaseInvoiceKind::Regular, $currency, $lines, null), $country, $currency, $ownerId, MembershipRole::Owner, $now);
-            if (null !== $category) {
-                $invoice->categorize($categories[$category], $ownerId, MembershipRole::Owner);
-            }
             $manager->persist($invoice);
         }
         $manager->flush();

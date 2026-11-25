@@ -1,6 +1,6 @@
-import { type FormEvent, useEffect, useState } from "react"
+import { type FormEvent, useState } from "react"
 import { unwrap } from "@business-tool/api-client"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { TriangleAlertIcon } from "lucide-react"
 import { Trans, useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -25,15 +25,13 @@ import {
 } from "@business-tool/ui/components/field"
 import { Input } from "@business-tool/ui/components/input"
 import { MoneyInput } from "@business-tool/ui/components/money-input"
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useOrganizationCurrency } from "@business-tool/ui/hooks/use-organization-currency"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
 import { type MinorUnits, type MoneyParseError, formatMoney, moneyErrorMessage } from "@business-tool/ui/lib/money"
 
 import { api } from "@/lib/api"
-import { type SuggestionSeller, formCategory, suggestionSeller } from "@/lib/category-suggestion"
-import type { ExpenseCategory } from "@/lib/expense-categories"
 import {
   EXPENSE_KINDS,
   type ExpenseBody,
@@ -54,16 +52,14 @@ import {
   isForeign,
   normalizeCurrency,
 } from "@/lib/expense-form"
-import { type Expense, categoryOptions, isCorrection, kindLabel, vatRateLabel } from "@/lib/expenses"
+import { type Expense, isCorrection, kindLabel, vatRateLabel } from "@/lib/expenses"
 import type { VatRate } from "@/lib/income"
-import { expenseCategorySuggestionQuery } from "@/lib/queries"
 
 /** A new expense, or a manual one to change. */
 export type ExpenseTarget = { kind: "add" } | { kind: "edit"; expense: Expense }
 
 interface ExpenseDialogProps {
   organizationId: string
-  activeCategories: readonly ExpenseCategory[]
   /** The rates of the organization's country; none hides the VAT breakdown. */
   vatRates: readonly VatRate[]
   /** The dialog is open while there is a target. */
@@ -86,12 +82,8 @@ export function ExpenseDialog({ target, onClose, ...props }: ExpenseDialogProps)
   )
 }
 
-/** Radix Select values cannot be empty: this one stands for "no category". */
-const NONE = "none"
-
 function ExpenseForm({
   organizationId,
-  activeCategories,
   vatRates,
   target,
   onSaved,
@@ -108,20 +100,6 @@ function ExpenseForm({
     editing ? expenseFormFrom(editing) : emptyExpenseForm(organizationCurrency, format.today()),
   )
   const [errors, setErrors] = useState<ExpenseFormErrors>({})
-  // Until a person picks a category (an edited expense with one counts), the seller's usual one is
-  // pre-filled (#55) and saved with the form, which confirms it.
-  const [categoryChosen, setCategoryChosen] = useState(editing?.categoryId != null)
-  const seller = useDebounced(suggestionSeller(values), 400)
-  const { data: suggestion } = useQuery({
-    ...expenseCategorySuggestionQuery(organizationId, seller),
-    enabled: seller !== null && !categoryChosen,
-  })
-  const category = formCategory({
-    chosen: categoryChosen,
-    categoryId: values.categoryId,
-    suggestion: seller === null ? null : suggestion,
-    activeCategories,
-  })
   // Text in a money field that is not an amount, by field; the form is not sent while there is any.
   const [parseErrors, setParseErrors] = useState<Record<string, MoneyParseError>>({})
 
@@ -131,7 +109,6 @@ function ExpenseForm({
   const foreign = isForeign(values, organizationCurrency)
   const negative = isCorrection(values.kind)
   const money = (minor: MinorUnits) => formatMoney(minor, currency, locale)
-  const categories = categoryOptions(activeCategories, editing ?? { categoryId: null, categoryName: null })
 
   function set<K extends keyof ExpenseFormValues>(field: K, value: ExpenseFormValues[K], ...cleared: string[]) {
     setValues((prev) => ({ ...prev, [field]: value }))
@@ -202,7 +179,7 @@ function ExpenseForm({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (Object.keys(parseErrors).length > 0) return
-    const result = expenseBody({ ...values, categoryId: category.categoryId }, vatRates, organizationCurrency)
+    const result = expenseBody(values, vatRates, organizationCurrency)
     if (!result.ok) return setErrors(result.errors)
     setErrors({})
     if (editing) change.mutate({ id: editing.id, body: result.body })
@@ -312,32 +289,6 @@ function ExpenseForm({
                 <FieldDescription>{t("expenseForm.foreign", { currency: organizationCurrency })}</FieldDescription>
               ) : null}
               {textError("currency") && <FieldError>{textError("currency")}</FieldError>}
-            </Field>
-            <Field data-invalid={textError("categoryId") ? true : undefined}>
-              <FieldLabel htmlFor="expense-category">{t("expenses.category")}</FieldLabel>
-              <Select
-                value={category.categoryId ?? NONE}
-                onValueChange={(value) => {
-                  setCategoryChosen(true)
-                  set("categoryId", value === NONE ? null : value)
-                }}
-              >
-                <SelectTrigger id="expense-category" className="w-full" aria-invalid={textError("categoryId") ? true : undefined}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>{t("expenses.uncategorized")}</SelectItem>
-                  {categories.length > 0 && <SelectSeparator />}
-                  {categories.map((option) => (
-                    <SelectItem key={option.id} value={option.id} disabled={option.archived}>
-                      {option.name}
-                      {option.archived && <span className="text-muted-foreground"> {t("expenses.archived")}</span>}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {category.suggested && <FieldDescription>{t("expenseForm.categorySuggested")}</FieldDescription>}
-              {textError("categoryId") && <FieldError>{textError("categoryId")}</FieldError>}
             </Field>
           </div>
 
@@ -513,15 +464,4 @@ function VatRow({
       {foreign && cell("vatInTaxCurrency", t("expenseForm.vatInAt", { currency: taxCurrency, rate: label }), taxCurrency, zero(line.vatInTaxCurrency), rate.zeroVat)}
     </>
   )
-}
-
-/** The seller to ask about once typing has paused for the delay; compared by value, not identity. */
-function useDebounced(seller: SuggestionSeller | null, delayMs: number): SuggestionSeller | null {
-  const key = JSON.stringify(seller)
-  const [debounced, setDebounced] = useState(key)
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(key), delayMs)
-    return () => window.clearTimeout(timer)
-  }, [key, delayMs])
-  return JSON.parse(debounced) as SuggestionSeller | null
 }

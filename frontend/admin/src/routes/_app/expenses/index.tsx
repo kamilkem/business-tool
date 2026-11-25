@@ -9,7 +9,6 @@ import { Button } from "@business-tool/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@business-tool/ui/components/card"
 import { Input } from "@business-tool/ui/components/input"
 import { PeriodPicker } from "@business-tool/ui/components/period-picker"
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@business-tool/ui/components/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@business-tool/ui/components/table"
 import { useLocale } from "@business-tool/ui/hooks/use-locale"
 import { useDateTimeFormat } from "@business-tool/ui/hooks/use-organization-time-zone"
@@ -17,13 +16,11 @@ import { type BusinessPeriod, isWholeMonth, thisMonth } from "@business-tool/ui/
 import { type MinorUnits, formatMoney } from "@business-tool/ui/lib/money"
 import { cn } from "@business-tool/ui/lib/utils"
 
-import { ExpenseCategorySelect } from "@/components/expense-category-select"
 import { ExpenseDialog, type ExpenseTarget } from "@/components/expense-dialog"
 import { ExpenseSheet } from "@/components/expense-sheet"
 import { ExpensesNav } from "@/components/expenses-nav"
 import { KsefImportStatus } from "@/components/ksef-import-status"
 import { can, requireCapability } from "@/lib/access"
-import { type ExpenseCategory, splitCategories } from "@/lib/expense-categories"
 import {
   EXPENSES_MAX_DAYS,
   type Expense,
@@ -38,13 +35,11 @@ import {
   visibleTotals,
 } from "@/lib/expenses"
 import { ksefAvailableIn } from "@/lib/ksef"
-import { useCategorizeExpense } from "@/lib/use-categorize-expense"
-import { expenseCategoriesQuery, expensesQuery, ksefConnectionQuery, organizationQuery, vatRatesQuery } from "@/lib/queries"
+import { expensesQuery, ksefConnectionQuery, organizationQuery, vatRatesQuery } from "@/lib/queries"
 
 /*
  * Expenses (#56): purchase invoices of a period by issue date, imported from KSeF or entered by
- * hand, with totals per currency, a drawer with the details, and the category set inline. For
- * organizations in Poland, the KSeF import's status and "Import now" (ADR 0023 §5).
+ * hand, with totals per currency and a drawer with the details. For organizations in Poland, the KSeF import's status and "Import now" (ADR 0023 §5).
  */
 export const Route = createFileRoute("/_app/expenses/")({
   validateSearch: (search: Record<string, unknown>): ExpensesSearch => validateExpensesSearch(search),
@@ -57,7 +52,6 @@ export const Route = createFileRoute("/_app/expenses/")({
     const [details] = await Promise.all([
       queryClient.ensureQueryData(organizationQuery(organization.id)),
       queryClient.ensureQueryData(expensesQuery(organization.id, expensesFilter(deps, period))),
-      queryClient.ensureQueryData(expenseCategoriesQuery(organization.id, true)),
       queryClient.ensureQueryData(vatRatesQuery(organization.id)),
     ])
     if (ksefAvailableIn(details.countryCode) && can(context.membership.role, "ksef")) {
@@ -81,18 +75,12 @@ function ExpensesPage() {
 
   const { data: organization } = useSuspenseQuery(organizationQuery(organizationId))
   const { data: list } = useSuspenseQuery(expensesQuery(organizationId, expensesFilter(search, period)))
-  const { data: categories } = useSuspenseQuery(expenseCategoriesQuery(organizationId, true))
-  const { active: activeCategories } = splitCategories(categories)
   const { data: vatRates } = useSuspenseQuery(vatRatesQuery(organizationId))
   const [formTarget, setFormTarget] = useState<ExpenseTarget | null>(null)
   const { t } = useTranslation("admin")
 
   // The drawer keeps its own copy: an expense that leaves a filtered list stays open.
   const [selected, setSelected] = useState<Expense | null>(null)
-  const categorize = useCategorizeExpense(organizationId, (saved) =>
-    setSelected((current) => (current?.id === saved.id ? saved : current)),
-  )
-  const busyId = categorize.isPending ? categorize.variables.expense.id : null
 
   const setSearch = useCallback(
     (next: Partial<ExpensesSearch>) => void navigate({ search: (previous) => ({ ...previous, ...next }) }),
@@ -131,7 +119,7 @@ function ExpensesPage() {
 
       {showKsef && <KsefImportStatus membership={membership} />}
 
-      <Filters search={search} categories={categories} onChange={setSearch} />
+      <Filters search={search} onChange={setSearch} />
 
       <Totals totals={visibleTotals(list.totals)} period={period} filtered={hasFilters(search)} />
 
@@ -144,13 +132,7 @@ function ExpensesPage() {
                 : t("expenses.none", { context: isWholeMonth(period) ? "month" : undefined, period: format.period(period) })}
             </p>
           ) : (
-            <ExpensesTable
-              expenses={list.items}
-              activeCategories={activeCategories}
-              busyId={busyId}
-              onOpen={setSelected}
-              onCategorize={(expense, categoryId) => categorize.mutate({ expense, categoryId })}
-            />
+            <ExpensesTable expenses={list.items} onOpen={setSelected} />
           )}
         </CardContent>
       </Card>
@@ -158,16 +140,12 @@ function ExpensesPage() {
       <ExpenseSheet
         expense={selected}
         organizationId={organizationId}
-        activeCategories={activeCategories}
-        categorizing={busyId !== null && busyId === selected?.id}
-        onCategorize={(expense, categoryId) => categorize.mutate({ expense, categoryId })}
         onEdit={(expense) => setFormTarget({ kind: "edit", expense })}
         onClose={() => setSelected(null)}
       />
 
       <ExpenseDialog
         organizationId={organizationId}
-        activeCategories={activeCategories}
         vatRates={vatRates}
         target={formTarget}
         // An edited expense stays open in the drawer with its new values.
@@ -180,20 +158,14 @@ function ExpensesPage() {
 
 // --- Filters ---------------------------------------------------------------------------------------
 
-/** Radix Select values cannot be empty: this one stands for "every category". */
-const ALL = "all"
-
 function Filters({
   search,
-  categories,
   onChange,
 }: {
   search: ExpensesSearch
-  categories: readonly ExpenseCategory[]
   onChange: (next: Partial<ExpensesSearch>) => void
 }) {
   const { t } = useTranslation("admin")
-  const { active, archived } = splitCategories(categories)
   const [seller, setSeller] = useState(search.seller ?? "")
 
   // A URL change the field did not make (back, a link) fills it; its own debounced write does not,
@@ -214,40 +186,6 @@ function Filters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button
-        variant={search.uncategorized ? "default" : "outline"}
-        size="sm"
-        aria-pressed={search.uncategorized === true}
-        onClick={() => onChange({ uncategorized: search.uncategorized ? undefined : true, categoryId: undefined })}
-      >
-        {t("expenses.uncategorized")}
-      </Button>
-      <Select
-        value={search.categoryId ?? ALL}
-        onValueChange={(value) =>
-          onChange({ categoryId: value === ALL ? undefined : value, uncategorized: undefined })
-        }
-      >
-        <SelectTrigger size="sm" aria-label={t("expenses.category")} className="w-48">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>{t("expenses.allCategories")}</SelectItem>
-          {active.length > 0 && <SelectSeparator />}
-          {active.map((category) => (
-            <SelectItem key={category.id} value={category.id}>
-              {category.name}
-            </SelectItem>
-          ))}
-          {archived.length > 0 && <SelectSeparator />}
-          {archived.map((category) => (
-            <SelectItem key={category.id} value={category.id}>
-              {category.name}
-              <span className="text-muted-foreground"> {t("expenses.archived")}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
       <div className="relative w-full sm:w-64">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -265,7 +203,7 @@ function Filters({
           size="sm"
           onClick={() => {
             setSeller("")
-            onChange({ categoryId: undefined, uncategorized: undefined, seller: undefined })
+            onChange({ seller: undefined })
           }}
         >
           <XIcon />
@@ -327,19 +265,7 @@ function Totals({
 
 // --- The list --------------------------------------------------------------------------------------
 
-function ExpensesTable({
-  expenses,
-  activeCategories,
-  busyId,
-  onOpen,
-  onCategorize,
-}: {
-  expenses: readonly Expense[]
-  activeCategories: readonly ExpenseCategory[]
-  busyId: string | null
-  onOpen: (expense: Expense) => void
-  onCategorize: (expense: Expense, categoryId: string | null) => void
-}) {
+function ExpensesTable({ expenses, onOpen }: { expenses: readonly Expense[]; onOpen: (expense: Expense) => void }) {
   const format = useDateTimeFormat()
   const locale = useLocale()
   const { t } = useTranslation("admin")
@@ -351,7 +277,6 @@ function ExpensesTable({
           <TableHead className="pl-6">{t("expenses.column.issued")}</TableHead>
           <TableHead>{t("expenses.seller")}</TableHead>
           <TableHead>{t("expenses.column.invoice")}</TableHead>
-          <TableHead>{t("expenses.category")}</TableHead>
           <TableHead className="pr-6 text-right">{t("expenses.totals.gross")}</TableHead>
         </TableRow>
       </TableHeader>
@@ -384,14 +309,6 @@ function ExpensesTable({
                     {correction && <Badge variant="destructive">{kindLabel(expense.kind)}</Badge>}
                   </span>
                 </div>
-              </TableCell>
-              <TableCell onClick={(event) => event.stopPropagation()}>
-                <ExpenseCategorySelect
-                  expense={expense}
-                  activeCategories={activeCategories}
-                  disabled={busyId === expense.id}
-                  onChange={(categoryId) => onCategorize(expense, categoryId)}
-                />
               </TableCell>
               <TableCell
                 className={cn("pr-6 text-right font-medium tabular-nums", expense.grossTotal < 0 && "text-destructive")}
