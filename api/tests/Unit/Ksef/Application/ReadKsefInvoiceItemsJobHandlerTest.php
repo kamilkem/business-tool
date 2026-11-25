@@ -25,6 +25,7 @@ use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Expenses\Application\InMemoryPurchaseInvoiceRepository;
 use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
 use App\Tests\Unit\Shared\Application\RecordingCommandBus;
+use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
 use App\Tests\Unit\Shared\Application\RecordingJobBus;
 use App\Tests\Unit\Shared\Application\RecordingLogger;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
@@ -70,7 +71,7 @@ final class ReadKsefInvoiceItemsJobHandlerTest extends TestCase
         $this->tenantContext->switchTo($this->organization);
         $this->invoices = new InMemoryPurchaseInvoiceRepository();
 
-        $recordItems = new RecordPurchaseInvoiceItemsHandler($this->invoices, $this->tenantContext);
+        $recordItems = new RecordPurchaseInvoiceItemsHandler($this->invoices, $this->tenantContext, new RecordingEventPublisher());
         $this->commandBus = new RecordingCommandBus(function (CommandInterface $command) use ($recordItems): void {
             $command instanceof RecordPurchaseInvoiceItemsCommand ? $recordItems($command) : throw new \LogicException(\sprintf('Unexpected command %s.', $command::class));
             if (null !== $this->afterCommand) {

@@ -48,6 +48,7 @@ use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Expenses\Application\InMemoryPurchaseInvoiceRepository;
 use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
 use App\Tests\Unit\Shared\Application\RecordingCommandBus;
+use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
 use App\Tests\Unit\Shared\Application\RecordingLogger;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -119,7 +120,7 @@ final class ImportKsefInvoicesJobHandlerTest extends TestCase
         $this->token = new RevealedSecretView(Uuid::v7()->toRfc4122(), 'ksef_token', self::TOKEN);
 
         $this->invoices = new InMemoryPurchaseInvoiceRepository();
-        $importInvoice = new ImportPurchaseInvoiceHandler($this->invoices, $this->tenantContext, $this->clock);
+        $importInvoice = new ImportPurchaseInvoiceHandler($this->invoices, $this->tenantContext, $this->clock, new RecordingEventPublisher());
         $advanceCursor = new AdvanceKsefSyncCursorHandler($this->connections);
         $recordRun = new RecordKsefSyncRunHandler($this->connections);
         $recordExport = new RecordKsefInvoiceExportHandler($this->connections);

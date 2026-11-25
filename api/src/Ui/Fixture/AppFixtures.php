@@ -31,6 +31,8 @@ use App\Payroll\Domain\Model\HourlyRateHistory;
 use App\Payroll\Domain\Model\LockedPayrollDates;
 use App\Purchasing\Domain\Model\DefaultProductCategories;
 use App\Purchasing\Domain\Model\ProductCategory;
+use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\Model\PurchasedItemDetails;
 use App\Secret\Domain\Model\OrganizationSecret;
 use App\Secret\Domain\Model\SecretKind;
 use App\Secret\Domain\SecretCipherInterface;
@@ -313,6 +315,15 @@ final class AppFixtures extends Fixture
             $invoice = PurchaseInvoice::import(Uuid::v7(), PurchaseInvoiceSource::Ksef, $externalId, $details, $country, $currency, $now);
             $manager->persist($invoice);
             $manager->persist(PurchaseInvoiceDocument::of($invoice, self::fa3Xml($details, self::DEMO_BAR_NIP), 'FA (3)', $now));
+            // What the import does through PurchaseInvoiceItemsRecorded (ADR 0041 §2).
+            foreach ($invoice->getItemsByIndex() as $index => $item) {
+                $manager->persist(PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
+                    $invoice->getId(), $index, $invoice->getIssueDate(), $invoice->getKind()->value, $invoice->getCurrency(),
+                    $invoice->getSellerTaxId(), $invoice->getSellerName(), $item->position, $item->name, $item->sellerCode, $item->gtin,
+                    $item->unit, $item->quantity, $item->unitNetPrice, $item->unitGrossPrice, $item->discount, $item->netAmount,
+                    $item->grossAmount, $item->vatAmount, $item->vatRate, $item->beforeCorrection,
+                ), $now));
+            }
         }
 
         $manual = [

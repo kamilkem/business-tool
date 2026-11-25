@@ -385,6 +385,23 @@ class PurchaseInvoice implements TenantAwareInterface
         return array_map(static fn (array $item): PurchaseInvoiceItemDetails => $item[1], $items);
     }
 
+    /**
+     * The items by their index, the item's place in the document from 1: what names an item for good,
+     * as printed positions may repeat (ADR 0040).
+     *
+     * @return array<int, PurchaseInvoiceItemDetails> in the order of the index
+     */
+    public function getItemsByIndex(): array
+    {
+        $items = [];
+        foreach ($this->items as $item) {
+            $items[$item->getOrdinal()] = $item->toDetails();
+        }
+        ksort($items);
+
+        return $items;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Expenses\Application\Command\RecordPurchaseInvoiceItems;
 
 use App\Expenses\Application\Command\PurchaseInvoiceItemPrimitives;
+use App\Expenses\Domain\Event\PurchaseInvoiceItemsRecorded;
 use App\Expenses\Domain\Exception\InvalidPurchaseInvoiceException;
 use App\Expenses\Domain\Exception\PurchaseInvoiceNotFoundException;
 use App\Expenses\Domain\Repository\PurchaseInvoiceRepositoryInterface;
 use App\Organization\Domain\TenantContextInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class RecordPurchaseInvoiceItemsHandler implements CommandHandlerInterface
@@ -17,10 +19,13 @@ final readonly class RecordPurchaseInvoiceItemsHandler implements CommandHandler
     public function __construct(
         private PurchaseInvoiceRepositoryInterface $invoices,
         private TenantContextInterface $tenantContext,
+        private EventPublisherInterface $events,
     ) {
     }
 
     /**
+     * Publishes PurchaseInvoiceItemsRecorded when the invoice got its items; nothing when it already had some.
+     *
      * @throws PurchaseInvoiceNotFoundException when the organization has no such invoice
      * @throws InvalidPurchaseInvoiceException  when the invoice was entered by hand or an item breaks a rule
      */
@@ -36,6 +41,7 @@ final readonly class RecordPurchaseInvoiceItemsHandler implements CommandHandler
 
         if ($invoice->recordItems(PurchaseInvoiceItemPrimitives::toDetails($command->items), $organization->getCountryCode())) {
             $this->invoices->save($invoice);
+            $this->events->publish(PurchaseInvoiceItemsRecorded::ofInvoice($command->organizationId, $invoice));
         }
     }
 }

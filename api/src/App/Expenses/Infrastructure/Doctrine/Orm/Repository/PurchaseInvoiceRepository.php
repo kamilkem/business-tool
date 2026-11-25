@@ -75,6 +75,44 @@ final class PurchaseInvoiceRepository extends ServiceEntityRepository implements
         return array_map(static fn (Uuid|string $id): Uuid => $id instanceof Uuid ? $id : Uuid::fromString($id), $ids);
     }
 
+    public function findWithItemsAfter(?Uuid $after, int $limit): array
+    {
+        // Two steps, as a fetch-joined collection cannot be limited: the page of ids, then the invoices with their items.
+        $page = $this->createQueryBuilder('i')
+            ->select('i.id')
+            ->where(\sprintf('EXISTS (SELECT it.ordinal FROM %s it WHERE it.purchaseInvoice = i)', PurchaseInvoiceItem::class))
+            ->orderBy('i.id', 'ASC')
+            ->setMaxResults($limit);
+        if (null !== $after) {
+            $page->andWhere('i.id > :after')->setParameter('after', $after, UuidType::NAME);
+        }
+        /** @var list<Uuid|string> $ids */
+        $ids = $page->getQuery()->getSingleColumnResult();
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<PurchaseInvoice> */
+        return $this->createQueryBuilder('i')
+            ->leftJoin('i.items', 'it')
+            ->addSelect('it')
+            ->where('i.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid|string $id): string => $id instanceof Uuid ? $id->toRfc4122() : $id, $ids))
+            ->orderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findOrganizationIdsWithItems(): array
+    {
+        // Plain SQL on purpose: the TenantFilter applies to ORM queries only, and this list spans
+        // organizations. It returns ids and nothing else.
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn('SELECT DISTINCT organization_id FROM purchase_invoice_item ORDER BY organization_id');
+
+        return $ids;
+    }
+
     public function findByFilter(PurchaseInvoiceFilter $filter): array
     {
         // The VAT lines are fetched with the invoices: the list shows them and adds them up (#53).

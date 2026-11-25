@@ -79,6 +79,18 @@ again is safe; it only queues jobs for the `jobs-worker`, so the command returns
   `--organization=<id>` limits it to one organization. The worker's log shows how many invoices got
   items and how many were skipped.
 
+- **Purchased items** (#240): Purchasing keeps its own record of each invoice item, written as invoices
+  are imported. Invoices stored before it existed (their items read by the step above included) are
+  copied once. Run it on staging and on production after the deploy that brings it, and after
+  `app:ksef:read-invoice-items` has finished, since it copies the items the invoices have by then:
+
+  ```bash
+  docker compose -p business-tool-production exec php bin/console app:purchasing:record-existing-items
+  ```
+
+  `--organization=<id>` limits it to one organization. Running it again adds nothing. The worker's log
+  shows for how many invoices items were recorded.
+
 ## Rollback
 
 Run the workflow again for the previous good commit or tag (*Run workflow* on that ref, or re-run its

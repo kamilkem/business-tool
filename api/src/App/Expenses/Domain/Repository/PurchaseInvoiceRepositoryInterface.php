@@ -35,6 +35,21 @@ interface PurchaseInvoiceRepositoryInterface
     public function findImportedIdsWithDocumentAndNoItems(PurchaseInvoiceSource $source, ?Uuid $after, int $limit): array;
 
     /**
+     * The invoices that have items, with their items, by id, after `$after` (keyset paging), at most
+     * `$limit`: what Purchasing copies (#240).
+     *
+     * @return list<PurchaseInvoice>
+     */
+    public function findWithItemsAfter(?Uuid $after, int $limit): array;
+
+    /**
+     * The ids of the organizations, all of them, that have an invoice with items, by id.
+     *
+     * @return list<string>
+     */
+    public function findOrganizationIdsWithItems(): array;
+
+    /**
      * The invoices the filter selects, newest issue date first, then by seller name and invoice number.
      *
      * @return list<PurchaseInvoice>
