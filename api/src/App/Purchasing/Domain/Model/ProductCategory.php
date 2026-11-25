@@ -18,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * What the organization buys, grouped in a tree (ADR 0041 §5): a name and an optional parent
- * category (n:1, any depth). The category of a product is the product's own (#241).
+ * category (n:1, any depth). The category of a product is the product's own (Product).
  *
  * Names are unique among the categories with the same parent, and among the top level ones,
  * compared case-insensitively: the model checks it against the sibling the caller found
@@ -123,7 +123,7 @@ class ProductCategory implements TenantAwareInterface
      * Whether the category may be deleted: only while it has no subcategory and no product.
      *
      * @param bool $hasSubcategories ProductCategoryRepositoryInterface::hasSubcategories()
-     * @param bool $hasProducts      whether a product has this category (#241)
+     * @param bool $hasProducts      ProductRepositoryInterface::existsInCategory()
      *
      * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
      * @throws ProductCategoryInUseException          when it has a subcategory or a product

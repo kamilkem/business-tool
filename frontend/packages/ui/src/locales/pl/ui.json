@@ -253,6 +253,11 @@
     },
     "purchasing": {
       "invalid_product_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
+      "invalid_product_name": "Nazwa produktu musi mieć od 1 do {{maxLength}} znaków.",
+      "invalid_product_reference_quantity": {
+        "not_allowed_for_measure": "Produkt bez jednostki nie ma ilości odniesienia.",
+        "not_positive": "Ilość odniesienia musi być liczbą dodatnią."
+      },
       "management_forbidden": "Zakupami mogą zarządzać tylko właściciele i menedżerowie.",
       "product_category_cycle": "Kategorii nie można przenieść pod nią samą ani pod jej podkategorię.",
       "product_category_in_use": {
@@ -261,7 +266,13 @@
       },
       "product_category_name_taken": "Kategoria o nazwie „{{name}}” już tu istnieje.",
       "product_category_not_found": "Ta kategoria już nie istnieje. Odśwież stronę.",
-      "product_category_parent_not_found": "Kategoria, pod którą miała się znaleźć ta kategoria, już nie istnieje. Odśwież stronę."
+      "product_category_parent_not_found": "Kategoria, pod którą miała się znaleźć ta kategoria, już nie istnieje. Odśwież stronę.",
+      "product_in_use": "Ten produkt ma pozycje zakupu: scal go z innym produktem.",
+      "product_merge_into_itself": "Produktu nie można scalić z nim samym.",
+      "product_merge_target_not_found": "Produkt, z którym miało nastąpić scalenie, już nie istnieje. Odśwież stronę.",
+      "product_name_taken": "Produkt o nazwie „{{name}}” już istnieje.",
+      "product_not_found": "Ten produkt już nie istnieje. Odśwież stronę.",
+      "unknown_product_category": "Kategoria wybrana dla tego produktu już nie istnieje. Odśwież stronę."
     },
     "reporting": {
       "business_summary_forbidden": "Podsumowanie firmy widzą tylko właściciele i menedżerowie.",

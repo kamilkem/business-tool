@@ -7,12 +7,12 @@ namespace App\Tests\Functional\Purchasing;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Purchasing\Domain\Exception\ProductCategoryInUseException;
 use App\Purchasing\Domain\Exception\ProductCategoryNameTakenException;
 use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use App\Purchasing\Infrastructure\Doctrine\Orm\Repository\ProductCategoryRepository;
 use App\Tests\Factory\OrganizationFactory;
-use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -176,7 +176,8 @@ final class ProductCategoryRepositoryTest extends KernelTestCase
         $this->entityManager->clear();
         $this->tenantContext->switchTo($this->entityManager->find(Organization::class, $this->tenantContext->getOrganization()->getId()) ?? self::fail('Organization expected.'));
 
-        $this->expectException(ForeignKeyConstraintViolationException::class);
+        $this->expectException(ProductCategoryInUseException::class);
+        $this->expectExceptionMessageMatches('/has subcategories/');
 
         $this->categories->remove($this->categories->findById($alcohol->getId()) ?? self::fail('Category expected.'));
     }

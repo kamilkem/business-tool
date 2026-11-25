@@ -40,4 +40,22 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         }
         $this->getEntityManager()->flush();
     }
+
+    public function hasItemsOfProduct(Uuid $productId): bool
+    {
+        return null !== $this->findOneBy(['product' => $productId]);
+    }
+
+    public function moveItems(Uuid $fromProductId, Uuid $toProductId): void
+    {
+        // A bulk update: an organization's items run to many thousands, and nothing is loaded into the unit of work.
+        $this->getEntityManager()->createQueryBuilder()
+            ->update(PurchasedItem::class, 'i')
+            ->set('i.product', ':to')
+            ->where('i.product = :from')
+            ->setParameter('to', $toProductId, 'uuid')
+            ->setParameter('from', $fromProductId, 'uuid')
+            ->getQuery()
+            ->execute();
+    }
 }

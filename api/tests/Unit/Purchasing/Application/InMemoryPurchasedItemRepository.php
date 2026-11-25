@@ -16,6 +16,9 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
 
     public int $addAllCallCount = 0;
 
+    /** @var array<string, int> items linked to a product, by product id (PurchasedItem has no way to be linked until #242) */
+    private array $linkedItems = [];
+
     public function findByInvoice(Uuid $invoiceId): array
     {
         $items = array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->getInvoiceId()->equals($invoiceId)));
@@ -42,5 +45,27 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
     public function all(): array
     {
         return array_values($this->byKey);
+    }
+
+    /** Arranges items linked to a product. */
+    public function link(Uuid $productId, int $count = 1): void
+    {
+        $this->linkedItems[$productId->toRfc4122()] = ($this->linkedItems[$productId->toRfc4122()] ?? 0) + $count;
+    }
+
+    public function linkedTo(Uuid $productId): int
+    {
+        return $this->linkedItems[$productId->toRfc4122()] ?? 0;
+    }
+
+    public function hasItemsOfProduct(Uuid $productId): bool
+    {
+        return $this->linkedTo($productId) > 0;
+    }
+
+    public function moveItems(Uuid $fromProductId, Uuid $toProductId): void
+    {
+        $this->link($toProductId, $this->linkedTo($fromProductId));
+        unset($this->linkedItems[$fromProductId->toRfc4122()]);
     }
 }

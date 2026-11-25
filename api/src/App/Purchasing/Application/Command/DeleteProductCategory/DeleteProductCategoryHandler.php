@@ -10,6 +10,7 @@ use App\Purchasing\Domain\Exception\ProductCategoryInUseException;
 use App\Purchasing\Domain\Exception\ProductCategoryNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
+use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
 use Symfony\Component\Uid\Uuid;
@@ -18,6 +19,7 @@ final readonly class DeleteProductCategoryHandler implements CommandHandlerInter
 {
     public function __construct(
         private ProductCategoryRepositoryInterface $categories,
+        private ProductRepositoryInterface $products,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -35,10 +37,14 @@ final readonly class DeleteProductCategoryHandler implements CommandHandlerInter
         $category = Uuid::isValid($command->categoryId) ? $this->categories->findById(Uuid::fromString($command->categoryId)) : null;
         $category ??= throw ProductCategoryNotFoundException::withId($command->categoryId);
 
-        // Products arrive with #241, which asks its repository here whether one has the category.
-        $category->assertDeletable($this->categories->hasSubcategories($category->getId()), false, $actor->id, $actor->role);
+        $category->assertDeletable(
+            $this->categories->hasSubcategories($category->getId()),
+            $this->products->existsInCategory($category->getId()),
+            $actor->id,
+            $actor->role,
+        );
 
-        // The foreign keys of subcategories (and later of products) catch one added in the meantime.
+        // The foreign keys of subcategories and products catch one added in the meantime.
         $this->categories->remove($category);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Domain\Repository;
 
+use App\Purchasing\Domain\Exception\ProductCategoryInUseException;
 use App\Purchasing\Domain\Exception\ProductCategoryNameTakenException;
 use App\Purchasing\Domain\Model\ProductCategory;
 use Symfony\Component\Uid\Uuid;
@@ -38,6 +39,10 @@ interface ProductCategoryRepositoryInterface
      */
     public function save(ProductCategory $category): void;
 
-    /** The foreign keys of subcategories (and later of products) refuse a category that was given one in the meantime. */
+    /**
+     * The foreign keys of subcategories and products refuse a category that was given one in the meantime.
+     *
+     * @throws ProductCategoryInUseException when that happened
+     */
     public function remove(ProductCategory $category): void;
 }

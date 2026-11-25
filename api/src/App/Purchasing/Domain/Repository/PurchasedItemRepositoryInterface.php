@@ -24,4 +24,13 @@ interface PurchasedItemRepositoryInterface
      * @param list<PurchasedItem> $items
      */
     public function addAll(array $items): void;
+
+    /** Whether an item is linked to the product. */
+    public function hasItemsOfProduct(Uuid $productId): bool;
+
+    /**
+     * Links every item of one product to another, keeping each item's status and package size: the
+     * move of a merge (ADR 0041 §4). One statement; the products must be the current organization's.
+     */
+    public function moveItems(Uuid $fromProductId, Uuid $toProductId): void;
 }
