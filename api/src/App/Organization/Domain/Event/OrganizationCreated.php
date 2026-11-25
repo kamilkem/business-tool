@@ -8,7 +8,7 @@ use App\Shared\Domain\Event\EventInterface;
 
 /**
  * An organization was created with its owner and is saved. Other modules set up what a new
- * organization starts with from here (the default expense categories, #48).
+ * organization starts with from here (the default product categories, #238).
  */
 final readonly class OrganizationCreated implements EventInterface
 {
