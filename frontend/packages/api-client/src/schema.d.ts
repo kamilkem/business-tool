@@ -5573,6 +5573,16 @@ export interface components {
             status: "unassigned" | "suggested" | "assigned" | "confirmed";
             /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
             packageSize: string | null;
+            /**
+             * @description What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept.
+             * @enum {string|null}
+             */
+            matchSource: "gtin" | "seller_code" | "seller_name" | "name" | "model" | "proposed_name" | null;
+            /**
+             * @description Why matching only suggested the product: `aliases_conflict`, `model_unsure`, `proposed_name_only`, `measure_mismatch`, `size_unknown`, `size_read_weakly`, `size_disagrees`, `size_unverified` or `price_outlier` (the price per base unit is far from the product's median); null for any other status.
+             * @enum {string|null}
+             */
+            matchCaveat: "aliases_conflict" | "model_unsure" | "proposed_name_only" | "measure_mismatch" | "size_unknown" | "size_read_weakly" | "size_disagrees" | "size_unverified" | "price_outlier" | null;
         };
         /**
          * @description One item of a purchase invoice of the organization selected by the X-Organization-Id header, as
@@ -5660,6 +5670,16 @@ export interface components {
             status: "unassigned" | "suggested" | "assigned" | "confirmed";
             /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
             packageSize: string | null;
+            /**
+             * @description What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept.
+             * @enum {string|null}
+             */
+            matchSource: "gtin" | "seller_code" | "seller_name" | "name" | "model" | "proposed_name" | null;
+            /**
+             * @description Why matching only suggested the product: `aliases_conflict`, `model_unsure`, `proposed_name_only`, `measure_mismatch`, `size_unknown`, `size_read_weakly`, `size_disagrees`, `size_unverified` or `price_outlier` (the price per base unit is far from the product's median); null for any other status.
+             * @enum {string|null}
+             */
+            matchCaveat: "aliases_conflict" | "model_unsure" | "proposed_name_only" | "measure_mismatch" | "size_unknown" | "size_read_weakly" | "size_disagrees" | "size_unverified" | "price_outlier" | null;
         };
         /**
          * @description A page of the purchased items of the organization selected by the X-Organization-Id header (ADR

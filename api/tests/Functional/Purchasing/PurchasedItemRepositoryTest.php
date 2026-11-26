@@ -410,6 +410,73 @@ final class PurchasedItemRepositoryTest extends KernelTestCase
         self::assertNull($proposed[0]->categoryId, 'The proposal stays, without a category: a deleted category blocks nothing.');
     }
 
+    public function test_it_lists_the_confirmed_ids_newest_issue_date_first_after_a_cursor_in_the_current_organization_only(): void
+    {
+        $this->tenantContext->switchTo($other = OrganizationFactory::createOne());
+        $this->items->addAll([self::confirmed($this->product('Theirs'), '2026-11-20', 1_000, '1', '1')]);
+        $this->entityManager->clear();
+
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $jack = $this->product('Jack');
+        $oldest = self::confirmed($jack, '2026-08-01', 1_000, '1', '1');
+        $newest = self::confirmed($jack, '2026-10-01', 1_000, '1', '1');
+        $sameDay = self::confirmed($jack, '2026-10-01', 1_000, '1', '1');
+        $middle = self::confirmed($jack, '2026-09-01', 1_000, '1', '1');
+        $unlinked = self::item(Uuid::v7(), 1, issueDate: '2026-11-01');
+        $suggested = self::item(Uuid::v7(), 1, issueDate: '2026-11-02');
+        $suggested->match($jack, '1', PurchasedItemStatus::Suggested, new \DateTimeImmutable('2026-11-25 03:00:00'));
+        $this->items->addAll([$oldest, $newest, $sameDay, $middle, $unlinked, $suggested]);
+        $this->entityManager->clear();
+        $sameDayFirst = strcmp($newest->getId()->toRfc4122(), $sameDay->getId()->toRfc4122()) > 0 ? [$newest, $sameDay] : [$sameDay, $newest];
+        $expected = array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), [...$sameDayFirst, $middle, $oldest]);
+        $ids = static fn (array $found): array => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $found);
+
+        self::assertSame($expected, $ids($this->items->findConfirmedIds(null, 10)), 'Confirmed only, the organization\'s only, newest first, ties by id descending.');
+        self::assertSame(\array_slice($expected, 0, 2), $ids($this->items->findConfirmedIds(null, 2)));
+        self::assertSame(\array_slice($expected, 2), $ids($this->items->findConfirmedIds(Uuid::fromString($expected[1]), 10)));
+        self::assertSame(\array_slice($expected, 1), $ids($this->items->findConfirmedIds(Uuid::fromString($expected[0]), 10)), 'A cursor inside a day continues inside it.');
+        self::assertSame([], $this->items->findConfirmedIds(Uuid::fromString($expected[3]), 10));
+
+        $this->tenantContext->switchTo($other);
+        self::assertCount(1, $this->items->findConfirmedIds(null, 10));
+        $this->tenantContext->reset();
+        self::assertSame([], $this->items->findConfirmedIds(null, 10), 'Without an organization nothing is visible.');
+    }
+
+    public function test_it_reads_the_prices_per_base_unit_of_a_products_confirmed_items(): void
+    {
+        $this->tenantContext->switchTo($other = OrganizationFactory::createOne());
+        $otherJack = $this->product('Jack');
+        $this->items->addAll([self::confirmed($otherJack, '2026-11-01', 1_000_000, '1', '1')]);
+        $this->entityManager->clear();
+
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $jack = $this->product('Jack');
+        $cola = $this->product('Cola');
+        $this->items->addAll([
+            self::confirmed($jack, '2026-11-01', 48_780, '6', '0.7'),
+            self::confirmed($jack, '2026-10-01', 1_000, '2', '1'),
+            self::confirmed($jack, '2026-09-01', 12_300, '3', '0.5', grossOnly: true),
+            self::confirmed($jack, '2026-08-01', 1_000, '1', '1', currency: 'EUR'),
+            self::confirmed($jack, '2026-08-02', -1_000, '-1', '1', kind: 'correction'),
+            self::confirmed($jack, '2026-08-03', 1_000, '1', '1', beforeCorrection: true),
+            self::confirmed($jack, '2026-08-04', 1_000, '1', null),
+            self::confirmed($cola, '2026-11-01', 5_000, '1', '1'),
+        ]);
+        $unconfirmed = self::item(Uuid::v7(), 1);
+        $unconfirmed->match($jack, '1', PurchasedItemStatus::Assigned, new \DateTimeImmutable('2026-11-25 03:00:00'));
+        $this->items->addAll([$unconfirmed]);
+        $this->entityManager->clear();
+
+        self::assertSame([11_614_286, 500_000, 8_200_000], $this->items->confirmedPricesPerBaseUnit($jack->getId(), 'PLN', 10), 'Newest first; the gross less VAT where no net is printed; no correction, no other currency, no item without a size.');
+        self::assertSame([1_000_000], $this->items->confirmedPricesPerBaseUnit($jack->getId(), 'EUR', 10));
+        self::assertSame([11_614_286, 500_000], $this->items->confirmedPricesPerBaseUnit($jack->getId(), 'PLN', 2), 'The limit keeps the most recent.');
+        self::assertSame([], $this->items->confirmedPricesPerBaseUnit($otherJack->getId(), 'PLN', 10), 'Another organization\'s product is not visible.');
+
+        $this->tenantContext->switchTo($other);
+        self::assertSame([1_000_000_000], $this->items->confirmedPricesPerBaseUnit($otherJack->getId(), 'PLN', 10));
+    }
+
     /** @param list<PurchasedItemStatus> $statuses */
     private static function filter(array $statuses = [], ?Uuid $product = null, ?string $from = null, ?string $to = null, ?string $name = null): PurchasedItemFilter
     {
@@ -445,6 +512,18 @@ final class PurchasedItemRepositoryTest extends KernelTestCase
         $this->tenantContext->switchTo($organization);
 
         return self::getContainer()->get(PurchasedItemRepositoryInterface::class)->findByInvoice($invoiceId);
+    }
+
+    /** An item a person confirmed to the product, with the amounts of one row (`$grossOnly`: no net printed, 23% VAT in the gross). */
+    private static function confirmed(Product $product, string $issueDate, int $amount, string $quantity, ?string $packageSize, string $currency = 'PLN', string $kind = 'regular', bool $beforeCorrection = false, bool $grossOnly = false): PurchasedItem
+    {
+        $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
+            Uuid::v7(), 1, BusinessDate::fromString($issueDate), $kind, $currency, '5265877635', 'Hurtownia', 1, 'Piwo', null, null, 'szt.', $quantity, null, null, null,
+            $grossOnly ? null : $amount, $grossOnly ? $amount + 2_300 : null, $grossOnly ? 2_300 : null, null, $beforeCorrection,
+        ), new \DateTimeImmutable('2026-11-25 03:00:00'));
+        $item->link($product, $packageSize, Uuid::v7(), MembershipRole::Owner);
+
+        return $item;
     }
 
     private static function item(Uuid $invoiceId, int $index, int $position = 1, string $issueDate = '2026-11-10', string $name = 'Piwo', string $sellerName = 'Hurtownia'): PurchasedItem

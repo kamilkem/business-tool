@@ -13,6 +13,8 @@ use App\Organization\Domain\Model\TenantAwareTrait;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Purchasing\Domain\Matching\ItemReader;
+use App\Purchasing\Domain\Matching\MatchCaveat;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Shared\Domain\Time\BusinessDate;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -35,6 +37,8 @@ use Symfony\Component\Uid\Uuid;
  * - Matching (ADR 0042) changes only the items that are not `confirmed`, with match(): it sets the
  *   product, the status (`assigned` or `suggested`) and the package size, and remembers that the item
  *   was matched, so that the model is not asked about it again.
+ * - It remembers what linked it (`matchSource`: an alias of a kind, or the model) and, when matching only
+ *   suggests it, why (`matchCaveat`), so the review queue can say so (ADR 0045 §1). A person's link clears both.
  * - An item no product fits may carry a proposal (ADR 0044): the name, measure and category the model
  *   proposes for a product to create. Items are grouped by the proposed name's key. A person accepts it
  *   (the items are linked to the new product, which clears it) or dismisses it (the key is remembered, so
@@ -154,6 +158,14 @@ class PurchasedItem implements TenantAwareInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $matchedAt = null;
 
+    /** What matching linked the item by; null: a person linked it, matching never did, or it predates ADR 0045. */
+    #[ORM\Column(length: 24, nullable: true, enumType: MatchSource::class)]
+    private ?MatchSource $matchSource = null;
+
+    /** Why matching only suggested the product (ADR 0045 §1); null for any other status and for an item that predates it. */
+    #[ORM\Column(length: 24, nullable: true, enumType: MatchCaveat::class)]
+    private ?MatchCaveat $matchCaveat = null;
+
     /** The name of the product the model proposes for the item; null: no proposal (ADR 0044). */
     #[ORM\Column(length: Product::NAME_MAX_LENGTH, nullable: true)]
     private ?string $proposedName = null;
@@ -232,20 +244,23 @@ class PurchasedItem implements TenantAwareInterface
         $this->packageSize = $packageSize;
         $this->status = null === $product ? PurchasedItemStatus::Unassigned : PurchasedItemStatus::Confirmed;
         $this->matchingSkipped = null === $product;
+        $this->matchSource = null;
+        $this->matchCaveat = null;
         $this->clearProposal();
     }
 
     /**
      * Matching links the item to a product, or notes that it found none (`$product` null: the item
      * keeps what it had), and that the model went through it. `assigned` is a confident match,
-     * `suggested` one for a person to confirm. Never for a `confirmed` item.
+     * `suggested` one for a person to confirm. Never for a `confirmed` item. `$source` is what linked it and
+     * `$caveat` why it is only suggested (ADR 0045 §1); they are kept for the review queue.
      *
      * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
      *
      * @throws \LogicException            for a `confirmed` item or one a person took off its product: matching must not read them
      * @throws InvalidPackageSizeException when the package size is not a positive decimal
      */
-    public function match(?Product $product, ?string $packageSize, PurchasedItemStatus $status, \DateTimeImmutable $now): void
+    public function match(?Product $product, ?string $packageSize, PurchasedItemStatus $status, \DateTimeImmutable $now, ?MatchSource $source = null, ?MatchCaveat $caveat = null): void
     {
         if (!$this->isMatchable()) {
             throw new \LogicException('A confirmed item, or one taken off its product by a person, is not changed by matching.');
@@ -262,6 +277,8 @@ class PurchasedItem implements TenantAwareInterface
         $this->product = $product;
         $this->packageSize = self::packageSizeFor($packageSize);
         $this->status = $status;
+        $this->matchSource = $source;
+        $this->matchCaveat = PurchasedItemStatus::Suggested === $status ? $caveat : null;
     }
 
     /**
@@ -346,6 +363,25 @@ class PurchasedItem implements TenantAwareInterface
     public function isMatchable(): bool
     {
         return PurchasedItemStatus::Confirmed !== $this->status && !$this->matchingSkipped;
+    }
+
+    public function getMatchSource(): ?MatchSource
+    {
+        return $this->matchSource;
+    }
+
+    public function getMatchCaveat(): ?MatchCaveat
+    {
+        return $this->matchCaveat;
+    }
+
+    /**
+     * The item's net value in minor units: the printed one, or the gross less the VAT when only those are
+     * printed (as the analysis reads it, ADR 0041 §6); null when neither can be had.
+     */
+    public function getNetValue(): ?int
+    {
+        return $this->netAmount ?? (null !== $this->grossAmount && null !== $this->vatAmount ? $this->grossAmount - $this->vatAmount : null);
     }
 
     public function getMatchedAt(): ?\DateTimeImmutable

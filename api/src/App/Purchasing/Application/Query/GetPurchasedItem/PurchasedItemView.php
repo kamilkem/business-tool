@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Application\Query\GetPurchasedItem;
 
+use App\Purchasing\Domain\Matching\MatchCaveat;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 
@@ -39,6 +41,10 @@ final readonly class PurchasedItemView
         public ?string $productName,
         public PurchasedItemStatus $status,
         public ?string $packageSize,
+        /** What matching linked it by; null when a person did, or it was matched before this was kept (ADR 0045 §1). */
+        public ?MatchSource $matchSource,
+        /** Why matching only suggested the product; null otherwise (ADR 0045 §1). */
+        public ?MatchCaveat $matchCaveat,
     ) {
     }
 
@@ -71,6 +77,8 @@ final readonly class PurchasedItemView
             $item->getProduct()?->getName(),
             $item->getStatus(),
             $item->getPackageSize(),
+            $item->getMatchSource(),
+            $item->getMatchCaveat(),
         );
     }
 }

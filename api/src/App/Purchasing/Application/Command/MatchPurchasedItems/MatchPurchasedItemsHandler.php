@@ -45,6 +45,9 @@ use Symfony\Component\Uid\Uuid;
  * 3. Items are saved in one flush. When the model cannot answer, what the aliases decided is saved and
  *    the exception is rethrown, so the job stops and the unanswered items stay for a later run.
  *
+ * An `assigned` decision whose price per base unit is far from the median of the product's confirmed items
+ * is lowered to `suggested` (ADR 0045 §2), whatever decided it.
+ *
  * Items the model answered for, or found nothing for, are noted as matched, so it is not asked again.
  *
  * For an item no product is, the model may also propose one (name, measure, a category of the tree);
@@ -90,12 +93,13 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
 
         $now = $this->clock->now();
         $multipliers = $this->unitMultipliers($items);
-        $open = $this->matchByAliases($items, $multipliers, $now);
+        $prices = new PriceSamples($this->items);
+        $open = $this->matchByAliases($items, $multipliers, $prices, $now);
         $unavailable = null;
         $interpreted = 0;
         if ($command->useInterpreter && [] !== $open && $this->interpreter->isAvailable()) {
             try {
-                $interpreted = $this->matchByInterpreter($open, $multipliers, $now);
+                $interpreted = $this->matchByInterpreter($open, $multipliers, $prices, $now);
             } catch (ItemInterpreterUnavailableException $e) {
                 $unavailable = $e;
             }
@@ -122,7 +126,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
      *
      * @return list<PurchasedItem>
      */
-    private function matchByAliases(array $items, array $multipliers, \DateTimeImmutable $now): array
+    private function matchByAliases(array $items, array $multipliers, PriceSamples $prices, \DateTimeImmutable $now): array
     {
         $keysByItem = [];
         $wanted = [];
@@ -157,8 +161,8 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             foreach ($hits as $hit) {
                 $conflict = $conflict || !$hit->getProduct()->getId()->equals($strongest->getProduct()->getId());
             }
-            $decision = MatchDecision::fromAlias($strongest, $conflict, $this->readingOf($item, $multipliers));
-            $item->match($decision->product, $decision->packageSize, $decision->status, $now);
+            $decision = $prices->check(MatchDecision::fromAlias($strongest, $conflict, $this->readingOf($item, $multipliers)), $item);
+            $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat);
         }
 
         return $open;
@@ -172,7 +176,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
      *
      * @throws ItemInterpreterUnavailableException
      */
-    private function matchByInterpreter(array $open, array $multipliers, \DateTimeImmutable $now): int
+    private function matchByInterpreter(array $open, array $multipliers, PriceSamples $prices, \DateTimeImmutable $now): int
     {
         /** @var array<string, Product> $products */
         $products = [];
@@ -209,7 +213,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             foreach ($batch as $question) {
                 $asked += \count($groups[$question->key]);
                 foreach ($groups[$question->key] as $item) {
-                    $this->apply($item, $answers[$question->key] ?? null, $products, $categoriesById, $multipliers, $now);
+                    $this->apply($item, $answers[$question->key] ?? null, $products, $categoriesById, $multipliers, $prices, $now);
                 }
             }
         }
@@ -222,7 +226,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
      * @param array<string, ProductCategory> $categories
      * @param array<string, int>             $multipliers
      */
-    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $categories, array $multipliers, \DateTimeImmutable $now): void
+    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $categories, array $multipliers, PriceSamples $prices, \DateTimeImmutable $now): void
     {
         $product = null === $answer || null === $answer->productId ? null : ($products[$answer->productId] ?? null);
         $decision = null === $answer || null === $product
@@ -233,7 +237,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             // No product of the catalog, but the proposed name is one that exists: that is a match to it, for a person to confirm.
             $named = $this->productNamed($answer->proposal->name, $products);
             if (null !== $named) {
-                $decision = MatchDecision::fromInterpretation($named, new ItemInterpretation($answer->key, $named->getId()->toRfc4122(), InterpretationConfidence::Medium, $answer->packageSize), $this->readingOf($item, $multipliers));
+                $decision = MatchDecision::fromInterpretation($named, new ItemInterpretation($answer->key, $named->getId()->toRfc4122(), InterpretationConfidence::Medium, $answer->packageSize), $this->readingOf($item, $multipliers), fromProposedName: true);
             }
         }
 
@@ -244,7 +248,8 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
 
             return;
         }
-        $item->match($decision->product, $decision->packageSize, $decision->status, $now);
+        $decision = $prices->check($decision, $item);
+        $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat);
     }
 
     /**

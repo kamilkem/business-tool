@@ -677,7 +677,9 @@
       "select": "Zaznacz pozycję z {{date}}, {{seller}}",
       "actions": "Działania dla pozycji z {{date}}, {{seller}}",
       "beforeCorrection": "przed korektą",
-      "suggested": "Propozycja: {{name}}"
+      "suggested": "Propozycja: {{name}}",
+      "matchedBy": "Dopasowano przez: {{source}}",
+      "why": "Tylko propozycja: {{reason}}"
     },
     "menu": {
       "assign": "Przypisz do produktu…",
@@ -792,6 +794,25 @@
         "created_many": "Utworzono produkt „{{name}}” z {{count}} pozycjami",
         "created_other": "Utworzono produkt „{{name}}” z {{count}} pozycjami"
       }
+    },
+    "matchSource": {
+      "gtin": "potwierdzony przez Ciebie kod kreskowy (GTIN)",
+      "seller_code": "potwierdzony przez Ciebie kod sprzedawcy",
+      "seller_name": "potwierdzony przez Ciebie sprzedawca i nazwa",
+      "name": "potwierdzona przez Ciebie nazwa",
+      "model": "model",
+      "proposed_name": "model, który zaproponował nazwę istniejącego produktu"
+    },
+    "matchCaveat": {
+      "aliases_conflict": "Twoje wcześniejsze potwierdzenia tej pozycji wskazują różne produkty.",
+      "model_unsure": "model nie jest pewien.",
+      "proposed_name_only": "model zaproponował nowy produkt o tej nazwie, a produkt o takiej nazwie już istnieje.",
+      "measure_mismatch": "tekst pozycji podaje rozmiar w innej jednostce niż produkt (litry dla produktu liczonego w kilogramach lub odwrotnie).",
+      "size_unknown": "nie wiadomo, jaki jest rozmiar opakowania.",
+      "size_read_weakly": "rozmiar opakowania wynika tylko z zestawu w nazwie.",
+      "size_disagrees": "rozmiar zapamiętany lub podany przez model różni się od tego w nazwie.",
+      "size_unverified": "rozmiar dotyczy jednostki, która mieści nieznaną liczbę sztuk (karton, zgrzewka).",
+      "price_outlier": "cena za jednostkę miary jest daleko od zwykłej ceny tego produktu: sprawdź rozmiar opakowania."
     }
   },
   "shiftRequests": {

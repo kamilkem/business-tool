@@ -12,6 +12,8 @@ use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Response;
 use App\Purchasing\Application\Command\AssignPurchasedItems\AssignPurchasedItemsCommand;
 use App\Purchasing\Application\Query\GetPurchasedItem\PurchasedItemView;
+use App\Purchasing\Domain\Matching\MatchCaveat;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Ui\Http\Purchasing\Processor\AssignPurchasedItemsProcessor;
@@ -126,6 +128,10 @@ final readonly class PurchasedItemResource
         public PurchasedItemStatus $status,
         /** In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
         public ?string $packageSize,
+        /** What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept. */
+        public ?MatchSource $matchSource,
+        /** Why matching only suggested the product: `aliases_conflict`, `model_unsure`, `proposed_name_only`, `measure_mismatch`, `size_unknown`, `size_read_weakly`, `size_disagrees`, `size_unverified` or `price_outlier` (the price per base unit is far from the product's median); null for any other status. */
+        public ?MatchCaveat $matchCaveat,
     ) {
     }
 
@@ -158,6 +164,8 @@ final readonly class PurchasedItemResource
             $view->productName,
             $view->status,
             $view->packageSize,
+            $view->matchSource,
+            $view->matchCaveat,
         );
     }
 }

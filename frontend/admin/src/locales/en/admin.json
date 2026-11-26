@@ -623,7 +623,9 @@
       "select": "Select the item from {{date}}, {{seller}}",
       "actions": "Actions for the item from {{date}}, {{seller}}",
       "beforeCorrection": "before the correction",
-      "suggested": "Suggested: {{name}}"
+      "suggested": "Suggested: {{name}}",
+      "matchedBy": "Matched by {{source}}",
+      "why": "Only a suggestion: {{reason}}"
     },
     "menu": {
       "assign": "Assign to a product…",
@@ -706,6 +708,25 @@
         "created_one": "Product “{{name}}” created with {{count}} item",
         "created_other": "Product “{{name}}” created with {{count}} items"
       }
+    },
+    "matchSource": {
+      "gtin": "your confirmed barcode (GTIN)",
+      "seller_code": "your confirmed seller code",
+      "seller_name": "your confirmed seller and name",
+      "name": "your confirmed name",
+      "model": "the model",
+      "proposed_name": "the model, which proposed the name of an existing product"
+    },
+    "matchCaveat": {
+      "aliases_conflict": "your earlier confirmations of this item point to different products.",
+      "model_unsure": "the model is not sure.",
+      "proposed_name_only": "the model proposed a new product with this name, and a product with that name exists.",
+      "measure_mismatch": "the item's text gives a size in another unit than the product has (litres for a product counted in kilograms, or the other way round).",
+      "size_unknown": "no package size is known.",
+      "size_read_weakly": "the package size comes only from a multipack in the name.",
+      "size_disagrees": "the size remembered or given by the model differs from the one in the name.",
+      "size_unverified": "the size sits on a unit that holds an unknown number of pieces (a case, a carton).",
+      "price_outlier": "the price per unit of measure is far from this product's usual price: check the package size."
     }
   },
   "shiftRequests": {

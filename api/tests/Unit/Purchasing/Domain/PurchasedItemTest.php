@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Purchasing\Domain;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
+use App\Purchasing\Domain\Matching\MatchCaveat;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Model\ProductMeasure;
@@ -211,6 +213,33 @@ final class PurchasedItemTest extends TestCase
         self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
         self::assertNull($item->getProduct());
         self::assertEquals($now, $item->getMatchedAt());
+    }
+
+    public function test_it_remembers_what_matched_it_and_why_it_is_only_suggested(): void
+    {
+        $item = self::item();
+        $jack = self::product('Jack Daniel\'s');
+        $now = new \DateTimeImmutable('2026-11-26 03:00:00');
+
+        $item->match($jack, '0.7', PurchasedItemStatus::Suggested, $now, MatchSource::Model, MatchCaveat::ModelUnsure);
+        self::assertSame([MatchSource::Model, MatchCaveat::ModelUnsure], [$item->getMatchSource(), $item->getMatchCaveat()]);
+
+        $item->match($jack, '0.7', PurchasedItemStatus::Assigned, $now, MatchSource::Gtin, MatchCaveat::ModelUnsure);
+        self::assertSame([MatchSource::Gtin, null], [$item->getMatchSource(), $item->getMatchCaveat()], 'An assigned item has no reason against it.');
+    }
+
+    public function test_it_keeps_its_reasons_when_matching_finds_nothing_and_loses_them_when_a_person_links_it(): void
+    {
+        $item = self::item();
+        $jack = self::product('Jack Daniel\'s');
+        $now = new \DateTimeImmutable('2026-11-26 03:00:00');
+        $item->match($jack, '0.7', PurchasedItemStatus::Suggested, $now, MatchSource::Name, MatchCaveat::SizeUnknown);
+
+        $item->match(null, null, PurchasedItemStatus::Unassigned, $now);
+        self::assertSame([MatchSource::Name, MatchCaveat::SizeUnknown], [$item->getMatchSource(), $item->getMatchCaveat()]);
+
+        $item->link($jack, '0.7', $this->actorId, MembershipRole::Owner);
+        self::assertSame([null, null], [$item->getMatchSource(), $item->getMatchCaveat()]);
     }
 
     public function test_it_is_never_changed_by_matching_once_a_person_confirmed_it(): void

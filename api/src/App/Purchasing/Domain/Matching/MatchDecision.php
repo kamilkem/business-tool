@@ -30,6 +30,9 @@ final readonly class MatchDecision
         public Product $product,
         public ?string $packageSize,
         public PurchasedItemStatus $status,
+        public MatchSource $source,
+        /** Why it is `suggested` and not `assigned` (ADR 0045 §1); null for `assigned`. */
+        public ?MatchCaveat $caveat,
     ) {
     }
 
@@ -38,11 +41,14 @@ final readonly class MatchDecision
      */
     public static function fromAlias(ProductAlias $alias, bool $conflict, ItemReading $reading): self
     {
-        return self::decide($alias->getProduct(), $alias->getPackageSize(), !$conflict, $reading);
+        return self::decide($alias->getProduct(), $alias->getPackageSize(), $conflict ? MatchCaveat::AliasesConflict : null, MatchSource::ofAlias($alias->getKind()), $reading);
     }
 
-    /** The model's answer for the item; null when it is not sure enough to link at all. */
-    public static function fromInterpretation(Product $product, ItemInterpretation $interpretation, ItemReading $reading): ?self
+    /**
+     * The model's answer for the item; null when it is not sure enough to link at all. `$fromProposedName`:
+     * the answer is a proposed product whose name a product has (ADR 0044 §3), which is never confident.
+     */
+    public static function fromInterpretation(Product $product, ItemInterpretation $interpretation, ItemReading $reading, bool $fromProposedName = false): ?self
     {
         if (InterpretationConfidence::Low === $interpretation->confidence) {
             return null;
@@ -52,20 +58,37 @@ final readonly class MatchDecision
             $size = null;
         }
 
-        return self::decide($product, $size, InterpretationConfidence::High === $interpretation->confidence, $reading);
+        $doubt = match (true) {
+            $fromProposedName => MatchCaveat::ProposedNameOnly,
+            InterpretationConfidence::High !== $interpretation->confidence => MatchCaveat::ModelUnsure,
+            default => null,
+        };
+
+        return self::decide($product, $size, $doubt, $fromProposedName ? MatchSource::ProposedName : MatchSource::Model, $reading);
     }
 
-    private static function decide(Product $product, ?string $remembered, bool $confident, ItemReading $reading): self
+    /** The same match, held back to `suggested` because the price is far from the product's others (ADR 0045 §2). */
+    public function withPriceOutlier(): self
+    {
+        if (PurchasedItemStatus::Assigned !== $this->status) {
+            return $this;
+        }
+
+        return new self($this->product, $this->packageSize, PurchasedItemStatus::Suggested, $this->source, MatchCaveat::PriceOutlier);
+    }
+
+    /** @param ?MatchCaveat $doubt why the source itself is not confident (conflicting aliases, an unsure model); null: it is */
+    private static function decide(Product $product, ?string $remembered, ?MatchCaveat $doubt, MatchSource $source, ItemReading $reading): self
     {
         $measure = $product->getMeasure();
         if (ProductMeasure::None === $measure) {
-            return new self($product, null, $confident ? PurchasedItemStatus::Assigned : PurchasedItemStatus::Suggested);
+            return self::result($product, null, $doubt, $source);
         }
 
         $size = null;
         if ($reading->hasSize() && $reading->measure !== $measure) {
             // The text speaks of litres and the product is counted in kilograms, or the other way round.
-            return new self($product, null, PurchasedItemStatus::Suggested);
+            return new self($product, null, PurchasedItemStatus::Suggested, $source, MatchCaveat::MeasureMismatch);
         }
         if ($reading->hasSize() && $reading->strong) {
             $size = $reading->packageSize;
@@ -74,15 +97,22 @@ final readonly class MatchDecision
             // A size read on a unit of unknown count (a case, a carton) is not the size per unit, so an
             // alias or the model agreeing with it proves nothing (ADR 0043).
             if ($reading->hasSize() && ($reading->packageSize !== $remembered || !$reading->unitCountKnown)) {
-                $confident = false;
+                $doubt ??= $reading->packageSize !== $remembered ? MatchCaveat::SizeDisagrees : MatchCaveat::SizeUnverified;
             }
         } elseif ($reading->hasSize()) {
             $size = $reading->packageSize;
-            $confident = false;
+            $doubt ??= MatchCaveat::SizeReadWeakly;
         } elseif (ProductMeasure::Count === $measure && $reading->pieceUnit && SizeSource::Ambiguous !== $reading->source) {
             $size = '1';
         }
 
-        return new self($product, $size, $confident && null !== $size ? PurchasedItemStatus::Assigned : PurchasedItemStatus::Suggested);
+        return self::result($product, $size, $doubt, $source);
+    }
+
+    private static function result(Product $product, ?string $size, ?MatchCaveat $doubt, MatchSource $source): self
+    {
+        $caveat = $doubt ?? (null === $size && ProductMeasure::None !== $product->getMeasure() ? MatchCaveat::SizeUnknown : null);
+
+        return new self($product, $size, null === $caveat ? PurchasedItemStatus::Assigned : PurchasedItemStatus::Suggested, $source, $caveat);
     }
 }

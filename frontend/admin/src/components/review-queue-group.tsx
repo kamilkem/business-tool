@@ -203,6 +203,17 @@ function ItemRow({ item, selected, basis, ...actions }: ItemRowProps) {
           {isCorrection(item.invoiceKind) && item.beforeCorrection && <span>{t("review.item.beforeCorrection")}</span>}
           {suggestion && <span>{t("review.item.suggested", { name: suggestion.productName })}</span>}
         </div>
+        {item.matchSource !== null && (
+          <p className="text-xs text-muted-foreground">
+            {t("review.item.matchedBy", { source: t(`review.matchSource.${item.matchSource}`) })}
+            {item.matchCaveat !== null && (
+              <>
+                {" · "}
+                {t("review.item.why", { reason: t(`review.matchCaveat.${item.matchCaveat}`) })}
+              </>
+            )}
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 items-center">
         {suggestion && (

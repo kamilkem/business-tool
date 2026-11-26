@@ -11,6 +11,9 @@ use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsHa
 use App\Purchasing\Domain\Exception\ItemInterpreterUnavailableException;
 use App\Purchasing\Domain\Matching\CatalogCategory;
 use App\Purchasing\Domain\Matching\InterpretationConfidence;
+use App\Purchasing\Domain\Matching\MatchCaveat;
+use App\Purchasing\Domain\Matching\MatchSource;
+use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Matching\ProductProposal;
 use App\Purchasing\Domain\Model\AliasKeys;
 use App\Purchasing\Domain\Model\AliasKind;
@@ -364,6 +367,86 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertCount(1, $this->interpreter->calls[1]['items']);
     }
 
+    public function test_it_says_what_matched_the_item_and_why_it_is_only_suggested(): void
+    {
+        $this->learn($this->item('JACK DANIELS 0,7L', sellerCode: 'JD-07'), $this->jack);
+        $byAlias = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07');
+        $noSize = $this->item('Whisky Demo');
+        $this->interpreter->answer('Whisky Demo', $this->jack->getId()->toRfc4122(), InterpretationConfidence::High, null);
+
+        $this->match([$byAlias, $noSize]);
+
+        self::assertSame([MatchSource::SellerCode, null], [$byAlias->getMatchSource(), $byAlias->getMatchCaveat()]);
+        self::assertSame([PurchasedItemStatus::Suggested, MatchSource::Model, MatchCaveat::SizeUnknown], [$noSize->getStatus(), $noSize->getMatchSource(), $noSize->getMatchCaveat()]);
+    }
+
+    public function test_it_lowers_an_assigned_item_whose_price_per_litre_is_far_from_the_confirmed_median_to_suggested(): void
+    {
+        $this->confirmPrices($this->jack, PriceSanity::MIN_SAMPLE);
+        $this->learn($this->item('JACK DANIELS 0,7L', sellerCode: 'JD-07'), $this->jack);
+        $normal = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07');
+        // The same row with ten times the price: a pack of six read as one bottle's worth, or the other way round.
+        $dear = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07', net: 487_800);
+        $cheap = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07', net: 4_878);
+
+        $this->match([$normal, $dear, $cheap]);
+
+        self::assertSame([PurchasedItemStatus::Assigned, null], [$normal->getStatus(), $normal->getMatchCaveat()]);
+        foreach ([$dear, $cheap] as $item) {
+            self::assertSame([PurchasedItemStatus::Suggested, MatchCaveat::PriceOutlier, MatchSource::SellerCode], [$item->getStatus(), $item->getMatchCaveat(), $item->getMatchSource()]);
+            self::assertSame([$this->jack, '0.7'], [$item->getProduct(), $item->getPackageSize()], 'It is still linked, with its size: only a person confirms it.');
+        }
+    }
+
+    public function test_it_does_not_check_the_price_against_too_few_confirmed_items(): void
+    {
+        $this->confirmPrices($this->jack, PriceSanity::MIN_SAMPLE - 1);
+        $this->learn($this->item('JACK DANIELS 0,7L', sellerCode: 'JD-07'), $this->jack);
+        $dear = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07', net: 487_800);
+
+        $this->match([$dear]);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $dear->getStatus());
+    }
+
+    public function test_it_samples_only_confirmed_items_of_the_product_in_the_items_currency(): void
+    {
+        // Five confirmed items of another product, five in euro, and five matched but not confirmed: none says anything about this price.
+        $this->confirmPrices($this->honey, PriceSanity::MIN_SAMPLE);
+        $this->confirmPrices($this->jack, PriceSanity::MIN_SAMPLE, currency: 'EUR');
+        for ($i = 0; $i < PriceSanity::MIN_SAMPLE; ++$i) {
+            $this->item('Assigned '.$i)->match($this->jack, '0.7', PurchasedItemStatus::Assigned, new \DateTimeImmutable(self::NOW));
+        }
+        $this->learn($this->item('JACK DANIELS 0,7L', sellerCode: 'JD-07'), $this->jack);
+        $dear = $this->item('Whiskey JD 0,7l', sellerCode: 'JD-07', net: 487_800);
+
+        $this->match([$dear]);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $dear->getStatus());
+    }
+
+    public function test_it_checks_the_price_of_what_the_model_assigns_too(): void
+    {
+        $this->confirmPrices($this->jack, PriceSanity::MIN_SAMPLE);
+        $dear = $this->item('Whiskey Old No.7 0,7l', net: 487_800);
+        $this->interpreter->answer('Whiskey Old No.7 0,7l', $this->jack->getId()->toRfc4122(), InterpretationConfidence::High, '0.7');
+
+        $this->match([$dear]);
+
+        self::assertSame([PurchasedItemStatus::Suggested, MatchSource::Model, MatchCaveat::PriceOutlier], [$dear->getStatus(), $dear->getMatchSource(), $dear->getMatchCaveat()]);
+    }
+
+    public function test_it_leaves_a_product_without_a_unit_and_an_item_without_a_size_unchecked(): void
+    {
+        $this->confirmPrices($this->rent, PriceSanity::MIN_SAMPLE);
+        $this->learn($this->item('Czynsz', unit: 'mies.'), $this->rent);
+        $rent = $this->item('Czynsz', unit: 'mies.', net: 9_999_999);
+
+        $this->match([$rent]);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $rent->getStatus());
+    }
+
     public function test_it_refuses_another_organization(): void
     {
         $this->expectException(\LogicException::class);
@@ -396,13 +479,21 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $this->aliases->saveAll($aliases);
     }
 
-    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, string $unit = 'szt.', string $sellerTaxId = '5265877635'): PurchasedItem
+    /** Items a person confirmed to the product, 6 bottles of 0.7 L each at the given net amount: the sample of the price check. */
+    private function confirmPrices(Product $product, int $count, int $net = 48_780, string $currency = 'PLN'): void
+    {
+        for ($i = 0; $i < $count; ++$i) {
+            $this->item('Confirmed '.$i, net: $net, currency: $currency)->link($product, '0.7', Uuid::v7(), MembershipRole::Owner);
+        }
+    }
+
+    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, string $unit = 'szt.', string $sellerTaxId = '5265877635', int $net = 48_780, string $currency = 'PLN'): PurchasedItem
     {
         static $index = 0;
         ++$index;
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
-            Uuid::v7(), $index, BusinessDate::fromString('2026-11-10'), 'regular', 'PLN', $sellerTaxId, 'Hurtownia Napojów',
-            $index, $name, $sellerCode, $gtin, $unit, '6', '81.3', '100', null, 48_780, 60_000, 11_220, '23', false,
+            Uuid::v7(), $index, BusinessDate::fromString('2026-11-10'), 'regular', $currency, $sellerTaxId, 'Hurtownia Napojów',
+            $index, $name, $sellerCode, $gtin, $unit, '6', '81.3', '100', null, $net, 60_000, 11_220, '23', false,
         ), new \DateTimeImmutable('2026-11-25 03:00:00'));
         $this->items->addAll([$item]);
 
