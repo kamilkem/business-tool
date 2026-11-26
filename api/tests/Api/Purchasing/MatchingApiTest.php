@@ -58,7 +58,9 @@ final class MatchingApiTest extends ApiTestCase
     public function test_it_says_when_the_model_is_switched_off(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
-        static::getContainer()->get(InMemoryItemInterpreter::class)->available = false;
+        $interpreter = self::testService(InMemoryItemInterpreter::class);
+        self::assertInstanceOf(InMemoryItemInterpreter::class, $interpreter);
+        $interpreter->available = false;
 
         $status = self::clientFor($owner, $organization)->request('GET', '/api/purchased-items/match')->toArray();
 
@@ -190,6 +192,12 @@ final class MatchingApiTest extends ApiTestCase
     }
 
     // ---- Arranging ----
+
+    /** A service registered for the test env only, which static analysis (dev container) does not know. */
+    private static function testService(string $id): object
+    {
+        return self::getContainer()->get($id);
+    }
 
     /** @return array{string, ?string} */
     private static function runState(\App\User\Domain\Model\User $user, Organization $organization): array
