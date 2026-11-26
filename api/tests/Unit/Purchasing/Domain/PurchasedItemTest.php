@@ -8,6 +8,7 @@ use App\Organization\Domain\Model\MembershipRole;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Purchasing\Domain\Model\Product;
+use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
@@ -240,6 +241,119 @@ final class PurchasedItemTest extends TestCase
     {
         $this->expectException(\LogicException::class);
         self::item()->match(self::product('Jack Daniel\'s'), '0.7', PurchasedItemStatus::Confirmed, new \DateTimeImmutable('2026-11-26 03:00:00'));
+    }
+
+    public function test_it_carries_a_proposal_keyed_by_the_proposed_names_normal_form(): void
+    {
+        $item = self::item();
+        $category = ProductCategory::create(Uuid::v7(), 'Whisky', null, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
+
+        $item->propose("  Jack   Daniel's ", ProductMeasure::Volume, $category);
+
+        self::assertTrue($item->hasProposal());
+        self::assertSame(["Jack Daniel's", 'jack daniels', ProductMeasure::Volume, $category], [$item->getProposedName(), $item->getProposedNameKey(), $item->getProposedMeasure(), $item->getProposedCategory()]);
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus(), 'A proposal links nothing.');
+        self::assertNull($item->getProduct());
+    }
+
+    /** @return iterable<string, array{?string, ?ProductMeasure}> */
+    public static function noProposals(): iterable
+    {
+        yield 'no name' => [null, ProductMeasure::Volume];
+        yield 'a blank name' => ['   ', ProductMeasure::Volume];
+        yield 'no letters or digits' => ['***', ProductMeasure::Volume];
+        yield 'no measure' => ['Jack', null];
+        yield 'too long' => [str_repeat('a', Product::NAME_MAX_LENGTH + 1), ProductMeasure::Volume];
+    }
+
+    #[DataProvider('noProposals')]
+    public function test_it_replaces_a_proposal_with_none_when_matching_has_nothing_usable(?string $name, ?ProductMeasure $measure): void
+    {
+        $item = self::item();
+        $item->propose('Jack', ProductMeasure::Volume, null);
+
+        $item->propose($name, $measure, null);
+
+        self::assertFalse($item->hasProposal());
+        self::assertNull($item->getProposedName());
+        self::assertNull($item->getProposedNameKey());
+        self::assertNull($item->getProposedMeasure());
+    }
+
+    public function test_it_drops_the_proposal_when_it_is_linked_by_a_person_or_matching(): void
+    {
+        $byPerson = self::item();
+        $byMatching = self::item();
+        $byPerson->propose('Jack', ProductMeasure::Volume, null);
+        $byMatching->propose('Jack', ProductMeasure::Volume, null);
+
+        $byPerson->link(self::product('Jack'), '0.7', $this->actorId, MembershipRole::Owner);
+        $byMatching->match(self::product('Jack'), '0.7', PurchasedItemStatus::Suggested, new \DateTimeImmutable('2026-11-26 03:00:00'));
+
+        self::assertFalse($byPerson->hasProposal());
+        self::assertFalse($byMatching->hasProposal());
+    }
+
+    public function test_it_keeps_the_proposal_when_matching_found_no_product(): void
+    {
+        $item = self::item();
+        $item->propose('Jack', ProductMeasure::Volume, null);
+
+        $item->match(null, null, PurchasedItemStatus::Unassigned, new \DateTimeImmutable('2026-11-26 03:00:00'));
+
+        self::assertTrue($item->hasProposal());
+    }
+
+    public function test_it_is_never_proposed_for_once_linked_confirmed_or_taken_off_its_product(): void
+    {
+        $linked = self::item();
+        $linked->match(self::product('Jack'), '0.7', PurchasedItemStatus::Assigned, new \DateTimeImmutable('2026-11-26 03:00:00'));
+        $confirmed = self::item();
+        $confirmed->link(self::product('Jack'), '0.7', $this->actorId, MembershipRole::Owner);
+        $removed = self::item();
+        $removed->link(null, null, $this->actorId, MembershipRole::Owner);
+
+        foreach ([$linked, $confirmed, $removed] as $item) {
+            try {
+                $item->propose('Jack', ProductMeasure::Volume, null);
+                self::fail('Matching must not read this item.');
+            } catch (\LogicException) {
+            }
+            self::assertFalse($item->hasProposal());
+        }
+    }
+
+    public function test_it_remembers_a_dismissed_proposal_and_does_not_propose_that_name_again(): void
+    {
+        $item = self::item();
+        $item->propose('Jack Daniel\'s', ProductMeasure::Volume, null);
+
+        $item->dismissProposal($this->actorId, MembershipRole::Manager);
+
+        self::assertFalse($item->hasProposal());
+        self::assertTrue($item->isMatchable(), 'The item stays unassigned and open to matching.');
+        $item->propose('JACK DANIELS', ProductMeasure::Volume, null);
+        self::assertFalse($item->hasProposal(), 'The same name, spelled otherwise.');
+        $item->propose('Jack Daniel\'s Honey', ProductMeasure::Volume, null);
+        self::assertSame('Jack Daniel\'s Honey', $item->getProposedName(), 'Another name is a new proposal.');
+    }
+
+    public function test_it_refuses_an_employee_dismissing_a_proposal_and_ignores_dismissing_none(): void
+    {
+        $item = self::item();
+        $item->propose('Jack', ProductMeasure::Volume, null);
+
+        try {
+            $item->dismissProposal($this->actorId, MembershipRole::Employee);
+            self::fail('Employees decide nothing.');
+        } catch (PurchasingManagementForbiddenException) {
+        }
+        self::assertTrue($item->hasProposal());
+
+        $other = self::item();
+        $other->dismissProposal($this->actorId, MembershipRole::Owner);
+        $other->propose('Jack', ProductMeasure::Volume, null);
+        self::assertTrue($other->hasProposal(), 'Dismissing nothing remembers nothing.');
     }
 
     private static function item(): PurchasedItem

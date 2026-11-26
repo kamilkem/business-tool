@@ -6,6 +6,7 @@ namespace App\Purchasing\Application\Command\CreateProduct;
 
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Purchasing\Application\PurchasingActor;
+use App\Purchasing\Domain\Event\ProductCreated;
 use App\Purchasing\Domain\Exception\InvalidProductNameException;
 use App\Purchasing\Domain\Exception\InvalidProductReferenceQuantityException;
 use App\Purchasing\Domain\Exception\ProductNameTakenException;
@@ -17,6 +18,7 @@ use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -26,6 +28,7 @@ final readonly class CreateProductHandler implements CommandHandlerInterface
         private ProductRepositoryInterface $products,
         private ProductCategoryRepositoryInterface $categories,
         private QueryBusInterface $queryBus,
+        private EventPublisherInterface $events,
         private ClockInterface $clock,
     ) {
     }
@@ -62,5 +65,6 @@ final readonly class CreateProductHandler implements CommandHandlerInterface
         );
 
         $this->products->add($product);
+        $this->events->publish(new ProductCreated($command->organizationId, $command->productId));
     }
 }

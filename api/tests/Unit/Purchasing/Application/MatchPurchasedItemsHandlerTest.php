@@ -9,11 +9,14 @@ use App\Organization\Domain\Model\Organization;
 use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsCommand;
 use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsHandler;
 use App\Purchasing\Domain\Exception\ItemInterpreterUnavailableException;
+use App\Purchasing\Domain\Matching\CatalogCategory;
 use App\Purchasing\Domain\Matching\InterpretationConfidence;
+use App\Purchasing\Domain\Matching\ProductProposal;
 use App\Purchasing\Domain\Model\AliasKeys;
 use App\Purchasing\Domain\Model\AliasKind;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductAlias;
+use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
@@ -39,6 +42,8 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
 
     private InMemoryPurchasedItemRepository $items;
     private InMemoryProductRepository $products;
+    private InMemoryProductCategoryRepository $categories;
+    private ProductCategory $whisky;
     private InMemoryProductAliasRepository $aliases;
     private InMemorySellerUnitRepository $sellerUnits;
     private InMemoryItemInterpreter $interpreter;
@@ -52,6 +57,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
     {
         $this->items = new InMemoryPurchasedItemRepository();
         $this->products = new InMemoryProductRepository();
+        $this->categories = new InMemoryProductCategoryRepository();
         $this->aliases = new InMemoryProductAliasRepository();
         $this->sellerUnits = new InMemorySellerUnitRepository();
         $this->interpreter = new InMemoryItemInterpreter();
@@ -61,12 +67,16 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $tenantContext->switchTo($this->organization);
 
         $created = new \DateTimeImmutable('2026-11-01 10:00:00');
+        $alcohol = ProductCategory::create(Uuid::v7(), 'Alcohol', null, null, $owner->getId(), MembershipRole::Owner, $created);
+        $this->whisky = ProductCategory::create(Uuid::v7(), 'Whisky', $alcohol, null, $owner->getId(), MembershipRole::Owner, $created);
+        $this->categories->add($alcohol);
+        $this->categories->add($this->whisky);
         foreach (['jack' => ['Jack Daniel\'s', ProductMeasure::Volume], 'honey' => ['Jack Daniel\'s Honey', ProductMeasure::Volume], 'rent' => ['Czynsz', ProductMeasure::None]] as $property => [$name, $measure]) {
             $this->{$property} = Product::create(Uuid::v7(), $name, null, $measure, null, false, null, $owner->getId(), MembershipRole::Owner, $created);
             $this->products->add($this->{$property});
         }
 
-        $this->handler = new MatchPurchasedItemsHandler($this->items, $this->products, $this->aliases, $this->sellerUnits, $this->interpreter, $tenantContext, new MockClock(self::NOW), new NullLogger());
+        $this->handler = new MatchPurchasedItemsHandler($this->items, $this->products, $this->categories, $this->aliases, $this->sellerUnits, $this->interpreter, $tenantContext, new MockClock(self::NOW), new NullLogger());
     }
 
     public function test_it_assigns_by_the_strongest_alias_and_takes_the_package_size_from_the_name(): void
@@ -211,7 +221,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertNull($item->getProduct());
     }
 
-    public function test_it_does_not_call_the_model_for_alias_only_matching_without_one_or_without_a_catalog(): void
+    public function test_it_does_not_call_the_model_for_alias_only_matching_or_without_one(): void
     {
         $item = $this->item('J.DANIELS 1L');
         $this->interpreter->answer('J.DANIELS 1L', $this->jack->getId()->toRfc4122());
@@ -223,11 +233,102 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $this->interpreter->available = false;
         $this->match([$item]);
         self::assertSame([], $this->interpreter->calls);
+    }
 
-        $this->interpreter->available = true;
-        $empty = new MatchPurchasedItemsHandler($this->items, new InMemoryProductRepository(), $this->aliases, $this->sellerUnits, $this->interpreter, $this->tenantContext(), new MockClock(self::NOW), new NullLogger());
+    public function test_it_asks_the_model_for_proposals_also_when_the_catalog_is_empty(): void
+    {
+        $item = $this->item('TYSKIE GOLD 0,5L');
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie', ProductMeasure::Volume, null));
+        $empty = new MatchPurchasedItemsHandler($this->items, new InMemoryProductRepository(), $this->categories, $this->aliases, $this->sellerUnits, $this->interpreter, $this->tenantContext(), new MockClock(self::NOW), new NullLogger());
+
         $empty(new MatchPurchasedItemsCommand($this->organizationId(), [$item->getId()->toRfc4122()], true));
-        self::assertSame([], $this->interpreter->calls);
+
+        self::assertCount(1, $this->interpreter->calls);
+        self::assertSame([], $this->interpreter->calls[0]['catalog']);
+        self::assertSame('Tyskie', $item->getProposedName());
+    }
+
+    public function test_it_stores_what_the_model_proposes_for_an_item_no_product_is_and_creates_nothing(): void
+    {
+        $item = $this->item('TYSKIE GOLD 0,5L', sellerCode: 'T-05');
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie', ProductMeasure::Volume, $this->whisky->getId()->toRfc4122()));
+        $before = $this->products->search(null, null);
+
+        $this->match([$item]);
+
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+        self::assertNull($item->getProduct());
+        self::assertSame(['Tyskie', 'tyskie', ProductMeasure::Volume, $this->whisky], [$item->getProposedName(), $item->getProposedNameKey(), $item->getProposedMeasure(), $item->getProposedCategory()]);
+        self::assertNotNull($item->getMatchedAt());
+        self::assertSame($before, $this->products->search(null, null), 'Matching never creates a product (ADR 0044).');
+        // The category tree goes to the model as ids and paths.
+        self::assertEquals([new CatalogCategory($this->whisky->getParent()?->getId()->toRfc4122() ?? '', 'Alcohol'), new CatalogCategory($this->whisky->getId()->toRfc4122(), 'Alcohol > Whisky')], $this->interpreter->calls[0]['categories']);
+    }
+
+    public function test_it_drops_a_category_that_is_not_the_organizations(): void
+    {
+        $item = $this->item('TYSKIE GOLD 0,5L');
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie', ProductMeasure::Volume, Uuid::v7()->toRfc4122()));
+
+        $this->match([$item]);
+
+        self::assertSame('Tyskie', $item->getProposedName());
+        self::assertNull($item->getProposedCategory());
+    }
+
+    public function test_it_treats_a_proposed_name_that_a_product_has_as_a_suggested_match(): void
+    {
+        $item = $this->item('Whiskey JD 0,7l');
+        $this->interpreter->propose('Whiskey JD 0,7l', new ProductProposal('JACK DANIEL\'S', ProductMeasure::Volume, null));
+
+        $this->match([$item]);
+
+        self::assertSame($this->jack, $item->getProduct());
+        self::assertSame(PurchasedItemStatus::Suggested, $item->getStatus(), 'The model said "no product" and then named one: a person confirms it.');
+        self::assertFalse($item->hasProposal());
+    }
+
+    public function test_it_does_not_propose_again_what_a_person_dismissed_for_the_item(): void
+    {
+        $item = $this->item('TYSKIE GOLD 0,5L');
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie', ProductMeasure::Volume, null));
+        $this->match([$item]);
+        $item->dismissProposal(Uuid::v7(), MembershipRole::Owner);
+
+        $this->match([$item]);
+        self::assertFalse($item->hasProposal(), 'The same name again: dismissed.');
+
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie Gold', ProductMeasure::Volume, null));
+        $this->match([$item]);
+        self::assertSame('Tyskie Gold', $item->getProposedName(), 'Another name is a new proposal.');
+    }
+
+    public function test_it_withdraws_a_proposal_when_the_item_is_matched_or_the_model_has_none(): void
+    {
+        $matched = $this->item('JD 0,7l');
+        $gone = $this->item('TYSKIE 0,5l');
+        $this->interpreter->propose('JD 0,7l', new ProductProposal('Jack', ProductMeasure::Volume, null));
+        $this->interpreter->propose('TYSKIE 0,5l', new ProductProposal('Tyskie', ProductMeasure::Volume, null));
+        $this->match([$matched, $gone]);
+        self::assertTrue($matched->hasProposal() && $gone->hasProposal());
+
+        $this->interpreter->answer('JD 0,7l', $this->jack->getId()->toRfc4122(), InterpretationConfidence::High);
+        $this->interpreter->answer('TYSKIE 0,5l', null, InterpretationConfidence::Low);
+        $this->match([$matched, $gone]);
+
+        self::assertSame($this->jack, $matched->getProduct());
+        self::assertFalse($matched->hasProposal());
+        self::assertFalse($gone->hasProposal());
+    }
+
+    public function test_it_proposes_nothing_for_an_unusable_name(): void
+    {
+        $item = $this->item('Cos');
+        $this->interpreter->propose('Cos', new ProductProposal('***', ProductMeasure::Count, null));
+
+        $this->match([$item]);
+
+        self::assertFalse($item->hasProposal(), 'A name with no letters or digits is no name.');
     }
 
     public function test_it_saves_what_the_aliases_decided_and_rethrows_when_the_model_is_unavailable(): void

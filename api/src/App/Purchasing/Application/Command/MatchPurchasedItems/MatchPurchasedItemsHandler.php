@@ -6,7 +6,9 @@ namespace App\Purchasing\Application\Command\MatchPurchasedItems;
 
 use App\Organization\Domain\TenantContextInterface;
 use App\Purchasing\Domain\Exception\ItemInterpreterUnavailableException;
+use App\Purchasing\Domain\Matching\CatalogCategory;
 use App\Purchasing\Domain\Matching\CatalogProduct;
+use App\Purchasing\Domain\Matching\InterpretationConfidence;
 use App\Purchasing\Domain\Matching\ItemInterpretation;
 use App\Purchasing\Domain\Matching\ItemInterpreterInterface;
 use App\Purchasing\Domain\Matching\ItemReader;
@@ -17,9 +19,11 @@ use App\Purchasing\Domain\Model\AliasKeys;
 use App\Purchasing\Domain\Model\AliasKind;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductAlias;
+use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\ProductAliasRepositoryInterface;
+use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Purchasing\Domain\Repository\SellerUnitRepositoryInterface;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
@@ -42,6 +46,10 @@ use Symfony\Component\Uid\Uuid;
  *    the exception is rethrown, so the job stops and the unanswered items stay for a later run.
  *
  * Items the model answered for, or found nothing for, are noted as matched, so it is not asked again.
+ *
+ * For an item no product is, the model may also propose one (name, measure, a category of the tree);
+ * the proposal is stored on the item for a person to accept (ADR 0044). A proposed name that is the name of a
+ * product that exists is a match to it, `suggested`, not a proposal. Nothing here creates a product.
  */
 final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterface
 {
@@ -51,6 +59,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
     public function __construct(
         private PurchasedItemRepositoryInterface $items,
         private ProductRepositoryInterface $products,
+        private ProductCategoryRepositoryInterface $categories,
         private ProductAliasRepositoryInterface $aliases,
         private SellerUnitRepositoryInterface $sellerUnits,
         private ItemInterpreterInterface $interpreter,
@@ -172,9 +181,12 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             $products[$product->getId()->toRfc4122()] = $product;
             $catalog[] = new CatalogProduct($product->getId()->toRfc4122(), $product->getName(), $product->getMeasure()->value, $product->getCategory()?->getName());
         }
-        if ([] === $catalog) {
-            return 0;
+        /** @var array<string, ProductCategory> $categoriesById */
+        $categoriesById = [];
+        foreach ($this->categories->findAll() as $category) {
+            $categoriesById[$category->getId()->toRfc4122()] = $category;
         }
+        $choices = $this->categoryChoices($categoriesById);
 
         // One question per distinct name, unit and code: the same row on twenty invoices is asked once.
         /** @var array<string, list<PurchasedItem>> $groups */
@@ -190,15 +202,14 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         $asked = 0;
         foreach (array_chunk($questions, self::BATCH_SIZE) as $batch) {
             /** @var non-empty-list<ItemToInterpret> $batch */
-            /** @var non-empty-list<CatalogProduct> $catalog */
             $answers = [];
-            foreach ($this->interpreter->interpret($catalog, $batch) as $answer) {
+            foreach ($this->interpreter->interpret($catalog, $choices, $batch) as $answer) {
                 $answers[$answer->key] = $answer;
             }
             foreach ($batch as $question) {
                 $asked += \count($groups[$question->key]);
                 foreach ($groups[$question->key] as $item) {
-                    $this->apply($item, $answers[$question->key] ?? null, $products, $multipliers, $now);
+                    $this->apply($item, $answers[$question->key] ?? null, $products, $categoriesById, $multipliers, $now);
                 }
             }
         }
@@ -207,22 +218,70 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
     }
 
     /**
-     * @param array<string, Product> $products
-     * @param array<string, int>     $multipliers
+     * @param array<string, Product>         $products
+     * @param array<string, ProductCategory> $categories
+     * @param array<string, int>             $multipliers
      */
-    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $multipliers, \DateTimeImmutable $now): void
+    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $categories, array $multipliers, \DateTimeImmutable $now): void
     {
         $product = null === $answer || null === $answer->productId ? null : ($products[$answer->productId] ?? null);
         $decision = null === $answer || null === $product
             ? null
             : MatchDecision::fromInterpretation($product, $answer, $this->readingOf($item, $multipliers));
 
+        if (null === $decision && null !== $answer?->proposal) {
+            // No product of the catalog, but the proposed name is one that exists: that is a match to it, for a person to confirm.
+            $named = $this->productNamed($answer->proposal->name, $products);
+            if (null !== $named) {
+                $decision = MatchDecision::fromInterpretation($named, new ItemInterpretation($answer->key, $named->getId()->toRfc4122(), InterpretationConfidence::Medium, $answer->packageSize), $this->readingOf($item, $multipliers));
+            }
+        }
+
         if (null === $decision) {
             $item->match(null, null, PurchasedItemStatus::Unassigned, $now);
+            $proposal = $answer?->proposal;
+            $item->propose($proposal?->name, $proposal?->measure, null === $proposal?->categoryId ? null : ($categories[$proposal->categoryId] ?? null));
 
             return;
         }
         $item->match($decision->product, $decision->packageSize, $decision->status, $now);
+    }
+
+    /**
+     * @param array<string, Product> $products
+     */
+    private function productNamed(string $name, array $products): ?Product
+    {
+        $key = Product::nameKeyOf($name);
+        foreach ($products as $product) {
+            if (Product::nameKeyOf($product->getName()) === $key) {
+                return $product;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The categories as paths of names, `Alcohol > Spirits`, for the model to choose from by id.
+     *
+     * @param array<string, ProductCategory> $categories
+     *
+     * @return list<CatalogCategory>
+     */
+    private function categoryChoices(array $categories): array
+    {
+        $choices = [];
+        foreach ($categories as $id => $category) {
+            $path = [$category->getName()];
+            for ($parent = $category->getParent(), $depth = 0; null !== $parent && $depth < 32; $parent = $parent->getParent(), ++$depth) {
+                array_unshift($path, $parent->getName());
+            }
+            $choices[] = new CatalogCategory($id, implode(' > ', $path));
+        }
+        usort($choices, static fn (CatalogCategory $a, CatalogCategory $b): int => $a->path <=> $b->path);
+
+        return $choices;
     }
 
     /**

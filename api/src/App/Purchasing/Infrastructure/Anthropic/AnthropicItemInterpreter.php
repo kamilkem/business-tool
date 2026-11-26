@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Purchasing\Infrastructure\Anthropic;
 
 use App\Purchasing\Domain\Exception\ItemInterpreterUnavailableException;
+use App\Purchasing\Domain\Matching\CatalogCategory;
 use App\Purchasing\Domain\Matching\CatalogProduct;
 use App\Purchasing\Domain\Matching\InterpretationConfidence;
 use App\Purchasing\Domain\Matching\ItemInterpretation;
 use App\Purchasing\Domain\Matching\ItemInterpreterInterface;
 use App\Purchasing\Domain\Matching\ItemToInterpret;
+use App\Purchasing\Domain\Matching\ProductProposal;
+use App\Purchasing\Domain\Model\Product;
+use App\Purchasing\Domain\Model\ProductMeasure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -20,8 +24,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * items, with the organization's catalog in a cached system block and the answers as structured
  * output (`output_config.format`, a JSON schema), so the reply is always the shape the schema says.
  *
- * Sent: the catalog's product ids, names, measures and category names, and each item's name, unit and
- * seller code. Never prices, quantities, dates, invoice numbers or seller names (ADR 0042 §6).
+ * Sent: the catalog's product ids, names, measures and category names, the category tree as ids and paths
+ * of names, and each item's name, unit and seller code. Never prices, quantities, dates, invoice numbers
+ * or seller names (ADR 0042 §6, ADR 0044). For an item no product is, it also asks for a proposed product:
+ * a name, a measure and a category of the tree by id (ADR 0044).
  *
  * No API key configured: not available, and never called. Anything that is not an answer (a transport
  * error, a status other than 200, a refusal, a cut-off or unreadable reply) is an
@@ -51,14 +57,14 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
         return '' !== trim($this->apiKey);
     }
 
-    public function interpret(array $catalog, array $items): array
+    public function interpret(array $catalog, array $categories, array $items): array
     {
         if (!$this->isAvailable()) {
             throw ItemInterpreterUnavailableException::because('no API key is configured');
         }
 
         try {
-            $response = $this->anthropicClient->request('POST', '/v1/messages', ['json' => $this->requestBody($catalog, $items)]);
+            $response = $this->anthropicClient->request('POST', '/v1/messages', ['json' => $this->requestBody($catalog, $categories, $items)]);
             $status = $response->getStatusCode();
             if (200 !== $status) {
                 throw ItemInterpreterUnavailableException::because(\sprintf('the API answered %d%s', $status, $this->errorType($response)));
@@ -69,16 +75,17 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
             throw ItemInterpreterUnavailableException::because('the request failed ('.$e::class.')', $e);
         }
 
-        return $this->answersIn($body, $catalog, $items);
+        return $this->answersIn($body, $catalog, $categories, $items);
     }
 
     /**
-     * @param non-empty-list<CatalogProduct>  $catalog
+     * @param list<CatalogProduct>            $catalog
+     * @param list<CatalogCategory>           $categories
      * @param non-empty-list<ItemToInterpret> $items
      *
      * @return array<string, mixed>
      */
-    private function requestBody(array $catalog, array $items): array
+    private function requestBody(array $catalog, array $categories, array $items): array
     {
         return [
             'model' => $this->model,
@@ -90,7 +97,7 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
             // The instructions and the catalog are the same for every batch of a run: cached.
             'system' => [[
                 'type' => 'text',
-                'text' => self::instructions().$this->catalogText($catalog),
+                'text' => self::instructions().$this->catalogText($catalog).self::categoriesHeading().$this->categoriesText($categories),
                 'cache_control' => ['type' => 'ephemeral'],
             ]],
             'messages' => [[
@@ -106,12 +113,26 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
         ];
     }
 
-    /** @param non-empty-list<CatalogProduct> $catalog */
+    /** @param list<CatalogProduct> $catalog */
     private function catalogText(array $catalog): string
     {
-        return implode("\n", array_map(
+        return [] === $catalog ? '(no products yet)' : implode("\n", array_map(
             static fn (CatalogProduct $product): string => \sprintf('%s | %s | %s | %s', $product->id, $product->name, $product->measure, $product->categoryName ?? '-'),
             $catalog,
+        ));
+    }
+
+    private static function categoriesHeading(): string
+    {
+        return "\n\nCategories, one per line: id | path\n";
+    }
+
+    /** @param list<CatalogCategory> $categories */
+    private function categoriesText(array $categories): string
+    {
+        return [] === $categories ? '(no categories)' : implode("\n", array_map(
+            static fn (CatalogCategory $category): string => $category->id.' | '.$category->path,
+            $categories,
         ));
     }
 
@@ -134,6 +155,11 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
             - For a product that is not goods (rent, electricity, deposit, delivery) the package size is "".
             - Answer for every item, with the key it was given.
 
+            Proposing a product: when no catalog product is the item (productId ""), propose the product to create for it; otherwise leave all three fields below "".
+            - proposedName: the short, generic name of the product the line is: brand and kind, as the owner would write it in a list ("Jack Daniel's", "Coca-Cola Zero", "Czynsz"), without package size, ABV, pack words (szt., kart.), seller codes or promo text. One name for every spelling and size of the product, so the same product always gets the same name. Use the language of the catalog's names when it has any. Never the name of a catalog product: when the line is that product, answer its productId instead.
+            - proposedMeasure: "volume" for drinks and other liquids sold by volume, "mass" for what is sold by weight, "count" for what is counted in pieces, "none" for what is not goods (rent, electricity, deposit, delivery, services).
+            - proposedCategoryId: the id of the one category of the list below that fits best, copied exactly, or "" when none fits. Never invent an id or a category.
+
             Catalog, one product per line: id | name | measure | category
             TEXT."\n";
     }
@@ -151,12 +177,15 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
-                        'required' => ['key', 'productId', 'confidence', 'packageSize'],
+                        'required' => ['key', 'productId', 'confidence', 'packageSize', 'proposedName', 'proposedMeasure', 'proposedCategoryId'],
                         'properties' => [
                             'key' => ['type' => 'string'],
                             'productId' => ['type' => 'string'],
                             'confidence' => ['type' => 'string', 'enum' => ['high', 'medium', 'low']],
                             'packageSize' => ['type' => 'string'],
+                            'proposedName' => ['type' => 'string'],
+                            'proposedMeasure' => ['type' => 'string', 'enum' => ['', ...array_map(static fn (ProductMeasure $measure): string => $measure->value, ProductMeasure::cases())]],
+                            'proposedCategoryId' => ['type' => 'string'],
                         ],
                     ],
                 ],
@@ -166,12 +195,13 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
 
     /**
      * @param array<string, mixed>            $body
-     * @param non-empty-list<CatalogProduct>  $catalog
+     * @param list<CatalogProduct>            $catalog
+     * @param list<CatalogCategory>           $categories
      * @param non-empty-list<ItemToInterpret> $items
      *
      * @return list<ItemInterpretation>
      */
-    private function answersIn(array $body, array $catalog, array $items): array
+    private function answersIn(array $body, array $catalog, array $categories, array $items): array
     {
         $stop = \is_string($body['stop_reason'] ?? null) ? $body['stop_reason'] : '';
         if ('end_turn' !== $stop) {
@@ -192,6 +222,7 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
 
         $keys = array_flip(array_map(static fn (ItemToInterpret $item): string => $item->key, $items));
         $productIds = array_flip(array_map(static fn (CatalogProduct $product): string => $product->id, $catalog));
+        $categoryIds = array_flip(array_map(static fn (CatalogCategory $category): string => $category->id, $categories));
 
         $answers = [];
         foreach ($decoded['answers'] as $answer) {
@@ -205,10 +236,30 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
                 $productId,
                 InterpretationConfidence::tryFrom(\is_string($answer['confidence'] ?? null) ? $answer['confidence'] : '') ?? InterpretationConfidence::Low,
                 $size,
+                null === $productId ? self::proposalIn($answer, $categoryIds) : null,
             );
         }
 
         return array_values($answers);
+    }
+
+    /**
+     * The proposal of an answer: only with a name and a measure that are valid, and a category that is one
+     * of the organization's; a category that is not (an invented id) is dropped, the rest stays.
+     *
+     * @param array<mixed>       $answer
+     * @param array<string, int> $categoryIds the ids of the categories that were sent, as keys
+     */
+    private static function proposalIn(array $answer, array $categoryIds): ?ProductProposal
+    {
+        $name = \is_string($answer['proposedName'] ?? null) ? trim($answer['proposedName']) : '';
+        $measure = \is_string($answer['proposedMeasure'] ?? null) ? ProductMeasure::tryFrom($answer['proposedMeasure']) : null;
+        if ('' === $name || mb_strlen($name) > Product::NAME_MAX_LENGTH || null === $measure) {
+            return null;
+        }
+        $categoryId = \is_string($answer['proposedCategoryId'] ?? null) && isset($categoryIds[$answer['proposedCategoryId']]) ? $answer['proposedCategoryId'] : null;
+
+        return new ProductProposal($name, $measure, $categoryId);
     }
 
     /** The provider's error type (`rate_limit_error`), when the reply has one in the documented shape; nothing else of it is kept. */

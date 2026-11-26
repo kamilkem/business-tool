@@ -7,11 +7,13 @@ namespace App\Tests\Functional\Purchasing;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Purchasing\Application\Command\AcceptProductProposal\AcceptProductProposalCommand;
 use App\Purchasing\Application\Command\LearnProductAliases\LearnProductAliasesCommand;
 use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsCommand;
 use App\Purchasing\Application\Command\RecordPurchasedItems\RecordPurchasedItemsCommand;
 use App\Purchasing\Application\Job\MatchPurchasedItems\MatchPurchasedItemsJob;
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\ProductProposal;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
@@ -21,6 +23,7 @@ use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Application\Command\CommandBusInterface;
 use App\Tests\Factory\OrganizationFactory;
 use App\Tests\Fixtures\InMemoryItemInterpreter;
+use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\PurchasedItemMother;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -124,6 +127,45 @@ final class MatchingFlowTest extends KernelTestCase
         self::assertSame([], $this->interpreter->calls, 'The owner\'s alias settled it: no call to the model.');
         $confirmed = $this->items->findById($first);
         self::assertSame(PurchasedItemStatus::Confirmed, $confirmed?->getStatus());
+    }
+
+    public function test_it_stores_a_proposal_for_what_no_product_fits_and_a_person_accepting_it_creates_the_product(): void
+    {
+        $organization = OrganizationFactory::createOne();
+        $organizationId = $organization->getId()->toRfc4122();
+        $this->tenantContext->switchTo($organization);
+        $invoiceId = Uuid::v7()->toRfc4122();
+        $this->commandBus->handle(PurchasedItemMother::command($organizationId, $invoiceId, [
+            PurchasedItemMother::recorded(1, ['name' => 'TYSKIE GOLD 0,5L', 'sellerCode' => null, 'gtin' => null, 'unit' => 'szt.']),
+            PurchasedItemMother::recorded(2, ['name' => 'Tyskie Gold 0.5l puszka', 'sellerCode' => null, 'gtin' => null, 'unit' => 'szt.']),
+        ]));
+        $this->interpreter->propose('TYSKIE GOLD 0,5L', new ProductProposal('Tyskie', ProductMeasure::Volume, null));
+        $this->interpreter->propose('Tyskie Gold 0.5l puszka', new ProductProposal('TYSKIE', ProductMeasure::Volume, null));
+        $ids = array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), $this->items->findByInvoice(Uuid::fromString($invoiceId)));
+
+        // An empty catalog: the model is asked all the same, and the products are only proposed.
+        $this->commandBus->handle(new MatchPurchasedItemsCommand($organizationId, $ids, true));
+        $this->entityManager->clear();
+
+        self::assertSame([], $this->products->search(null, null), 'Matching creates no product.');
+        $proposed = $this->items->findProposed();
+        self::assertSame(['tyskie', 'tyskie'], array_map(static fn ($row): string => $row->key, $proposed));
+        self::assertCount(1, $this->interpreter->calls);
+        self::assertSame([], $this->interpreter->calls[0]['catalog']);
+
+        // Only a person's command creates it, and it takes every spelling at once.
+        $this->tenantContext->switchTo($this->entityManager->find(Organization::class, $organization->getId()) ?? throw new \LogicException('Organization expected.'));
+        $this->commandBus->handle(new AcceptProductProposalCommand($organizationId, OrganizationMother::ownerOf($organization)->getId()->toRfc4122(), 'tyskie', Uuid::v7()->toRfc4122(), 'Tyskie', 'volume'));
+        $this->entityManager->clear();
+
+        $products = $this->products->search(null, null);
+        self::assertCount(1, $products);
+        self::assertSame([], $this->items->findProposed());
+        foreach ($this->items->findByInvoice(Uuid::fromString($invoiceId)) as $item) {
+            self::assertSame(PurchasedItemStatus::Confirmed, $item->getStatus());
+            self::assertTrue($item->getProduct()?->getId()->equals($products[0]->getId()));
+            self::assertSame('0.5', $item->getPackageSize());
+        }
     }
 
     public function test_it_matches_only_inside_its_organization(): void

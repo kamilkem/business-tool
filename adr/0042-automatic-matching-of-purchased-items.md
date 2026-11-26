@@ -1,6 +1,6 @@
 # 0042. Purchased items are matched to products by the owner's remembered aliases first and a language model second, and the package size is read from the unit and the name
 
-Status: Accepted (points 5 and 6 amended for units of unknown count by [0043](0043-units-of-unknown-count-and-the-sellers-multiplier.md))
+Status: Accepted (points 5 and 6 amended for units of unknown count by [0043](0043-units-of-unknown-count-and-the-sellers-multiplier.md); proposing new products, §9, done by [0044](0044-the-model-proposes-products-the-owner-creates-them.md))
 
 Date: 2026-11-26
 

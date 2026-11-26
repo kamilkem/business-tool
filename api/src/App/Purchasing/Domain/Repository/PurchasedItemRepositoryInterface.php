@@ -6,6 +6,7 @@ namespace App\Purchasing\Domain\Repository;
 
 use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\Proposal\ProposedItem;
 use Symfony\Component\Uid\Uuid;
 
 /** Purchased items of the current organization only (TenantFilter). */
@@ -66,6 +67,21 @@ interface PurchasedItemRepositoryInterface
      * @return list<Uuid>
      */
     public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array;
+
+    /**
+     * The items that carry a proposal for a product (ADR 0044) and are still open to it: unassigned, not
+     * taken off a product by a person. By item name, then id; only scalars are read.
+     *
+     * @return list<ProposedItem>
+     */
+    public function findProposed(): array;
+
+    /**
+     * The items of one proposal, by the key of the proposed name (the same open items as findProposed()).
+     *
+     * @return list<PurchasedItem>
+     */
+    public function findByProposalKey(string $key): array;
 
     /** Whether an item is linked to the product. */
     public function hasItemsOfProduct(Uuid $productId): bool;

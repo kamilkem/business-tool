@@ -32,6 +32,23 @@ final readonly class ItemReading
     ) {
     }
 
+    /**
+     * The package size a person's confirmation of the item with a product of this measure starts from
+     * (ADR 0044): only what the text states strongly and in the product's measure, or one piece for a
+     * product counted in pieces with a piece unit and no size. Null when the text does not say.
+     */
+    public function packageSizeFor(ProductMeasure $measure): ?string
+    {
+        if (!$measure->hasUnit()) {
+            return null;
+        }
+        if ($this->hasSize()) {
+            return $this->strong && $this->measure === $measure ? $this->packageSize : null;
+        }
+
+        return ProductMeasure::Count === $measure && $this->pieceUnit && SizeSource::Ambiguous !== $this->source ? '1' : null;
+    }
+
     public function hasSize(): bool
     {
         return null !== $this->packageSize;

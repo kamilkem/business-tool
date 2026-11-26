@@ -188,6 +188,7 @@ purchasing.product_merge_into_itself
 purchasing.product_merge_target_not_found
 purchasing.product_name_taken
 purchasing.product_not_found
+purchasing.product_proposal_not_found
 purchasing.purchase_analysis_period_too_long
 purchasing.purchased_item_not_found
 purchasing.purchased_item_product_not_found

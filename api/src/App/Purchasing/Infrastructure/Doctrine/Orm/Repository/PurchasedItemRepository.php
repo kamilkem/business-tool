@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Purchasing\Infrastructure\Doctrine\Orm\Repository;
 
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
+use App\Purchasing\Domain\Proposal\ProposedItem;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -121,6 +123,37 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         return array_map(static fn (array $row): Uuid => $row['id'], $rows);
     }
 
+    public function findProposed(): array
+    {
+        /** @var list<array{id: Uuid, name: string, proposedName: string, proposedNameKey: string, proposedMeasure: ProductMeasure, categoryId: string|null}> $rows */
+        $rows = $this->proposing()
+            ->select('i.id AS id', 'i.name AS name', 'i.proposedName AS proposedName', 'i.proposedNameKey AS proposedNameKey', 'i.proposedMeasure AS proposedMeasure', 'IDENTITY(i.proposedCategory) AS categoryId')
+            ->orderBy('i.name', 'ASC')
+            ->addOrderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return array_map(static fn (array $row): ProposedItem => new ProposedItem(
+            $row['id']->toRfc4122(),
+            $row['name'],
+            $row['proposedName'],
+            $row['proposedNameKey'],
+            $row['proposedMeasure'],
+            $row['categoryId'],
+        ), $rows);
+    }
+
+    public function findByProposalKey(string $key): array
+    {
+        /** @var list<PurchasedItem> */
+        return $this->proposing()
+            ->andWhere('i.proposedNameKey = :key')
+            ->setParameter('key', $key)
+            ->orderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function hasItemsOfProduct(Uuid $productId): bool
     {
         return null !== $this->findOneBy(['product' => $productId]);
@@ -137,6 +170,16 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
             ->setParameter('from', $fromProductId, 'uuid')
             ->getQuery()
             ->execute();
+    }
+
+    /** The items that carry a proposal a person may still decide on: unassigned and open to matching. */
+    private function proposing(): QueryBuilder
+    {
+        return $this->createQueryBuilder('i')
+            ->where('i.proposedNameKey IS NOT NULL')
+            ->andWhere('i.status = :unassigned')
+            ->andWhere('i.matchingSkipped = false')
+            ->setParameter('unassigned', PurchasedItemStatus::Unassigned->value);
     }
 
     private function filtered(PurchasedItemFilter $filter): QueryBuilder

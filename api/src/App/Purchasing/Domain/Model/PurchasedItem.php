@@ -12,6 +12,7 @@ use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
+use App\Purchasing\Domain\Matching\ItemReader;
 use App\Shared\Domain\Time\BusinessDate;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -34,6 +35,11 @@ use Symfony\Component\Uid\Uuid;
  * - Matching (ADR 0042) changes only the items that are not `confirmed`, with match(): it sets the
  *   product, the status (`assigned` or `suggested`) and the package size, and remembers that the item
  *   was matched, so that the model is not asked about it again.
+ * - An item no product fits may carry a proposal (ADR 0044): the name, measure and category the model
+ *   proposes for a product to create. Items are grouped by the proposed name's key. A person accepts it
+ *   (the items are linked to the new product, which clears it) or dismisses it (the key is remembered, so
+ *   the same name is not proposed for this item again). Matching only ever writes the proposal; it never
+ *   creates a product.
  * - Quantities and prices are NUMERIC decimal strings (ADR 0040); the package size is a decimal string
  *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3).
  */
@@ -148,6 +154,26 @@ class PurchasedItem implements TenantAwareInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $matchedAt = null;
 
+    /** The name of the product the model proposes for the item; null: no proposal (ADR 0044). */
+    #[ORM\Column(length: Product::NAME_MAX_LENGTH, nullable: true)]
+    private ?string $proposedName = null;
+
+    /** ItemReader::fullKey() of the proposed name: what proposals are grouped by. Null exactly when there is no proposal. */
+    #[ORM\Column(length: Product::NAME_MAX_LENGTH, nullable: true)]
+    private ?string $proposedNameKey = null;
+
+    #[ORM\Column(length: 16, nullable: true, enumType: ProductMeasure::class)]
+    private ?ProductMeasure $proposedMeasure = null;
+
+    /** Null when the model chose none; set null when the category is deleted. */
+    #[ORM\ManyToOne(targetEntity: ProductCategory::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?ProductCategory $proposedCategory = null;
+
+    /** The key of the proposal a person dismissed for this item: the same name is not proposed for it again. */
+    #[ORM\Column(length: Product::NAME_MAX_LENGTH, nullable: true)]
+    private ?string $dismissedProposalKey = null;
+
     /** When Purchasing recorded it. */
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -206,6 +232,7 @@ class PurchasedItem implements TenantAwareInterface
         $this->packageSize = $packageSize;
         $this->status = null === $product ? PurchasedItemStatus::Unassigned : PurchasedItemStatus::Confirmed;
         $this->matchingSkipped = null === $product;
+        $this->clearProposal();
     }
 
     /**
@@ -231,9 +258,88 @@ class PurchasedItem implements TenantAwareInterface
         if (null === $product) {
             return;
         }
+        $this->clearProposal();
         $this->product = $product;
         $this->packageSize = self::packageSizeFor($packageSize);
         $this->status = $status;
+    }
+
+    /**
+     * Matching proposes a product for the item, which no product of the catalog is (ADR 0044), or, with
+     * `$name` or `$measure` null, finds nothing to propose, which replaces an earlier proposal. A blank or too long
+     * name, one with no letters or digits, and the name a person dismissed for this item are no proposal.
+     * Never for an item that is linked to a product, `confirmed` or taken off its product by a person.
+     *
+     * @throws \LogicException for an item matching must not change
+     */
+    public function propose(?string $name, ?ProductMeasure $measure, ?ProductCategory $category): void
+    {
+        if (!$this->isMatchable() || null !== $this->product) {
+            throw new \LogicException('Only an unlinked item that matching may change can get a proposal.');
+        }
+
+        $name = null === $name ? '' : trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
+        $key = ItemReader::fullKey($name);
+        if (null === $measure || '' === $name || mb_strlen($name) > Product::NAME_MAX_LENGTH || '' === $key || $key === $this->dismissedProposalKey) {
+            $this->clearProposal();
+
+            return;
+        }
+
+        $this->proposedName = $name;
+        $this->proposedNameKey = $key;
+        $this->proposedMeasure = $measure;
+        $this->proposedCategory = $category;
+    }
+
+    /**
+     * A person dismisses the item's proposal: the item stays unassigned and the same name is not
+     * proposed for it again. Nothing happens for an item with no proposal.
+     *
+     * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
+     */
+    public function dismissProposal(Uuid $actorId, MembershipRole $actorRole): void
+    {
+        PurchasingAccess::assertCanManage($actorId, $actorRole);
+        if (null === $this->proposedNameKey) {
+            return;
+        }
+
+        $this->dismissedProposalKey = $this->proposedNameKey;
+        $this->clearProposal();
+    }
+
+    public function hasProposal(): bool
+    {
+        return null !== $this->proposedNameKey;
+    }
+
+    public function getProposedName(): ?string
+    {
+        return $this->proposedName;
+    }
+
+    public function getProposedNameKey(): ?string
+    {
+        return $this->proposedNameKey;
+    }
+
+    public function getProposedMeasure(): ?ProductMeasure
+    {
+        return $this->proposedMeasure;
+    }
+
+    public function getProposedCategory(): ?ProductCategory
+    {
+        return $this->proposedCategory;
+    }
+
+    private function clearProposal(): void
+    {
+        $this->proposedName = null;
+        $this->proposedNameKey = null;
+        $this->proposedMeasure = null;
+        $this->proposedCategory = null;
     }
 
     /** Whether matching may read and change the item: not `confirmed`, and not taken off its product by a person. */

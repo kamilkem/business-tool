@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Purchasing\Application;
 
 use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\Proposal\ProposedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
@@ -105,6 +106,34 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         }
 
         return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
+    }
+
+    public function findProposed(): array
+    {
+        $proposing = $this->proposing();
+        usort($proposing, static fn (PurchasedItem $a, PurchasedItem $b): int => $a->getName() <=> $b->getName());
+
+        return array_map(static fn (PurchasedItem $item): ProposedItem => new ProposedItem(
+            $item->getId()->toRfc4122(),
+            $item->getName(),
+            (string) $item->getProposedName(),
+            (string) $item->getProposedNameKey(),
+            $item->getProposedMeasure() ?? throw new \LogicException('A proposal has a measure.'),
+            $item->getProposedCategory()?->getId()->toRfc4122(),
+        ), $proposing);
+    }
+
+    public function findByProposalKey(string $key): array
+    {
+        return array_values(array_filter($this->proposing(), static fn (PurchasedItem $item): bool => $item->getProposedNameKey() === $key));
+    }
+
+    /** @return list<PurchasedItem> */
+    private function proposing(): array
+    {
+        return array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->hasProposal()
+            && PurchasedItemStatus::Unassigned === $item->getStatus()
+            && !$item->isMatchingSkipped()));
     }
 
     /** @return list<PurchasedItem> the criteria the unit tests of handlers need: statuses and product, in the order they were added */
