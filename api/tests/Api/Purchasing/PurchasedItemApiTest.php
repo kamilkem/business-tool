@@ -9,6 +9,8 @@ use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Purchasing\Application\Command\AssignPurchasedItems\AssignPurchasedItemsCommand;
+use App\Purchasing\Application\Job\MatchPurchasedItems\MatchPurchasedItemsJob;
+use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
@@ -25,6 +27,9 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Clock\Clock;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Stamp\DeduplicateStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -569,6 +574,79 @@ final class PurchasedItemApiTest extends ApiTestCase
         return static::clientFor($user, $organization)->request('POST', '/api/purchased-items/assign', ['json' => $body]);
     }
 
+    // ---- What a confirmation teaches (ADR 0042) ----
+
+    public function test_it_remembers_what_a_person_confirms_as_aliases_and_queues_matching_by_aliases(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $id = self::addItem($organization, ['name' => 'JACK DANIELS 0,7L 40%']);
+
+        self::change($owner, $organization, $id, ['productId' => $jack->getId()->toRfc4122(), 'packageSize' => '0.7']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            [['name', 'jack daniels', null], ['seller_name', '5265877635|jack daniels 0 7l 40', '0.700000']],
+            self::aliasRows($jack),
+        );
+        $queued = self::queuedJobs();
+        self::assertCount(1, $queued);
+        self::assertEquals(new MatchPurchasedItemsJob($organization->getId()->toRfc4122(), MatchScope::AllMatchable->value, false), $queued[0]->getMessage());
+        self::assertSame('purchasing-match-items:'.$organization->getId()->toRfc4122().':all_matchable:aliases', (string) $queued[0]->last(DeduplicateStamp::class)?->getKey());
+    }
+
+    public function test_it_remembers_the_items_of_a_bulk_assignment_the_last_one_winning_a_shared_key(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $a = self::addItem($organization, ['name' => 'JACK DANIELS 0,7L']);
+        $b = self::addItem($organization, ['name' => 'JACK DANIELS 1L']);
+
+        self::assign($owner, $organization, ['itemIds' => [$a, $b], 'productId' => $jack->getId()->toRfc4122(), 'packageSize' => '0.7']);
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertCount(3, self::aliasRows($jack), 'One name alias and a seller name alias for each size.');
+    }
+
+    public function test_it_keeps_an_item_a_person_took_off_its_product_out_of_matching_and_learns_nothing(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $id = self::addItem($organization, ['product' => $jack, 'status' => 'confirmed', 'packageSize' => '0.7']);
+
+        self::change($owner, $organization, $id, ['productId' => null]);
+
+        self::assertResponseIsSuccessful();
+        self::assertTrue((bool) static::getContainer()->get(Connection::class)->fetchOne('SELECT matching_skipped FROM purchased_item WHERE id = :id', ['id' => $id]));
+        self::assertSame([], self::aliasRows($jack));
+        self::assertSame([], self::queuedJobs());
+    }
+
+    public function test_it_learns_nothing_and_queues_nothing_when_an_employee_is_refused(): void
+    {
+        [, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $employee = self::addMember($organization, MembershipRole::Employee);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $id = self::addItem($organization, ['name' => 'JACK DANIELS 0,7L']);
+
+        self::change($employee, $organization, $id, ['productId' => $jack->getId()->toRfc4122()]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([], self::aliasRows($jack));
+        self::assertSame([], self::queuedJobs());
+    }
+
+    public function test_it_does_not_let_the_aliases_of_one_organization_reach_another(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        self::change($owner, $organization, self::addItem($organization, ['name' => 'JACK DANIELS 0,7L']), ['productId' => $jack->getId()->toRfc4122()]);
+        [, $other] = self::memberWithRole(MembershipRole::Owner);
+
+        self::assertSame([], self::aliasRowsOf($other));
+        self::assertNotSame([], self::aliasRowsOf($organization));
+    }
+
     // ---- Arranging ----
 
     private static function addProduct(Organization $organization, string $name): Product
@@ -631,6 +709,31 @@ final class PurchasedItemApiTest extends ApiTestCase
     {
         /** @var array{status: string, product_id: ?string, package_size: ?string} */
         return static::getContainer()->get(Connection::class)->fetchAssociative('SELECT status, product_id, package_size FROM purchased_item WHERE id = :id', ['id' => $id]);
+    }
+
+    /** @return list<array{string, string, ?string}> kind, key and package size of the product's aliases, by kind */
+    private static function aliasRows(Product $product): array
+    {
+        /** @var list<array{kind: string, alias_key: string, package_size: ?string}> $rows */
+        $rows = static::getContainer()->get(Connection::class)->fetchAllAssociative('SELECT kind, alias_key, package_size FROM product_alias WHERE product_id = :id ORDER BY kind, alias_key', ['id' => $product->getId()->toRfc4122()]);
+
+        return array_map(static fn (array $row): array => [$row['kind'], $row['alias_key'], $row['package_size']], $rows);
+    }
+
+    /** @return list<string> */
+    private static function aliasRowsOf(Organization $organization): array
+    {
+        /** @var list<string> */
+        return static::getContainer()->get(Connection::class)->fetchFirstColumn('SELECT alias_key FROM product_alias WHERE organization_id = :id', ['id' => $organization->getId()->toRfc4122()]);
+    }
+
+    /** @return list<Envelope> what the last request queued on the in-memory `jobs` transport (ADR 0025 §7) */
+    private static function queuedJobs(): array
+    {
+        $transport = static::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return array_values([...$transport->getSent()]);
     }
 
     private static function addMember(Organization $organization, MembershipRole $role): User

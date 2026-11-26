@@ -185,6 +185,63 @@ final class PurchasedItemTest extends TestCase
         }
     }
 
+    public function test_it_is_matched_as_assigned_or_suggested_without_being_confirmed(): void
+    {
+        $item = self::item();
+        $jack = self::product('Jack Daniel\'s');
+        $now = new \DateTimeImmutable('2026-11-26 03:00:00');
+
+        $item->match($jack, '0.70', PurchasedItemStatus::Assigned, $now);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $item->getStatus());
+        self::assertSame($jack, $item->getProduct());
+        self::assertSame('0.7', $item->getPackageSize());
+        self::assertEquals($now, $item->getMatchedAt());
+        self::assertTrue($item->isMatchable());
+    }
+
+    public function test_it_notes_that_matching_found_nothing_and_keeps_what_it_had(): void
+    {
+        $item = self::item();
+        $now = new \DateTimeImmutable('2026-11-26 03:00:00');
+
+        $item->match(null, null, PurchasedItemStatus::Unassigned, $now);
+
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+        self::assertNull($item->getProduct());
+        self::assertEquals($now, $item->getMatchedAt());
+    }
+
+    public function test_it_is_never_changed_by_matching_once_a_person_confirmed_it(): void
+    {
+        $item = self::item();
+        $item->link(self::product('Jack Daniel\'s'), '0.7', $this->actorId, MembershipRole::Owner);
+
+        self::assertFalse($item->isMatchable());
+        $this->expectException(\LogicException::class);
+        $item->match(self::product('Other'), '1', PurchasedItemStatus::Assigned, new \DateTimeImmutable('2026-11-26 03:00:00'));
+    }
+
+    public function test_it_stays_out_of_matching_after_a_person_took_its_product_away_until_a_person_links_it_again(): void
+    {
+        $item = self::item();
+        $jack = self::product('Jack Daniel\'s');
+        $item->link($jack, '0.7', $this->actorId, MembershipRole::Owner);
+
+        $item->link(null, '0.7', $this->actorId, MembershipRole::Owner);
+
+        self::assertTrue($item->isMatchingSkipped());
+        self::assertFalse($item->isMatchable());
+        $item->link($jack, '0.7', $this->actorId, MembershipRole::Owner);
+        self::assertFalse($item->isMatchingSkipped());
+    }
+
+    public function test_it_refuses_matching_that_links_with_a_status_a_person_alone_gives(): void
+    {
+        $this->expectException(\LogicException::class);
+        self::item()->match(self::product('Jack Daniel\'s'), '0.7', PurchasedItemStatus::Confirmed, new \DateTimeImmutable('2026-11-26 03:00:00'));
+    }
+
     private static function item(): PurchasedItem
     {
         return PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(

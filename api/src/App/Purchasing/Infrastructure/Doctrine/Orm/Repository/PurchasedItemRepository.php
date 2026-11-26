@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
@@ -94,6 +95,30 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
     public function saveAll(array $items): void
     {
         $this->getEntityManager()->flush();
+    }
+
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array
+    {
+        $query = $this->createQueryBuilder('i')
+            ->select('i.id')
+            ->where('i.status <> :confirmed')
+            ->andWhere('i.matchingSkipped = false')
+            ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value)
+            ->orderBy('i.id', 'ASC')
+            ->setMaxResults($limit);
+        if (MatchScope::NotYetMatched === $scope) {
+            $query->andWhere('i.matchedAt IS NULL');
+        } elseif (MatchScope::Unassigned === $scope) {
+            $query->andWhere('i.status = :unassigned')->setParameter('unassigned', PurchasedItemStatus::Unassigned->value);
+        }
+        if (null !== $afterId) {
+            $query->andWhere('i.id > :after')->setParameter('after', $afterId, 'uuid');
+        }
+
+        /** @var list<array{id: Uuid}> $rows */
+        $rows = $query->getQuery()->getResult();
+
+        return array_map(static fn (array $row): Uuid => $row['id'], $rows);
     }
 
     public function hasItemsOfProduct(Uuid $productId): bool

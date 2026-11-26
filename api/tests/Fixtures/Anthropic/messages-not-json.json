@@ -1,0 +1,20 @@
+{
+  "id": "msg_fixture01",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "Sorry, I cannot do that."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 1840,
+    "output_tokens": 96,
+    "cache_creation_input_tokens": 1700,
+    "cache_read_input_tokens": 0
+  }
+}

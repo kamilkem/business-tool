@@ -10,10 +10,13 @@ use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasedItemNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
+use App\Purchasing\Domain\Event\PurchasedItemsConfirmed;
+use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -27,6 +30,7 @@ final readonly class AssignPurchasedItemsHandler implements CommandHandlerInterf
         private PurchasedItemRepositoryInterface $items,
         private ProductRepositoryInterface $products,
         private QueryBusInterface $queryBus,
+        private EventPublisherInterface $events,
     ) {
     }
 
@@ -69,5 +73,8 @@ final readonly class AssignPurchasedItemsHandler implements CommandHandlerInterf
         }
 
         $this->items->saveAll($items);
+        if ([] !== $items) {
+            $this->events->publish(new PurchasedItemsConfirmed($command->organizationId, array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), $items)));
+        }
     }
 }

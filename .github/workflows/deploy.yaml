@@ -4,7 +4,8 @@
 # and deployed over SSH by deploy/deploy.sh, which also runs from a workstation (`make deploy`).
 #
 # Per stage, the GitHub Environment holds the secrets (APP_SECRET, DATABASE_URL, JWT_PASSPHRASE,
-# JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, SECRETS_ENCRYPTION_KEYS, MAILER_DSN). The repository holds
+# JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, SECRETS_ENCRYPTION_KEYS, MAILER_DSN, and optionally ANTHROPIC_API_KEY,
+# adr/0042). The repository holds
 # DEPLOY_SSH_KEY (secret) and DEPLOY_KNOWN_HOSTS (variable); the configuration is in deploy/stage/.
 name: Deploy
 
@@ -154,5 +155,7 @@ jobs:
                     JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
                     SECRETS_ENCRYPTION_KEYS: ${{ secrets.SECRETS_ENCRYPTION_KEYS }}
                     MAILER_DSN: ${{ secrets.MAILER_DSN }}
+                    # Optional (adr/0042): empty switches the item interpreter off.
+                    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
                     STAGE: ${{ needs.target.outputs.stage }}
                 run: deploy/deploy.sh "$STAGE"

@@ -90,6 +90,19 @@ again is safe; it only queues jobs for the `jobs-worker`, so the command returns
 
   `--organization=<id>` limits it to one organization. Running it again adds nothing. The worker's log
   shows for how many invoices items were recorded.
+- **Matching items to products (ADR 0042).** Set `ANTHROPIC_API_KEY` as a secret of the stage's GitHub
+  Environment (`gh secret set ANTHROPIC_API_KEY --env staging`, and `--env production`); without it only
+  the owner's remembered aliases match items, and **with it item and product names are sent to
+  Anthropic**. New items are matched as they are recorded. For the items already recorded, once after
+  `app:purchasing:record-existing-items` and the first products exist:
+
+  ```bash
+  docker compose -p business-tool-production exec php bin/console app:purchasing:match-items
+  ```
+
+  `--organization=<id>` limits it to one organization; `--again` also goes through the unassigned
+  items the model found nothing for, for after the catalog has grown. The `jobs-worker`'s log shows how
+  many items went through and whether the model was unavailable.
 
 ## Rollback
 
