@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Purchasing\Application;
 
+use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
@@ -86,6 +88,23 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
     public function saveAll(array $items): void
     {
         ++$this->saveCallCount;
+    }
+
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array
+    {
+        $items = array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->isMatchable()
+            && match ($scope) {
+                MatchScope::NotYetMatched => null === $item->getMatchedAt(),
+                MatchScope::Unassigned => PurchasedItemStatus::Unassigned === $item->getStatus(),
+                MatchScope::AllMatchable => true,
+            });
+        $ids = array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), array_values($items));
+        sort($ids);
+        if (null !== $afterId) {
+            $ids = array_values(array_filter($ids, static fn (string $id): bool => $id > $afterId->toRfc4122()));
+        }
+
+        return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
     }
 
     /** @return list<PurchasedItem> the criteria the unit tests of handlers need: statuses and product, in the order they were added */

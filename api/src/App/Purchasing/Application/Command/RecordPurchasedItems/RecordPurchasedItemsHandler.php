@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Purchasing\Application\Command\RecordPurchasedItems;
 
 use App\Organization\Domain\TenantContextInterface;
+use App\Purchasing\Domain\Event\PurchasedItemsRecorded;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use App\Shared\Domain\Time\BusinessDate;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -19,6 +21,7 @@ final readonly class RecordPurchasedItemsHandler implements CommandHandlerInterf
         private PurchasedItemRepositoryInterface $items,
         private TenantContextInterface $tenantContext,
         private ClockInterface $clock,
+        private EventPublisherInterface $events,
     ) {
     }
 
@@ -84,6 +87,7 @@ final readonly class RecordPurchasedItemsHandler implements CommandHandlerInterf
 
         if ([] !== $new) {
             $this->items->addAll($new);
+            $this->events->publish(new PurchasedItemsRecorded($command->organizationId, array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), $new)));
         }
     }
 }

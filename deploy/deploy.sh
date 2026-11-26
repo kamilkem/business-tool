@@ -88,6 +88,8 @@ export JWT_TOKEN_TTL="${JWT_TOKEN_TTL:-900}"
 		CORS_ALLOW_ORIGIN TRUSTED_PROXIES KSEF_API_URL; do
 		value "$name"
 	done
+	# Optional: without a key the item interpreter is off and only remembered aliases match items (adr/0042).
+	[ -z "${ANTHROPIC_API_KEY:-}" ] || value ANTHROPIC_API_KEY
 } >"$work/files/app.env"
 printf '%s\n' "$JWT_PRIVATE_KEY" >"$work/files/jwt/private.pem"
 printf '%s\n' "$JWT_PUBLIC_KEY" >"$work/files/jwt/public.pem"

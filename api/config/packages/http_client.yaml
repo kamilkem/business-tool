@@ -6,6 +6,15 @@ framework:
                 base_uri: '%env(KSEF_API_URL)%'
                 timeout: 30
                 max_duration: 120
+            # Claude API for matching purchased items (adr/0042 §3): autowired as HttpClientInterface $anthropicClient.
+            # An empty ANTHROPIC_API_KEY switches the interpreter off.
+            anthropic.client:
+                base_uri: '%env(ANTHROPIC_API_URL)%'
+                headers:
+                    x-api-key: '%env(ANTHROPIC_API_KEY)%'
+                    anthropic-version: '2026-10-21'
+                timeout: 60
+                max_duration: 120
 
 # Tests and CI never reach the network: every request fails loudly instead (adr/0023 §8). Adapter
 # tests build their own MockHttpClient with recorded responses; handler and API tests use
@@ -23,4 +32,10 @@ when@test:
             public: true
         App\Ksef\Domain\KsefClientInterface:
             alias: App\Tests\Fixtures\Ksef\InMemoryKsefClient
+            public: true
+        # The item interpreter is in memory in tests too (adr/0042 §3); its adapter is tested with a MockHttpClient.
+        App\Tests\Fixtures\InMemoryItemInterpreter:
+            public: true
+        App\Purchasing\Domain\Matching\ItemInterpreterInterface:
+            alias: App\Tests\Fixtures\InMemoryItemInterpreter
             public: true

@@ -65,6 +65,7 @@ final class ProductHandlersTest extends TestCase
     private InMemoryProductRepository $products;
     private InMemoryProductCategoryRepository $categories;
     private InMemoryPurchasedItemRepository $items;
+    private InMemoryProductAliasRepository $aliases;
     private StubQueryBus $queryBus;
     private Organization $organization;
     private User $owner;
@@ -84,6 +85,7 @@ final class ProductHandlersTest extends TestCase
         $this->products = new InMemoryProductRepository();
         $this->categories = new InMemoryProductCategoryRepository();
         $this->items = new InMemoryPurchasedItemRepository();
+        $this->aliases = new InMemoryProductAliasRepository();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -257,6 +259,8 @@ final class ProductHandlersTest extends TestCase
         self::assertNull($this->products->findById($this->cola->getId()));
         self::assertSame(5, $this->items->linkedTo($this->jack->getId()));
         self::assertSame(0, $this->items->linkedTo($this->cola->getId()));
+        // Its aliases move with its items (ADR 0042 §2).
+        self::assertSame([[$this->cola->getId()->toRfc4122(), $this->jack->getId()->toRfc4122()]], $this->aliases->moves);
         // The target keeps its own settings.
         self::assertSame([ProductMeasure::Volume, '0.7', $this->bourbon], [$this->jack->getMeasure(), $this->jack->getReferenceQuantity(), $this->jack->getCategory()]);
     }
@@ -420,7 +424,7 @@ final class ProductHandlersTest extends TestCase
 
     private function merge(User $actor, string $id, string $into): void
     {
-        (new MergeProductHandler($this->products, $this->items, $this->queryBus))(
+        (new MergeProductHandler($this->products, $this->items, $this->aliases, $this->queryBus))(
             new MergeProductCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $id, $into),
         );
     }

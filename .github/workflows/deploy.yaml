@@ -154,5 +154,7 @@ jobs:
                     JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
                     SECRETS_ENCRYPTION_KEYS: ${{ secrets.SECRETS_ENCRYPTION_KEYS }}
                     MAILER_DSN: ${{ secrets.MAILER_DSN }}
+                    # Optional (adr/0042): empty switches the item interpreter off.
+                    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
                     STAGE: ${{ needs.target.outputs.stage }}
                 run: deploy/deploy.sh "$STAGE"

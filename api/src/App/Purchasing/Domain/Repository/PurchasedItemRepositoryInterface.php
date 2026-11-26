@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Domain\Repository;
 
+use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use Symfony\Component\Uid\Uuid;
 
@@ -57,6 +58,14 @@ interface PurchasedItemRepositoryInterface
      * @param list<PurchasedItem> $items
      */
     public function saveAll(array $items): void;
+
+    /**
+     * The ids of the items matching may change (not `confirmed`, not taken off their product by a
+     * person) within the scope, by id, after `$afterId` when given.
+     *
+     * @return list<Uuid>
+     */
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array;
 
     /** Whether an item is linked to the product. */
     public function hasItemsOfProduct(Uuid $productId): bool;

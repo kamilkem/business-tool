@@ -29,8 +29,11 @@ use Symfony\Component\Uid\Uuid;
  * - Until a person or matching links it to a product (#233, #242), the item is
  *   `unassigned` with no product and no package size, and counts in spend only.
  * - A person links it with link(): any change by a person makes the item `confirmed` when it has a
- *   product and `unassigned` when it has none, whatever it was before (ADR 0041 §3). Matching (#233)
- *   will change only the items that are not `confirmed`.
+ *   product and `unassigned` when it has none, whatever it was before (ADR 0041 §3). A person taking
+ *   the product away also keeps the item out of matching until a person links it again (ADR 0042 §4).
+ * - Matching (ADR 0042) changes only the items that are not `confirmed`, with match(): it sets the
+ *   product, the status (`assigned` or `suggested`) and the package size, and remembers that the item
+ *   was matched, so that the model is not asked about it again.
  * - Quantities and prices are NUMERIC decimal strings (ADR 0040); the package size is a decimal string
  *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3).
  */
@@ -137,6 +140,14 @@ class PurchasedItem implements TenantAwareInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 22, scale: self::PACKAGE_SIZE_SCALE, nullable: true)]
     private ?string $packageSize = null;
 
+    /** A person took the product away: matching leaves the item alone until a person links it again (ADR 0042 §4). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $matchingSkipped = false;
+
+    /** When matching last went through the item with the model, whatever came out; null: never (ADR 0042 §7). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $matchedAt = null;
+
     /** When Purchasing recorded it. */
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -194,6 +205,51 @@ class PurchasedItem implements TenantAwareInterface
         $this->product = $product;
         $this->packageSize = $packageSize;
         $this->status = null === $product ? PurchasedItemStatus::Unassigned : PurchasedItemStatus::Confirmed;
+        $this->matchingSkipped = null === $product;
+    }
+
+    /**
+     * Matching links the item to a product, or notes that it found none (`$product` null: the item
+     * keeps what it had), and that the model went through it. `assigned` is a confident match,
+     * `suggested` one for a person to confirm. Never for a `confirmed` item.
+     *
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     *
+     * @throws \LogicException            for a `confirmed` item or one a person took off its product: matching must not read them
+     * @throws InvalidPackageSizeException when the package size is not a positive decimal
+     */
+    public function match(?Product $product, ?string $packageSize, PurchasedItemStatus $status, \DateTimeImmutable $now): void
+    {
+        if (!$this->isMatchable()) {
+            throw new \LogicException('A confirmed item, or one taken off its product by a person, is not changed by matching.');
+        }
+        if (null !== $product && !\in_array($status, [PurchasedItemStatus::Assigned, PurchasedItemStatus::Suggested], true)) {
+            throw new \LogicException('Matching links an item as assigned or suggested.');
+        }
+
+        $this->matchedAt = $now;
+        if (null === $product) {
+            return;
+        }
+        $this->product = $product;
+        $this->packageSize = self::packageSizeFor($packageSize);
+        $this->status = $status;
+    }
+
+    /** Whether matching may read and change the item: not `confirmed`, and not taken off its product by a person. */
+    public function isMatchable(): bool
+    {
+        return PurchasedItemStatus::Confirmed !== $this->status && !$this->matchingSkipped;
+    }
+
+    public function getMatchedAt(): ?\DateTimeImmutable
+    {
+        return $this->matchedAt;
+    }
+
+    public function isMatchingSkipped(): bool
+    {
+        return $this->matchingSkipped;
     }
 
     public function getId(): Uuid

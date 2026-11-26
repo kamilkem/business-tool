@@ -21,6 +21,7 @@ use App\Purchasing\Application\Query\GetPurchasedItem\PurchasedItemViews;
 use App\Purchasing\Application\Query\ListPurchasedItems\ListPurchasedItemsHandler;
 use App\Purchasing\Application\Query\ListPurchasedItems\ListPurchasedItemsQuery;
 use App\Purchasing\Application\Query\ListPurchasedItems\PurchasedItemPageView;
+use App\Purchasing\Domain\Event\PurchasedItemsConfirmed;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasedItemNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException;
@@ -35,6 +36,7 @@ use App\Shared\Domain\Time\BusinessDate;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
+use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -57,6 +59,7 @@ final class PurchasedItemHandlersTest extends TestCase
     private InMemoryProductRepository $products;
     private InMemoryPurchasedItemRepository $items;
     private StubQueryBus $queryBus;
+    private RecordingEventPublisher $events;
     private Organization $organization;
     private User $owner;
     private User $manager;
@@ -72,6 +75,7 @@ final class PurchasedItemHandlersTest extends TestCase
         $organizations = new InMemoryOrganizationRepository();
         $this->products = new InMemoryProductRepository();
         $this->items = new InMemoryPurchasedItemRepository();
+        $this->events = new RecordingEventPublisher();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -126,6 +130,23 @@ final class PurchasedItemHandlersTest extends TestCase
 
         self::assertNull($this->jackItem->getProduct());
         self::assertSame(PurchasedItemStatus::Unassigned, $this->jackItem->getStatus());
+        // A person's removal keeps the item out of matching, and confirms nothing to learn from (ADR 0042 §4).
+        self::assertTrue($this->jackItem->isMatchingSkipped());
+        self::assertCount(1, $this->events->events);
+    }
+
+    public function test_it_publishes_what_a_person_confirmed_so_that_aliases_are_learned(): void
+    {
+        $this->change($this->owner, $this->jackItem->getId()->toRfc4122(), $this->jack->getId()->toRfc4122(), '0.7');
+        $this->assign($this->owner, [$this->jackItem->getId()->toRfc4122(), $this->colaItem->getId()->toRfc4122()], $this->cola->getId()->toRfc4122(), null);
+
+        self::assertCount(2, $this->events->events);
+        [$first, $second] = $this->events->events;
+        self::assertInstanceOf(PurchasedItemsConfirmed::class, $first);
+        self::assertInstanceOf(PurchasedItemsConfirmed::class, $second);
+        self::assertSame($this->organization->getId()->toRfc4122(), $first->organizationId);
+        self::assertSame([$this->jackItem->getId()->toRfc4122()], $first->itemIds);
+        self::assertEqualsCanonicalizing([$this->jackItem->getId()->toRfc4122(), $this->colaItem->getId()->toRfc4122()], $second->itemIds);
     }
 
     public function test_it_answers_not_found_for_an_unknown_item_or_product_and_changes_nothing(): void
@@ -315,7 +336,7 @@ final class PurchasedItemHandlersTest extends TestCase
 
     private function change(User $actor, string $itemId, ?string $productId, ?string $packageSize): void
     {
-        (new ChangePurchasedItemHandler($this->items, $this->products, $this->queryBus))(
+        (new ChangePurchasedItemHandler($this->items, $this->products, $this->queryBus, $this->events))(
             new ChangePurchasedItemCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemId, $productId, $packageSize),
         );
     }
@@ -323,7 +344,7 @@ final class PurchasedItemHandlersTest extends TestCase
     /** @param list<string> $itemIds */
     private function assign(User $actor, array $itemIds, string $productId, ?string $packageSize): void
     {
-        (new AssignPurchasedItemsHandler($this->items, $this->products, $this->queryBus))(
+        (new AssignPurchasedItemsHandler($this->items, $this->products, $this->queryBus, $this->events))(
             new AssignPurchasedItemsCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemIds, $productId, $packageSize),
         );
     }

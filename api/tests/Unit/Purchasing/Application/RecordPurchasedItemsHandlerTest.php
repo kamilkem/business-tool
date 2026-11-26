@@ -14,6 +14,8 @@ use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\PurchasedItemMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
+use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
+use App\Purchasing\Domain\Event\PurchasedItemsRecorded;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
@@ -30,6 +32,7 @@ final class RecordPurchasedItemsHandlerTest extends TestCase
     private InMemoryPurchasedItemRepository $items;
     private Organization $organization;
     private RecordPurchasedItemsHandler $handler;
+    private RecordingEventPublisher $events;
 
     protected function setUp(): void
     {
@@ -37,7 +40,8 @@ final class RecordPurchasedItemsHandlerTest extends TestCase
         $tenantContext = new InMemoryTenantContext();
         $this->organization = OrganizationMother::ownedBy(UserMother::any('olivia@example.com'));
         $tenantContext->switchTo($this->organization);
-        $this->handler = new RecordPurchasedItemsHandler($this->items, $tenantContext, new MockClock(self::NOW));
+        $this->events = new RecordingEventPublisher();
+        $this->handler = new RecordPurchasedItemsHandler($this->items, $tenantContext, new MockClock(self::NOW), $this->events);
     }
 
     public function test_it_copies_the_invoice_and_each_item_as_unassigned(): void
@@ -197,5 +201,21 @@ final class RecordPurchasedItemsHandlerTest extends TestCase
     private function record(RecordPurchasedItemsCommand $command): void
     {
         ($this->handler)($command);
+    }
+
+    public function test_it_publishes_the_ids_of_the_items_it_added_and_nothing_when_it_added_none(): void
+    {
+        $invoiceId = Uuid::v7()->toRfc4122();
+        $command = PurchasedItemMother::command($this->organizationId(), $invoiceId);
+
+        $this->record($command);
+        $this->record($command);
+
+        self::assertCount(1, $this->events->events);
+        $event = $this->events->events[0];
+        self::assertInstanceOf(PurchasedItemsRecorded::class, $event);
+        self::assertSame($this->organizationId(), $event->organizationId);
+        $stored = array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), $this->items->findByInvoice(Uuid::fromString($invoiceId)));
+        self::assertEqualsCanonicalizing($stored, $event->itemIds);
     }
 }

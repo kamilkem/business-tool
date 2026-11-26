@@ -11,6 +11,7 @@ use App\Purchasing\Domain\Exception\ProductMergeIntoItselfException;
 use App\Purchasing\Domain\Exception\ProductMergeTargetNotFoundException;
 use App\Purchasing\Domain\Exception\ProductNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
+use App\Purchasing\Domain\Repository\ProductAliasRepositoryInterface;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
@@ -19,8 +20,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Moves the items of a product to another one and deletes it. The product is the aggregate this
- * changes; the items are moved in one statement and are not loaded. The aliases matching keeps per
- * product (#233) will move here too. If the product cannot be deleted after the move (an item was
+ * changes; the items are moved in one statement and are not loaded. The product's aliases move with its
+ * items (ADR 0042 §2). If the product cannot be deleted after the move (an item was
  * linked to it in the meantime), the items are already on the target and a retry finishes the merge.
  */
 final readonly class MergeProductHandler implements CommandHandlerInterface
@@ -28,6 +29,7 @@ final readonly class MergeProductHandler implements CommandHandlerInterface
     public function __construct(
         private ProductRepositoryInterface $products,
         private PurchasedItemRepositoryInterface $items,
+        private ProductAliasRepositoryInterface $aliases,
         private QueryBusInterface $queryBus,
     ) {
     }
@@ -52,6 +54,7 @@ final readonly class MergeProductHandler implements CommandHandlerInterface
         $product->assertCanMergeInto($target, $actor->id, $actor->role);
 
         $this->items->moveItems($product->getId(), $target->getId());
+        $this->aliases->moveAliases($product->getId(), $target->getId());
         $this->products->remove($product);
     }
 }
