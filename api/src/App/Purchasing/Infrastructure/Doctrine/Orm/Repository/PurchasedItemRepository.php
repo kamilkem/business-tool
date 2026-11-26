@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Infrastructure\Doctrine\Orm\Repository;
 
+use App\Expenses\Domain\Model\DecimalString;
+use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
@@ -121,6 +124,64 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         $rows = $query->getQuery()->getResult();
 
         return array_map(static fn (array $row): Uuid => $row['id'], $rows);
+    }
+
+    public function findConfirmedIds(?Uuid $afterId, int $limit): array
+    {
+        $query = $this->createQueryBuilder('i')
+            ->select('i.id')
+            ->where('i.status = :confirmed')
+            ->andWhere('i.product IS NOT NULL')
+            ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value)
+            ->orderBy('i.invoiceIssueDate', 'DESC')
+            ->addOrderBy('i.id', 'DESC')
+            ->setMaxResults($limit);
+        if (null !== $afterId) {
+            $query->andWhere('(i.invoiceIssueDate < (SELECT c.invoiceIssueDate FROM '.PurchasedItem::class.' c WHERE c.id = :after) OR (i.invoiceIssueDate = (SELECT c2.invoiceIssueDate FROM '.PurchasedItem::class.' c2 WHERE c2.id = :after) AND i.id < :after))')
+                ->setParameter('after', $afterId, 'uuid');
+        }
+
+        /** @var list<array{id: Uuid}> $rows */
+        $rows = $query->getQuery()->getResult();
+
+        return array_map(static fn (array $row): Uuid => $row['id'], $rows);
+    }
+
+    public function confirmedPricesPerBaseUnit(Uuid $productId, string $currency, int $limit): array
+    {
+        $corrections = array_map(
+            static fn (PurchaseInvoiceKind $kind): string => $kind->value,
+            array_filter(PurchaseInvoiceKind::cases(), static fn (PurchaseInvoiceKind $kind): bool => $kind->isCorrection()),
+        );
+
+        /** @var list<array{net: int|string|null, quantity: string|null, packageSize: string|null}> $rows */
+        $rows = $this->createQueryBuilder('i')
+            ->select('COALESCE(i.netAmount, i.grossAmount - i.vatAmount) AS net', 'i.quantity AS quantity', 'i.packageSize AS packageSize')
+            ->where('i.product = :product')
+            ->andWhere('i.status = :confirmed')
+            ->andWhere('i.currency = :currency')
+            ->andWhere('i.beforeCorrection = false')
+            ->andWhere('i.invoiceKind NOT IN (:corrections)')
+            ->andWhere('i.packageSize IS NOT NULL')
+            ->setParameter('product', $productId, 'uuid')
+            ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value)
+            ->setParameter('currency', $currency)
+            ->setParameter('corrections', array_values($corrections), ArrayParameterType::STRING)
+            ->orderBy('i.invoiceIssueDate', 'DESC')
+            ->addOrderBy('i.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        $prices = [];
+        foreach ($rows as $row) {
+            $price = PriceSanity::perBaseUnit(null === $row['net'] ? null : (int) $row['net'], DecimalString::trimmed($row['quantity']), DecimalString::trimmed($row['packageSize']));
+            if (null !== $price) {
+                $prices[] = $price;
+            }
+        }
+
+        return $prices;
     }
 
     public function findProposed(): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Application;
 
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Proposal\ProposedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
@@ -106,6 +107,37 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         }
 
         return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
+    }
+
+    public function findConfirmedIds(?Uuid $afterId, int $limit): array
+    {
+        $items = array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => PurchasedItemStatus::Confirmed === $item->getStatus() && null !== $item->getProduct()));
+        usort($items, static fn (PurchasedItem $a, PurchasedItem $b): int => [$b->getInvoiceIssueDate()->toString(), $b->getId()->toRfc4122()] <=> [$a->getInvoiceIssueDate()->toString(), $a->getId()->toRfc4122()]);
+        $ids = array_map(static fn (PurchasedItem $item): string => $item->getId()->toRfc4122(), $items);
+        if (null !== $afterId) {
+            $position = array_search($afterId->toRfc4122(), $ids, true);
+            $ids = false === $position ? $ids : \array_slice($ids, $position + 1);
+        }
+
+        return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
+    }
+
+    public function confirmedPricesPerBaseUnit(Uuid $productId, string $currency, int $limit): array
+    {
+        $items = array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => PurchasedItemStatus::Confirmed === $item->getStatus()
+            && ($item->getProductId()?->equals($productId) ?? false)
+            && $item->getCurrency() === $currency));
+        usort($items, static fn (PurchasedItem $a, PurchasedItem $b): int => [$b->getInvoiceIssueDate()->toString(), $b->getId()->toRfc4122()] <=> [$a->getInvoiceIssueDate()->toString(), $a->getId()->toRfc4122()]);
+
+        $prices = [];
+        foreach (\array_slice($items, 0, $limit) as $item) {
+            $price = PriceSanity::of($item, $item->getPackageSize());
+            if (null !== $price) {
+                $prices[] = $price;
+            }
+        }
+
+        return $prices;
     }
 
     public function findProposed(): array

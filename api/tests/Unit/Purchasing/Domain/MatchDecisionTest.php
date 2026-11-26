@@ -8,7 +8,9 @@ use App\Organization\Domain\Model\MembershipRole;
 use App\Purchasing\Domain\Matching\InterpretationConfidence;
 use App\Purchasing\Domain\Matching\ItemInterpretation;
 use App\Purchasing\Domain\Matching\ItemReader;
+use App\Purchasing\Domain\Matching\MatchCaveat;
 use App\Purchasing\Domain\Matching\MatchDecision;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Model\AliasKind;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductAlias;
@@ -169,6 +171,50 @@ final class MatchDecisionTest extends TestCase
             self::assertSame(PurchasedItemStatus::Suggested, $none->status);
             self::assertNull($none->packageSize);
         }
+    }
+
+    public function test_it_says_what_decided_and_nothing_is_wrong_with_an_assigned_item(): void
+    {
+        $product = self::product(ProductMeasure::Volume);
+        foreach (AliasKind::cases() as $kind) {
+            $decision = MatchDecision::fromAlias(new ProductAlias(Uuid::v7(), $kind, 'KEY', $product, null, new \DateTimeImmutable('2026-11-01 10:00:00')), false, ItemReader::read('JACK DANIELS 0,7L', 'szt.'));
+            self::assertSame(MatchSource::from($kind->value), $decision->source);
+            self::assertNull($decision->caveat);
+        }
+        $model = MatchDecision::fromInterpretation($product, new ItemInterpretation('k', $product->getId()->toRfc4122(), InterpretationConfidence::High, null), ItemReader::read('JACK DANIELS 0,7L', 'szt.'));
+        self::assertSame([PurchasedItemStatus::Assigned, MatchSource::Model, null], [$model?->status, $model?->source, $model?->caveat]);
+    }
+
+    public function test_it_says_why_an_item_is_only_suggested(): void
+    {
+        $volume = self::product(ProductMeasure::Volume);
+        $answer = static fn (Product $product, InterpretationConfidence $confidence, ?string $size = null): ItemInterpretation => new ItemInterpretation('k', $product->getId()->toRfc4122(), $confidence, $size);
+        $caveat = static fn (?MatchDecision $decision): ?MatchCaveat => $decision?->caveat;
+
+        self::assertSame(MatchCaveat::AliasesConflict, $caveat(MatchDecision::fromAlias($this->alias($volume), true, ItemReader::read('JACK DANIELS 0,7L', 'szt.'))));
+        self::assertSame(MatchCaveat::MeasureMismatch, $caveat(MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Mass)), false, ItemReader::read('Sok 1l', 'szt.'))));
+        self::assertSame(MatchCaveat::SizeUnknown, $caveat(MatchDecision::fromAlias($this->alias($volume), false, ItemReader::read('Whisky Demo', 'szt.'))));
+        self::assertSame(MatchCaveat::SizeReadWeakly, $caveat(MatchDecision::fromAlias($this->alias($volume), false, ItemReader::read('Piwo 6x0,5L', 'zgrz.'))));
+        self::assertSame(MatchCaveat::SizeDisagrees, $caveat(MatchDecision::fromAlias($this->alias($volume, '0.7'), false, ItemReader::read('Piwo 6x0,5L', 'zgrz.'))));
+        self::assertSame(MatchCaveat::SizeUnverified, $caveat(MatchDecision::fromAlias($this->alias($volume, '1'), false, ItemReader::read('Jack Daniels 1L', 'CO'))));
+        self::assertSame(MatchCaveat::ModelUnsure, $caveat(MatchDecision::fromInterpretation($volume, $answer($volume, InterpretationConfidence::Medium), ItemReader::read('JACK DANIELS 0,7L', 'szt.'))));
+        self::assertSame(MatchCaveat::SizeUnknown, $caveat(MatchDecision::fromInterpretation($volume, $answer($volume, InterpretationConfidence::High), ItemReader::read('Whisky Demo', 'szt.'))));
+        $proposed = MatchDecision::fromInterpretation($volume, $answer($volume, InterpretationConfidence::Medium), ItemReader::read('JACK DANIELS 0,7L', 'szt.'), fromProposedName: true);
+        self::assertSame([MatchSource::ProposedName, MatchCaveat::ProposedNameOnly], [$proposed?->source, $proposed?->caveat]);
+        $unsureAndNoSize = MatchDecision::fromAlias($this->alias($volume), true, ItemReader::read('Whisky Demo', 'szt.'));
+        self::assertSame(MatchCaveat::AliasesConflict, $unsureAndNoSize->caveat, 'The first reason that held it back.');
+    }
+
+    public function test_it_holds_an_assigned_item_back_for_a_price_outlier_and_only_that(): void
+    {
+        $volume = self::product(ProductMeasure::Volume);
+        $assigned = MatchDecision::fromAlias($this->alias($volume), false, ItemReader::read('JACK DANIELS 0,7L', 'szt.'));
+
+        $held = $assigned->withPriceOutlier();
+
+        self::assertSame([PurchasedItemStatus::Suggested, MatchCaveat::PriceOutlier, '0.7', MatchSource::SellerCode], [$held->status, $held->caveat, $held->packageSize, $held->source]);
+        $already = MatchDecision::fromAlias($this->alias($volume), true, ItemReader::read('JACK DANIELS 0,7L', 'szt.'));
+        self::assertSame(MatchCaveat::AliasesConflict, $already->withPriceOutlier()->caveat, 'A suggestion keeps its own reason.');
     }
 
     private static function product(ProductMeasure $measure): Product

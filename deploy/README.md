@@ -104,6 +104,16 @@ again is safe; it only queues jobs for the `jobs-worker`, so the command returns
   items the model found nothing for, for after the catalog has grown. The `jobs-worker`'s log shows how
   many items went through and whether the model was unavailable.
 
+  Items the owner already confirmed by hand before matching existed teach it nothing until aliases are
+  learned from them (ADR 0045). Once per environment, **before** `app:purchasing:match-items`:
+
+  ```bash
+  docker compose -p business-tool-production exec php bin/console app:purchasing:backfill-aliases
+  ```
+
+  `--organization=<id>` limits it to one organization. It changes no item or link, calls no model, and
+  creates an alias only for a key that has none, so running it again adds nothing.
+
 ## Rollback
 
 Run the workflow again for the previous good commit or tag (*Run workflow* on that ref, or re-run its

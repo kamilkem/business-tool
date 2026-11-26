@@ -46,6 +46,8 @@ function item(id: string, name: string, date: string, overrides: Partial<QueueIt
     productName: null,
     status: "unassigned",
     packageSize: null,
+    matchSource: null,
+    matchCaveat: null,
     ...overrides,
   }
 }

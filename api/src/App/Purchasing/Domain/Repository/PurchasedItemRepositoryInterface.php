@@ -69,6 +69,24 @@ interface PurchasedItemRepositoryInterface
     public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array;
 
     /**
+     * The ids of the confirmed items that have a product (the owner's word), newest invoice issue date
+     * first, then by id descending, after `$afterId` in that order when given: for learning the aliases of
+     * items confirmed before they were learned (ADR 0045 §3).
+     *
+     * @return list<Uuid>
+     */
+    public function findConfirmedIds(?Uuid $afterId, int $limit): array;
+
+    /**
+     * The prices per base unit (PriceSanity::perBaseUnit()) of a product's most recent confirmed items in a
+     * currency, up to `$limit`: plain purchases only (no correction), with a net value, a quantity and a
+     * package size. For the price check (ADR 0045 §2).
+     *
+     * @return list<int>
+     */
+    public function confirmedPricesPerBaseUnit(Uuid $productId, string $currency, int $limit): array;
+
+    /**
      * The items that carry a proposal for a product (ADR 0044) and are still open to it: unassigned, not
      * taken off a product by a person. By item name, then id; only scalars are read.
      *

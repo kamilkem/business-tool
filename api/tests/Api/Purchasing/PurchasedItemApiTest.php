@@ -90,9 +90,49 @@ final class PurchasedItemApiTest extends ApiTestCase
             'productName' => 'Jack Daniel\'s',
             'status' => 'confirmed',
             'packageSize' => '0.7',
+            'matchSource' => null,
+            'matchCaveat' => null,
         ], $page['items'][0]);
         self::assertNull($page['items'][1]['invoiceNumber']);
         self::assertSame([null, null, 'unassigned', null], [$page['items'][1]['productId'], $page['items'][1]['productName'], $page['items'][1]['status'], $page['items'][1]['packageSize']]);
+    }
+
+    public function test_it_shows_why_matching_only_suggested_an_item_and_what_matched_it(): void
+    {
+        [$user, $organization] = self::memberWithRole(MembershipRole::Manager);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $suggested = self::addItem($organization, ['product' => $jack, 'status' => 'suggested', 'packageSize' => '0.7', 'matchSource' => 'seller_code', 'matchCaveat' => 'price_outlier', 'issueDate' => '2026-11-12']);
+        $assigned = self::addItem($organization, ['product' => $jack, 'status' => 'assigned', 'packageSize' => '0.7', 'matchSource' => 'model', 'issueDate' => '2026-11-11']);
+
+        $page = self::list($user, $organization)->toArray();
+
+        self::assertSame([$suggested, $assigned], array_column($page['items'], 'id'));
+        self::assertSame(['seller_code', 'price_outlier'], [$page['items'][0]['matchSource'], $page['items'][0]['matchCaveat']]);
+        self::assertSame(['model', null], [$page['items'][1]['matchSource'], $page['items'][1]['matchCaveat']]);
+        $one = self::get($user, $organization, $suggested)->toArray();
+        self::assertSame(['seller_code', 'price_outlier'], [$one['matchSource'], $one['matchCaveat']]);
+    }
+
+    public function test_a_persons_link_clears_what_matching_said_about_the_item(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $id = self::addItem($organization, ['product' => $jack, 'status' => 'suggested', 'packageSize' => '0.7', 'matchSource' => 'name', 'matchCaveat' => 'size_unknown']);
+
+        $item = self::change($owner, $organization, $id, [])->toArray();
+
+        self::assertSame(['confirmed', null, null], [$item['status'], $item['matchSource'], $item['matchCaveat']]);
+    }
+
+    public function test_it_lists_the_items_of_another_organization_nowhere(): void
+    {
+        [$user, $organization] = self::memberWithRole(MembershipRole::Owner);
+        [, $other] = self::memberWithRole(MembershipRole::Owner);
+        $theirs = self::addItem($other, ['product' => self::addProduct($other, 'Theirs'), 'status' => 'suggested', 'packageSize' => '1', 'matchSource' => 'model', 'matchCaveat' => 'model_unsure']);
+
+        self::assertSame(0, self::list($user, $organization)->toArray()['total']);
+        self::get($user, $organization, $theirs);
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function test_it_lists_an_empty_page_for_an_organization_without_items(): void
@@ -677,7 +717,7 @@ final class PurchasedItemApiTest extends ApiTestCase
      * Records an item in the organization, linked the way matching (#233) or a person would have
      * linked it: its product, status and package size.
      *
-     * @param array{invoiceId?: string, name?: string, issueDate?: string, product?: Product, status?: string, packageSize?: string} $overrides
+     * @param array{invoiceId?: string, name?: string, issueDate?: string, product?: Product, status?: string, packageSize?: string, matchSource?: string, matchCaveat?: string} $overrides
      *
      * @return string the item's id
      */
@@ -693,10 +733,12 @@ final class PurchasedItemApiTest extends ApiTestCase
         });
 
         if (isset($overrides['product']) || isset($overrides['packageSize']) || isset($overrides['status'])) {
-            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size WHERE id = :id', [
+            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size, match_source = :source, match_caveat = :caveat WHERE id = :id', [
                 'product' => isset($overrides['product']) ? $overrides['product']->getId()->toRfc4122() : null,
                 'status' => $overrides['status'] ?? 'unassigned',
                 'size' => $overrides['packageSize'] ?? null,
+                'source' => $overrides['matchSource'] ?? null,
+                'caveat' => $overrides['matchCaveat'] ?? null,
                 'id' => $id->toRfc4122(),
             ]);
         }
