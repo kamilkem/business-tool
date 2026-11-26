@@ -681,6 +681,48 @@
       "confirmed_one": "{{count}} suggestion confirmed",
       "confirmed_other": "{{count}} suggestions confirmed"
     },
+    "matching": {
+      "title": "Matching",
+      "waiting_one": "{{count}} item has no product yet and can be matched.",
+      "waiting_other": "{{count}} items have no product yet and can be matched.",
+      "nothingWaiting": "Every item has a product.",
+      "button": "Match again",
+      "running": "Matching…",
+      "neverRun": "The model has not gone through any items yet.",
+      "runningSince": "Matching is running, started {{when}}.",
+      "finished": "The last run finished {{when}}.",
+      "interrupted": {
+        "title": "The last run did not finish",
+        "description": "The run started {{when}} never reported back, most likely because the server restarted. Match again to continue."
+      },
+      "unavailable": {
+        "title": "The model was unavailable at the last run",
+        "description_one": "The run stopped {{when}} because the model could not answer. {{count}} item went through before that; the rest are still waiting. Try again later.",
+        "description_other": "The run stopped {{when}} because the model could not answer. {{count}} items went through before that; the rest are still waiting. Try again later."
+      },
+      "off": {
+        "title": "The model is switched off",
+        "description": "This server has no key for the model, so items are matched only by the names and codes you confirmed before. Ask whoever runs the server to switch it on."
+      },
+      "counts": {
+        "label": "What the last run did",
+        "none": "No item went through the model.",
+        "interpreted_one": "item went through the model",
+        "interpreted_other": "items went through the model",
+        "assigned": "assigned",
+        "suggested": "suggested, to confirm",
+        "foundNothing": "with no product found"
+      },
+      "error": {
+        "title": "Could not load the matching status",
+        "retry": "Try again"
+      },
+      "toast": {
+        "queued": "Matching queued",
+        "queuedDescription": "It runs in the background; the numbers here update when it ends.",
+        "failed": "Could not queue matching"
+      }
+    },
     "proposals": {
       "title": "Proposed products",
       "description": "Items that match nothing in your catalog. The model proposes a product for each group; nothing is created until you confirm it.",

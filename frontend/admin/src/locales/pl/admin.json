@@ -753,6 +753,54 @@
       "confirmed_many": "Potwierdzono {{count}} propozycji",
       "confirmed_other": "Potwierdzono {{count}} propozycji"
     },
+    "matching": {
+      "title": "Dopasowywanie",
+      "waiting_one": "{{count}} pozycja nie ma jeszcze produktu i można ją dopasować.",
+      "waiting_few": "{{count}} pozycje nie mają jeszcze produktu i można je dopasować.",
+      "waiting_many": "{{count}} pozycji nie ma jeszcze produktu i można je dopasować.",
+      "waiting_other": "{{count}} pozycji nie ma jeszcze produktu i można je dopasować.",
+      "nothingWaiting": "Każda pozycja ma produkt.",
+      "button": "Dopasuj ponownie",
+      "running": "Dopasowywanie…",
+      "neverRun": "Model nie przeglądał jeszcze żadnych pozycji.",
+      "runningSince": "Dopasowywanie trwa, zaczęło się {{when}}.",
+      "finished": "Ostatni przebieg zakończył się {{when}}.",
+      "interrupted": {
+        "title": "Ostatni przebieg się nie zakończył",
+        "description": "Przebieg rozpoczęty {{when}} nie dał znać o zakończeniu, najpewniej z powodu restartu serwera. Dopasuj ponownie, żeby kontynuować."
+      },
+      "unavailable": {
+        "title": "Model był niedostępny podczas ostatniego przebiegu",
+        "description_one": "Przebieg zatrzymał się {{when}}, bo model nie mógł odpowiedzieć. Wcześniej przeszła przez niego {{count}} pozycja; reszta nadal czeka. Spróbuj ponownie później.",
+        "description_few": "Przebieg zatrzymał się {{when}}, bo model nie mógł odpowiedzieć. Wcześniej przeszły przez niego {{count}} pozycje; reszta nadal czeka. Spróbuj ponownie później.",
+        "description_many": "Przebieg zatrzymał się {{when}}, bo model nie mógł odpowiedzieć. Wcześniej przeszło przez niego {{count}} pozycji; reszta nadal czeka. Spróbuj ponownie później.",
+        "description_other": "Przebieg zatrzymał się {{when}}, bo model nie mógł odpowiedzieć. Wcześniej przeszło przez niego {{count}} pozycji; reszta nadal czeka. Spróbuj ponownie później."
+      },
+      "off": {
+        "title": "Model jest wyłączony",
+        "description": "Ten serwer nie ma klucza do modelu, więc pozycje są dopasowywane tylko po nazwach i kodach, które wcześniej potwierdzisz. Poproś osobę, która prowadzi serwer, o jego włączenie."
+      },
+      "counts": {
+        "label": "Co zrobił ostatni przebieg",
+        "none": "Żadna pozycja nie przeszła przez model.",
+        "interpreted_one": "pozycja przeszła przez model",
+        "interpreted_few": "pozycje przeszły przez model",
+        "interpreted_many": "pozycji przeszło przez model",
+        "interpreted_other": "pozycji przeszło przez model",
+        "assigned": "przypisane",
+        "suggested": "zasugerowane, do potwierdzenia",
+        "foundNothing": "bez znalezionego produktu"
+      },
+      "error": {
+        "title": "Nie udało się wczytać stanu dopasowywania",
+        "retry": "Spróbuj ponownie"
+      },
+      "toast": {
+        "queued": "Dopasowywanie zakolejkowane",
+        "queuedDescription": "Działa w tle; liczby tutaj odświeżą się po jego zakończeniu.",
+        "failed": "Nie udało się zakolejkować dopasowywania"
+      }
+    },
     "proposals": {
       "title": "Proponowane produkty",
       "description": "Pozycje, które nie pasują do niczego w Twoim katalogu. Model proponuje produkt dla każdej grupy; nic nie powstanie, dopóki tego nie potwierdzisz.",

@@ -6,6 +6,7 @@ namespace App\Purchasing\Application\Command\UpdateProduct;
 
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Purchasing\Application\PurchasingActor;
+use App\Purchasing\Domain\Event\ProductChanged;
 use App\Purchasing\Domain\Exception\InvalidProductNameException;
 use App\Purchasing\Domain\Exception\InvalidProductReferenceQuantityException;
 use App\Purchasing\Domain\Exception\ProductNameTakenException;
@@ -17,6 +18,7 @@ use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use App\Shared\Application\Query\QueryBusInterface;
+use App\Shared\Domain\Event\EventPublisherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class UpdateProductHandler implements CommandHandlerInterface
@@ -25,6 +27,7 @@ final readonly class UpdateProductHandler implements CommandHandlerInterface
         private ProductRepositoryInterface $products,
         private ProductCategoryRepositoryInterface $categories,
         private QueryBusInterface $queryBus,
+        private EventPublisherInterface $events,
     ) {
     }
 
@@ -50,6 +53,8 @@ final readonly class UpdateProductHandler implements CommandHandlerInterface
             $category ??= throw UnknownProductCategoryException::withId($command->categoryId);
         }
 
+        $name = $product->getName();
+        $measure = $product->getMeasure();
         $product->change(
             $command->name,
             $category,
@@ -62,5 +67,12 @@ final readonly class UpdateProductHandler implements CommandHandlerInterface
         );
 
         $this->products->save($product);
+
+        // What the model is shown of a product (ADR 0046 §1): nothing else queues matching.
+        $renamed = $product->getName() !== $name;
+        $measureChanged = $product->getMeasure() !== $measure;
+        if ($renamed || $measureChanged) {
+            $this->events->publish(new ProductChanged($command->organizationId, $command->productId, $renamed, $measureChanged));
+        }
     }
 }

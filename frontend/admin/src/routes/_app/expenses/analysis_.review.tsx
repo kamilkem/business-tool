@@ -17,6 +17,7 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { BasisToggle } from "@/components/basis-toggle"
 import { ExpensesNav } from "@/components/expenses-nav"
 import { InvoiceSheet } from "@/components/invoice-sheet"
+import { MatchingCard } from "@/components/matching-card"
 import { ProductProposals } from "@/components/product-proposals"
 import { type AssignRequest, ReviewAssignDialog } from "@/components/review-assign-dialog"
 import { ReviewGroupRow } from "@/components/review-queue-group"
@@ -41,7 +42,8 @@ import {
  * matching only suggested, grouped by the name the invoice printed, newest first. The owner assigns a
  * group, one item or a selection to a product (or to a new one made from them, with the package size
  * they type), confirms a suggestion, or excludes what should not count. Above the queue the model's
- * proposed products wait for the owner's decision (ADR 0044). It is where the overview's "Not assigned"
+ * proposed products wait for the owner's decision (ADR 0044), under a card that says what matching did last
+ * and has the model go through the unassigned items again (ADR 0046). It is where the overview's "Not assigned"
  * row leads.
  */
 export const Route = createFileRoute("/_app/expenses/analysis_/review")({
@@ -180,6 +182,8 @@ function ReviewPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeading />
+
+      <MatchingCard organizationId={organizationId} />
 
       <ProductProposals organizationId={organizationId} />
 

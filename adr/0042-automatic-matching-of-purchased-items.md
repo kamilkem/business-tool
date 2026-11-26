@@ -1,6 +1,6 @@
 # 0042. Purchased items are matched to products by the owner's remembered aliases first and a language model second, and the package size is read from the unit and the name
 
-Status: Accepted (points 5 and 6 amended for units of unknown count by [0043](0043-units-of-unknown-count-and-the-sellers-multiplier.md); proposing new products, §9, done by [0044](0044-the-model-proposes-products-the-owner-creates-them.md); the price check and aliases for earlier confirmations, §9, done by [0045](0045-matching-explains-itself-checks-prices-and-learns-from-history.md))
+Status: Accepted (points 5 and 6 amended for units of unknown count by [0043](0043-units-of-unknown-count-and-the-sellers-multiplier.md); proposing new products, §9, done by [0044](0044-the-model-proposes-products-the-owner-creates-them.md); the price check and aliases for earlier confirmations, §9, done by [0045](0045-matching-explains-itself-checks-prices-and-learns-from-history.md); the admin button for `--again`, §9, and a rename re-running matching, §7, by [0046](0046-matching-reruns-on-catalog-changes-and-on-demand.md))
 
 Date: 2026-11-26
 

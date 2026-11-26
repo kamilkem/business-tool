@@ -7,6 +7,8 @@ namespace App\Purchasing\Infrastructure\Doctrine\Orm\Repository;
 use App\Expenses\Domain\Model\DecimalString;
 use App\Expenses\Domain\Model\PurchaseInvoiceKind;
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\MatchSource;
+use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
@@ -17,6 +19,7 @@ use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Infrastructure\Doctrine\Type\BusinessDateType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -102,7 +105,7 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         $this->getEntityManager()->flush();
     }
 
-    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit, ?\DateTimeImmutable $askedBefore = null): array
     {
         $query = $this->createQueryBuilder('i')
             ->select('i.id')
@@ -116,6 +119,9 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         } elseif (MatchScope::Unassigned === $scope) {
             $query->andWhere('i.status = :unassigned')->setParameter('unassigned', PurchasedItemStatus::Unassigned->value);
         }
+        if (null !== $askedBefore) {
+            $query->andWhere('i.matchedAt IS NULL OR i.matchedAt < :askedBefore')->setParameter('askedBefore', $askedBefore, Types::DATETIME_IMMUTABLE);
+        }
         if (null !== $afterId) {
             $query->andWhere('i.id > :after')->setParameter('after', $afterId, 'uuid');
         }
@@ -124,6 +130,49 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         $rows = $query->getQuery()->getResult();
 
         return array_map(static fn (array $row): Uuid => $row['id'], $rows);
+    }
+
+    public function countMatchable(MatchScope $scope): int
+    {
+        $query = $this->createQueryBuilder('i')
+            ->select('COUNT(i.id)')
+            ->where('i.status <> :confirmed')
+            ->andWhere('i.matchingSkipped = false')
+            ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value);
+        if (MatchScope::NotYetMatched === $scope) {
+            $query->andWhere('i.matchedAt IS NULL');
+        } elseif (MatchScope::Unassigned === $scope) {
+            $query->andWhere('i.status = :unassigned')->setParameter('unassigned', PurchasedItemStatus::Unassigned->value);
+        }
+
+        return (int) $query->getQuery()->getSingleScalarResult();
+    }
+
+    public function countModelOutcomesSince(\DateTimeImmutable $since): ModelOutcomeCounts
+    {
+        /** @var list<array{status: PurchasedItemStatus|string, total: int|string}> $rows */
+        $rows = $this->createQueryBuilder('i')
+            ->select('i.status AS status', 'COUNT(i.id) AS total')
+            ->where('i.matchedAt >= :since')
+            ->andWhere('i.matchingSkipped = false')
+            ->andWhere('i.status = :unassigned OR i.matchSource IN (:modelSources)')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('unassigned', PurchasedItemStatus::Unassigned->value)
+            ->setParameter('modelSources', [MatchSource::Model->value, MatchSource::ProposedName->value], ArrayParameterType::STRING)
+            ->groupBy('i.status')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[$row['status'] instanceof PurchasedItemStatus ? $row['status']->value : $row['status']] = (int) $row['total'];
+        }
+
+        return new ModelOutcomeCounts(
+            array_sum($counts),
+            $counts[PurchasedItemStatus::Assigned->value] ?? 0,
+            $counts[PurchasedItemStatus::Suggested->value] ?? 0,
+        );
     }
 
     public function findConfirmedIds(?Uuid $afterId, int $limit): array

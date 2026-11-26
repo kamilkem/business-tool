@@ -22,6 +22,7 @@ use App\Purchasing\Application\Query\GetProduct\GetProductQuery;
 use App\Purchasing\Application\Query\GetProduct\ProductView;
 use App\Purchasing\Application\Query\ListProducts\ListProductsHandler;
 use App\Purchasing\Application\Query\ListProducts\ListProductsQuery;
+use App\Purchasing\Domain\Event\ProductChanged;
 use App\Purchasing\Domain\Event\ProductCreated;
 use App\Purchasing\Domain\Exception\InvalidProductReferenceQuantityException;
 use App\Purchasing\Domain\Exception\ProductInUseException;
@@ -205,6 +206,41 @@ final class ProductHandlersTest extends TestCase
 
         self::assertNull($this->cola->getCategory());
         self::assertNull($this->cola->getReferenceQuantity());
+    }
+
+    public function test_it_publishes_product_changed_only_for_a_rename_or_a_new_measure(): void
+    {
+        $id = $this->cola->getId()->toRfc4122();
+        $organizationId = $this->organization->getId()->toRfc4122();
+        $this->events->events = [];
+
+        // What the model never sees of a product queues nothing (ADR 0046 §1).
+        $this->update($this->owner, $id, 'Cola', $this->food->getId()->toRfc4122(), ProductMeasure::Volume, '0.5', true);
+        $this->update($this->owner, $id, 'Cola', $this->food->getId()->toRfc4122(), ProductMeasure::Volume, '0.5', true);
+        self::assertSame([], $this->events->events);
+
+        $this->update($this->owner, $id, 'Coca-Cola', $this->food->getId()->toRfc4122(), ProductMeasure::Volume, '0.5', true);
+        $this->update($this->owner, $id, 'Coca-Cola', $this->food->getId()->toRfc4122(), ProductMeasure::Mass, '0.5', true);
+        $this->update($this->owner, $id, 'COCA-COLA', null, ProductMeasure::Count, null, false);
+
+        self::assertEquals([
+            new ProductChanged($organizationId, $id, true, false),
+            new ProductChanged($organizationId, $id, false, true),
+            new ProductChanged($organizationId, $id, true, true),
+        ], $this->events->events);
+    }
+
+    public function test_it_publishes_nothing_when_an_update_is_refused(): void
+    {
+        $this->events->events = [];
+
+        try {
+            $this->update($this->owner, $this->cola->getId()->toRfc4122(), 'rent', null, ProductMeasure::Count, null, false);
+            self::fail('The name is taken.');
+        } catch (ProductNameTakenException) {
+        }
+
+        self::assertSame([], $this->events->events);
     }
 
     public function test_it_refuses_a_name_another_product_has_when_updating(): void
@@ -415,7 +451,7 @@ final class ProductHandlersTest extends TestCase
 
     private function update(User $actor, string $id, string $name, ?string $categoryId, ProductMeasure $measure, ?string $referenceQuantity, bool $excluded): void
     {
-        (new UpdateProductHandler($this->products, $this->categories, $this->queryBus))(
+        (new UpdateProductHandler($this->products, $this->categories, $this->queryBus, $this->events))(
             new UpdateProductCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $id, $name, $categoryId, $measure->value, $referenceQuantity, $excluded),
         );
     }

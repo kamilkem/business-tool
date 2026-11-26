@@ -753,6 +753,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/purchased-items/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many items wait for the model, whether it is on, and what its last run did.
+         * @description Owners and managers only (403 otherwise). `waitingCount` is the number of items with no product that matching may change (not confirmed, not taken off their product by a person): what "Match again" goes through. `modelEnabled` is false while the server has no model configured: only the owner's remembered aliases match items then. `lastRun` is the newest run that used the model, or null when none did.
+         */
+        get: operations["api_purchased-itemsmatch_get"];
+        put?: never;
+        /**
+         * Puts the items with no product to the model again ("Match again").
+         * @description Owners and managers only (403 otherwise). Queues a run over every item with no product that the model has not been through since this request, and returns at once with the status; the run shows up in `lastRun` when it starts and ends. If one is already queued or running, no second one is queued. Items a person confirmed or took off their product are never changed. The request has no body. With no model configured the run can only apply the owner's remembered aliases, and is not recorded.
+         */
+        post: operations["api_purchased-itemsmatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -4091,6 +4115,70 @@ export interface components {
             importEstimatedAt: string | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description Where matching purchased items to products stands in the organization selected by the X-Organization-Id
+         *     header, and "Match again" (ADR 0046). Owners and managers only: anyone else gets a 403.
+         */
+        MatchingStatus: {
+            waitingCount: number;
+            modelEnabled: boolean;
+            lastRun: components["schemas"]["MatchingStatusRun"] | null;
+        };
+        /**
+         * @description Where matching purchased items to products stands in the organization selected by the X-Organization-Id
+         *     header, and "Match again" (ADR 0046). Owners and managers only: anyone else gets a 403.
+         */
+        "MatchingStatus.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            waitingCount: number;
+            modelEnabled: boolean;
+            lastRun: components["schemas"]["MatchingStatusRun.jsonld"] | null;
+        };
+        MatchingStatusRun: {
+            id: string;
+            /**
+             * @description `running` (not ended, for at most an hour), `interrupted` (never ended), `done`, or `model_unavailable` (it stopped because the model could not answer).
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "done" | "model_unavailable";
+            /** Format: date-time */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description Null while it has not ended.
+             */
+            finishedAt: string | null;
+            /** @description Items the model went through. */
+            interpreted: number;
+            /** @description Of those, items it linked with confidence. */
+            assigned: number;
+            /** @description Of those, items it linked for a person to confirm. */
+            suggested: number;
+            /** @description Of those, items it found no product for. */
+            foundNothing: number;
+        };
+        "MatchingStatusRun.jsonld": {
+            id: string;
+            /**
+             * @description `running` (not ended, for at most an hour), `interrupted` (never ended), `done`, or `model_unavailable` (it stopped because the model could not answer).
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "done" | "model_unavailable";
+            /** Format: date-time */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description Null while it has not ended.
+             */
+            finishedAt: string | null;
+            /** @description Items the model went through. */
+            interpreted: number;
+            /** @description Of those, items it linked with confidence. */
+            assigned: number;
+            /** @description Of those, items it linked for a person to confirm. */
+            suggested: number;
+            /** @description Of those, items it found no product for. */
+            foundNothing: number;
         };
         /** @description The signed-in user and the organizations they can access. */
         Me: {
@@ -9323,6 +9411,95 @@ export interface operations {
                     "application/json": {
                         readonly token: string;
                     };
+                };
+            };
+        };
+    };
+    "api_purchased-itemsmatch_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MatchingStatus resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["MatchingStatus.jsonld"];
+                    "application/json": components["schemas"]["MatchingStatus"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "api_purchased-itemsmatch_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run is queued; the status as it is now. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["MatchingStatus.jsonld"];
+                    "application/json": components["schemas"]["MatchingStatus"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
                 };
             };
         };

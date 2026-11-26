@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Purchasing\Domain\Repository;
 
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Proposal\ProposedItem;
 use Symfony\Component\Uid\Uuid;
@@ -62,11 +63,23 @@ interface PurchasedItemRepositoryInterface
 
     /**
      * The ids of the items matching may change (not `confirmed`, not taken off their product by a
-     * person) within the scope, by id, after `$afterId` when given.
+     * person) within the scope, by id, after `$afterId` when given. With `$askedBefore` only those the model has
+     * not been through since then (never, or before that moment): a pass that runs twice asks each item once
+     * (ADR 0046 §3).
      *
      * @return list<Uuid>
      */
-    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array;
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit, ?\DateTimeImmutable $askedBefore = null): array;
+
+    /** How many items the scope holds: what a run of it would go through (ADR 0046 §5). */
+    public function countMatchable(MatchScope $scope): int;
+
+    /**
+     * What the model did to the items since `$since`: those it went through (matching noted them at or after it, and
+     * they have no product or were linked by the model), and how many ended `assigned` and `suggested` (ADR 0046 §6).
+     * Items a person took off their product are not counted.
+     */
+    public function countModelOutcomesSince(\DateTimeImmutable $since): ModelOutcomeCounts;
 
     /**
      * The ids of the confirmed items that have a product (the owner's word), newest invoice issue date

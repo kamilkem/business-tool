@@ -103,11 +103,11 @@ final class ProductProposalApiTest extends ApiTestCase
         self::assertSame(['confirmed', $products[0]['id'], '0.700000'], array_values(self::itemRow($a)));
         self::assertSame(['confirmed', $products[0]['id'], '1.000000'], array_values(self::itemRow($b)));
         self::assertSame('unassigned', self::itemRow($other)['status']);
-        // The aliases were queued by the confirmation, the model run for the new catalog by the product.
+        // The aliases were queued by the confirmation, the model run for the new catalog (now, and for the unassigned items once the burst settles) by the product.
         $keys = array_map(static fn (Envelope $envelope): string => (string) $envelope->last(DeduplicateStamp::class)?->getKey(), self::queuedJobs());
         $org = $organization->getId()->toRfc4122();
         sort($keys);
-        self::assertSame(['purchasing-match-items:'.$org.':all_matchable:aliases', 'purchasing-match-items:'.$org.':not_yet_matched:model'], $keys);
+        self::assertSame(['purchasing-match-items:'.$org.':after-catalog-change', 'purchasing-match-items:'.$org.':all_matchable:aliases', 'purchasing-match-items:'.$org.':not_yet_matched:model'], $keys);
         self::assertSame(['tyskie'], array_column(self::list($user, $organization)->toArray(), 'id'), 'The decided proposal is gone from the list.');
         // And the aliases are learned, from the items' own names.
         self::assertGreaterThanOrEqual(2, (int) static::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM product_alias WHERE organization_id = :id', ['id' => $org]));

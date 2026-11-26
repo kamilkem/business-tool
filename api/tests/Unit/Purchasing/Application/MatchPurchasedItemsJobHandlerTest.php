@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Application;
 
 use App\Organization\Domain\Model\Organization;
+use App\Purchasing\Application\Command\FinishMatchingRun\FinishMatchingRunCommand;
 use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsCommand;
+use App\Purchasing\Application\Command\StartMatchingRun\StartMatchingRunCommand;
+use App\Purchasing\Application\EventHandler\QueueMatchingOnProductChanged;
+use App\Purchasing\Domain\Event\ProductChanged;
+use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Application\EventHandler\LearnProductAliasesOnPurchasedItemsConfirmed;
 use App\Purchasing\Application\EventHandler\QueueAliasMatchingOnPurchasedItemsConfirmed;
 use App\Purchasing\Application\EventHandler\QueueMatchingOnProductCreated;
@@ -25,6 +30,7 @@ use App\Purchasing\Domain\Model\PurchasedItemDetails;
 use App\Shared\Application\Command\CommandInterface;
 use App\Shared\Application\Query\QueryInterface;
 use App\Shared\Domain\Time\BusinessDate;
+use App\Tests\Fixtures\InMemoryItemInterpreter;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryTenantContext;
@@ -44,6 +50,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ListMatchablePurchasedItemIdsHandler::class)]
 #[CoversClass(QueueMatchingOnPurchasedItemsRecorded::class)]
 #[CoversClass(QueueMatchingOnProductCreated::class)]
+#[CoversClass(QueueMatchingOnProductChanged::class)]
 #[CoversClass(QueueAliasMatchingOnPurchasedItemsConfirmed::class)]
 #[CoversClass(LearnProductAliasesOnPurchasedItemsConfirmed::class)]
 final class MatchPurchasedItemsJobHandlerTest extends TestCase
@@ -57,6 +64,7 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
     private ?ItemInterpreterUnavailableException $failure = null;
     private RecordingCommandBus $commandBus;
     private StubQueryBus $queryBus;
+    private InMemoryItemInterpreter $interpreter;
 
     protected function setUp(): void
     {
@@ -68,7 +76,11 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
         $this->clock = new MockClock('2026-11-26 03:00:00');
         $list = new ListMatchablePurchasedItemIdsHandler($this->items);
         $this->queryBus = new StubQueryBus(static fn (QueryInterface $query): mixed => $query instanceof ListMatchablePurchasedItemIdsQuery ? $list($query) : throw new \LogicException('Unexpected query.'));
+        $this->interpreter = new InMemoryItemInterpreter();
         $this->commandBus = new RecordingCommandBus(function (CommandInterface $command): void {
+            if (!$command instanceof MatchPurchasedItemsCommand) {
+                return;
+            }
             if (null !== $this->failure) {
                 throw $this->failure;
             }
@@ -153,7 +165,7 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
 
     public function test_it_queues_matching_with_the_model_when_a_product_is_created_one_job_for_a_burst(): void
     {
-        $handler = new QueueMatchingOnProductCreated($this->jobBus);
+        $handler = new QueueMatchingOnProductCreated($this->jobBus, $this->clock);
 
         $handler(new ProductCreated($this->organizationId(), Uuid::v7()->toRfc4122()));
         $handler(new ProductCreated($this->organizationId(), Uuid::v7()->toRfc4122()));
@@ -163,7 +175,107 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
         self::assertSame([MatchScope::NotYetMatched->value, true, null], [$job->scope, $job->useInterpreter, $job->afterItemId]);
         // The same key as for recorded items: the job bus drops a job whose key is queued, so the burst is one job (ADR 0025 §5).
         self::assertSame('purchasing-match-items:'.$this->organizationId().':not_yet_matched:model', $this->jobBus->dispatched[0]['deduplicationKey']);
-        self::assertSame($this->jobBus->dispatched[0]['deduplicationKey'], $this->jobBus->dispatched[1]['deduplicationKey']);
+        self::assertSame($this->jobBus->dispatched[0]['deduplicationKey'], $this->jobBus->dispatched[2]['deduplicationKey']);
+        self::assertSame(0, $this->jobBus->delays[0]);
+    }
+
+    public function test_it_queues_one_delayed_pass_over_the_unassigned_items_for_a_burst_of_products_created_or_changed(): void
+    {
+        $created = new QueueMatchingOnProductCreated($this->jobBus, $this->clock);
+        $changed = new QueueMatchingOnProductChanged($this->jobBus, $this->clock);
+        $productId = Uuid::v7()->toRfc4122();
+
+        $created(new ProductCreated($this->organizationId(), $productId));
+        $this->clock->sleep(20);
+        $changed(new ProductChanged($this->organizationId(), $productId, true, false));
+
+        // Per event: the immediate pass over the items never asked, then the pass over the unassigned ones, delayed.
+        self::assertSame([0, MatchPurchasedItemsJob::SETTLE_DELAY_SECONDS, 0, MatchPurchasedItemsJob::SETTLE_DELAY_SECONDS], $this->jobBus->delays);
+        $settling = [$this->jobBus->dispatched[1], $this->jobBus->dispatched[3]];
+        foreach ($settling as $dispatched) {
+            self::assertSame('purchasing-match-items:'.$this->organizationId().':after-catalog-change', $dispatched['deduplicationKey'], 'One key: the job bus drops the second while the first waits (ADR 0025 §5).');
+            self::assertInstanceOf(MatchPurchasedItemsJob::class, $dispatched['job']);
+            self::assertSame([MatchScope::Unassigned->value, true, null], [$dispatched['job']->scope, $dispatched['job']->useInterpreter, $dispatched['job']->afterItemId]);
+        }
+        self::assertEquals(
+            ['2026-11-26T03:00:00.000000+00:00', '2026-11-26T03:00:20.000000+00:00'],
+            array_map(static fn (array $dispatched): ?string => $dispatched['job'] instanceof MatchPurchasedItemsJob ? $dispatched['job']->askedBefore : null, $settling),
+        );
+        // The key of the button's job is not the settling key, so a waiting pass never swallows "Match again".
+        self::assertNotSame(MatchPurchasedItemsJob::deduplicationKey($this->organizationId(), MatchScope::Unassigned->value, true), $settling[0]['deduplicationKey']);
+    }
+
+    public function test_it_goes_only_through_the_items_the_model_has_not_been_through_since_the_trigger(): void
+    {
+        [$before, $after, $never] = $this->addItems(3);
+        $before->match(null, null, PurchasedItemStatus::Unassigned, new \DateTimeImmutable('2026-11-26 02:00:00'));
+        $after->match(null, null, PurchasedItemStatus::Unassigned, new \DateTimeImmutable('2026-11-26 02:30:00.5'));
+
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true, null, MatchPurchasedItemsJob::cutoffOf(new \DateTimeImmutable('2026-11-26 02:30:00'))));
+
+        $commands = $this->commandBus->commandsOf(MatchPurchasedItemsCommand::class);
+        self::assertEqualsCanonicalizing([$before->getId()->toRfc4122(), $never->getId()->toRfc4122()], $commands[0]->itemIds, 'A second pass with the same cutoff finds nothing the first one asked.');
+    }
+
+    public function test_it_records_a_run_that_uses_the_model_and_ends_it_when_done(): void
+    {
+        $this->addItems(MatchPurchasedItemsJobHandler::PAGE_SIZE + 1);
+
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true));
+
+        $started = $this->commandBus->commandsOf(StartMatchingRunCommand::class);
+        $finished = $this->commandBus->commandsOf(FinishMatchingRunCommand::class);
+        self::assertCount(1, $started);
+        self::assertSame([$this->organizationId(), MatchScope::Unassigned->value], [$started[0]->organizationId, $started[0]->scope]);
+        self::assertCount(1, $finished);
+        self::assertSame([$started[0]->runId, 'done'], [$finished[0]->runId, $finished[0]->outcome]);
+        // Started before the first page is matched, ended after the last.
+        self::assertSame([StartMatchingRunCommand::class, MatchPurchasedItemsCommand::class, MatchPurchasedItemsCommand::class, FinishMatchingRunCommand::class], array_map('get_class', $this->commandBus->commands));
+    }
+
+    public function test_it_records_no_run_without_items_without_the_model_or_when_asked_for_aliases_only(): void
+    {
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true));
+        $this->addItems(2);
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::AllMatchable->value, false));
+        $this->interpreter->available = false;
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true));
+
+        self::assertSame([], $this->commandBus->commandsOf(StartMatchingRunCommand::class));
+        self::assertSame([], $this->commandBus->commandsOf(FinishMatchingRunCommand::class));
+    }
+
+    public function test_it_ends_the_run_as_model_unavailable_when_the_model_cannot_answer(): void
+    {
+        $this->addItems(3);
+        $this->failure = ItemInterpreterUnavailableException::because('the API answered 429 (rate_limit_error)');
+
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true));
+
+        $finished = $this->commandBus->commandsOf(FinishMatchingRunCommand::class);
+        self::assertCount(1, $finished);
+        self::assertSame('model_unavailable', $finished[0]->outcome);
+    }
+
+    public function test_a_continuation_keeps_the_run_and_the_cutoff_and_does_not_start_another_run(): void
+    {
+        $this->addItems(MatchPurchasedItemsJobHandler::PAGE_SIZE * 2);
+        $this->afterCommand = fn () => $this->clock->sleep(MatchPurchasedItemsJobHandler::TIME_BUDGET_SECONDS + 1);
+        $cutoff = MatchPurchasedItemsJob::cutoffOf($this->clock->now());
+
+        $this->runJob(new MatchPurchasedItemsJob($this->organizationId(), MatchScope::Unassigned->value, true, null, $cutoff));
+
+        $runId = $this->commandBus->commandsOf(StartMatchingRunCommand::class)[0]->runId;
+        $queued = $this->jobBus->dispatched[0]['job'];
+        self::assertInstanceOf(MatchPurchasedItemsJob::class, $queued);
+        self::assertSame([$cutoff, $runId], [$queued->askedBefore, $queued->runId]);
+        self::assertSame([], $this->commandBus->commandsOf(FinishMatchingRunCommand::class), 'The run goes on in the next job.');
+
+        $this->afterCommand = null;
+        $this->runJob($queued);
+
+        self::assertCount(1, $this->commandBus->commandsOf(StartMatchingRunCommand::class));
+        self::assertSame([$runId], array_map(static fn (FinishMatchingRunCommand $command): string => $command->runId, $this->commandBus->commandsOf(FinishMatchingRunCommand::class)));
     }
 
     public function test_it_learns_aliases_and_queues_matching_by_aliases_alone_when_a_person_confirms(): void
@@ -184,7 +296,7 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
 
     private function runJob(MatchPurchasedItemsJob $job): void
     {
-        (new MatchPurchasedItemsJobHandler($this->tenantContext, $this->queryBus, $this->commandBus, $this->jobBus, $this->clock, new NullLogger()))($job);
+        (new MatchPurchasedItemsJobHandler($this->tenantContext, $this->queryBus, $this->commandBus, $this->jobBus, $this->interpreter, $this->clock, new NullLogger()))($job);
     }
 
     /** @return list<PurchasedItem> */

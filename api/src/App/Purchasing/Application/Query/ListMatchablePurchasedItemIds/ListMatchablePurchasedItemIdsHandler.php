@@ -22,7 +22,7 @@ final readonly class ListMatchablePurchasedItemIdsHandler implements QueryHandle
 
         return array_map(
             static fn (Uuid $id): string => $id->toRfc4122(),
-            $this->items->findMatchableIds(MatchScope::from($query->scope), $after, $query->limit),
+            $this->items->findMatchableIds(MatchScope::from($query->scope), $after, $query->limit, null === $query->askedBefore ? null : new \DateTimeImmutable($query->askedBefore)),
         );
     }
 }

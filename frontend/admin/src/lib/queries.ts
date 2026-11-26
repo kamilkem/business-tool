@@ -180,6 +180,16 @@ export const productProposalsQuery = (organizationId: string) =>
     queryFn: () => unwrap(api.GET("/api/product-proposals")),
   })
 
+/**
+ * What waits for the model, whether it is on and what its last run did (GET /purchased-items/match, ADR 0046
+ * §5). Under `["purchased-items", organizationId]`, so a write to the items refreshes the waiting count.
+ */
+export const matchingStatusQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["purchased-items", organizationId, "matching"],
+    queryFn: () => unwrap(api.GET("/api/purchased-items/match")),
+  })
+
 /** After a write to products or purchased items: the product screens, the overview and the review queue show what the API has now. */
 export async function invalidatePurchasing(queryClient: QueryClient, organizationId: string) {
   await Promise.all([
