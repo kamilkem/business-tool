@@ -15,6 +15,8 @@ enum SizeSource: string
     case Multipack = 'multipack';
     /** A size in the unit's text (`op. 0,2l`), the name has none. */
     case UnitText = 'unit_text';
+    /** A size in the name on a unit of unknown count, times the seller's multiplier for it (ADR 0043). */
+    case SellerUnit = 'seller_unit';
     /** Two different sizes in the name. */
     case Ambiguous = 'ambiguous';
     case None = 'none';

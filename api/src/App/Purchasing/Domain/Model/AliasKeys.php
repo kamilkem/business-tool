@@ -19,10 +19,16 @@ final class AliasKeys
     {
     }
 
+    /** The seller as an organization's records name it: its tax ID, or its name when it has none (SellerKey). */
+    public static function sellerOf(PurchasedItem $item): string
+    {
+        return SellerKey::ofTaxId($item->getSellerTaxId()) ?? 'name:'.SellerKey::ofName($item->getSellerName());
+    }
+
     /** @return array<string, string> key by AliasKind value, in order of strength; kinds the item has no key for are left out */
     public static function of(PurchasedItem $item): array
     {
-        $seller = SellerKey::ofTaxId($item->getSellerTaxId()) ?? 'name:'.SellerKey::ofName($item->getSellerName());
+        $seller = self::sellerOf($item);
         $keys = [];
 
         $gtin = preg_replace('/\D+/', '', $item->getGtin() ?? '') ?? '';

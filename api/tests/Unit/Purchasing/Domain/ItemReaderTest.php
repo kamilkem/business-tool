@@ -42,7 +42,11 @@ final class ItemReaderTest extends TestCase
         yield 'LT as litres' => ['Wino 0.75 LT', 'but', '0.75', ProductMeasure::Volume, SizeSource::Name, true];
         yield 'the same size twice' => ['Piwo Demo 0,5L 0,5l', 'szt.', '0.5', ProductMeasure::Volume, SizeSource::Name, true];
         yield 'a miniature' => ['Gin Demo 5cl miniatura', 'szt.', '0.05', ProductMeasure::Volume, SizeSource::Name, true];
-        yield 'a size on a pack unit' => ['Cola 2L', 'kpl', '2', ProductMeasure::Volume, SizeSource::Name, true];
+        yield 'a size on a unit of unknown count is weak' => ['Cola 2L', 'kpl', '2', ProductMeasure::Volume, SizeSource::Name, false];
+        yield 'CO is the seller\'s word: weak' => ['Jack Daniels 1L', 'CO', '1', ProductMeasure::Volume, SizeSource::Name, false];
+        yield 'a carton is not one piece' => ['Piwo 0,5L', 'kart.', '0.5', ProductMeasure::Volume, SizeSource::Name, false];
+        yield 'a pack unit' => ['Piwo 0,5L', 'op.', '0.5', ProductMeasure::Volume, SizeSource::Name, false];
+        yield 'a bottle is one piece' => ['Jack Daniels 1L', 'szt', '1', ProductMeasure::Volume, SizeSource::Name, true];
         yield 'no size: bare numbers are not sizes' => ['Whisky 12 YO Old No.7 40%', 'szt.', null, null, SizeSource::None, false];
         yield 'no size: not goods' => ['Czynsz najmu lokalu', 'mies.', null, null, SizeSource::None, false];
         yield 'two different sizes' => ['Piwo 0,5l (kaucja 0,3l)', 'szt.', null, null, SizeSource::Ambiguous, false];
@@ -62,11 +66,68 @@ final class ItemReaderTest extends TestCase
         self::assertSame($strong, $reading->strong);
     }
 
+    public function test_it_knows_whether_a_unit_counts_one_piece_or_an_unknown_number(): void
+    {
+        foreach ([['Cola 1l', 'szt.'], ['Cola 1l', null], ['Cola 1l', 'but'], ['Wino', 'l'], ['Tonik', 'op. 0,2l']] as [$name, $unit]) {
+            self::assertTrue(ItemReader::read($name, $unit)->unitCountKnown, \sprintf('%s | %s', $name, (string) $unit));
+        }
+        foreach ([['Cola 1l', 'CO'], ['Cola 1l', 'kart.'], ['Cola 1l', 'op.'], ['Cola 1l', 'BOX'], ['Piwo 6x0,5L', 'zgrz.']] as [$name, $unit]) {
+            self::assertFalse(ItemReader::read($name, $unit)->unitCountKnown, \sprintf('%s | %s', $name, $unit));
+        }
+    }
+
+    public function test_it_multiplies_a_size_on_a_unit_of_unknown_count_by_the_sellers_multiplier(): void
+    {
+        $co = ItemReader::read('Jack Daniels 1L', 'CO');
+
+        $withMultiplier = ItemReader::withUnitMultiplier($co, 6);
+
+        self::assertSame('6', $withMultiplier->packageSize);
+        self::assertTrue($withMultiplier->strong);
+        self::assertSame(SizeSource::SellerUnit, $withMultiplier->source);
+        self::assertSame('4.2', ItemReader::withUnitMultiplier(ItemReader::read('Whisky 0,7L', 'karton'), 6)->packageSize);
+        // A unit whose count is known, or a reading without a size, is left as it is.
+        $szt = ItemReader::read('Jack Daniels 1L', 'szt');
+        self::assertSame($szt, ItemReader::withUnitMultiplier($szt, 6));
+        $none = ItemReader::read('Czynsz', 'CO');
+        self::assertSame($none, ItemReader::withUnitMultiplier($none, 6));
+    }
+
+    /** @return iterable<string, array{string, string, string, ?int}> name, unit, confirmed size, the multiplier learned */
+    public static function confirmations(): iterable
+    {
+        yield 'a case of 6 one-litre bottles' => ['Jack Daniels 1L', 'CO', '6', 6];
+        yield 'a case of 24 half-litre bottles' => ['Piwo 0,5L', 'kart.', '12', 24];
+        yield 'one piece' => ['Piwo 0,5L', 'op.', '0.5', 1];
+        yield 'a multipack named in the text counts once' => ['Piwo 6x0,5L', 'zgrz.', '3', 1];
+        yield 'two multipacks' => ['Piwo 6x0,5L', 'zgrz.', '6', 2];
+        yield 'not a whole multiple' => ['Jack Daniels 1L', 'CO', '2.5', null];
+        yield 'smaller than the size read' => ['Jack Daniels 1L', 'CO', '0.5', null];
+        yield 'a unit whose count is known teaches nothing' => ['Jack Daniels 1L', 'szt', '6', null];
+        yield 'no size in the text' => ['Jack Daniels', 'CO', '6', null];
+        yield 'two sizes in the text' => ['Piwo 0,5l (kaucja 0,3l)', 'CO', '6', null];
+    }
+
+    #[DataProvider('confirmations')]
+    public function test_it_learns_how_many_pieces_a_unit_holds_from_what_the_owner_confirmed(string $name, string $unit, string $confirmed, ?int $multiplier): void
+    {
+        self::assertSame($multiplier, ItemReader::multiplierOf(ItemReader::read($name, $unit), $confirmed));
+    }
+
+    public function test_it_remembers_a_unit_as_the_seller_wrote_it(): void
+    {
+        self::assertSame('co', ItemReader::unitKeyOf(' CO. '));
+        self::assertSame('karton', ItemReader::unitKeyOf('Karton'));
+        self::assertNull(ItemReader::unitKeyOf(null));
+        self::assertNull(ItemReader::unitKeyOf(' . '));
+    }
+
     public function test_it_knows_a_piece_unit_from_one_it_does_not(): void
     {
         self::assertTrue(ItemReader::read('Cola', 'szt.')->pieceUnit);
         self::assertTrue(ItemReader::read('Cola', null)->pieceUnit);
         self::assertFalse(ItemReader::read('Czynsz', 'mies.')->pieceUnit);
+        self::assertFalse(ItemReader::read('Cola', 'CO')->pieceUnit);
         self::assertFalse(ItemReader::read('Wino', 'l')->pieceUnit);
     }
 

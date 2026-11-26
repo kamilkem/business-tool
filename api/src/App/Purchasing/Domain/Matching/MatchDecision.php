@@ -71,7 +71,9 @@ final readonly class MatchDecision
             $size = $reading->packageSize;
         } elseif (null !== $remembered) {
             $size = $remembered;
-            if ($reading->hasSize() && $reading->packageSize !== $remembered) {
+            // A size read on a unit of unknown count (a case, a carton) is not the size per unit, so an
+            // alias or the model agreeing with it proves nothing (ADR 0043).
+            if ($reading->hasSize() && ($reading->packageSize !== $remembered || !$reading->unitCountKnown)) {
                 $confident = false;
             }
         } elseif ($reading->hasSize()) {

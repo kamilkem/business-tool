@@ -69,6 +69,35 @@ final class MatchDecisionTest extends TestCase
         self::assertSame(PurchasedItemStatus::Suggested, $decision->status);
     }
 
+    public function test_it_never_assigns_on_a_size_read_from_a_unit_of_unknown_count_even_when_the_alias_agrees(): void
+    {
+        // "Jack Daniels 1L | CO | 1": the alias was confirmed from the "szt" row with size 1 and agrees with the weak reading.
+        $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '1'), false, ItemReader::read('Jack Daniels 1L', 'CO'));
+
+        self::assertSame(PurchasedItemStatus::Suggested, $decision->status);
+    }
+
+    public function test_it_never_assigns_on_a_size_from_the_model_for_a_unit_of_unknown_count_even_when_it_agrees(): void
+    {
+        $product = self::product(ProductMeasure::Volume);
+        $answer = new ItemInterpretation('k', $product->getId()->toRfc4122(), InterpretationConfidence::High, '1');
+
+        $decision = MatchDecision::fromInterpretation($product, $answer, ItemReader::read('Jack Daniels 1L', 'CO'));
+
+        self::assertNotNull($decision);
+        self::assertSame(PurchasedItemStatus::Suggested, $decision->status);
+    }
+
+    public function test_it_assigns_once_the_sellers_multiplier_for_the_unit_is_known(): void
+    {
+        $reading = ItemReader::withUnitMultiplier(ItemReader::read('Jack Daniels 1L', 'CO'), 6);
+
+        $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '1'), false, $reading);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $decision->status);
+        self::assertSame('6', $decision->packageSize, 'The learned multiplier wins over the size an alias remembers for one piece.');
+    }
+
     public function test_it_only_suggests_when_the_aliases_of_an_item_point_to_different_products(): void
     {
         $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume)), true, ItemReader::read('JACK DANIELS 0,7L', 'szt.'));

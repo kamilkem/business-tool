@@ -18,6 +18,7 @@ use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
+use App\Purchasing\Domain\Model\SellerUnit;
 use App\Shared\Domain\Time\BusinessDate;
 use App\Tests\Fixtures\InMemoryItemInterpreter;
 use App\Tests\Fixtures\OrganizationMother;
@@ -39,6 +40,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
     private InMemoryPurchasedItemRepository $items;
     private InMemoryProductRepository $products;
     private InMemoryProductAliasRepository $aliases;
+    private InMemorySellerUnitRepository $sellerUnits;
     private InMemoryItemInterpreter $interpreter;
     private Organization $organization;
     private Product $jack;
@@ -51,6 +53,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $this->items = new InMemoryPurchasedItemRepository();
         $this->products = new InMemoryProductRepository();
         $this->aliases = new InMemoryProductAliasRepository();
+        $this->sellerUnits = new InMemorySellerUnitRepository();
         $this->interpreter = new InMemoryItemInterpreter();
         $tenantContext = new InMemoryTenantContext();
         $owner = UserMother::any('olivia@example.com');
@@ -63,7 +66,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
             $this->products->add($this->{$property});
         }
 
-        $this->handler = new MatchPurchasedItemsHandler($this->items, $this->products, $this->aliases, $this->interpreter, $tenantContext, new MockClock(self::NOW), new NullLogger());
+        $this->handler = new MatchPurchasedItemsHandler($this->items, $this->products, $this->aliases, $this->sellerUnits, $this->interpreter, $tenantContext, new MockClock(self::NOW), new NullLogger());
     }
 
     public function test_it_assigns_by_the_strongest_alias_and_takes_the_package_size_from_the_name(): void
@@ -78,6 +81,43 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertSame($this->jack, $sibling->getProduct());
         self::assertSame('0.7', $sibling->getPackageSize());
         self::assertSame([], $this->interpreter->calls, 'An alias is the owner\'s word: the model is not asked.');
+    }
+
+    public function test_it_does_not_assign_a_case_on_the_size_of_one_bottle(): void
+    {
+        // The owner confirmed the bottle row; the same seller's case row says 1 L too, but a case holds more.
+        $this->learn($this->item('Jack Daniels 1L', sellerCode: 'JD-1', unit: 'szt'), $this->jack);
+        $case = $this->item('Jack Daniels 1L', sellerCode: 'JD-1', unit: 'CO');
+
+        $this->match([$case]);
+
+        self::assertSame(PurchasedItemStatus::Suggested, $case->getStatus());
+        self::assertSame($this->jack, $case->getProduct());
+    }
+
+    public function test_it_reads_the_sellers_case_with_the_multiplier_the_owner_confirmed(): void
+    {
+        $this->learn($this->item('Jack Daniels 1L', sellerCode: 'JD-1', unit: 'szt'), $this->jack);
+        $this->sellerUnits->saveAll([new SellerUnit(Uuid::v7(), '5265877635', 'co', 6, new \DateTimeImmutable('2026-11-02 10:00:00'))]);
+        $case = $this->item('Jack Daniels 1L', sellerCode: 'JD-1', unit: 'CO');
+        $otherSeller = $this->item('Jack Daniels 1L', sellerCode: 'JD-1', unit: 'CO', sellerTaxId: '1111111111');
+
+        $this->match([$case, $otherSeller]);
+
+        self::assertSame([PurchasedItemStatus::Assigned, '6'], [$case->getStatus(), $case->getPackageSize()]);
+        // Another seller's CO is another unit: the product is found by the name alias, the size is only the one read.
+        self::assertSame([PurchasedItemStatus::Suggested, '1'], [$otherSeller->getStatus(), $otherSeller->getPackageSize()]);
+    }
+
+    public function test_it_suggests_what_the_model_says_for_a_case_whose_count_is_not_known(): void
+    {
+        $case = $this->item('Jack Daniels 1L', unit: 'CO');
+        $this->interpreter->answer('Jack Daniels 1L', $this->jack->getId()->toRfc4122(), InterpretationConfidence::High, '1');
+
+        $this->match([$case]);
+
+        self::assertSame(PurchasedItemStatus::Suggested, $case->getStatus());
+        self::assertSame('1', $case->getPackageSize());
     }
 
     public function test_it_suggests_when_the_aliases_of_the_item_disagree(): void
@@ -185,7 +225,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertSame([], $this->interpreter->calls);
 
         $this->interpreter->available = true;
-        $empty = new MatchPurchasedItemsHandler($this->items, new InMemoryProductRepository(), $this->aliases, $this->interpreter, $this->tenantContext(), new MockClock(self::NOW), new NullLogger());
+        $empty = new MatchPurchasedItemsHandler($this->items, new InMemoryProductRepository(), $this->aliases, $this->sellerUnits, $this->interpreter, $this->tenantContext(), new MockClock(self::NOW), new NullLogger());
         $empty(new MatchPurchasedItemsCommand($this->organizationId(), [$item->getId()->toRfc4122()], true));
         self::assertSame([], $this->interpreter->calls);
     }
@@ -255,12 +295,12 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $this->aliases->saveAll($aliases);
     }
 
-    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, string $unit = 'szt.'): PurchasedItem
+    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, string $unit = 'szt.', string $sellerTaxId = '5265877635'): PurchasedItem
     {
         static $index = 0;
         ++$index;
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
-            Uuid::v7(), $index, BusinessDate::fromString('2026-11-10'), 'regular', 'PLN', '5265877635', 'Hurtownia Napojów',
+            Uuid::v7(), $index, BusinessDate::fromString('2026-11-10'), 'regular', 'PLN', $sellerTaxId, 'Hurtownia Napojów',
             $index, $name, $sellerCode, $gtin, $unit, '6', '81.3', '100', null, 48_780, 60_000, 11_220, '23', false,
         ), new \DateTimeImmutable('2026-11-25 03:00:00'));
         $this->items->addAll([$item]);
