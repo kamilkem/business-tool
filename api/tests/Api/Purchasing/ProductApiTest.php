@@ -7,6 +7,7 @@ namespace App\Tests\Api\Purchasing;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
+use App\Purchasing\Application\Job\MatchPurchasedItems\MatchPurchasedItemsJob;
 use App\Purchasing\Domain\Model\Product;
 use App\Purchasing\Domain\Model\ProductCategory;
 use App\Purchasing\Domain\Model\ProductMeasure;
@@ -24,6 +25,10 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Clock\Clock;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Stamp\DeduplicateStamp;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -294,6 +299,46 @@ final class ProductApiTest extends ApiTestCase
 
         $back = self::update($owner, $organization, $id, ['measure' => 'mass'])->toArray();
         self::assertSame(['mass', '1'], [$back['measure'], $back['referenceQuantity']]);
+    }
+
+    public function test_it_queues_matching_when_a_product_is_renamed_or_gets_another_measure_and_not_for_other_changes(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $whisky = self::addCategory($organization, 'Whisky');
+        $id = self::addProduct($organization, 'Jack', $whisky, referenceQuantity: '0.7')->getId()->toRfc4122();
+        $org = $organization->getId()->toRfc4122();
+
+        self::update($owner, $organization, $id, ['categoryId' => null, 'referenceQuantity' => '1', 'excluded' => true]);
+        $none = self::queuedJobs();
+        self::assertCount(0, $none, 'The category, the reference quantity and the exclusion are not what the model sees.');
+
+        self::update($owner, $organization, $id, ['name' => 'Jack Daniel\'s']);
+        $queued = self::queuedJobs();
+        self::assertSame(
+            ['purchasing-match-items:'.$org.':not_yet_matched:model', 'purchasing-match-items:'.$org.':after-catalog-change'],
+            array_map(static fn (Envelope $envelope): string => (string) $envelope->last(DeduplicateStamp::class)?->getKey(), $queued),
+        );
+        self::assertNull($queued[0]->last(DelayStamp::class));
+        self::assertSame(MatchPurchasedItemsJob::SETTLE_DELAY_SECONDS * 1000, $queued[1]->last(DelayStamp::class)?->getDelay(), 'The pass over the unassigned items waits for the burst to settle.');
+        $job = $queued[1]->getMessage();
+        self::assertInstanceOf(MatchPurchasedItemsJob::class, $job);
+        self::assertSame(['unassigned', true], [$job->scope, $job->useInterpreter]);
+    }
+
+    public function test_it_queues_the_delayed_pass_over_the_unassigned_items_when_a_product_is_created(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+
+        self::create($owner, $organization, ['name' => 'Tyskie', 'measure' => 'volume']);
+
+        self::assertResponseStatusCodeSame(201);
+        $queued = self::queuedJobs();
+        $org = $organization->getId()->toRfc4122();
+        self::assertSame(
+            ['purchasing-match-items:'.$org.':not_yet_matched:model', 'purchasing-match-items:'.$org.':after-catalog-change'],
+            array_map(static fn (Envelope $envelope): string => (string) $envelope->last(DeduplicateStamp::class)?->getKey(), $queued),
+        );
+        self::assertSame(MatchPurchasedItemsJob::SETTLE_DELAY_SECONDS * 1000, $queued[1]->last(DelayStamp::class)?->getDelay());
     }
 
     public function test_it_answers_409_for_a_name_another_product_has_on_update(): void
@@ -726,6 +771,15 @@ final class ProductApiTest extends ApiTestCase
     private static function countLinked(Product $product): int
     {
         return (int) static::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM purchased_item WHERE product_id = :product', ['product' => $product->getId()->toRfc4122()]);
+    }
+
+    /** @return list<Envelope> what the last request queued on the in-memory `jobs` transport (ADR 0025 §7) */
+    private static function queuedJobs(): array
+    {
+        $transport = static::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return array_values([...$transport->getSent()]);
     }
 
     private static function addMember(Organization $organization, MembershipRole $role): User

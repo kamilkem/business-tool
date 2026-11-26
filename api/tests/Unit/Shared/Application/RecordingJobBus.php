@@ -13,8 +13,12 @@ final class RecordingJobBus implements JobBusInterface
     /** @var list<array{job: JobInterface, deduplicationKey: string|null}> */
     public array $dispatched = [];
 
-    public function dispatch(JobInterface $job, ?string $deduplicationKey = null): void
+    /** @var list<int> the delay in seconds of each dispatched job, in the same order */
+    public array $delays = [];
+
+    public function dispatch(JobInterface $job, ?string $deduplicationKey = null, int $delaySeconds = 0): void
     {
         $this->dispatched[] = ['job' => $job, 'deduplicationKey' => $deduplicationKey];
+        $this->delays[] = $delaySeconds;
     }
 }

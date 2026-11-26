@@ -16,6 +16,8 @@ final readonly class ListMatchablePurchasedItemIdsQuery implements QueryInterfac
         public string $scope,
         public ?string $afterItemId,
         public int $limit,
+        /** ISO 8601: only items the model has not been through since then (ADR 0046 §3). */
+        public ?string $askedBefore = null,
     ) {
     }
 }

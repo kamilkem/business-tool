@@ -9,6 +9,7 @@ use App\Shared\Application\Job\JobInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DeduplicateStamp;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Sends jobs to the `jobs` transport through `messenger.bus.job` (ADR 0025 §2). A deduplication key
@@ -20,7 +21,7 @@ final readonly class MessengerJobBus implements JobBusInterface
 {
     /**
      * How long the deduplication lock lives if the job is never handled: a queued job may wait for the
-     * next hourly tick, then run for its time budget (KSeF: 45 minutes).
+     * next hourly tick, then run for its time budget (KSeF: 45 minutes); a delayed job (a few minutes) fits.
      */
     public const float DEDUPLICATION_TTL_SECONDS = 7200.0;
 
@@ -30,9 +31,12 @@ final readonly class MessengerJobBus implements JobBusInterface
     ) {
     }
 
-    public function dispatch(JobInterface $job, ?string $deduplicationKey = null): void
+    public function dispatch(JobInterface $job, ?string $deduplicationKey = null, int $delaySeconds = 0): void
     {
         $stamps = null === $deduplicationKey ? [] : [new DeduplicateStamp($deduplicationKey, self::DEDUPLICATION_TTL_SECONDS)];
+        if ($delaySeconds > 0) {
+            $stamps[] = new DelayStamp($delaySeconds * 1000);
+        }
 
         $this->messageBus->dispatch($job, $stamps);
     }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Application;
 
 use App\Purchasing\Domain\Matching\MatchScope;
+use App\Purchasing\Domain\Matching\MatchSource;
+use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Proposal\ProposedItem;
@@ -92,9 +94,10 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         ++$this->saveCallCount;
     }
 
-    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit): array
+    public function findMatchableIds(MatchScope $scope, ?Uuid $afterId, int $limit, ?\DateTimeImmutable $askedBefore = null): array
     {
         $items = array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->isMatchable()
+            && (null === $askedBefore || null === $item->getMatchedAt() || $item->getMatchedAt() < $askedBefore)
             && match ($scope) {
                 MatchScope::NotYetMatched => null === $item->getMatchedAt(),
                 MatchScope::Unassigned => PurchasedItemStatus::Unassigned === $item->getStatus(),
@@ -107,6 +110,21 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         }
 
         return array_map(static fn (string $id): Uuid => Uuid::fromString($id), \array_slice($ids, 0, $limit));
+    }
+
+    public function countMatchable(MatchScope $scope): int
+    {
+        return \count($this->findMatchableIds($scope, null, \PHP_INT_MAX));
+    }
+
+    public function countModelOutcomesSince(\DateTimeImmutable $since): ModelOutcomeCounts
+    {
+        $through = array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->isMatchable()
+            && null !== $item->getMatchedAt() && $item->getMatchedAt() >= $since
+            && (PurchasedItemStatus::Unassigned === $item->getStatus() || \in_array($item->getMatchSource(), [MatchSource::Model, MatchSource::ProposedName], true)));
+        $byStatus = array_count_values(array_map(static fn (PurchasedItem $item): string => $item->getStatus()->value, $through));
+
+        return new ModelOutcomeCounts(\count($through), $byStatus[PurchasedItemStatus::Assigned->value] ?? 0, $byStatus[PurchasedItemStatus::Suggested->value] ?? 0);
     }
 
     public function findConfirmedIds(?Uuid $afterId, int $limit): array
