@@ -10,6 +10,7 @@ use App\Purchasing\Domain\Matching\CatalogProduct;
 use App\Purchasing\Domain\Matching\ItemInterpretation;
 use App\Purchasing\Domain\Matching\ItemInterpreterInterface;
 use App\Purchasing\Domain\Matching\ItemReader;
+use App\Purchasing\Domain\Matching\ItemReading;
 use App\Purchasing\Domain\Matching\ItemToInterpret;
 use App\Purchasing\Domain\Matching\MatchDecision;
 use App\Purchasing\Domain\Model\AliasKeys;
@@ -20,6 +21,7 @@ use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\ProductAliasRepositoryInterface;
 use App\Purchasing\Domain\Repository\ProductRepositoryInterface;
+use App\Purchasing\Domain\Repository\SellerUnitRepositoryInterface;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
 use App\Shared\Application\Command\CommandHandlerInterface;
 use Psr\Clock\ClockInterface;
@@ -31,6 +33,8 @@ use Symfony\Component\Uid\Uuid;
  *
  * 1. An alias the owner confirmed (GTIN, seller and code, seller and name, normalized name) decides first,
  *    strongest kind first: it costs nothing and is the owner's own word.
+ *    A size read on a unit of unknown count (`CO`, `kart.`) is multiplied by the seller's multiplier for that
+ *    unit when the owner confirmed one (ADR 0043); without it the item is only ever `suggested`.
  * 2. What no alias knows goes to the model (when asked to and one is configured), once per distinct
  *    name, unit and code, in batches, with the organization's products. Its answer is checked against
  *    what the rules read from the item (MatchDecision).
@@ -48,6 +52,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         private PurchasedItemRepositoryInterface $items,
         private ProductRepositoryInterface $products,
         private ProductAliasRepositoryInterface $aliases,
+        private SellerUnitRepositoryInterface $sellerUnits,
         private ItemInterpreterInterface $interpreter,
         private TenantContextInterface $tenantContext,
         private ClockInterface $clock,
@@ -75,12 +80,13 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         }
 
         $now = $this->clock->now();
-        $open = $this->matchByAliases($items, $now);
+        $multipliers = $this->unitMultipliers($items);
+        $open = $this->matchByAliases($items, $multipliers, $now);
         $unavailable = null;
         $interpreted = 0;
         if ($command->useInterpreter && [] !== $open && $this->interpreter->isAvailable()) {
             try {
-                $interpreted = $this->matchByInterpreter($open, $now);
+                $interpreted = $this->matchByInterpreter($open, $multipliers, $now);
             } catch (ItemInterpreterUnavailableException $e) {
                 $unavailable = $e;
             }
@@ -103,10 +109,11 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
      * Applies the aliases and returns the items no alias knew.
      *
      * @param list<PurchasedItem> $items
+     * @param array<string, int>  $multipliers the sellers' multipliers by seller and unit
      *
      * @return list<PurchasedItem>
      */
-    private function matchByAliases(array $items, \DateTimeImmutable $now): array
+    private function matchByAliases(array $items, array $multipliers, \DateTimeImmutable $now): array
     {
         $keysByItem = [];
         $wanted = [];
@@ -141,7 +148,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             foreach ($hits as $hit) {
                 $conflict = $conflict || !$hit->getProduct()->getId()->equals($strongest->getProduct()->getId());
             }
-            $decision = MatchDecision::fromAlias($strongest, $conflict, ItemReader::read($item->getName(), $item->getUnit()));
+            $decision = MatchDecision::fromAlias($strongest, $conflict, $this->readingOf($item, $multipliers));
             $item->match($decision->product, $decision->packageSize, $decision->status, $now);
         }
 
@@ -152,10 +159,11 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
      * Puts the open items to the model and applies its answers; returns how many items were put to it.
      *
      * @param list<PurchasedItem> $open
+     * @param array<string, int>  $multipliers
      *
      * @throws ItemInterpreterUnavailableException
      */
-    private function matchByInterpreter(array $open, \DateTimeImmutable $now): int
+    private function matchByInterpreter(array $open, array $multipliers, \DateTimeImmutable $now): int
     {
         /** @var array<string, Product> $products */
         $products = [];
@@ -190,7 +198,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             foreach ($batch as $question) {
                 $asked += \count($groups[$question->key]);
                 foreach ($groups[$question->key] as $item) {
-                    $this->apply($item, $answers[$question->key] ?? null, $products, $now);
+                    $this->apply($item, $answers[$question->key] ?? null, $products, $multipliers, $now);
                 }
             }
         }
@@ -198,13 +206,16 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         return $asked;
     }
 
-    /** @param array<string, Product> $products */
-    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, \DateTimeImmutable $now): void
+    /**
+     * @param array<string, Product> $products
+     * @param array<string, int>     $multipliers
+     */
+    private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $multipliers, \DateTimeImmutable $now): void
     {
         $product = null === $answer || null === $answer->productId ? null : ($products[$answer->productId] ?? null);
         $decision = null === $answer || null === $product
             ? null
-            : MatchDecision::fromInterpretation($product, $answer, ItemReader::read($item->getName(), $item->getUnit()));
+            : MatchDecision::fromInterpretation($product, $answer, $this->readingOf($item, $multipliers));
 
         if (null === $decision) {
             $item->match(null, null, PurchasedItemStatus::Unassigned, $now);
@@ -212,5 +223,40 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             return;
         }
         $item->match($decision->product, $decision->packageSize, $decision->status, $now);
+    }
+
+    /**
+     * The seller's multipliers for the units of these items, by seller key and unit key (ADR 0043).
+     *
+     * @param list<PurchasedItem> $items
+     *
+     * @return array<string, int>
+     */
+    private function unitMultipliers(array $items): array
+    {
+        $pairs = [];
+        foreach ($items as $item) {
+            $unit = ItemReader::unitKeyOf($item->getUnit());
+            if (null !== $unit) {
+                $seller = AliasKeys::sellerOf($item);
+                $pairs[$seller.'#'.$unit] = ['seller' => $seller, 'unit' => $unit];
+            }
+        }
+        $multipliers = [];
+        foreach ($this->sellerUnits->findByPairs(array_values($pairs)) as $unit) {
+            $multipliers[$unit->getSellerKey().'#'.$unit->getUnitKey()] = $unit->getMultiplier();
+        }
+
+        return $multipliers;
+    }
+
+    /** @param array<string, int> $multipliers */
+    private function readingOf(PurchasedItem $item, array $multipliers): ItemReading
+    {
+        $reading = ItemReader::read($item->getName(), $item->getUnit());
+        $unit = ItemReader::unitKeyOf($item->getUnit());
+        $multiplier = null === $unit ? null : ($multipliers[AliasKeys::sellerOf($item).'#'.$unit] ?? null);
+
+        return null === $multiplier ? $reading : ItemReader::withUnitMultiplier($reading, $multiplier);
     }
 }

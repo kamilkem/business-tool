@@ -130,6 +130,7 @@ final readonly class AnthropicItemInterpreter implements ItemInterpreterInterfac
             - A flavour, age or kind that differs is a different product ("Jack Daniel's Honey" is not "Jack Daniel's"; "Coca-Cola Zero" is not "Coca-Cola"). When the catalog has no such product, answer "".
             - Base units are litres for a product measured in volume, kilograms for mass, pieces for count. The measure is in the catalog line.
             - The package size is per one unit of the quantity: 6 `szt.` of "Whisky 0,7l" have package size 0.7; a `zgrz.` or `kart.` of "6x0,5L" has 3 (the whole pack); 30 `l` of draught beer have 1; 12.35 `kg` of pork have 1. When the unit is itself a measure (l, ml, kg, g), the package size is that unit in base units (1 for l and kg) whatever the name says. Convert ml, cl, dl, hl, g, dkg. Never use a number that is not followed by a unit (0,7 alone, 40%, "No.7", years) as a size.
+            - A unit that is a case, carton or pack (CO, kart., op., zgrz., BOX, or any word of the seller's) holds a number of pieces that only the text can tell: when the name or unit does not say how many ("6x", "x6", "24 szt"), the package size is "" and never your guess. Only szt., but., fl. and the measures l, ml, kg, g count one piece or one unit of the measure.
             - For a product that is not goods (rent, electricity, deposit, delivery) the package size is "".
             - Answer for every item, with the key it was given.
 

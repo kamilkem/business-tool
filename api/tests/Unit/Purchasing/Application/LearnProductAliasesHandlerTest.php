@@ -29,6 +29,7 @@ final class LearnProductAliasesHandlerTest extends TestCase
 {
     private InMemoryPurchasedItemRepository $items;
     private InMemoryProductAliasRepository $aliases;
+    private InMemorySellerUnitRepository $sellerUnits;
     private Organization $organization;
     private Product $jack;
     private Product $honey;
@@ -38,6 +39,7 @@ final class LearnProductAliasesHandlerTest extends TestCase
     {
         $this->items = new InMemoryPurchasedItemRepository();
         $this->aliases = new InMemoryProductAliasRepository();
+        $this->sellerUnits = new InMemorySellerUnitRepository();
         $tenantContext = new InMemoryTenantContext();
         $owner = UserMother::any('olivia@example.com');
         $this->organization = OrganizationMother::ownedBy($owner);
@@ -46,7 +48,7 @@ final class LearnProductAliasesHandlerTest extends TestCase
         $this->jack = Product::create(Uuid::v7(), 'Jack Daniel\'s', null, ProductMeasure::Volume, null, false, null, $owner->getId(), MembershipRole::Owner, $created);
         $this->honey = Product::create(Uuid::v7(), 'Jack Daniel\'s Honey', null, ProductMeasure::Volume, null, false, null, $owner->getId(), MembershipRole::Owner, $created);
 
-        $this->handler = new LearnProductAliasesHandler($this->items, $this->aliases, $tenantContext, new MockClock('2026-11-26 03:00:00'));
+        $this->handler = new LearnProductAliasesHandler($this->items, $this->aliases, $this->sellerUnits, $tenantContext, new MockClock('2026-11-26 03:00:00'));
     }
 
     public function test_it_remembers_every_key_of_a_confirmed_item_and_the_pack_size_of_the_keys_that_name_a_pack(): void
@@ -124,6 +126,40 @@ final class LearnProductAliasesHandlerTest extends TestCase
         self::assertContains('name:hurtownia napojów|W1', $keys);
     }
 
+    public function test_it_learns_how_many_pieces_a_sellers_unit_holds_from_a_confirmation(): void
+    {
+        $item = $this->confirmed('Jack Daniels 1L', $this->jack, '6', unit: 'CO');
+
+        $this->learn([$item]);
+
+        [$unit] = $this->sellerUnits->all();
+        self::assertSame(['5265877635', 'co', 6], [$unit->getSellerKey(), $unit->getUnitKey(), $unit->getMultiplier()]);
+    }
+
+    public function test_it_lets_the_last_confirmation_of_a_sellers_unit_win_and_keeps_sellers_apart(): void
+    {
+        $this->learn([$this->confirmed('Jack Daniels 1L', $this->jack, '6', unit: 'CO')]);
+        $this->learn([$this->confirmed('Cola 1L', $this->honey, '12', unit: 'CO')]);
+        $this->learn([$this->confirmed('Piwo 0,5L', $this->jack, '12', unit: 'CO', sellerTaxId: '1111111111')]);
+
+        $byKey = [];
+        foreach ($this->sellerUnits->all() as $unit) {
+            $byKey[$unit->getSellerKey().'#'.$unit->getUnitKey()] = $unit->getMultiplier();
+        }
+        self::assertSame(['5265877635#co' => 12, '1111111111#co' => 24], $byKey);
+    }
+
+    public function test_it_learns_no_multiplier_for_a_unit_whose_count_is_known_or_a_size_that_is_not_a_multiple(): void
+    {
+        $this->learn([
+            $this->confirmed('Jack Daniels 1L', $this->jack, '6', unit: 'szt.'),
+            $this->confirmed('Cola 1L', $this->jack, '2.5', unit: 'CO'),
+            $this->confirmed('Piwo', $this->jack, '6', unit: 'CO'),
+        ]);
+
+        self::assertSame([], $this->sellerUnits->all());
+    }
+
     public function test_it_refuses_another_organization(): void
     {
         $this->expectException(\LogicException::class);
@@ -139,21 +175,21 @@ final class LearnProductAliasesHandlerTest extends TestCase
         ));
     }
 
-    private function confirmed(string $name, Product $product, string $size, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635'): PurchasedItem
+    private function confirmed(string $name, Product $product, string $size, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635', string $unit = 'szt.'): PurchasedItem
     {
-        $item = $this->item($name, $sellerCode, $gtin, $sellerTaxId);
+        $item = $this->item($name, $sellerCode, $gtin, $sellerTaxId, $unit);
         $item->link($product, $size, Uuid::v7(), MembershipRole::Owner);
 
         return $item;
     }
 
-    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635'): PurchasedItem
+    private function item(string $name, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635', string $unit = 'szt.'): PurchasedItem
     {
         static $index = 0;
         ++$index;
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
             Uuid::v7(), $index, BusinessDate::fromString('2026-11-10'), 'regular', 'PLN', $sellerTaxId, 'Hurtownia Napojów',
-            $index, $name, $sellerCode, $gtin, 'szt.', '6', '81.3', '100', null, 48_780, 60_000, 11_220, '23', false,
+            $index, $name, $sellerCode, $gtin, $unit, '6', '81.3', '100', null, 48_780, 60_000, 11_220, '23', false,
         ), new \DateTimeImmutable('2026-11-25 03:00:00'));
         $this->items->addAll([$item]);
 

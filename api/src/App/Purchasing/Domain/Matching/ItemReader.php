@@ -36,10 +36,13 @@ final class ItemReader
         'dkg' => [10_000, ProductMeasure::Mass], 'dag' => [10_000, ProductMeasure::Mass], 'kg' => [1_000_000, ProductMeasure::Mass],
     ];
 
-    /** Units of one piece or pack: the size has to come from the name. */
-    private const array PIECE_UNITS = [
-        'szt', 'sztuk', 'sztuka', 'but', 'butelka', 'fl', 'op', 'opak', 'opakowanie', 'kart', 'karton', 'krt', 'zgrz', 'zgrzewka',
-        'kpl', 'pak', 'paczka', 'skrzynka', 'sk', 'puszka', 'pusz', 'keg', 'kega', 'beczka', 'worek', 'wor', 'kanister', 'kan',
+    /**
+     * Units of one single piece or container: the quantity counts them one by one. Every other unit that
+     * is not a measure (`CO`, `kart.`, `op.`, `zgrz.`, `kpl.`, `paczka`, a seller's own) holds an unknown
+     * number of pieces (ADR 0043).
+     */
+    private const array SINGLE_UNITS = [
+        'szt', 'sztuk', 'sztuka', 'but', 'butelka', 'fl', 'puszka', 'pusz', 'keg', 'kega', 'beczka', 'worek', 'wor', 'kanister', 'kan',
     ];
 
     private const string SIZE = '(?<n>\d+(?:[.,]\d+)?)\s*(?<u>ml|cl|dl|hl|ltr|lt|litr\w*|l|mg|dkg|dag|kg|gr|g)(?![a-z0-9])';
@@ -51,13 +54,13 @@ final class ItemReader
     public static function read(string $name, ?string $unit): ItemReading
     {
         $unitKey = self::unitKey($unit);
-        $pieceUnit = '' === $unitKey || \in_array($unitKey, self::PIECE_UNITS, true);
+        $pieceUnit = '' === $unitKey || \in_array($unitKey, self::SINGLE_UNITS, true);
 
         // 1. The unit is a measure.
         if (isset(self::FACTORS[$unitKey])) {
             [$factor, $measure] = self::FACTORS[$unitKey];
 
-            return new ItemReading(self::toDecimal($factor), $measure, SizeSource::Unit, true, false);
+            return new ItemReading(self::toDecimal($factor), $measure, SizeSource::Unit, true, false, true);
         }
 
         // 2. The name, 3. the unit's text.
@@ -68,7 +71,7 @@ final class ItemReader
             $fromUnitText = [] !== $sizes;
         }
         if ([] === $sizes) {
-            return new ItemReading(null, null, SizeSource::None, false, $pieceUnit);
+            return new ItemReading(null, null, SizeSource::None, false, $pieceUnit, $pieceUnit);
         }
 
         $totals = [];
@@ -76,7 +79,7 @@ final class ItemReader
             $totals[$size['measure']->value.':'.$size['micros']] = $size;
         }
         if (\count($totals) > 1) {
-            return new ItemReading(null, null, SizeSource::Ambiguous, false, $pieceUnit);
+            return new ItemReading(null, null, SizeSource::Ambiguous, false, $pieceUnit, $pieceUnit);
         }
         $size = array_values($totals)[0];
         $multipack = $size['multiplier'] > 1;
@@ -87,7 +90,65 @@ final class ItemReader
             $multipack ? SizeSource::Multipack : ($fromUnitText ? SizeSource::UnitText : SizeSource::Name),
             !$multipack && ($pieceUnit || $fromUnitText),
             $pieceUnit,
+            $pieceUnit || $fromUnitText,
         );
+    }
+
+    /**
+     * The reading with the seller's multiplier for its unit (ADR 0043): a size read from the name on a
+     * unit of unknown count, times the number of pieces the owner confirmed that unit holds, is the size
+     * per unit of the quantity, and as sure as the owner's confirmation. Readings of a unit whose count is
+     * known, or without a size, are returned as they are.
+     */
+    public static function withUnitMultiplier(ItemReading $reading, int $multiplier): ItemReading
+    {
+        if ($reading->unitCountKnown || !$reading->hasSize() || $multiplier < 1 || SizeSource::Ambiguous === $reading->source) {
+            return $reading;
+        }
+        $micros = self::microsOf((string) $reading->packageSize);
+        if (null === $micros || $micros * $multiplier > self::MAX_MICROS) {
+            return $reading;
+        }
+
+        return new ItemReading(self::toDecimal($micros * $multiplier), $reading->measure, SizeSource::SellerUnit, true, $reading->pieceUnit, true);
+    }
+
+    /**
+     * How many of the read size the confirmed package size is, for a unit of unknown count: `1.000000` read
+     * and `6` confirmed is 6. Null when the reading is not a size on such a unit, or the confirmed size is
+     * not a whole multiple (at least 1) of it: nothing is learned then.
+     */
+    public static function multiplierOf(ItemReading $reading, string $confirmedSize): ?int
+    {
+        if ($reading->unitCountKnown || !$reading->hasSize() || SizeSource::Ambiguous === $reading->source) {
+            return null;
+        }
+        $read = self::microsOf((string) $reading->packageSize);
+        $confirmed = self::microsOf($confirmedSize);
+        if (null === $read || null === $confirmed || $read <= 0 || $confirmed < $read || 0 !== $confirmed % $read) {
+            return null;
+        }
+        $multiplier = intdiv($confirmed, $read);
+
+        return $multiplier <= self::MAX_MULTIPLIER ? $multiplier : null;
+    }
+
+    /** A unit as a seller's unit is remembered by: lower case, no diacritics, no trailing dot or space; null when there is none. */
+    public static function unitKeyOf(?string $unit): ?string
+    {
+        $key = self::unitKey($unit);
+
+        return '' === $key ? null : mb_substr($key, 0, 64);
+    }
+
+    /** A decimal string as millionths, exactly; null when it has more than six decimals, is negative or too large. */
+    private static function microsOf(string $decimal): ?int
+    {
+        if (1 !== preg_match('/^(\d{1,5})(?:\.(\d{1,6}))?$/D', $decimal, $parts)) {
+            return null;
+        }
+
+        return (int) $parts[1] * self::SCALE + (int) str_pad($parts[2] ?? '', 6, '0');
     }
 
     /**
