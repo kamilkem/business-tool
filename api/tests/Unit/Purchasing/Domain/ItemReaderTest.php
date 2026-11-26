@@ -66,6 +66,27 @@ final class ItemReaderTest extends TestCase
         self::assertSame($strong, $reading->strong);
     }
 
+    /** @return iterable<string, array{string, ?string, ProductMeasure, ?string}> */
+    public static function sizesForAConfirmedProduct(): iterable
+    {
+        yield 'a strong size of the products measure' => ['JACK DANIELS 0,7L 40%', 'szt.', ProductMeasure::Volume, '0.7'];
+        yield 'a measure unit' => ['Piwo z kega', 'l', ProductMeasure::Volume, '1'];
+        yield 'a size of another measure' => ['JACK DANIELS 0,7L', 'szt.', ProductMeasure::Mass, null];
+        yield 'a weak size: a multipack' => ['Piwo 6x0,5L', 'szt.', ProductMeasure::Volume, null];
+        yield 'a weak size: a unit of unknown count' => ['Jack Daniels 1L', 'CO', ProductMeasure::Volume, null];
+        yield 'no size, counted in pieces on a piece unit' => ['Serwetki białe', 'szt.', ProductMeasure::Count, '1'];
+        yield 'no size, volume' => ['Cola', 'szt.', ProductMeasure::Volume, null];
+        yield 'no size, counted in pieces on a unit of unknown count' => ['Serwetki białe', 'kart.', ProductMeasure::Count, null];
+        yield 'ambiguous sizes' => ['Piwo 0,5l (kaucja 0,3l)', 'szt.', ProductMeasure::Count, null];
+        yield 'a product with no unit' => ['Czynsz', 'mies.', ProductMeasure::None, null];
+    }
+
+    #[DataProvider('sizesForAConfirmedProduct')]
+    public function test_it_starts_a_confirmed_items_package_size_from_what_the_text_strongly_says(string $name, ?string $unit, ProductMeasure $measure, ?string $size): void
+    {
+        self::assertSame($size, ItemReader::read($name, $unit)->packageSizeFor($measure));
+    }
+
     public function test_it_knows_whether_a_unit_counts_one_piece_or_an_unknown_number(): void
     {
         foreach ([['Cola 1l', 'szt.'], ['Cola 1l', null], ['Cola 1l', 'but'], ['Wino', 'l'], ['Tonik', 'op. 0,2l']] as [$name, $unit]) {

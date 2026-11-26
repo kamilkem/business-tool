@@ -17,12 +17,13 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { BasisToggle } from "@/components/basis-toggle"
 import { ExpensesNav } from "@/components/expenses-nav"
 import { InvoiceSheet } from "@/components/invoice-sheet"
+import { ProductProposals } from "@/components/product-proposals"
 import { type AssignRequest, ReviewAssignDialog } from "@/components/review-assign-dialog"
 import { ReviewGroupRow } from "@/components/review-queue-group"
 import { requireCapability } from "@/lib/access"
 import { api } from "@/lib/api"
 import { type Basis, readBasis, saveBasis } from "@/lib/purchase-analysis"
-import { invalidatePurchasing, productCategoriesQuery, reviewQueueQuery } from "@/lib/queries"
+import { invalidatePurchasing, productCategoriesQuery, productProposalsQuery, reviewQueueQuery } from "@/lib/queries"
 import {
   MAX_ASSIGN_ITEMS,
   type QueueItem,
@@ -39,8 +40,9 @@ import {
  * The review queue (#246, ADR 0041 §3, §9): the purchased items without a product, or with one that
  * matching only suggested, grouped by the name the invoice printed, newest first. The owner assigns a
  * group, one item or a selection to a product (or to a new one made from them, with the package size
- * they type), confirms a suggestion, or excludes what should not count. Until matching (#233) lands
- * every item starts here. It is where the overview's "Not assigned" row leads.
+ * they type), confirms a suggestion, or excludes what should not count. Above the queue the model's
+ * proposed products wait for the owner's decision (ADR 0044). It is where the overview's "Not assigned"
+ * row leads.
  */
 export const Route = createFileRoute("/_app/expenses/analysis_/review")({
   validateSearch: (search: Record<string, unknown>): ReviewSearch => validateReviewSearch(search),
@@ -52,6 +54,8 @@ export const Route = createFileRoute("/_app/expenses/analysis_/review")({
       context.queryClient.ensureInfiniteQueryData(reviewQueueQuery(organization.id, deps.q)),
       // The assign dialog's category picker; its products load when it opens.
       context.queryClient.ensureQueryData(productCategoriesQuery(organization.id)),
+      // The products the model proposes, above the queue (ADR 0044).
+      context.queryClient.ensureQueryData(productProposalsQuery(organization.id)),
     ])
   },
   pendingComponent: ReviewPending,
@@ -176,6 +180,8 @@ function ReviewPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeading />
+
+      <ProductProposals organizationId={organizationId} />
 
       <div className="flex flex-wrap items-center gap-2">
         <NameSearch search={search} onChange={(q) => void navigate({ search: { q }, replace: true })} />

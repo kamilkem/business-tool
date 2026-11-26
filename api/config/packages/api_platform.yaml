@@ -148,6 +148,7 @@ api_platform:
         App\Purchasing\Domain\Exception\ProductMergeIntoItselfException: 422
         App\Purchasing\Domain\Exception\UnknownProductCategoryException: 422
         App\Purchasing\Domain\Exception\PurchasedItemNotFoundException: 404
+        App\Purchasing\Domain\Exception\ProductProposalNotFoundException: 404
         App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException: 404
         App\Purchasing\Domain\Exception\InvalidPackageSizeException: 422
         App\Purchasing\Domain\Exception\PurchaseAnalysisPeriodTooLongException: 422

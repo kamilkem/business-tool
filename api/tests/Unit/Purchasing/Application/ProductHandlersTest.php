@@ -22,6 +22,7 @@ use App\Purchasing\Application\Query\GetProduct\GetProductQuery;
 use App\Purchasing\Application\Query\GetProduct\ProductView;
 use App\Purchasing\Application\Query\ListProducts\ListProductsHandler;
 use App\Purchasing\Application\Query\ListProducts\ListProductsQuery;
+use App\Purchasing\Domain\Event\ProductCreated;
 use App\Purchasing\Domain\Exception\InvalidProductReferenceQuantityException;
 use App\Purchasing\Domain\Exception\ProductInUseException;
 use App\Purchasing\Domain\Exception\ProductMergeIntoItselfException;
@@ -37,6 +38,7 @@ use App\Shared\Application\Query\QueryInterface;
 use App\Tests\Fixtures\OrganizationMother;
 use App\Tests\Fixtures\UserMother;
 use App\Tests\Unit\Organization\Application\InMemoryOrganizationRepository;
+use App\Tests\Unit\Shared\Application\RecordingEventPublisher;
 use App\Tests\Unit\Shared\Application\StubQueryBus;
 use App\User\Domain\Model\User;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -66,6 +68,7 @@ final class ProductHandlersTest extends TestCase
     private InMemoryProductCategoryRepository $categories;
     private InMemoryPurchasedItemRepository $items;
     private InMemoryProductAliasRepository $aliases;
+    private RecordingEventPublisher $events;
     private StubQueryBus $queryBus;
     private Organization $organization;
     private User $owner;
@@ -86,6 +89,7 @@ final class ProductHandlersTest extends TestCase
         $this->categories = new InMemoryProductCategoryRepository();
         $this->items = new InMemoryPurchasedItemRepository();
         $this->aliases = new InMemoryProductAliasRepository();
+        $this->events = new RecordingEventPublisher();
         $this->owner = UserMother::any('olivia@example.com');
         $this->manager = UserMother::any('mark@example.com');
         $this->employee = UserMother::any('eve@example.com');
@@ -128,6 +132,7 @@ final class ProductHandlersTest extends TestCase
         self::assertSame(['Beer', ProductMeasure::Volume, '0.5', true], [$product->getName(), $product->getMeasure(), $product->getReferenceQuantity(), $product->isExcluded()]);
         self::assertSame($this->food, $product->getCategory());
         self::assertEquals(new \DateTimeImmutable(self::NOW), $product->getCreatedAt());
+        self::assertEquals([new ProductCreated($this->organization->getId()->toRfc4122(), $id)], $this->events->events, 'Matching is queued for the bigger catalog (ADR 0044).');
     }
 
     public function test_it_creates_a_product_without_a_category_and_with_the_default_reference_quantity(): void
@@ -403,7 +408,7 @@ final class ProductHandlersTest extends TestCase
 
     private function create(User $actor, string $id, string $name, ProductMeasure $measure, ?string $referenceQuantity, ?string $categoryId, bool $excluded): void
     {
-        (new CreateProductHandler($this->products, $this->categories, $this->queryBus, new MockClock(self::NOW)))(
+        (new CreateProductHandler($this->products, $this->categories, $this->queryBus, $this->events, new MockClock(self::NOW)))(
             new CreateProductCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $id, $name, $measure->value, $referenceQuantity, $categoryId, $excluded),
         );
     }

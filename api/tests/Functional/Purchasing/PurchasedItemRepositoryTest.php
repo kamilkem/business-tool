@@ -8,6 +8,8 @@ use App\Organization\Domain\Model\Organization;
 use App\Organization\Domain\TenantContextInterface;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Purchasing\Domain\Model\Product;
+use App\Purchasing\Domain\Model\ProductCategory;
+use App\Purchasing\Domain\Repository\ProductCategoryRepositoryInterface;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
@@ -332,6 +334,80 @@ final class PurchasedItemRepositoryTest extends KernelTestCase
 
         $this->tenantContext->reset();
         self::assertSame(0, $this->items->countMatching(new PurchasedItemFilter()), 'Without an organization nothing is visible.');
+    }
+
+    public function test_it_reads_the_proposals_as_scalars_and_finds_the_items_of_one_proposal(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $category = ProductCategory::create(Uuid::v7(), 'Whisky', null, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
+        self::getContainer()->get(ProductCategoryRepositoryInterface::class)->add($category);
+        $invoice = Uuid::v7();
+        $jack = self::item($invoice, 1, name: 'JACK DANIELS 0,7L');
+        $jack->propose('Jack Daniel\'s', ProductMeasure::Volume, $category);
+        $sibling = self::item($invoice, 2, name: 'J.D. 1L');
+        $sibling->propose('JACK DANIELS', ProductMeasure::Volume, null);
+        $other = self::item($invoice, 3, name: 'Tyskie');
+        $other->propose('Tyskie', ProductMeasure::Count, null);
+        $none = self::item($invoice, 4, name: 'Cola');
+        $decided = self::item($invoice, 5, name: 'Decided');
+        $decided->propose('Jack Daniel\'s', ProductMeasure::Volume, null);
+        $decided->link($this->product('Cola'), '1', Uuid::v7(), MembershipRole::Owner);
+        $removed = self::item($invoice, 6, name: 'Removed');
+        $removed->propose('Jack Daniel\'s', ProductMeasure::Volume, null);
+        $removed->link(null, null, Uuid::v7(), MembershipRole::Owner);
+        $this->items->addAll([$jack, $sibling, $other, $none, $decided, $removed]);
+        $this->entityManager->clear();
+
+        $proposed = $this->items->findProposed();
+
+        $byName = [];
+        foreach ($proposed as $row) {
+            $byName[$row->itemName] = $row;
+        }
+        ksort($byName);
+        self::assertSame(['J.D. 1L', 'JACK DANIELS 0,7L', 'Tyskie'], array_keys($byName), 'Only the open items that carry a proposal.');
+        self::assertEquals(
+            [$sibling->getId()->toRfc4122(), 'JACK DANIELS', 'jack daniels', ProductMeasure::Volume, null],
+            [$byName['J.D. 1L']->itemId, $byName['J.D. 1L']->proposedName, $byName['J.D. 1L']->key, $byName['J.D. 1L']->measure, $byName['J.D. 1L']->categoryId],
+        );
+        self::assertSame($category->getId()->toRfc4122(), $byName['JACK DANIELS 0,7L']->categoryId);
+        self::assertSame(ProductMeasure::Count, $byName['Tyskie']->measure);
+        $names = self::names($this->items->findByProposalKey('jack daniels'));
+        sort($names);
+        self::assertSame(['J.D. 1L', 'JACK DANIELS 0,7L'], $names, 'A decided item, or one a person took off its product, is no longer part of it.');
+        self::assertSame([], $this->items->findByProposalKey('nothing'));
+    }
+
+    public function test_it_shows_only_the_current_organizations_proposals(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $mine = self::item(Uuid::v7(), 1, name: 'Mine');
+        $mine->propose('Mine', ProductMeasure::Count, null);
+        $this->items->addAll([$mine]);
+        $this->entityManager->clear();
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+
+        self::assertSame([], $this->items->findProposed());
+        self::assertSame([], $this->items->findByProposalKey('mine'));
+    }
+
+    public function test_it_forgets_the_proposed_category_when_the_category_is_deleted(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $categories = self::getContainer()->get(ProductCategoryRepositoryInterface::class);
+        $category = ProductCategory::create(Uuid::v7(), 'Whisky', null, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
+        $categories->add($category);
+        $item = self::item(Uuid::v7(), 1);
+        $item->propose('Jack', ProductMeasure::Volume, $category);
+        $this->items->addAll([$item]);
+        $this->entityManager->clear();
+
+        $categories->remove($categories->findById($category->getId()) ?? self::fail('Category expected.'));
+        $this->entityManager->clear();
+
+        $proposed = $this->items->findProposed();
+        self::assertCount(1, $proposed);
+        self::assertNull($proposed[0]->categoryId, 'The proposal stays, without a category: a deleted category blocks nothing.');
     }
 
     /** @param list<PurchasedItemStatus> $statuses */

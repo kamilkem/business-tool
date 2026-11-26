@@ -8,12 +8,14 @@ use App\Organization\Domain\Model\Organization;
 use App\Purchasing\Application\Command\MatchPurchasedItems\MatchPurchasedItemsCommand;
 use App\Purchasing\Application\EventHandler\LearnProductAliasesOnPurchasedItemsConfirmed;
 use App\Purchasing\Application\EventHandler\QueueAliasMatchingOnPurchasedItemsConfirmed;
+use App\Purchasing\Application\EventHandler\QueueMatchingOnProductCreated;
 use App\Purchasing\Application\EventHandler\QueueMatchingOnPurchasedItemsRecorded;
 use App\Purchasing\Application\Job\MatchPurchasedItems\MatchPurchasedItemsJob;
 use App\Purchasing\Application\Job\MatchPurchasedItems\MatchPurchasedItemsJobHandler;
 use App\Purchasing\Application\Command\LearnProductAliases\LearnProductAliasesCommand;
 use App\Purchasing\Application\Query\ListMatchablePurchasedItemIds\ListMatchablePurchasedItemIdsHandler;
 use App\Purchasing\Application\Query\ListMatchablePurchasedItemIds\ListMatchablePurchasedItemIdsQuery;
+use App\Purchasing\Domain\Event\ProductCreated;
 use App\Purchasing\Domain\Event\PurchasedItemsConfirmed;
 use App\Purchasing\Domain\Event\PurchasedItemsRecorded;
 use App\Purchasing\Domain\Exception\ItemInterpreterUnavailableException;
@@ -41,6 +43,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(MatchPurchasedItemsJob::class)]
 #[CoversClass(ListMatchablePurchasedItemIdsHandler::class)]
 #[CoversClass(QueueMatchingOnPurchasedItemsRecorded::class)]
+#[CoversClass(QueueMatchingOnProductCreated::class)]
 #[CoversClass(QueueAliasMatchingOnPurchasedItemsConfirmed::class)]
 #[CoversClass(LearnProductAliasesOnPurchasedItemsConfirmed::class)]
 final class MatchPurchasedItemsJobHandlerTest extends TestCase
@@ -146,6 +149,21 @@ final class MatchPurchasedItemsJobHandlerTest extends TestCase
         self::assertInstanceOf(MatchPurchasedItemsJob::class, $job);
         self::assertSame([MatchScope::NotYetMatched->value, true, null], [$job->scope, $job->useInterpreter, $job->afterItemId]);
         self::assertSame('purchasing-match-items:'.$this->organizationId().':not_yet_matched:model', $this->jobBus->dispatched[0]['deduplicationKey']);
+    }
+
+    public function test_it_queues_matching_with_the_model_when_a_product_is_created_one_job_for_a_burst(): void
+    {
+        $handler = new QueueMatchingOnProductCreated($this->jobBus);
+
+        $handler(new ProductCreated($this->organizationId(), Uuid::v7()->toRfc4122()));
+        $handler(new ProductCreated($this->organizationId(), Uuid::v7()->toRfc4122()));
+
+        $job = $this->jobBus->dispatched[0]['job'];
+        self::assertInstanceOf(MatchPurchasedItemsJob::class, $job);
+        self::assertSame([MatchScope::NotYetMatched->value, true, null], [$job->scope, $job->useInterpreter, $job->afterItemId]);
+        // The same key as for recorded items: the job bus drops a job whose key is queued, so the burst is one job (ADR 0025 §5).
+        self::assertSame('purchasing-match-items:'.$this->organizationId().':not_yet_matched:model', $this->jobBus->dispatched[0]['deduplicationKey']);
+        self::assertSame($this->jobBus->dispatched[0]['deduplicationKey'], $this->jobBus->dispatched[1]['deduplicationKey']);
     }
 
     public function test_it_learns_aliases_and_queues_matching_by_aliases_alone_when_a_person_confirms(): void

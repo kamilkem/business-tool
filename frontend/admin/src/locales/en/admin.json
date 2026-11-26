@@ -678,6 +678,34 @@
       "excluded_other": "{{count}} items excluded (in {{name}})",
       "confirmed_one": "{{count}} suggestion confirmed",
       "confirmed_other": "{{count}} suggestions confirmed"
+    },
+    "proposals": {
+      "title": "Proposed products",
+      "description": "Items that match nothing in your catalog. The model proposes a product for each group; nothing is created until you confirm it.",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "sameName": "There is a product named “{{name}}” now: these items are most likely that product.",
+      "addTo": "Add to {{name}}",
+      "create": "Create product…",
+      "merge": "Add to a product…",
+      "dismiss": "Dismiss",
+      "createTitle": "Create a product",
+      "createDescription_one": "The product is created and {{count}} item is added to it. Change what the model proposed first if needed.",
+      "createDescription_other": "The product is created and {{count}} items are added to it. Change what the model proposed first if needed.",
+      "createSubmit_one": "Create and add {{count}} item",
+      "createSubmit_other": "Create and add {{count}} items",
+      "mergeTitle": "Add “{{name}}” to a product",
+      "mergeDescription_one": "{{count}} item becomes part of the product you pick, and its names are remembered for next time.",
+      "mergeDescription_other": "{{count}} items become part of the product you pick, and their names are remembered for next time.",
+      "mergeSubmit_one": "Add {{count}} item",
+      "mergeSubmit_other": "Add {{count}} items",
+      "toast": {
+        "dismissed": "Dismissed “{{name}}”. The items stay in the queue.",
+        "added_one": "{{count}} item added to {{name}}",
+        "added_other": "{{count}} items added to {{name}}",
+        "created_one": "Product “{{name}}” created with {{count}} item",
+        "created_other": "Product “{{name}}” created with {{count}} items"
+      }
     }
   },
   "shiftRequests": {

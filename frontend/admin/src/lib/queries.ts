@@ -170,12 +170,23 @@ export const reviewQueueCountQuery = (organizationId: string) =>
       ).total,
   })
 
+/**
+ * The products the model proposes for items no product fits (GET /product-proposals, ADR 0044), grouped
+ * by proposed name. Under `["product-proposals", organizationId]`, which every purchasing write invalidates.
+ */
+export const productProposalsQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["product-proposals", organizationId],
+    queryFn: () => unwrap(api.GET("/api/product-proposals")),
+  })
+
 /** After a write to products or purchased items: the product screens, the overview and the review queue show what the API has now. */
 export async function invalidatePurchasing(queryClient: QueryClient, organizationId: string) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["products", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-analysis", organizationId] }),
     queryClient.invalidateQueries({ queryKey: ["purchased-items", organizationId] }),
+    queryClient.invalidateQueries({ queryKey: ["product-proposals", organizationId] }),
   ])
 }
 
