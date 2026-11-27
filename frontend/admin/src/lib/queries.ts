@@ -118,6 +118,17 @@ export const priceHistoryQuery = (organizationId: string, productId: string, per
       unwrap(api.GET("/api/products/{id}/price-history", { params: { path: { id: productId }, query: period } })),
   })
 
+/**
+ * The product's items by unit and package size (GET /products/{id}/package-sizes; ADR 0048), for the question
+ * asked after a package size was set. Never kept: the answer is only good right after the change.
+ */
+export const packageSizesQuery = (organizationId: string, productId: string) =>
+  queryOptions({
+    queryKey: ["products", organizationId, "package-sizes", productId],
+    queryFn: () => unwrap(api.GET("/api/products/{id}/package-sizes", { params: { path: { id: productId } } })),
+    gcTime: 0,
+  })
+
 /** How many purchased items of a product the product page lists at once. */
 export const PRODUCT_ITEMS_PER_PAGE = 50
 

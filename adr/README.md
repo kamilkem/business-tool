@@ -56,3 +56,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0046](0046-matching-reruns-on-catalog-changes-and-on-demand.md) | Matching runs again when the catalog changes and when the owner asks, and each run is recorded | Accepted |
 | [0047](0047-a-different-abv-is-a-different-product.md) | A different alcohol strength is a different product: the name alias key keeps the ABV, and a link to a product of another ABV is never made | Accepted |
 | [0048](0048-bundles-next-to-the-package-size.md) | A purchased item can be a bundle: a count of single packages next to the package size | Accepted |
+| [0049](0049-a-package-size-is-offered-to-the-products-other-items-never-applied.md) | A package size set on one item is offered to the product's other items, never applied to them silently | Accepted |

@@ -660,6 +660,50 @@
       "mergeDescription": "Dla tej samej rzeczy zapisanej pod dwiema nazwami. Jego pozycje przejdą do drugiego produktu.",
       "save": "Zapisz",
       "saved": "Zapisano: {{name}}"
+    },
+    "packageSizes": {
+      "title": "Ten sam rozmiar opakowania na pozostałych pozycjach?",
+      "description": "{{name}}: ustawiono rozmiar opakowania {{size}}. Rozmiary nie muszą być równe w różnych jednostkach, więc nic więcej się nie zmieni, dopóki tego tu nie wybierzesz.",
+      "size": "Rozmiar opakowania do ustawienia",
+      "sizeDescription": "W jednostce produktu na jedną jednostkę ilości. Karton lub zgrzewka mieści kilka sztuk: wpisz rozmiar całej jednostki.",
+      "bundleCount": "Sztuk w jednej jednostce (tylko zgrzewki)",
+      "bundleCountDescription": "Dla zgrzewki 20 butelek: 20, a rozmiar powyżej to rozmiar jednej butelki. Zostaw puste, gdy jednostka nie jest zgrzewką.",
+      "fill": {
+        "title": "Bez rozmiaru opakowania",
+        "description": "Te pozycje nie wchodzą do analizy cen."
+      },
+      "sameUnit": {
+        "title": "Ta sama jednostka, inny rozmiar",
+        "description": "Pozycje w jednostce, którą właśnie zmieniono, które mają jeszcze inny rozmiar."
+      },
+      "otherUnits": {
+        "title": "Inne jednostki, inny rozmiar",
+        "description": "Pozycje w innych jednostkach, które mają własny rozmiar."
+      },
+      "group": {
+        "items_one": "{{count}} pozycja w jednostce {{unit}}",
+        "items_few": "{{count}} pozycje w jednostce {{unit}}",
+        "items_many": "{{count}} pozycji w jednostce {{unit}}",
+        "items_other": "{{count}} pozycji w jednostce {{unit}}",
+        "noUnit_one": "{{count}} pozycja bez jednostki",
+        "noUnit_few": "{{count}} pozycje bez jednostki",
+        "noUnit_many": "{{count}} pozycji bez jednostki",
+        "noUnit_other": "{{count}} pozycji bez jednostki",
+        "now": "teraz {{size}}",
+        "confirmed_one": "{{count}} potwierdzona przez Ciebie",
+        "confirmed_few": "{{count}} potwierdzone przez Ciebie",
+        "confirmed_many": "{{count}} potwierdzonych przez Ciebie",
+        "confirmed_other": "{{count}} potwierdzonych przez Ciebie"
+      },
+      "skip": "Zostaw je",
+      "apply_one": "Ustaw na {{count}} pozycji",
+      "apply_few": "Ustaw na {{count}} pozycjach",
+      "apply_many": "Ustaw na {{count}} pozycjach",
+      "apply_other": "Ustaw na {{count}} pozycjach",
+      "toast_one": "Rozmiar opakowania ustawiono jeszcze na {{count}} pozycji",
+      "toast_few": "Rozmiar opakowania ustawiono jeszcze na {{count}} pozycjach",
+      "toast_many": "Rozmiar opakowania ustawiono jeszcze na {{count}} pozycjach",
+      "toast_other": "Rozmiar opakowania ustawiono jeszcze na {{count}} pozycjach"
     }
   },
   "review": {

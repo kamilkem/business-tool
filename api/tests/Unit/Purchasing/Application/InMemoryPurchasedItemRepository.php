@@ -9,6 +9,7 @@ use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\PackageSize\PackageSizeCount;
 use App\Purchasing\Domain\Proposal\ProposedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
@@ -208,6 +209,26 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
     public function linkedTo(Uuid $productId): int
     {
         return $this->linkedItems[$productId->toRfc4122()] ?? 0;
+    }
+
+    public function findByProduct(Uuid $productId): array
+    {
+        $items = array_values(array_filter($this->byKey, static fn (PurchasedItem $item): bool => $item->getProduct()?->getId()->equals($productId) ?? false));
+        usort($items, static fn (PurchasedItem $a, PurchasedItem $b): int => $a->getId()->toRfc4122() <=> $b->getId()->toRfc4122());
+
+        return $items;
+    }
+
+    public function countPackageSizesOfProduct(Uuid $productId): array
+    {
+        $counts = [];
+        foreach ($this->findByProduct($productId) as $item) {
+            $confirmed = PurchasedItemStatus::Confirmed === $item->getStatus();
+            $index = ($item->getUnit() ?? '').'|'.($item->getPackageSize() ?? '').'|'.($item->getBundleCount() ?? '').'|'.($confirmed ? '1' : '0');
+            $counts[$index] = new PackageSizeCount($item->getUnit(), $item->getPackageSize(), $item->getBundleCount(), $confirmed, ($counts[$index]->count ?? 0) + 1);
+        }
+
+        return array_values($counts);
     }
 
     public function hasItemsOfProduct(Uuid $productId): bool

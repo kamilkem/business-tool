@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { PackageSizeFollowUp, type PackageSizeFollowUpRequest } from "@/components/package-size-follow-up"
 import { ProductPicker } from "@/components/product-picker"
 import { api } from "@/lib/api"
 import { type ProductCategory, parentChoices } from "@/lib/product-categories"
@@ -43,7 +44,8 @@ interface ProductProposalsProps {
  * The products the model proposes for items that matched nothing in the catalog (ADR 0044), on the
  * Proposed products page (#269), which carries the heading. Each is a decision for the owner: create the
  * product (editing its name, category and measure first), add its items to a product that exists, or
- * dismiss it. Nothing is created until then.
+ * dismiss it. Nothing is created until then. The items of a new product got the package size their names state;
+ * the units that have none are then asked about, which the owner chooses (ADR 0049, #271).
  */
 export function ProductProposals({ organizationId }: ProductProposalsProps) {
   const { t } = useTranslation("admin")
@@ -52,6 +54,7 @@ export function ProductProposals({ organizationId }: ProductProposalsProps) {
   const categories = useSuspenseQuery(productCategoriesQuery(organizationId))
   const [creating, setCreating] = useState<ProductProposal | null>(null)
   const [merging, setMerging] = useState<ProductProposal | null>(null)
+  const [followUp, setFollowUp] = useState<PackageSizeFollowUpRequest | null>(null)
 
   // The product a proposal equals by name is shown by name, so the products are read when one does.
   const hasSameName = proposals.data.some((proposal) => proposal.existingProductId !== null)
@@ -155,7 +158,9 @@ export function ProductProposals({ organizationId }: ProductProposalsProps) {
         categories={categories.data}
         onClose={() => setCreating(null)}
         onError={onError}
+        onCreated={setFollowUp}
       />
+      <PackageSizeFollowUp organizationId={organizationId} request={followUp} onClose={() => setFollowUp(null)} />
       <MergeDialog
         organizationId={organizationId}
         proposal={merging}
@@ -175,8 +180,10 @@ interface DialogProps {
   onError: (error: unknown) => Promise<void>
 }
 
+type CreatedHandler = (request: PackageSizeFollowUpRequest) => void
+
 /** Creates the product with what the model proposed, edited; its items become confirmed members of it. */
-function CreateDialog({ organizationId, proposal, categories, onClose, onError }: DialogProps) {
+function CreateDialog({ organizationId, proposal, categories, onClose, onError, onCreated }: DialogProps & { onCreated: CreatedHandler }) {
   const { t } = useTranslation("admin")
   return (
     <Dialog open={proposal !== null} onOpenChange={(open) => !open && onClose()}>
@@ -189,6 +196,7 @@ function CreateDialog({ organizationId, proposal, categories, onClose, onError }
             categories={categories}
             onClose={onClose}
             onError={onError}
+            onCreated={onCreated}
             title={t("review.proposals.createTitle")}
           />
         )}
@@ -197,7 +205,15 @@ function CreateDialog({ organizationId, proposal, categories, onClose, onError }
   )
 }
 
-function CreateForm({ organizationId, proposal, categories, title, onClose, onError }: DialogProps & { proposal: ProductProposal; title: string }) {
+function CreateForm({
+  organizationId,
+  proposal,
+  categories,
+  title,
+  onClose,
+  onError,
+  onCreated,
+}: DialogProps & { proposal: ProductProposal; title: string; onCreated: CreatedHandler }) {
   const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const [values, setValues] = useState<ProposalFormValues>(() => proposalFormValues(proposal))
@@ -212,6 +228,7 @@ function CreateForm({ organizationId, proposal, categories, title, onClose, onEr
       toast.success(t("review.proposals.toast.created", { count: proposal.itemCount, name: values.name.trim() }))
       await invalidatePurchasing(queryClient, organizationId)
       onClose()
+      await askAboutOtherUnits(values.name.trim())
     },
     onError: async (error) => {
       const shown = productFormErrors(error)
@@ -222,6 +239,17 @@ function CreateForm({ organizationId, proposal, categories, title, onClose, onEr
       }
     },
   })
+
+  /** The accept call answers with no body, so the new product is found by its name, which is unique. */
+  async function askAboutOtherUnits(name: string) {
+    try {
+      const products = await queryClient.fetchQuery(productsQuery(organizationId))
+      const created = products.find((product) => product.name.toLowerCase() === name.toLowerCase())
+      if (created) onCreated({ productId: created.id, productName: created.name, answer: null })
+    } catch {
+      // The product is made; the question is a convenience, so a failure to ask is not an error.
+    }
+  }
 
   function update(next: Partial<ProposalFormValues>) {
     setValues((current) => ({ ...current, ...next }))

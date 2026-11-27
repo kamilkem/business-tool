@@ -7,6 +7,7 @@ namespace App\Purchasing\Domain\Repository;
 use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Model\PurchasedItem;
+use App\Purchasing\Domain\PackageSize\PackageSizeCount;
 use App\Purchasing\Domain\Proposal\ProposedItem;
 use Symfony\Component\Uid\Uuid;
 
@@ -113,6 +114,21 @@ interface PurchasedItemRepositoryInterface
      * @return list<PurchasedItem>
      */
     public function findByProposalKey(string $key): array;
+
+    /**
+     * The items linked to the product, whatever their status, by id.
+     *
+     * @return list<PurchasedItem>
+     */
+    public function findByProduct(Uuid $productId): array;
+
+    /**
+     * How many of the product's items there are for each unit, package size and whether a person confirmed
+     * them (ADR 0048): counts only, no entities.
+     *
+     * @return list<PackageSizeCount>
+     */
+    public function countPackageSizesOfProduct(Uuid $productId): array;
 
     /** Whether an item is linked to the product. */
     public function hasItemsOfProduct(Uuid $productId): bool;
