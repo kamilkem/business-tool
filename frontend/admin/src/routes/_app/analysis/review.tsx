@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { unwrap } from "@business-tool/api-client"
 import { useMutation, useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query"
-import { Link, createFileRoute, useNavigate, useRouter, type ErrorComponentProps } from "@tanstack/react-router"
-import { ArrowLeftIcon, CircleCheckIcon, SearchIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { createFileRoute, useNavigate, useRouter, type ErrorComponentProps } from "@tanstack/react-router"
+import { CircleCheckIcon, SearchIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -14,17 +14,16 @@ import { Input } from "@business-tool/ui/components/input"
 import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { AnalysisNav } from "@/components/analysis-nav"
 import { BasisToggle } from "@/components/basis-toggle"
-import { ExpensesNav } from "@/components/expenses-nav"
 import { InvoiceSheet } from "@/components/invoice-sheet"
 import { MatchingCard } from "@/components/matching-card"
-import { ProductProposals } from "@/components/product-proposals"
 import { type AssignRequest, ReviewAssignDialog } from "@/components/review-assign-dialog"
 import { ReviewGroupRow } from "@/components/review-queue-group"
 import { requireCapability } from "@/lib/access"
 import { api } from "@/lib/api"
 import { type Basis, readBasis, saveBasis } from "@/lib/purchase-analysis"
-import { invalidatePurchasing, productCategoriesQuery, productProposalsQuery, reviewQueueQuery } from "@/lib/queries"
+import { invalidatePurchasing, productCategoriesQuery, reviewQueueQuery } from "@/lib/queries"
 import {
   MAX_ASSIGN_ITEMS,
   type QueueItem,
@@ -41,14 +40,13 @@ import {
  * The review queue (#246, ADR 0041 §3, §9): the purchased items without a product, or with one that
  * matching only suggested, grouped by the name the invoice printed, newest first. The owner assigns a
  * group, one item or a selection to a product (or to a new one made from them, with the package size
- * they type), confirms a suggestion, or excludes what should not count. Above the queue the model's
- * proposed products wait for the owner's decision (ADR 0044), under a card that says what matching did last
- * and has the model go through the unassigned items again (ADR 0046). It is where the overview's "Not assigned"
- * row leads.
+ * they type), confirms a suggestion, or excludes what should not count. Above the queue a card says what
+ * matching did last and has the model go through the unassigned items again (ADR 0046). It is where the
+ * overview's "Not assigned" row leads; the model's proposed products have a page of their own (#269).
  */
-export const Route = createFileRoute("/_app/expenses/analysis_/review")({
+export const Route = createFileRoute("/_app/analysis/review")({
   validateSearch: (search: Record<string, unknown>): ReviewSearch => validateReviewSearch(search),
-  beforeLoad: requireCapability("expenses"),
+  beforeLoad: requireCapability("analysis"),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const { organization } = context.membership
@@ -56,8 +54,6 @@ export const Route = createFileRoute("/_app/expenses/analysis_/review")({
       context.queryClient.ensureInfiniteQueryData(reviewQueueQuery(organization.id, deps.q)),
       // The assign dialog's category picker; its products load when it opens.
       context.queryClient.ensureQueryData(productCategoriesQuery(organization.id)),
-      // The products the model proposes, above the queue (ADR 0044).
-      context.queryClient.ensureQueryData(productProposalsQuery(organization.id)),
     ])
   },
   pendingComponent: ReviewPending,
@@ -70,13 +66,7 @@ function PageHeading() {
   const { t } = useTranslation("admin")
   return (
     <div className="flex flex-col gap-3">
-      <ExpensesNav />
-      <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
-        <Link to="/expenses/analysis">
-          <ArrowLeftIcon />
-          {t("product.back")}
-        </Link>
-      </Button>
+      <AnalysisNav />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t("review.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("review.description")}</p>
@@ -184,8 +174,6 @@ function ReviewPage() {
       <PageHeading />
 
       <MatchingCard organizationId={organizationId} />
-
-      <ProductProposals organizationId={organizationId} />
 
       <div className="flex flex-wrap items-center gap-2">
         <NameSearch search={search} onChange={(q) => void navigate({ search: { q }, replace: true })} />

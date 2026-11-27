@@ -53,10 +53,14 @@
     "soon": "Soon",
     "settings": "Organization settings",
     "expenses": "Expenses",
+    "analysis": "Analysis",
     "income": "Income",
     "payroll": "Payroll"
   },
   "modules": {
+    "analysis": {
+      "title": "Analysis"
+    },
     "cashFlow": {
       "title": "Cash flow"
     },
@@ -395,6 +399,15 @@
   "analysis": {
     "title": "Purchase analysis",
     "description": "What you buy, how much it costs and how prices change, from your purchase invoices.",
+    "nav": {
+      "overview": "Overview",
+      "review": "Review queue",
+      "proposals": "Proposed products",
+      "waiting_one": "{{count}} item waiting for review",
+      "waiting_other": "{{count}} items waiting for review",
+      "proposed_one": "{{count}} proposal waiting for a decision",
+      "proposed_other": "{{count}} proposals waiting for a decision"
+    },
     "total_net": "Total spend, net:",
     "total_gross": "Total spend, gross:",
     "uncategorized": "Uncategorized",
@@ -749,6 +762,11 @@
         "added_other": "{{count}} items added to {{name}}",
         "created_one": "Product “{{name}}” created with {{count}} item",
         "created_other": "Product “{{name}}” created with {{count}} items"
+      },
+      "empty": "No proposed products. When matching finds items that fit nothing in your catalog, the model’s proposals appear here.",
+      "error": {
+        "title": "Could not load the proposed products",
+        "retry": "Try again"
       }
     },
     "matchSource": {
@@ -846,10 +864,7 @@
   "expenses": {
     "nav": {
       "invoices": "Invoices",
-      "analysis": "Analysis",
-      "categories": "Categories",
-      "waiting_one": "{{count}} item waiting for review",
-      "waiting_other": "{{count}} items waiting for review"
+      "categories": "Categories"
     },
     "source": {
       "manual": "Entered by hand",

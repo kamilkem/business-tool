@@ -5,7 +5,7 @@ import { type Capability, type Membership, adminMemberships, can, requireCapabil
 import type { Role } from "./members"
 import { modulesFor } from "./modules"
 
-const CAPABILITIES: Capability[] = ["admin", "dashboard", "team", "time", "shiftRequests", "settings", "income", "expenses", "cashFlow", "payroll", "ksef"]
+const CAPABILITIES: Capability[] = ["admin", "dashboard", "team", "time", "shiftRequests", "settings", "income", "expenses", "analysis", "cashFlow", "payroll", "ksef"]
 
 function membership(role: Role, name = "Demo Bar"): Membership {
   return {
@@ -112,7 +112,7 @@ describe("modulesFor", () => {
   })
 
   it("test_it_groups_modules_into_finances_and_staff", () => {
-    expect(modulesFor("owner", "finances").map((m) => m.key)).toEqual(["income", "expenses", "cashFlow", "payroll"])
+    expect(modulesFor("owner", "finances").map((m) => m.key)).toEqual(["income", "expenses", "analysis", "cashFlow", "payroll"])
     expect(modulesFor("owner", "staff").map((m) => m.key)).toEqual(["time"])
   })
 
@@ -130,6 +130,12 @@ describe("modulesFor", () => {
     expect(modulesFor("manager").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow")
     expect(modulesFor("owner").find((m) => m.key === "cashFlow")?.to).toBe("/cash-flow")
     expect(modulesFor("employee").some((m) => m.key === "cashFlow")).toBe(false)
+  })
+
+  it("test_it_links_analysis_to_its_section_for_owners_and_managers_only", () => {
+    expect(modulesFor("manager").find((m) => m.key === "analysis")?.to).toBe("/analysis")
+    expect(modulesFor("owner").find((m) => m.key === "analysis")?.to).toBe("/analysis")
+    expect(modulesFor("employee").some((m) => m.key === "analysis")).toBe(false)
   })
 
   it("test_it_links_expenses_to_its_categories_for_owners_and_managers_only", () => {

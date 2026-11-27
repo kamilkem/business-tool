@@ -57,10 +57,14 @@
     "soon": "Wkrótce",
     "settings": "Ustawienia organizacji",
     "expenses": "Wydatki",
+    "analysis": "Analiza",
     "income": "Przychody",
     "payroll": "Wynagrodzenia"
   },
   "modules": {
+    "analysis": {
+      "title": "Analiza"
+    },
     "cashFlow": {
       "title": "Gotówka"
     },
@@ -427,6 +431,19 @@
   "analysis": {
     "title": "Analiza zakupów",
     "description": "Co kupujesz, ile to kosztuje i jak zmieniają się ceny, na podstawie faktur zakupu.",
+    "nav": {
+      "overview": "Przegląd",
+      "review": "Kolejka do przejrzenia",
+      "proposals": "Proponowane produkty",
+      "waiting_one": "{{count}} pozycja czeka na przejrzenie",
+      "waiting_few": "{{count}} pozycje czekają na przejrzenie",
+      "waiting_many": "{{count}} pozycji czeka na przejrzenie",
+      "waiting_other": "{{count}} pozycji czeka na przejrzenie",
+      "proposed_one": "{{count}} propozycja czeka na decyzję",
+      "proposed_few": "{{count}} propozycje czekają na decyzję",
+      "proposed_many": "{{count}} propozycji czeka na decyzję",
+      "proposed_other": "{{count}} propozycji czeka na decyzję"
+    },
     "total_net": "Suma wydatków, netto:",
     "total_gross": "Suma wydatków, brutto:",
     "uncategorized": "Bez kategorii",
@@ -841,6 +858,11 @@
         "created_few": "Utworzono produkt „{{name}}” z {{count}} pozycjami",
         "created_many": "Utworzono produkt „{{name}}” z {{count}} pozycjami",
         "created_other": "Utworzono produkt „{{name}}” z {{count}} pozycjami"
+      },
+      "empty": "Brak proponowanych produktów. Gdy dopasowywanie znajdzie pozycje, które nie pasują do niczego w katalogu, propozycje modelu pojawią się tutaj.",
+      "error": {
+        "title": "Nie udało się wczytać proponowanych produktów",
+        "retry": "Spróbuj ponownie"
       }
     },
     "matchSource": {
@@ -940,12 +962,7 @@
   "expenses": {
     "nav": {
       "invoices": "Faktury",
-      "analysis": "Analiza",
-      "categories": "Kategorie",
-      "waiting_one": "{{count}} pozycja czeka na przejrzenie",
-      "waiting_few": "{{count}} pozycje czekają na przejrzenie",
-      "waiting_many": "{{count}} pozycji czeka na przejrzenie",
-      "waiting_other": "{{count}} pozycji czeka na przejrzenie"
+      "categories": "Kategorie"
     },
     "source": {
       "manual": "Wpisany ręcznie",

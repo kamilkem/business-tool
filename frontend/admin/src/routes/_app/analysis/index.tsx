@@ -15,8 +15,8 @@ import { type BusinessPeriod, isWholeMonth, thisMonth } from "@business-tool/ui/
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { BasisToggle } from "@/components/basis-toggle"
+import { AnalysisNav } from "@/components/analysis-nav"
 import { AnalysisHeader, AnalysisTree, NotAssignedRow } from "@/components/purchase-analysis-tree"
-import { ExpensesNav } from "@/components/expenses-nav"
 import { requireCapability } from "@/lib/access"
 import {
   ANALYSIS_MAX_DAYS,
@@ -34,15 +34,16 @@ import {
 import { purchaseAnalysisQuery } from "@/lib/queries"
 
 /*
- * Analiza (#244, ADR 0041 §9): what the organization bought in a period, as the category tree
- * drilled down to products, with spend, share, quantity, prices and the last price change. The
+ * The Analysis overview (#244, ADR 0041 §9): what the organization bought in a period, as the category
+ * tree drilled down to products, with spend, share, quantity, prices and the last price change. The
  * toggle picks net or gross (net by default, remembered in this browser); both come in one
- * response, so it needs no request. A product opens its detail (#245); the review queue of items
- * without a product comes with #246.
+ * response, so it needs no request. A product opens its detail (#245); the items without a product
+ * lead to the review queue (#246). Analysis is a section of its own, with a tab each for the
+ * overview, the review queue and the proposed products (#269).
  */
-export const Route = createFileRoute("/_app/expenses/analysis")({
+export const Route = createFileRoute("/_app/analysis/")({
   validateSearch: (search: Record<string, unknown>): AnalysisSearch => validateAnalysisSearch(search),
-  beforeLoad: requireCapability("expenses"),
+  beforeLoad: requireCapability("analysis"),
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
     const { organization } = context.membership
@@ -64,7 +65,7 @@ function PageHeading({ actions }: { actions?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-3">
-        <ExpensesNav />
+        <AnalysisNav />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("analysis.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("analysis.description")}</p>

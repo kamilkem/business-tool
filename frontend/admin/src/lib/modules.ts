@@ -1,10 +1,10 @@
 import type { LinkProps } from "@tanstack/react-router"
-import { BanknoteIcon, ClockIcon, ReceiptIcon, TrendingUpIcon, WalletIcon, type LucideIcon } from "lucide-react"
+import { BanknoteIcon, ChartNoAxesColumnIcon, ClockIcon, ReceiptIcon, TrendingUpIcon, WalletIcon, type LucideIcon } from "lucide-react"
 
 import { type Capability, can } from "./access"
 import type { Role } from "./members"
 
-export type ModuleKey = "cashFlow" | "expenses" | "income" | "payroll" | "time"
+export type ModuleKey = "analysis" | "cashFlow" | "expenses" | "income" | "payroll" | "time"
 
 /** The navigation section a module sits in: `nav.groups.<group>` in the catalog. */
 export type NavGroup = "finances" | "staff"
@@ -37,6 +37,13 @@ export const modules: ModuleInfo[] = [
     icon: ReceiptIcon,
     to: "/expenses",
     capability: "expenses",
+  },
+  {
+    key: "analysis",
+    group: "finances",
+    icon: ChartNoAxesColumnIcon,
+    to: "/analysis",
+    capability: "analysis",
   },
   {
     key: "cashFlow",

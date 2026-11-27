@@ -5,7 +5,7 @@ import { isBusinessDate, periodError } from "@business-tool/ui/lib/date-time"
 import { i18n } from "../i18n"
 
 /*
- * The Analiza overview (ADR 0041 §8, §9): what the organization bought in a period, as a tree of
+ * The Analysis overview (ADR 0041 §8, §9): what the organization bought in a period, as a tree of
  * categories of any depth down to products. The API sends the categories flat with their parent's
  * id and both money bases (net and gross) at once; this module nests them, picks a basis, and
  * words the quantities and price changes. Money stays integer minor units and quantities decimal

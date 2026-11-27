@@ -155,7 +155,7 @@ export const reviewQueueQuery = (organizationId: string, search: string | undefi
     getNextPageParam: (last) => (last.page * last.itemsPerPage < last.total ? last.page + 1 : undefined),
   })
 
-/** How many items wait in the review queue, for the badge on the Analiza tab: the total of a page of one. */
+/** How many items wait in the review queue, for the badge on the Review queue tab of the Analysis section: the total of a page of one. */
 export const reviewQueueCountQuery = (organizationId: string) =>
   queryOptions({
     queryKey: ["purchased-items", organizationId, "review-count"],
