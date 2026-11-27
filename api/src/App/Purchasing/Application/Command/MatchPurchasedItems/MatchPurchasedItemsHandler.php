@@ -188,7 +188,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
                 $conflict = $conflict || !$hit->getProduct()->getId()->equals($strongest->getProduct()->getId());
             }
             $decision = $prices->check(MatchDecision::fromAlias($strongest, $conflict, $this->readingOf($item, $multipliers)), $item);
-            $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat);
+            $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat, $decision->bundleCount);
         }
 
         return $open;
@@ -279,7 +279,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
             return;
         }
         $decision = $prices->check($decision, $item);
-        $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat);
+        $item->match($decision->product, $decision->packageSize, $decision->status, $now, $decision->source, $decision->caveat, $decision->bundleCount);
     }
 
     /**

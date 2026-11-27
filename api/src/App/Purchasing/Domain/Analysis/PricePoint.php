@@ -22,8 +22,10 @@ final readonly class PricePoint
         public string $itemName,
         /** The item's quantity as printed, a decimal string. */
         public string $quantity,
-        /** The item's package size in the product's base unit, a decimal string. */
+        /** The item's package size in the product's base unit, a decimal string: of one single package when the item is a bundle. */
         public string $packageSize,
+        /** Single packages per unit of the quantity; null when the item is no bundle (ADR 0048). Prices use packageSize × bundleCount. */
+        public ?int $bundleCount,
         public ?PriceChange $net,
         public ?PriceChange $gross,
     ) {

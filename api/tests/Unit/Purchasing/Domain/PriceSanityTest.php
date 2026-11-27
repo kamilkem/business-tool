@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Domain;
 
 use App\Purchasing\Domain\Matching\PriceSanity;
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemDetails;
 use App\Shared\Domain\Time\BusinessDate;
@@ -24,6 +25,17 @@ final class PriceSanityTest extends TestCase
         self::assertSame(2_000_000, PriceSanity::perBaseUnit(2_000, '1', '1'));
         self::assertSame(500_000, PriceSanity::perBaseUnit(1_000, '2', '1'));
         self::assertSame(3_333_333, PriceSanity::perBaseUnit(1_000, '0.3', '1'), 'Rounded from 3 333 333.33.');
+    }
+
+    public function test_it_prices_a_bundle_exactly_as_the_same_goods_entered_as_a_total(): void
+    {
+        // 4 crates of 20 × 0.5 L, or of 10 L: the size per unit is the one number that is priced (ADR 0048 §3).
+        foreach ([['0.5', 20], ['0.25', 40], ['2', 5], ['0.333333', 3]] as [$single, $count]) {
+            $total = PackageSize::of($single, $count)->total();
+            self::assertSame(PriceSanity::perBaseUnit(96_000, '4', $total), PriceSanity::perBaseUnit(96_000, '4', PackageSize::of($total)->total()));
+        }
+        self::assertSame(PriceSanity::perBaseUnit(96_000, '4', '10'), PriceSanity::perBaseUnit(96_000, '4', PackageSize::of('0.5', 20)->total()));
+        self::assertSame(2_400_000, PriceSanity::perBaseUnit(96_000, '4', PackageSize::of('0.5', 20)->total()));
     }
 
     /** @param array{?int, ?string, ?string} $arguments */

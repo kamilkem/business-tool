@@ -8,7 +8,7 @@ use App\Shared\Application\Command\CommandInterface;
 
 /**
  * An owner or manager links a purchased item to a product, or takes it off its product, and sets its
- * package size. Every value is the new one: the caller sends the current value of what it does not
+ * package size, with the bundle count of single packages if it is a bundle (ADR 0048). Every value is the new one: the caller sends the current value of what it does not
  * change. The item becomes `confirmed` with a product and `unassigned` without one (ADR 0041 §3).
  */
 final readonly class ChangePurchasedItemCommand implements CommandInterface
@@ -19,6 +19,7 @@ final readonly class ChangePurchasedItemCommand implements CommandInterface
         public string $itemId,
         public ?string $productId,
         public ?string $packageSize,
+        public ?int $bundleCount = null,
     ) {
     }
 }

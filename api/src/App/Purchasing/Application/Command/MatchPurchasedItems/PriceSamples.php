@@ -26,10 +26,10 @@ final class PriceSamples
 
     public function check(MatchDecision $decision, PurchasedItem $item): MatchDecision
     {
-        if (ProductMeasure::None === $decision->product->getMeasure() || null === $decision->packageSize) {
+        if (ProductMeasure::None === $decision->product->getMeasure() || null === $decision->package) {
             return $decision;
         }
-        $price = PriceSanity::of($item, $decision->packageSize);
+        $price = PriceSanity::of($item, $decision->package->total());
         if (null === $price) {
             return $decision;
         }

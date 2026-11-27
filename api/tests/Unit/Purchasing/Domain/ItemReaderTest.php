@@ -84,7 +84,7 @@ final class ItemReaderTest extends TestCase
     #[DataProvider('sizesForAConfirmedProduct')]
     public function test_it_starts_a_confirmed_items_package_size_from_what_the_text_strongly_says(string $name, ?string $unit, ProductMeasure $measure, ?string $size): void
     {
-        self::assertSame($size, ItemReader::read($name, $unit)->packageSizeFor($measure));
+        self::assertSame($size, ItemReader::read($name, $unit)->packageFor($measure)?->total());
     }
 
     public function test_it_knows_whether_a_unit_counts_one_piece_or_an_unknown_number(): void
@@ -112,6 +112,70 @@ final class ItemReaderTest extends TestCase
         self::assertSame($szt, ItemReader::withUnitMultiplier($szt, 6));
         $none = ItemReader::read('Czynsz', 'CO');
         self::assertSame($none, ItemReader::withUnitMultiplier($none, 6));
+    }
+
+    /** @return iterable<string, array{string, ?string, ?int, ?string, string}> name, unit, bundle count, single size, total */
+    public static function bundles(): iterable
+    {
+        yield 'a multipack in front' => ['Piwo 6x0,5L', 'szt.', 6, '0.5', '3'];
+        yield 'a multipack behind' => ['Piwo 0,5l x 6', 'zgrz.', 6, '0.5', '3'];
+        yield 'cans' => ['Piwo 24x330ml', 'kart.', 24, '0.33', '7.92'];
+        yield 'with spaces and a star' => ['Cola 12 * 1,5 L', 'op.', 12, '1.5', '18'];
+        yield 'a plain size is no bundle' => ['Piwo 0,5L', 'szt.', null, null, '0.5'];
+        yield 'one times a size is no bundle' => ['Piwo 1x0,5L', 'szt.', null, null, '0.5'];
+        yield 'a measure unit is no bundle' => ['Piwo 6x0,5L', 'l', null, null, '1'];
+    }
+
+    #[DataProvider('bundles')]
+    public function test_it_reads_a_multipack_as_a_count_and_the_size_of_one_package(string $name, ?string $unit, ?int $count, ?string $single, string $total): void
+    {
+        $reading = ItemReader::read($name, $unit);
+
+        self::assertSame($total, $reading->packageSize, 'The total is what every comparison uses (ADR 0048 §4).');
+        self::assertSame($count, $reading->bundleCount);
+        self::assertSame($single, $reading->singleSize);
+        self::assertSame($total, $reading->size()?->total());
+        self::assertSame($count, $reading->size()->bundleCount);
+    }
+
+    public function test_it_does_not_make_a_multipack_more_certain_for_being_a_bundle(): void
+    {
+        $reading = ItemReader::read('Piwo 6x0,5L', 'szt.');
+
+        self::assertFalse($reading->strong);
+        self::assertNull($reading->packageFor(ProductMeasure::Volume), 'A confirmation does not start from a weak reading.');
+    }
+
+    public function test_it_reads_the_sellers_multiplier_as_a_bundle_count(): void
+    {
+        $case = ItemReader::withUnitMultiplier(ItemReader::read('Jack Daniels 1L', 'CO'), 6);
+
+        self::assertSame(['6', 6, '1'], [$case->packageSize, $case->bundleCount, $case->singleSize]);
+        $volume = $case->packageFor(ProductMeasure::Volume);
+        self::assertSame(['1', 6], [$volume?->single, $volume?->bundleCount], 'The multiplier is strong: a confirmation starts from the count.');
+    }
+
+    public function test_it_multiplies_the_count_of_a_multipack_on_a_unit_of_unknown_count(): void
+    {
+        $cases = ItemReader::withUnitMultiplier(ItemReader::read('Piwo 6x0,5L', 'zgrz.'), 4);
+
+        self::assertSame(['12', 24, '0.5'], [$cases->packageSize, $cases->bundleCount, $cases->singleSize]);
+    }
+
+    public function test_it_keeps_the_total_only_when_the_count_would_exceed_9999(): void
+    {
+        $reading = ItemReader::withUnitMultiplier(ItemReader::read('Piwo 24x0,01L', 'zgrz.'), 999);
+
+        self::assertSame('239.76', $reading->packageSize);
+        self::assertNull($reading->bundleCount);
+        self::assertNull($reading->singleSize);
+    }
+
+    public function test_it_has_no_bundle_for_a_multiplier_of_one(): void
+    {
+        $reading = ItemReader::withUnitMultiplier(ItemReader::read('Piwo 0,5L', 'op.'), 1);
+
+        self::assertSame(['0.5', null], [$reading->packageSize, $reading->bundleCount]);
     }
 
     /** @return iterable<string, array{string, string, string, ?int}> name, unit, confirmed size, the multiplier learned */

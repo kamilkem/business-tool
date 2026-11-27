@@ -35,6 +35,7 @@ function point(id: string, date: string, seller: string, net: number | null, ove
     itemName: "JACK DANIELS 0,7L",
     quantity: "6",
     packageSize: "0.7",
+    bundleCount: null,
     net: net === null ? null : { price: net, change: null, changePercent: null },
     gross: net === null ? null : { price: Math.round(net * 1.23), change: null, changePercent: null },
     ...overrides,

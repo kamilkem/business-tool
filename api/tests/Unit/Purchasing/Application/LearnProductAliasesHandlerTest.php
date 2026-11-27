@@ -76,6 +76,34 @@ final class LearnProductAliasesHandlerTest extends TestCase
         }
     }
 
+    public function test_it_remembers_the_bundle_count_next_to_the_package_size_of_the_keys_that_name_a_pack(): void
+    {
+        $item = $this->confirmed('Piwo Litovel 0,5l', $this->jack, '0.5', sellerCode: 'PL-05', gtin: '5900000000011', bundleCount: 20);
+
+        $this->learn([$item]);
+
+        foreach ($this->aliases->all() as $alias) {
+            if (AliasKind::Name === $alias->getKind()) {
+                self::assertSame([null, null], [$alias->getPackageSize(), $alias->getBundleCount()], 'The name stands for the product across sizes and bundles.');
+                continue;
+            }
+            self::assertSame(['0.5', 20, '10'], [$alias->getPackageSize(), $alias->getBundleCount(), $alias->getPackage()?->total()], $alias->getKind()->value);
+        }
+    }
+
+    public function test_it_lets_a_later_confirmation_replace_a_bundle_with_a_total_and_the_other_way_round(): void
+    {
+        $this->learn([$this->confirmed('Piwo 0,5l', $this->jack, '0.5', sellerCode: 'PL-05', bundleCount: 20)]);
+        $this->learn([$this->confirmed('Piwo 0,5l', $this->jack, '10', sellerCode: 'PL-05')]);
+
+        $alias = $this->aliases->findByKeys([['kind' => 'seller_code', 'key' => '5265877635|PL-05']])[0];
+        self::assertSame(['10', null], [$alias->getPackageSize(), $alias->getBundleCount()]);
+
+        $this->learn([$this->confirmed('Piwo 0,5l', $this->jack, '0.5', sellerCode: 'PL-05', bundleCount: 6)]);
+        $alias = $this->aliases->findByKeys([['kind' => 'seller_code', 'key' => '5265877635|PL-05']])[0];
+        self::assertSame(['0.5', 6], [$alias->getPackageSize(), $alias->getBundleCount()]);
+    }
+
     public function test_it_lets_the_last_confirmation_of_a_key_win(): void
     {
         $first = $this->confirmed('JACK DANIELS 0,7L', $this->jack, '0.7', sellerCode: 'JD-07');
@@ -136,6 +164,17 @@ final class LearnProductAliasesHandlerTest extends TestCase
         self::assertSame(['5265877635', 'co', 6], [$unit->getSellerKey(), $unit->getUnitKey(), $unit->getMultiplier()]);
     }
 
+    public function test_it_learns_the_sellers_multiplier_from_the_size_per_unit_of_a_bundle(): void
+    {
+        // A case entered as 6 × 1 L teaches the same multiplier as one entered as 6 L (ADR 0048 §4).
+        $item = $this->confirmed('Jack Daniels 1L', $this->jack, '1', unit: 'CO', bundleCount: 6);
+
+        $this->learn([$item]);
+
+        [$unit] = $this->sellerUnits->all();
+        self::assertSame(['co', 6], [$unit->getUnitKey(), $unit->getMultiplier()]);
+    }
+
     public function test_it_lets_the_last_confirmation_of_a_sellers_unit_win_and_keeps_sellers_apart(): void
     {
         $this->learn([$this->confirmed('Jack Daniels 1L', $this->jack, '6', unit: 'CO')]);
@@ -175,10 +214,10 @@ final class LearnProductAliasesHandlerTest extends TestCase
         ));
     }
 
-    private function confirmed(string $name, Product $product, string $size, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635', string $unit = 'szt.'): PurchasedItem
+    private function confirmed(string $name, Product $product, string $size, ?string $sellerCode = null, ?string $gtin = null, ?string $sellerTaxId = '5265877635', string $unit = 'szt.', ?int $bundleCount = null): PurchasedItem
     {
         $item = $this->item($name, $sellerCode, $gtin, $sellerTaxId, $unit);
-        $item->link($product, $size, Uuid::v7(), MembershipRole::Owner);
+        $item->link($product, $size, Uuid::v7(), MembershipRole::Owner, $bundleCount);
 
         return $item;
     }

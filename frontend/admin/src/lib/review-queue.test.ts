@@ -46,6 +46,7 @@ function item(id: string, name: string, date: string, overrides: Partial<QueueIt
     productName: null,
     status: "unassigned",
     packageSize: null,
+    bundleCount: null,
     matchSource: null,
     matchCaveat: null,
     ...overrides,
@@ -207,6 +208,13 @@ describe("commonPackageSize", () => {
     expect(commonPackageSize([item("a", "X", "2026-11-03", { packageSize: "0.7" }), item("b", "X", "2026-11-02")])).toBeNull()
     expect(commonPackageSize([item("a", "X", "2026-11-03")])).toBeNull()
     expect(commonPackageSize([])).toBeNull()
+  })
+
+  it("test_it_is_null_when_the_same_size_is_a_bundle_for_one_item_and_not_for_another", () => {
+    const bundle = item("a", "X", "2026-11-03", { packageSize: "0.5", bundleCount: 20 })
+    expect(commonPackageSize([bundle, item("b", "X", "2026-11-02", { packageSize: "0.5", bundleCount: 20 })])).toBe("0.5")
+    expect(commonPackageSize([bundle, item("b", "X", "2026-11-02", { packageSize: "0.5", bundleCount: 24 })])).toBeNull()
+    expect(commonPackageSize([bundle, item("b", "X", "2026-11-02", { packageSize: "0.5" })])).toBeNull()
   })
 })
 

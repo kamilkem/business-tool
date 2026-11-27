@@ -30,7 +30,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Creates the product of a proposal and links the proposal's items to it (ADR 0044). The product is
  * created with the actor's role check, like `POST /products`, and the items are linked as a person's
- * confirmation: `confirmed`, with the package size the text strongly states (ItemReading::packageSizeFor()),
+ * confirmation: `confirmed`, with the package size the text strongly states (ItemReading::packageFor()),
  * so the aliases are learned and the other items matched again by the events.
  *
  * The items are changed first and the product is added last: adding flushes the unit of work, so the
@@ -87,8 +87,8 @@ final readonly class AcceptProductProposalHandler implements CommandHandlerInter
         );
 
         foreach ($items as $item) {
-            $size = $item->getPackageSize() ?? ItemReader::read($item->getName(), $item->getUnit())->packageSizeFor($measure);
-            $item->link($product, $size, $actor->id, $actor->role);
+            $package = $item->getPackage() ?? ItemReader::read($item->getName(), $item->getUnit())->packageFor($measure);
+            $item->link($product, $package?->single, $actor->id, $actor->role, $package?->bundleCount);
         }
 
         $this->products->add($product);

@@ -22,6 +22,7 @@ use App\Purchasing\Application\Query\ListPurchasedItems\ListPurchasedItemsHandle
 use App\Purchasing\Application\Query\ListPurchasedItems\ListPurchasedItemsQuery;
 use App\Purchasing\Application\Query\ListPurchasedItems\PurchasedItemPageView;
 use App\Purchasing\Domain\Event\PurchasedItemsConfirmed;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasedItemNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException;
@@ -168,6 +169,55 @@ final class PurchasedItemHandlersTest extends TestCase
 
         self::assertNull($this->jackItem->getProduct());
         self::assertSame(0, $this->items->saveCallCount);
+    }
+
+    public function test_it_links_an_item_as_a_bundle(): void
+    {
+        $this->change($this->owner, $this->jackItem->getId()->toRfc4122(), $this->jack->getId()->toRfc4122(), '0.5', 20);
+
+        self::assertSame(['0.5', 20, '10'], [$this->jackItem->getPackageSize(), $this->jackItem->getBundleCount(), $this->jackItem->getPackageTotal()]);
+        self::assertSame(20, $this->get($this->owner, $this->jackItem->getId()->toRfc4122())?->bundleCount);
+    }
+
+    /** @return iterable<string, array{?string, int, class-string<\Throwable>}> */
+    public static function invalidBundles(): iterable
+    {
+        yield 'a count of one' => ['0.5', 1, InvalidBundleCountException::class];
+        yield 'no package size' => [null, 6, InvalidBundleCountException::class];
+        yield 'an invalid single size' => ['-1', 6, InvalidPackageSizeException::class];
+    }
+
+    /** @param class-string<\Throwable> $exception */
+    #[DataProvider('invalidBundles')]
+    public function test_it_refuses_an_invalid_bundle_when_changing_or_assigning_and_changes_nothing(?string $size, int $count, string $exception): void
+    {
+        self::assertThrows($exception, fn () => $this->change($this->owner, $this->jackItem->getId()->toRfc4122(), $this->jack->getId()->toRfc4122(), $size, $count));
+        self::assertThrows($exception, fn () => $this->assign($this->owner, [$this->jackItem->getId()->toRfc4122()], $this->jack->getId()->toRfc4122(), $size, $count));
+
+        self::assertNull($this->jackItem->getProduct());
+        self::assertSame(0, $this->items->saveCallCount);
+    }
+
+    public function test_it_gives_every_assigned_item_the_package_size_and_the_bundle_count_sent_with_it(): void
+    {
+        $this->change($this->owner, $this->colaItem->getId()->toRfc4122(), null, '0.33', 6);
+
+        $this->assign($this->owner, [$this->jackItem->getId()->toRfc4122(), $this->colaItem->getId()->toRfc4122()], $this->cola->getId()->toRfc4122(), '0.5', 12);
+        self::assertSame(['0.5', 12], [$this->colaItem->getPackageSize(), $this->colaItem->getBundleCount()]);
+        self::assertSame(['0.5', 12], [$this->jackItem->getPackageSize(), $this->jackItem->getBundleCount()]);
+
+        $this->assign($this->owner, [$this->jackItem->getId()->toRfc4122()], $this->cola->getId()->toRfc4122(), '6', null);
+        self::assertSame(['6', null], [$this->jackItem->getPackageSize(), $this->jackItem->getBundleCount()], 'A package size sent with no count makes it no bundle.');
+    }
+
+    public function test_it_lets_each_item_keep_its_size_and_bundle_count_when_assigning_without_a_package_size(): void
+    {
+        $this->change($this->owner, $this->jackItem->getId()->toRfc4122(), null, '0.5', 20);
+
+        $this->assign($this->owner, [$this->jackItem->getId()->toRfc4122(), $this->colaItem->getId()->toRfc4122()], $this->jack->getId()->toRfc4122(), null);
+
+        self::assertSame(['0.5', 20], [$this->jackItem->getPackageSize(), $this->jackItem->getBundleCount()]);
+        self::assertSame([null, null], [$this->colaItem->getPackageSize(), $this->colaItem->getBundleCount()]);
     }
 
     public function test_it_refuses_an_employee_when_changing_or_assigning_and_changes_nothing(): void
@@ -334,18 +384,18 @@ final class PurchasedItemHandlersTest extends TestCase
         return 'owner' === $actor ? $this->owner : $this->manager;
     }
 
-    private function change(User $actor, string $itemId, ?string $productId, ?string $packageSize): void
+    private function change(User $actor, string $itemId, ?string $productId, ?string $packageSize, ?int $bundleCount = null): void
     {
         (new ChangePurchasedItemHandler($this->items, $this->products, $this->queryBus, $this->events))(
-            new ChangePurchasedItemCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemId, $productId, $packageSize),
+            new ChangePurchasedItemCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemId, $productId, $packageSize, $bundleCount),
         );
     }
 
     /** @param list<string> $itemIds */
-    private function assign(User $actor, array $itemIds, string $productId, ?string $packageSize): void
+    private function assign(User $actor, array $itemIds, string $productId, ?string $packageSize, ?int $bundleCount = null): void
     {
         (new AssignPurchasedItemsHandler($this->items, $this->products, $this->queryBus, $this->events))(
-            new AssignPurchasedItemsCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemIds, $productId, $packageSize),
+            new AssignPurchasedItemsCommand($this->organizationId(), $actor->getId()->toRfc4122(), $itemIds, $productId, $packageSize, $bundleCount),
         );
     }
 

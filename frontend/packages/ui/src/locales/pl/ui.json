@@ -252,6 +252,11 @@
       }
     },
     "purchasing": {
+      "invalid_bundle_count": {
+        "out_of_range": "Opakowanie zbiorcze musi zawierać całkowitą liczbę opakowań, od 2 do 9999.",
+        "too_large": "Tyle opakowań o tej wielkości to za dużo na jedną jednostkę: całość musi być mniejsza niż 1 000 000 000 000.",
+        "without_package_size": "Opakowanie zbiorcze wymaga wielkości jednego opakowania."
+      },
       "invalid_package_size": "Wielkość opakowania musi być liczbą dodatnią z co najwyżej 6 miejscami po przecinku.",
       "invalid_product_category_name": "Nazwa kategorii musi mieć od 1 do {{maxLength}} znaków.",
       "invalid_product_name": "Nazwa produktu musi mieć od 1 do {{maxLength}} znaków.",

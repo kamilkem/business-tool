@@ -32,6 +32,7 @@ import {
   itemsOutsidePrices,
   pointPrice,
 } from "@/lib/product-prices"
+import { packageLabel } from "@/lib/package-size"
 import { PRODUCT_ITEMS_PER_PAGE, productItemsQuery } from "@/lib/queries"
 import { type Basis, priceChangeOf, referenceLabel, unitOf } from "@/lib/purchase-analysis"
 
@@ -115,10 +116,9 @@ function PurchasesCard({ history, basis, onOpenInvoice, onEditItem }: PurchasesP
   )
 }
 
-/** "6 × 0.7 L": the quantity bought and the package size in the product's unit. */
-function quantityText(quantity: string, packageSize: string, measure: string, locale: string): string {
-  const unit = unitOf(measure)
-  return `${formatDecimal(quantity, locale)} × ${formatDecimal(packageSize, locale)}${unit ? ` ${unit}` : ""}`
+/** "6 × 0.7 L", or "3 × 20 × 0.5 L" for a bundle: the quantity bought and the package in the product's unit. */
+function quantityText(quantity: string, packageSize: string, bundleCount: number | null, measure: string, locale: string): string {
+  return `${formatDecimal(quantity, locale)} × ${packageLabel(packageSize, bundleCount, unitOf(measure), locale)}`
 }
 
 /** The invoice's number as a button that opens it; a receipt without a number says so. */
@@ -176,13 +176,13 @@ function PurchaseRow({ point, product, basis, onOpenInvoice, onEditItem }: Purch
           </div>
         </div>
         <div className="@3xl:hidden">
-          <ItemMenu item={{ id: point.itemId, name: point.itemName, packageSize: point.packageSize }} onEditItem={onEditItem} />
+          <ItemMenu item={{ id: point.itemId, name: point.itemName, packageSize: point.packageSize, bundleCount: point.bundleCount }} onEditItem={onEditItem} />
         </div>
       </div>
       <span className="text-sm break-words text-muted-foreground @3xl:text-foreground">{point.itemName}</span>
       <span className="text-sm tabular-nums @3xl:text-right">
         <span className="mr-1 text-xs text-muted-foreground @3xl:hidden">{t("product.purchases.columns.quantity")}</span>
-        {quantityText(point.quantity, point.packageSize, product.measure, locale)}
+        {quantityText(point.quantity, point.packageSize, point.bundleCount, product.measure, locale)}
       </span>
       <span className="text-sm @3xl:text-right">
         <span className="mr-1 text-xs text-muted-foreground @3xl:hidden">{t("product.purchases.columns.price", { context: basis })}</span>
@@ -197,7 +197,7 @@ function PurchaseRow({ point, product, basis, onOpenInvoice, onEditItem }: Purch
         {change === null ? <span className="text-muted-foreground @3xl:inline">{price === null ? "" : t("product.chart.firstPurchase")}</span> : <PriceChangeLabel change={change} />}
       </span>
       <div className="hidden @3xl:block">
-        <ItemMenu item={{ id: point.itemId, name: point.itemName, packageSize: point.packageSize }} onEditItem={onEditItem} />
+        <ItemMenu item={{ id: point.itemId, name: point.itemName, packageSize: point.packageSize, bundleCount: point.bundleCount }} onEditItem={onEditItem} />
       </div>
     </li>
   )
@@ -251,7 +251,7 @@ function OtherItemsCard({ organizationId, product, history, basis, period, onEdi
                         {format.businessDate(item.invoiceIssueDate)} · {item.sellerName}
                       </span>
                     </div>
-                    <ItemMenu item={{ id: item.id, name: item.name, packageSize: item.packageSize }} onEditItem={onEditItem} />
+                    <ItemMenu item={{ id: item.id, name: item.name, packageSize: item.packageSize, bundleCount: item.bundleCount }} onEditItem={onEditItem} />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => onOpenInvoice(item.invoiceId)}>
@@ -260,7 +260,7 @@ function OtherItemsCard({ organizationId, product, history, basis, period, onEdi
                     {item.quantity !== null && (
                       <span className="tabular-nums">
                         {formatDecimal(item.quantity, locale)}
-                        {item.packageSize !== null && ` × ${formatDecimal(item.packageSize, locale)}`}
+                        {item.packageSize !== null && ` × ${packageLabel(item.packageSize, item.bundleCount, unitOf(product.measure), locale)}`}
                       </span>
                     )}
                     <span className="tabular-nums">{amount === null ? "—" : formatMoney(amount, item.currency, locale)}</span>

@@ -8,8 +8,8 @@ use App\Shared\Application\Command\CommandInterface;
 
 /**
  * An owner or manager links several purchased items to one product, for the review queue's bulk
- * action: all or nothing. Each item becomes `confirmed`. With a package size, every item gets it; without,
- * each keeps its own (ADR 0041 §3).
+ * action: all or nothing. Each item becomes `confirmed`. With a package size, every item gets it, and the bundle
+ * count that goes with it (null: no bundle); without, each keeps its own size and count (ADR 0041 §3, ADR 0048).
  */
 final readonly class AssignPurchasedItemsCommand implements CommandInterface
 {
@@ -22,6 +22,7 @@ final readonly class AssignPurchasedItemsCommand implements CommandInterface
         public array $itemIds,
         public string $productId,
         public ?string $packageSize,
+        public ?int $bundleCount = null,
     ) {
     }
 }
