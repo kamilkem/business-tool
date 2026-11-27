@@ -62,11 +62,20 @@ describe("packageSizeQuestion", () => {
     expect(isAsking(question)).toBe(true)
   })
 
-  it("test_it_leaves_the_items_with_no_size_under_the_unit_just_set_alone", () => {
+  it("test_it_leaves_the_unconfirmed_items_with_no_size_under_the_unit_just_set_to_matching", () => {
     const question = packageSizeQuestion([group("szt", null, 2), group("szt", "0.7")], { size: "0.7", bundleCount: null, units: ["szt"], changed: false })
 
     expect(question.fill).toEqual([])
     expect(isAsking(question)).toBe(false)
+  })
+
+  it("test_it_asks_about_the_confirmed_items_with_no_size_under_the_unit_just_set", () => {
+    // Eight cases the owner confirmed with no size, and the one they just gave 12 × 0.85: matching cannot change a confirmed item.
+    const confirmed = group("co", null, 8, 8)
+    const question = packageSizeQuestion([confirmed, group("co", "0.85", 1, 1, 12)], { size: "0.85", bundleCount: 12, units: ["co"], changed: false })
+
+    expect(question.fill).toEqual([confirmed])
+    expect(isAsking(question)).toBe(true)
   })
 
   it("test_it_asks_about_other_sizes_too_when_an_existing_size_was_changed_listing_the_same_unit_apart_from_the_others", () => {
