@@ -26,7 +26,10 @@ export interface SizeAnswer {
 
 /** The groups to ask about, in the order the dialog lists them. */
 export interface PackageSizeQuestion {
-  /** No size, under another unit than the one just set. */
+  /**
+   * No size, under another unit than the one just set, or under that unit when a person confirmed some of its
+   * items: matching never changes those (ADR 0050).
+   */
   fill: PackageSizeGroup[]
   /** Another size, under a unit just set. Only when an existing size was changed. */
   sameUnit: PackageSizeGroup[]
@@ -76,7 +79,8 @@ export function packageSizeQuestion(groups: readonly PackageSizeGroup[], answer:
   for (const group of groups) {
     const here = justSet.has(group.unitKey)
     if (group.packageSize === null) {
-      if (!here) question.fill.push(group)
+      // Under the unit just set, matching fills the items nobody confirmed from the aliases; it cannot reach confirmed ones.
+      if (!here || group.confirmedCount > 0) question.fill.push(group)
     } else if (answer.changed && !samePackage(group, answer)) {
       ;(here ? question.sameUnit : question.otherUnits).push(group)
     }

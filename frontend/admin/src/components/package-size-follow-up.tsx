@@ -52,7 +52,8 @@ interface PackageSizeFollowUpProps {
 
 /**
  * Asks, after a package size was set (an item edited, items assigned, a product made from a proposal), whether to
- * set it on the product's other items too (ADR 0049, #271): the ones with no size under other units, and, when an
+ * set it on the product's other items too (ADR 0049, #271, ADR 0050): the ones with no size under other units (or under
+ * the same one when a person confirmed some of them), and, when an
  * existing size was changed, the ones with another size. The owner chooses the groups and may edit the size,
  * because a case is not the same size as a bottle; nothing is applied without that choice. It opens only when there is
  * something to ask, and says nothing otherwise.

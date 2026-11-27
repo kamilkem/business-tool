@@ -57,3 +57,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0047](0047-a-different-abv-is-a-different-product.md) | A different alcohol strength is a different product: the name alias key keeps the ABV, and a link to a product of another ABV is never made | Accepted |
 | [0048](0048-bundles-next-to-the-package-size.md) | A purchased item can be a bundle: a count of single packages next to the package size | Accepted |
 | [0049](0049-a-package-size-is-offered-to-the-products-other-items-never-applied.md) | A package size set on one item is offered to the product's other items, never applied to them silently | Accepted |
+| [0050](0050-confirmed-items-with-no-size-are-offered-under-the-unit-just-set.md) | Confirmed items with no package size are offered a size under the unit just set too | Accepted |
