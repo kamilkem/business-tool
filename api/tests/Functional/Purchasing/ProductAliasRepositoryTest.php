@@ -75,6 +75,33 @@ final class ProductAliasRepositoryTest extends KernelTestCase
         self::assertSame([], $this->aliases->findByKeys([]));
     }
 
+    public function test_it_keeps_the_bundle_count_next_to_the_package_size_of_the_aliases_that_name_a_pack(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $beer = $this->product('Beer');
+        $this->aliases->saveAll([
+            $this->alias(AliasKind::Gtin, '5900000000011', $beer, '0.5', 20),
+            $this->alias(AliasKind::SellerCode, '5265877635|PL-05', $beer, '0.5'),
+            $this->alias(AliasKind::Name, 'piwo abv5', $beer, '0.5', 20),
+        ]);
+        $this->entityManager->clear();
+
+        $found = $this->aliases->findByKeys([
+            ['kind' => 'gtin', 'key' => '5900000000011'],
+            ['kind' => 'seller_code', 'key' => '5265877635|PL-05'],
+            ['kind' => 'name', 'key' => 'piwo abv5'],
+        ]);
+
+        /** @var array<string, array{?string, ?int, ?string}> $byKind */
+        $byKind = [];
+        foreach ($found as $alias) {
+            $byKind[$alias->getKind()->value] = [$alias->getPackageSize(), $alias->getBundleCount(), $alias->getPackage()?->total()];
+        }
+        self::assertSame(['0.5', 20, '10'], $byKind['gtin']);
+        self::assertSame(['0.5', null, '0.5'], $byKind['seller_code'], 'A size with no count is no bundle.');
+        self::assertSame([null, null, null], $byKind['name'], 'A name alias carries no size and so no count.');
+    }
+
     public function test_it_keeps_one_alias_per_organization_kind_and_key(): void
     {
         $this->tenantContext->switchTo(OrganizationFactory::createOne());
@@ -158,8 +185,8 @@ final class ProductAliasRepositoryTest extends KernelTestCase
         return $product;
     }
 
-    private function alias(AliasKind $kind, string $key, Product $product, ?string $size = null): ProductAlias
+    private function alias(AliasKind $kind, string $key, Product $product, ?string $size = null, ?int $bundleCount = null): ProductAlias
     {
-        return new ProductAlias(Uuid::v7(), $kind, $key, $product, $size, new \DateTimeImmutable('2026-11-02 10:00:00'));
+        return new ProductAlias(Uuid::v7(), $kind, $key, $product, $size, new \DateTimeImmutable('2026-11-02 10:00:00'), $bundleCount);
     }
 }

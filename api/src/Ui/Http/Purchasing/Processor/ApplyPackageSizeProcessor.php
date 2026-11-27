@@ -15,7 +15,7 @@ use Ui\Http\Shared\Security\CurrentUser;
 
 /**
  * An owner or manager sets a package size on the items of chosen groups of a product of the organization selected
- * by the X-Organization-Id header (ADR 0048); the answer has no body.
+ * by the X-Organization-Id header (ADR 0049); the answer has no body.
  *
  * @implements ProcessorInterface<ApplyPackageSizeInput, null>
  */
@@ -39,7 +39,8 @@ final readonly class ApplyPackageSizeProcessor implements ProcessorInterface
             $this->currentUser->id(),
             $productId,
             $data->packageSize,
-            array_map(static fn (ApplyPackageSizeGroupInput $group): array => ['unitKey' => $group->unitKey, 'packageSize' => $group->packageSize], $data->groups),
+            $data->bundleCount,
+            array_map(static fn (ApplyPackageSizeGroupInput $group): array => ['unitKey' => $group->unitKey, 'packageSize' => $group->packageSize, 'bundleCount' => $group->bundleCount], $data->groups),
         ));
 
         return null;

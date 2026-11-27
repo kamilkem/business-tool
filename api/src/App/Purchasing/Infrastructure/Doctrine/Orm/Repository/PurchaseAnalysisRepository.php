@@ -64,7 +64,7 @@ final readonly class PurchaseAnalysisRepository implements PurchaseAnalysisRepos
     {
         $sql = 'WITH '.self::itemCte().', '.self::pointCtes('AND p.id = CAST(:product AS uuid)').'
             SELECT priced.id, priced.issue_date, priced.seller_tax_id, priced.seller_name, priced.invoice_id, priced.name,
-                   priced.quantity, priced.package_size,
+                   priced.quantity, priced.package_size, priced.bundle_count,
                    '.self::priceColumns('priced.net_price', 'priced.prev_net_price', 'net').',
                    '.self::priceColumns('priced.gross_price', 'priced.prev_gross_price', 'gross').'
             FROM priced
@@ -89,6 +89,7 @@ final readonly class PurchaseAnalysisRepository implements PurchaseAnalysisRepos
                 self::string($row['name']),
                 self::decimal($row['quantity']),
                 self::decimal($row['package_size']),
+                null === $row['bundle_count'] ? null : self::int($row['bundle_count']),
                 self::change($row, 'net'),
                 self::change($row, 'gross'),
             );
@@ -231,7 +232,8 @@ final readonly class PurchaseAnalysisRepository implements PurchaseAnalysisRepos
         return 'item AS (
                 SELECT i.id, i.product_id, i.invoice_issue_date AS issue_date, i.invoice_id, i.item_index, i.created_at,
                        i.invoice_kind, i.before_correction, i.currency, i.name, i.seller_tax_id, i.seller_name,
-                       i.quantity, i.package_size,
+                       i.quantity, i.package_size, i.bundle_count,
+                       i.package_size * COALESCE(i.bundle_count, 1) AS unit_size,
                        CASE WHEN i.before_correction THEN -1 ELSE 1 END AS sign,
                        COALESCE(i.net_amount, i.gross_amount - i.vat_amount) AS net,
                        COALESCE(i.gross_amount, i.net_amount + i.vat_amount) AS gross
@@ -264,10 +266,10 @@ final readonly class PurchaseAnalysisRepository implements PurchaseAnalysisRepos
 
         return 'point AS (
                 SELECT i.id, i.product_id, i.issue_date, i.created_at, i.invoice_id, i.item_index, i.name, i.seller_tax_id,
-                       i.seller_name, i.quantity, i.package_size, i.net, i.gross, p.reference_quantity,
-                       i.quantity * i.package_size AS base_quantity,
-                       i.net / (i.quantity * i.package_size) * p.reference_quantity AS net_price,
-                       i.gross / (i.quantity * i.package_size) * p.reference_quantity AS gross_price
+                       i.seller_name, i.quantity, i.package_size, i.bundle_count, i.net, i.gross, p.reference_quantity,
+                       i.quantity * i.unit_size AS base_quantity,
+                       i.net / (i.quantity * i.unit_size) * p.reference_quantity AS net_price,
+                       i.gross / (i.quantity * i.unit_size) * p.reference_quantity AS gross_price
                 FROM item i
                 JOIN product p ON p.id = i.product_id
                 WHERE p.organization_id = CAST(:org AS uuid) AND p.measure <> \'none\' AND NOT p.excluded '.$productFilter.'

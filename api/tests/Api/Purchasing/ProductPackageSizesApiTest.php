@@ -28,7 +28,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * GET and POST /products/{id}/package-sizes: asking about the product's other items before a package size is
- * applied to them (ADR 0048, #271).
+ * applied to them (ADR 0049, #271).
  */
 final class ProductPackageSizesApiTest extends ApiTestCase
 {
@@ -104,6 +104,30 @@ final class ProductPackageSizesApiTest extends ApiTestCase
         self::assertSame('0.700000', self::row($untouched)[1]);
     }
 
+    public function test_it_lists_and_sets_bundles_apart_from_plain_packages_of_the_same_size(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $jack = self::addProduct($organization, 'Jack Daniel\'s');
+        $plain = self::addItem($organization, $jack, 'CO', '0.7', 'confirmed');
+        $bundle = self::addItem($organization, $jack, 'CO', '0.7', 'confirmed', 6);
+        $empty = self::addItem($organization, $jack, 'CO', null, 'confirmed');
+
+        $groups = self::sizes($owner, $organization, $jack)->toArray()['groups'];
+        self::assertSame([[null, null], ['0.7', null], ['0.7', 6]], array_map(static fn (array $group): array => [$group['packageSize'], $group['bundleCount']], $groups));
+
+        self::apply($owner, $organization, $jack, ['packageSize' => '0.5', 'bundleCount' => 20, 'groups' => [['unitKey' => 'co', 'packageSize' => '0.7', 'bundleCount' => 6]]]);
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame(['confirmed', '0.500000'], self::row($bundle));
+        self::assertSame(20, self::bundleOf($bundle));
+        self::assertSame([['confirmed', '0.700000'], ['confirmed', null]], [self::row($plain), self::row($empty)]);
+        self::assertNull(self::bundleOf($plain));
+
+        self::apply($owner, $organization, $jack, ['packageSize' => '0.5', 'bundleCount' => 1, 'groups' => [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]]]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertNull(self::row($empty)[1]);
+    }
+
     public function test_it_teaches_the_aliases_the_size_it_gave_confirmed_items(): void
     {
         [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
@@ -155,6 +179,8 @@ final class ProductPackageSizesApiTest extends ApiTestCase
         yield 'empty groups' => [['packageSize' => '1', 'groups' => []]];
         yield 'groups that are not a list' => [['packageSize' => '1', 'groups' => 'co']];
         yield 'a group with a size that is not a number' => [['packageSize' => '1', 'groups' => [['unitKey' => 'co', 'packageSize' => 'x']]]];
+        yield 'bundle count of one' => [['packageSize' => '1', 'bundleCount' => 1, 'groups' => [$group]]];
+        yield 'bundle count that is not a number' => [['packageSize' => '1', 'bundleCount' => 'x', 'groups' => [$group]]];
         yield 'too many groups' => [['packageSize' => '1', 'groups' => array_fill(0, ApplyPackageSizeCommand::MAX_TARGETS + 1, $group)]];
     }
 
@@ -240,7 +266,7 @@ final class ProductPackageSizesApiTest extends ApiTestCase
     }
 
     /** @return string the item's id */
-    private static function addItem(Organization $organization, ?Product $product, ?string $unit, ?string $packageSize, string $status): string
+    private static function addItem(Organization $organization, ?Product $product, ?string $unit, ?string $packageSize, string $status, ?int $bundleCount = null): string
     {
         $id = Uuid::v7();
         self::inTenant($organization, static function () use ($id, $unit): void {
@@ -250,10 +276,11 @@ final class ProductPackageSizesApiTest extends ApiTestCase
             ), Clock::get()->now());
             static::getContainer()->get(PurchasedItemRepositoryInterface::class)->addAll([$item]);
         });
-        static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size WHERE id = :id', [
+        static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size, bundle_count = :bundle WHERE id = :id', [
             'product' => $product?->getId()->toRfc4122(),
             'status' => $status,
             'size' => $packageSize,
+            'bundle' => $bundleCount,
             'id' => $id->toRfc4122(),
         ]);
 
@@ -267,6 +294,13 @@ final class ProductPackageSizesApiTest extends ApiTestCase
         $row = static::getContainer()->get(Connection::class)->fetchAssociative('SELECT status, package_size FROM purchased_item WHERE id = :id', ['id' => $id]);
 
         return [$row['status'], $row['package_size']];
+    }
+
+    private static function bundleOf(string $id): ?int
+    {
+        $count = static::getContainer()->get(Connection::class)->fetchOne('SELECT bundle_count FROM purchased_item WHERE id = :id', ['id' => $id]);
+
+        return null === $count || false === $count ? null : (int) $count;
     }
 
     private static function productOf(string $id): ?string

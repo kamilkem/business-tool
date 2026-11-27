@@ -24,8 +24,10 @@ final readonly class ProductPricePoint
         public string $itemName,
         /** The item's quantity as printed, a decimal string. */
         public string $quantity,
-        /** In the product's base unit per unit of the quantity: a decimal string. */
+        /** In the product's base unit: a decimal string, of one single package when the item is a bundle (`bundleCount`), else per unit of the quantity. */
         public string $packageSize,
+        /** Single packages per unit of the quantity, 2 or more; null when the item is no bundle. The price uses `quantity × bundleCount × packageSize`. */
+        public ?int $bundleCount,
         /** The net price per reference quantity; null when the item has no net value to derive. */
         public ?PurchaseAnalysisPrice $net,
         public ?PurchaseAnalysisPrice $gross,
@@ -46,6 +48,7 @@ final readonly class ProductPricePoint
             $point->itemName,
             $point->quantity,
             $point->packageSize,
+            $point->bundleCount,
             PurchaseAnalysisPrice::fromDomain($point->net),
             PurchaseAnalysisPrice::fromDomain($point->gross),
         );

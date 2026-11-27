@@ -39,7 +39,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The package size asked about for the product's other items (ADR 0048): Jack Daniel's with a 0.7 L bottle
+ * The package size asked about for the product's other items (ADR 0049): Jack Daniel's with a 0.7 L bottle
  * on `szt.`, cases on `CO` and `kart.` that have no size, a case with another size, and an item with no product.
  */
 #[CoversClass(ApplyPackageSizeHandler::class)]
@@ -64,6 +64,7 @@ final class PackageSizeHandlersTest extends TestCase
     private PurchasedItem $sizedCase;
     private PurchasedItem $colaCase;
     private PurchasedItem $loose;
+    private PurchasedItem $bundleCase;
 
     protected function setUp(): void
     {
@@ -92,6 +93,7 @@ final class PackageSizeHandlersTest extends TestCase
             $this->assignedCase = $this->record($invoiceId, 3, 'co.', $this->jack, null, PurchasedItemStatus::Assigned),
             $this->carton = $this->record($invoiceId, 4, 'kart.', $this->jack, null, PurchasedItemStatus::Suggested),
             $this->sizedCase = $this->record($invoiceId, 5, 'CO', $this->jack, '4.2', PurchasedItemStatus::Confirmed),
+            $this->bundleCase = $this->record($invoiceId, 8, 'CO', $this->jack, '0.7', PurchasedItemStatus::Confirmed, 6),
             $this->colaCase = $this->record($invoiceId, 6, 'CO', $this->cola, null, PurchasedItemStatus::Confirmed),
             $this->loose = $this->record($invoiceId, 7, 'CO', null, null, PurchasedItemStatus::Unassigned),
         ]);
@@ -118,11 +120,12 @@ final class PackageSizeHandlersTest extends TestCase
         self::assertInstanceOf(ProductPackageSizesView::class, $view);
         // `CO` and `co.` are one unit; the items with no size come first, and what the seller printed most often is shown.
         self::assertSame([
-            ['co', 'CO', null, 2, 1],
-            ['co', 'CO', '4.2', 1, 1],
-            ['kart', 'kart.', null, 1, 0],
-            ['szt', 'szt.', '0.7', 1, 1],
-        ], array_map(static fn (PackageSizeGroup $group): array => [$group->unitKey, $group->unit, $group->packageSize, $group->count, $group->confirmedCount], $view->groups));
+            ['co', 'CO', null, null, 2, 1],
+            ['co', 'CO', '0.7', 6, 1, 1],
+            ['co', 'CO', '4.2', null, 1, 1],
+            ['kart', 'kart.', null, null, 1, 0],
+            ['szt', 'szt.', '0.7', null, 1, 1],
+        ], array_map(static fn (PackageSizeGroup $group): array => [$group->unitKey, $group->unit, $group->packageSize, $group->bundleCount, $group->count, $group->confirmedCount], $view->groups));
     }
 
     public function test_it_leaves_another_products_items_and_items_with_no_product_out_of_the_groups(): void
@@ -137,16 +140,17 @@ final class PackageSizeHandlersTest extends TestCase
     public function test_it_puts_the_items_with_no_unit_last_and_merges_the_counts_of_one_group(): void
     {
         $groups = PackageSizeGroup::of([
-            new PackageSizeCount(null, '1.000000', false, 1),
-            new PackageSizeCount('szt', '0.700000', true, 2),
-            new PackageSizeCount('szt.', '0.700000', false, 3),
-            new PackageSizeCount('SZT.', '0.7', false, 1),
-            new PackageSizeCount('', null, false, 1),
+            new PackageSizeCount(null, '1.000000', null, false, 1),
+            new PackageSizeCount('szt', '0.700000', null, true, 2),
+            new PackageSizeCount('szt.', '0.700000', null, false, 3),
+            new PackageSizeCount('SZT.', '0.7', null, false, 1),
+            new PackageSizeCount('', null, null, false, 1),
+            new PackageSizeCount('szt', '0.7', 6, false, 2),
         ]);
 
         self::assertSame(
-            [['szt', 'szt.', '0.7', 6, 2], [null, null, null, 1, 0], [null, null, '1', 1, 0]],
-            array_map(static fn (PackageSizeGroup $group): array => [$group->unitKey, $group->unit, $group->packageSize, $group->count, $group->confirmedCount], $groups),
+            [['szt', 'szt.', '0.7', null, 6, 2], ['szt', 'szt', '0.7', 6, 2, 0], [null, null, null, null, 1, 0], [null, null, '1', null, 1, 0]],
+            array_map(static fn (PackageSizeGroup $group): array => [$group->unitKey, $group->unit, $group->packageSize, $group->bundleCount, $group->count, $group->confirmedCount], $groups),
         );
     }
 
@@ -165,7 +169,7 @@ final class PackageSizeHandlersTest extends TestCase
     #[DataProvider('managers')]
     public function test_it_sets_the_size_on_the_chosen_groups_only(string $actor): void
     {
-        $this->apply('owner' === $actor ? $this->owner : $this->manager, '4.20', [['unitKey' => 'co', 'packageSize' => null]]);
+        $this->apply('owner' === $actor ? $this->owner : $this->manager, '4.20', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]]);
 
         self::assertSame('4.2', $this->confirmedCase->getPackageSize());
         self::assertSame('4.2', $this->assignedCase->getPackageSize());
@@ -180,7 +184,7 @@ final class PackageSizeHandlersTest extends TestCase
 
     public function test_it_writes_only_the_size_and_never_the_link_or_the_status(): void
     {
-        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null], ['unitKey' => 'kart', 'packageSize' => null]]);
+        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null], ['unitKey' => 'kart', 'packageSize' => null, 'bundleCount' => null]]);
 
         foreach ([[$this->confirmedCase, PurchasedItemStatus::Confirmed], [$this->assignedCase, PurchasedItemStatus::Assigned], [$this->carton, PurchasedItemStatus::Suggested]] as [$item, $status]) {
             self::assertSame($status, $item->getStatus());
@@ -191,13 +195,33 @@ final class PackageSizeHandlersTest extends TestCase
 
     public function test_it_does_not_touch_an_item_a_person_confirmed_with_another_size_unless_that_group_is_chosen(): void
     {
-        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null]]);
+        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]]);
         self::assertSame('4.2', $this->sizedCase->getPackageSize());
 
-        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => '4.20']]);
+        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => '4.20', 'bundleCount' => null]]);
         self::assertSame('6', $this->sizedCase->getPackageSize());
         self::assertSame(PurchasedItemStatus::Confirmed, $this->sizedCase->getStatus());
         self::assertSame('0.7', $this->bottle->getPackageSize());
+    }
+
+    public function test_it_sets_a_bundle_and_tells_a_bundle_from_a_plain_package_of_the_same_size(): void
+    {
+        $this->apply($this->owner, '0.7', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]], null, 6);
+
+        self::assertSame(['0.7', 6, '4.2'], [$this->confirmedCase->getPackageSize(), $this->confirmedCase->getBundleCount(), $this->confirmedCase->getPackageTotal()]);
+        // The case with a size of 4.2 and the one that already is a bundle of 6 × 0.7 are other groups.
+        self::assertSame([null, '4.2'], [$this->sizedCase->getBundleCount(), $this->sizedCase->getPackageSize()]);
+
+        $this->apply($this->owner, '1', [['unitKey' => 'co', 'packageSize' => '0.7', 'bundleCount' => 6]]);
+        // Both cases now are a bundle of 6 × 0.7, so both are in that group.
+        self::assertSame([['1', null], ['1', null]], [[$this->bundleCase->getPackageSize(), $this->bundleCase->getBundleCount()], [$this->confirmedCase->getPackageSize(), $this->confirmedCase->getBundleCount()]]);
+    }
+
+    public function test_it_refuses_a_bundle_count_out_of_range_and_changes_nothing(): void
+    {
+        $this->expectException(\App\Purchasing\Domain\Exception\InvalidBundleCountException::class);
+
+        $this->apply($this->owner, '0.7', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]], null, 1);
     }
 
     public function test_it_sets_the_size_on_items_with_no_unit(): void
@@ -206,7 +230,7 @@ final class PackageSizeHandlersTest extends TestCase
         $noUnit = $this->record($invoiceId, 1, null, $this->jack, null, PurchasedItemStatus::Confirmed);
         $this->items->addAll([$noUnit]);
 
-        $this->apply($this->owner, '1', [['unitKey' => null, 'packageSize' => null]]);
+        $this->apply($this->owner, '1', [['unitKey' => null, 'packageSize' => null, 'bundleCount' => null]]);
 
         self::assertSame('1', $noUnit->getPackageSize());
         self::assertNull($this->carton->getPackageSize());
@@ -214,7 +238,7 @@ final class PackageSizeHandlersTest extends TestCase
 
     public function test_it_publishes_only_the_confirmed_items_it_changed_so_that_their_aliases_learn_the_size(): void
     {
-        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null], ['unitKey' => 'kart', 'packageSize' => null]]);
+        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null], ['unitKey' => 'kart', 'packageSize' => null, 'bundleCount' => null]]);
 
         self::assertCount(1, $this->events->events);
         $event = $this->events->events[0];
@@ -225,7 +249,7 @@ final class PackageSizeHandlersTest extends TestCase
 
     public function test_it_changes_nothing_and_publishes_nothing_when_no_item_is_in_the_chosen_groups(): void
     {
-        $this->apply($this->owner, '6', [['unitKey' => 'fl', 'packageSize' => null]]);
+        $this->apply($this->owner, '6', [['unitKey' => 'fl', 'packageSize' => null, 'bundleCount' => null]]);
         $this->apply($this->owner, '6', []);
 
         self::assertSame(0, $this->items->saveCallCount);
@@ -234,7 +258,7 @@ final class PackageSizeHandlersTest extends TestCase
 
     public function test_it_refuses_an_employee_a_stranger_another_organizations_product_and_a_bad_size_and_changes_nothing(): void
     {
-        $targets = [['unitKey' => 'co', 'packageSize' => null]];
+        $targets = [['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]];
         foreach ([
             [PurchasingManagementForbiddenException::class, $this->employee, $this->jack->getId()->toRfc4122(), '6'],
             [OrganizationNotFoundException::class, UserMother::any('stranger@example.com'), $this->jack->getId()->toRfc4122(), '6'],
@@ -260,26 +284,26 @@ final class PackageSizeHandlersTest extends TestCase
     {
         $this->expectException(InvalidPackageSizeException::class);
 
-        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => 'x']]);
+        $this->apply($this->owner, '6', [['unitKey' => 'co', 'packageSize' => 'x', 'bundleCount' => null]]);
     }
 
     public function test_it_refuses_too_many_groups(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        $this->apply($this->owner, '6', array_fill(0, ApplyPackageSizeCommand::MAX_TARGETS + 1, ['unitKey' => 'co', 'packageSize' => null]));
+        $this->apply($this->owner, '6', array_fill(0, ApplyPackageSizeCommand::MAX_TARGETS + 1, ['unitKey' => 'co', 'packageSize' => null, 'bundleCount' => null]));
     }
 
     // ---- Helpers ----
 
-    private function record(Uuid $invoiceId, int $index, ?string $unit, ?Product $product, ?string $packageSize, PurchasedItemStatus $status): PurchasedItem
+    private function record(Uuid $invoiceId, int $index, ?string $unit, ?Product $product, ?string $packageSize, PurchasedItemStatus $status, ?int $bundleCount = null): PurchasedItem
     {
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
             $invoiceId, $index, BusinessDate::fromString('2026-11-10'), 'regular', 'PLN', '5265877635', 'Hurtownia Napojów',
             $index, 'JACK DANIELS 0,7L', null, null, $unit, '6', '81.3', '100', null, 48_780, 60_000, 11_220, '23', false,
         ), new \DateTimeImmutable('2026-11-25 03:00:00'));
         if (null !== $product) {
-            $item->link($product, $packageSize, $this->owner->getId(), MembershipRole::Owner);
+            $item->link($product, $packageSize, $this->owner->getId(), MembershipRole::Owner, $bundleCount);
             (new \ReflectionProperty(PurchasedItem::class, 'status'))->setValue($item, $status);
         }
 
@@ -293,11 +317,11 @@ final class PackageSizeHandlersTest extends TestCase
         );
     }
 
-    /** @param list<array{unitKey: ?string, packageSize: ?string}> $targets */
-    private function apply(User $actor, string $packageSize, array $targets, ?string $productId = null): void
+    /** @param list<array{unitKey: ?string, packageSize: ?string, bundleCount: ?int}> $targets */
+    private function apply(User $actor, string $packageSize, array $targets, ?string $productId = null, ?int $bundleCount = null): void
     {
         (new ApplyPackageSizeHandler($this->items, $this->products, $this->queryBus, $this->events))(
-            new ApplyPackageSizeCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $productId ?? $this->jack->getId()->toRfc4122(), $packageSize, $targets),
+            new ApplyPackageSizeCommand($this->organization->getId()->toRfc4122(), $actor->getId()->toRfc4122(), $productId ?? $this->jack->getId()->toRfc4122(), $packageSize, $bundleCount, $targets),
         );
     }
 }

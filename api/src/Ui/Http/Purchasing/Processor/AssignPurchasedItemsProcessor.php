@@ -36,6 +36,7 @@ final readonly class AssignPurchasedItemsProcessor implements ProcessorInterface
             $data->itemIds,
             $data->productId,
             $data->packageSize,
+            $data->bundleCount,
         ));
 
         return null;

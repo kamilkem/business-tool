@@ -19,6 +19,7 @@ import { cn } from "@business-tool/ui/lib/utils"
 
 import type { AssignPreset } from "@/components/review-assign-dialog"
 import { isCorrection, kindLabel } from "@/lib/expenses"
+import { packageLabel } from "@/lib/package-size"
 import { itemAmount } from "@/lib/product-prices"
 import type { Basis } from "@/lib/purchase-analysis"
 import { type QueueGroup, type QueueItem, selectionState, suggestedLinks } from "@/lib/review-queue"
@@ -171,6 +172,8 @@ function ItemRow({ item, selected, basis, ...actions }: ItemRowProps) {
   const format = useDateTimeFormat()
   const amount = itemAmount(item, basis)
   const quantity = item.quantity === null ? null : `${formatDecimal(item.quantity, locale)}${item.unit ? ` ${item.unit}` : ""}`
+  // What one unit holds, as matching read it or a person set it: "20 × 0.5" for a bundle (ADR 0048).
+  const packageText = item.packageSize === null ? null : packageLabel(item.packageSize, item.bundleCount, null, locale)
   const [suggestion] = suggestedLinks([item])
 
   return (
@@ -186,6 +189,7 @@ function ItemRow({ item, selected, basis, ...actions }: ItemRowProps) {
           <span className="font-medium tabular-nums">{format.businessDate(item.invoiceIssueDate)}</span>
           <span className="tabular-nums">
             {quantity && <span className="mr-3 text-muted-foreground">{quantity}</span>}
+            {packageText && <span className="mr-3 text-muted-foreground">{t("review.item.package", { package: packageText })}</span>}
             {amount === null ? <span className="text-muted-foreground">—</span> : formatMoney(amount, item.currency, locale)}
           </span>
         </div>

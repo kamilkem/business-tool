@@ -45,7 +45,7 @@ interface ProductProposalsProps {
  * Proposed products page (#269), which carries the heading. Each is a decision for the owner: create the
  * product (editing its name, category and measure first), add its items to a product that exists, or
  * dismiss it. Nothing is created until then. The items of a new product got the package size their names state;
- * the units that have none are then asked about, which the owner chooses (ADR 0048, #271).
+ * the units that have none are then asked about, which the owner chooses (ADR 0049, #271).
  */
 export function ProductProposals({ organizationId }: ProductProposalsProps) {
   const { t } = useTranslation("admin")

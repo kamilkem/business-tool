@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Purchasing\Domain\Matching;
 
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\ProductMeasure;
 
 /**
@@ -13,7 +14,8 @@ use App\Purchasing\Domain\Model\ProductMeasure;
  * The size is base units (L, kg) per ONE unit of the item's quantity (ADR 0041 §3):
  * 1. the unit is a measure (`l`, `ml`, `kg`, ...): the unit's factor, the name's size is ignored (30 `l`
  *    of "KEG 30L" draught beer has size 1);
- * 2. one size in the name; a multipack (`6x0,5L`, `0,5l x 6`) is its total;
+ * 2. one size in the name; a multipack (`6x0,5L`, `0,5l x 6`) is a bundle: its count and the size of one
+ *    package, and its total is what is compared (ADR 0048);
  * 3. a size in the unit's text (`op. 0,2l`) when the name has none;
  * 4. otherwise none. Two different sizes in one name are ambiguous: none.
  * A bare number (`0,7`, `No.7`, `12 YO`, `40%`) is never a size; an ABV is read on its own (`abvOf()`).
@@ -97,6 +99,8 @@ final class ItemReader
             !$multipack && ($pieceUnit || $fromUnitText),
             $pieceUnit,
             $pieceUnit || $fromUnitText,
+            $multipack ? $size['multiplier'] : null,
+            $multipack ? self::toDecimal(intdiv($size['micros'], $size['multiplier'])) : null,
         );
     }
 
@@ -116,7 +120,20 @@ final class ItemReader
             return $reading;
         }
 
-        return new ItemReading(self::toDecimal($micros * $multiplier), $reading->measure, SizeSource::SellerUnit, true, $reading->pieceUnit, true);
+        // The unit holds `multiplier` of what the name states (itself a multipack, perhaps): that is a bundle (ADR 0048).
+        $count = ($reading->bundleCount ?? 1) * $multiplier;
+        $bundled = $count >= PackageSize::MIN_BUNDLE_COUNT && $count <= PackageSize::MAX_BUNDLE_COUNT;
+
+        return new ItemReading(
+            self::toDecimal($micros * $multiplier),
+            $reading->measure,
+            SizeSource::SellerUnit,
+            true,
+            $reading->pieceUnit,
+            true,
+            $bundled ? $count : null,
+            $bundled ? ($reading->singleSize ?? $reading->packageSize) : null,
+        );
     }
 
     /**

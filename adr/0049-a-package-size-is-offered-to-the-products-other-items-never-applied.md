@@ -1,4 +1,4 @@
-# 0048. A package size set on one item is offered to the product's other items, never applied to them silently
+# 0049. A package size set on one item is offered to the product's other items, never applied to them silently
 
 Status: Accepted
 
@@ -25,18 +25,18 @@ remembered size the same way (ADR 0042 §3, ADR 0043 §4). Both are right: a siz
    edited, items assigned in bulk, a product made from a proposal), the admin asks whether to set it on the product's
    other items, with the count and the unit of each group, and the owner chooses which groups. Without a yes nothing
    changes. The size to set is editable in the question, because the size of a case is not the size of a bottle.
-2. **What is asked about.** Items of the product are grouped by unit and package size. The question lists the groups
+2. **What is asked about.** Items of the product are grouped by unit and package: the size and, for a bundle (ADR [0048](0048-bundles-next-to-the-package-size.md)), the bundle count, so `6 × 0.7` and `0.7` are two groups. The question lists the groups
    with no size under *other* units than the one just set; and, when an existing size was *changed*, the groups with
    another size, those on the same unit apart from those on other units, with how many of them a person confirmed.
    Everything is unchecked at first. Which groups are asked about is decided in the admin (`lib/package-sizes.ts`), from
    what the API lists.
 3. **Two endpoints, no new status.** `GET /products/{id}/package-sizes` lists the groups (`GetProductPackageSizesQuery`;
    units compared by `ItemReader::unitKeyOf()`, so `szt.` and `SZT` are one). `POST /products/{id}/package-sizes`
-   (`ApplyPackageSizeCommand`, owners and managers, `204`) sets one size on the items of the chosen groups, each named
-   by its unit key and the size it has now, all or nothing in one flush. It is the second command that changes many
+   (`ApplyPackageSizeCommand`, owners and managers, `204`) sets one package (size and optional bundle count) on the items of the chosen
+   groups, each named by its unit key, size and bundle count as it has them now, all or nothing in one flush. It is the second command that changes many
    items for one action of the person (after ADR 0041's bulk assign), so "one command, one aggregate" is not applied to
    it. An item that is in no chosen group is not read; a group that holds nothing any more changes nothing.
-4. **Only the size is written.** `PurchasedItem::changePackageSize()` changes the package size alone: the product,
+4. **Only the size is written.** `PurchasedItem::changePackageSize()` changes the package (size and bundle count) alone: the product,
    the status, what linked the item and its proposal stay, so a `confirmed` link is never touched and a suggestion is
    not confirmed by it. The items that were `confirmed` are published as `PurchasedItemsConfirmed`, so that their aliases
    and the seller's multiplier learn the size the owner gave (ADR 0042 §3, ADR 0043 §3) and the other items are

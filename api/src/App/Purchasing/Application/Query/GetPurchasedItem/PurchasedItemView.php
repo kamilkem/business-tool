@@ -40,7 +40,10 @@ final readonly class PurchasedItemView
         public ?string $productId,
         public ?string $productName,
         public PurchasedItemStatus $status,
+        /** The size of one single package when it is a bundle, else per unit of the quantity (ADR 0041 §3, ADR 0048). */
         public ?string $packageSize,
+        /** Single packages per unit of the quantity, 2 or more; null when the item is no bundle (ADR 0048). */
+        public ?int $bundleCount,
         /** What matching linked it by; null when a person did, or it was matched before this was kept (ADR 0045 §1). */
         public ?MatchSource $matchSource,
         /** Why matching only suggested the product; null otherwise (ADR 0045 §1). */
@@ -77,6 +80,7 @@ final readonly class PurchasedItemView
             $item->getProduct()?->getName(),
             $item->getStatus(),
             $item->getPackageSize(),
+            $item->getBundleCount(),
             $item->getMatchSource(),
             $item->getMatchCaveat(),
         );

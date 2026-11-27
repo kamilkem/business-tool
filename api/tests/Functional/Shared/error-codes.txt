@@ -171,6 +171,9 @@ payroll.run_not_approvable.pending_change_requests
 payroll.run_not_found
 payroll.run_status.not_approved
 payroll.run_status.not_draft
+purchasing.invalid_bundle_count.out_of_range
+purchasing.invalid_bundle_count.too_large
+purchasing.invalid_bundle_count.without_package_size
 purchasing.invalid_package_size
 purchasing.invalid_product_category_name
 purchasing.invalid_product_name

@@ -82,9 +82,9 @@ final readonly class LearnProductAliasesHandler implements CommandHandlerInterfa
             foreach ($keys as $kind => $key) {
                 $index = $kind.'#'.$key;
                 if (isset($aliases[$index])) {
-                    $aliases[$index]->repoint($product, $item->getPackageSize(), $now);
+                    $aliases[$index]->repoint($product, $item->getPackageSize(), $now, $item->getBundleCount());
                 } else {
-                    $aliases[$index] = new ProductAlias(Uuid::v7(), AliasKind::from($kind), $key, $product, $item->getPackageSize(), $now);
+                    $aliases[$index] = new ProductAlias(Uuid::v7(), AliasKind::from($kind), $key, $product, $item->getPackageSize(), $now, $item->getBundleCount());
                 }
                 $changed[$index] = $aliases[$index];
             }
@@ -105,7 +105,7 @@ final readonly class LearnProductAliasesHandler implements CommandHandlerInterfa
         foreach (array_keys($keysByItem) as $itemId) {
             $item = $byId[$itemId];
             $unit = ItemReader::unitKeyOf($item->getUnit());
-            $size = $item->getPackageSize();
+            $size = $item->getPackageTotal();
             if (null === $unit || null === $size) {
                 continue;
             }

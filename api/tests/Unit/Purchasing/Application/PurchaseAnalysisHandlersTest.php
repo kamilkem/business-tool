@@ -265,6 +265,6 @@ final class PurchaseAnalysisHandlersTest extends TestCase
 
     private static function point(string $date, string $invoiceId): PricePoint
     {
-        return new PricePoint(Uuid::v7()->toRfc4122(), $date, '5265877635', 'Hurtownia', $invoiceId, 'Jack', '1', '0.7', new PriceChange(100, null, null), null);
+        return new PricePoint(Uuid::v7()->toRfc4122(), $date, '5265877635', 'Hurtownia', $invoiceId, 'Jack', '1', '0.7', null, new PriceChange(100, null, null), null);
     }
 }

@@ -9,7 +9,7 @@ use App\Purchasing\Domain\Matching\ItemReader;
 use App\Purchasing\Domain\Model\PurchasedItem;
 
 /**
- * The items of a product with one unit and one package size, which is what a person chooses to change (ADR 0048).
+ * The items of a product with one unit and one package (the size and the bundle count, ADR 0048), which is what a person chooses to change (ADR 0049).
  * A unit is its key (ItemReader::unitKeyOf(): `szt.` and `SZT` are one unit), shown as the seller printed it most often.
  */
 final readonly class PackageSizeGroup
@@ -19,8 +19,10 @@ final readonly class PackageSizeGroup
         public ?string $unitKey,
         /** The spelling of the unit most items have; null: no unit. */
         public ?string $unit,
-        /** A decimal string, trimmed; null: the items have none. */
+        /** A decimal string, trimmed, of one single package for a bundle; null: the items have none. */
         public ?string $packageSize,
+        /** Single packages per unit of the quantity; null: no bundle (and always null with no package size). */
+        public ?int $bundleCount,
         public int $count,
         /** How many of them a person confirmed. */
         public int $confirmedCount,
@@ -37,13 +39,14 @@ final readonly class PackageSizeGroup
      */
     public static function of(array $counts): array
     {
-        /** @var array<string, array{unitKey: ?string, size: ?string, count: int, confirmed: int, spellings: array<string, int>}> $merged */
+        /** @var array<string, array{unitKey: ?string, size: ?string, bundle: ?int, count: int, confirmed: int, spellings: array<string, int>}> $merged */
         $merged = [];
         foreach ($counts as $row) {
             $unitKey = ItemReader::unitKeyOf($row->unit);
             $size = DecimalString::trimmed($row->packageSize);
-            $index = ($unitKey ?? '').'|'.($size ?? '');
-            $merged[$index] ??= ['unitKey' => $unitKey, 'size' => $size, 'count' => 0, 'confirmed' => 0, 'spellings' => []];
+            $bundle = null === $size ? null : $row->bundleCount;
+            $index = ($unitKey ?? '').'|'.($size ?? '').'|'.($bundle ?? '');
+            $merged[$index] ??= ['unitKey' => $unitKey, 'size' => $size, 'bundle' => $bundle, 'count' => 0, 'confirmed' => 0, 'spellings' => []];
             $merged[$index]['count'] += $row->count;
             $merged[$index]['confirmed'] += $row->confirmed ? $row->count : 0;
             if (null !== $unitKey && null !== $row->unit) {
@@ -55,18 +58,18 @@ final readonly class PackageSizeGroup
             $spellings = $group['spellings'];
             uksort($spellings, static fn (string $a, string $b): int => [$spellings[$b], $a] <=> [$spellings[$a], $b]);
 
-            return new self($group['unitKey'], [] === $spellings ? null : array_key_first($spellings), $group['size'], $group['count'], $group['confirmed']);
+            return new self($group['unitKey'], [] === $spellings ? null : array_key_first($spellings), $group['size'], $group['bundle'], $group['count'], $group['confirmed']);
         }, array_values($merged));
 
-        usort($groups, static fn (self $a, self $b): int => [null === $a->unitKey, $a->unitKey ?? '', null !== $a->packageSize, (float) $a->packageSize]
-            <=> [null === $b->unitKey, $b->unitKey ?? '', null !== $b->packageSize, (float) $b->packageSize]);
+        usort($groups, static fn (self $a, self $b): int => [null === $a->unitKey, $a->unitKey ?? '', null !== $a->packageSize, (float) $a->packageSize, $a->bundleCount ?? 0]
+            <=> [null === $b->unitKey, $b->unitKey ?? '', null !== $b->packageSize, (float) $b->packageSize, $b->bundleCount ?? 0]);
 
         return $groups;
     }
 
-    /** Whether the item is one of the group's: the same unit key and the same package size. */
+    /** Whether the item is one of the group's: the same unit key, package size and bundle count. */
     public function holds(PurchasedItem $item): bool
     {
-        return ItemReader::unitKeyOf($item->getUnit()) === $this->unitKey && $item->getPackageSize() === $this->packageSize;
+        return ItemReader::unitKeyOf($item->getUnit()) === $this->unitKey && $item->getPackageSize() === $this->packageSize && $item->getBundleCount() === $this->bundleCount;
     }
 }

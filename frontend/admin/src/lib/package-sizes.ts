@@ -3,7 +3,7 @@ import { type components } from "@business-tool/api-client"
 import { normalizeDecimal } from "./product-prices"
 
 /*
- * The package size of a product's other items (ADR 0048, #271). When the owner sets a package size on
+ * The package size of a product's other items (ADR 0049, #271). When the owner sets a package size on
  * an item (a product made from a proposal, items assigned, one item edited), the product may have other
  * items with no size, or another one, under other units. A size is not assumed equal across units (a
  * `szt.` of 0.7 L is not a `CO` of 6 × 0.7 L), so the owner is asked, group by group, and nothing is
@@ -14,8 +14,10 @@ export type PackageSizeGroup = components["schemas"]["ProductPackageSizeGroup"]
 
 /** What the owner just did: the size now on the items they set, on which units, and whether it replaced one. */
 export interface SizeAnswer {
-  /** The size, as the API stores it (`0.7`, not `0,70`). */
+  /** The size, as the API stores it (`0.7`, not `0,70`); of one single package for a bundle. */
   size: string
+  /** Single packages per unit of the quantity (ADR 0049); null: no bundle. */
+  bundleCount: number | null
   /** The unit keys of the items it was set on; `null` for items with no unit. */
   units: readonly (string | null)[]
   /** An existing size was changed, not set where there was none: the items with another size are asked about too. */
@@ -59,6 +61,14 @@ export function sameSize(a: string | null, b: string | null): boolean {
   return whole(aWhole) === whole(bWhole) && fraction(aFraction) === fraction(bFraction)
 }
 
+/** Whether two packages are the same: the same size and the same bundle count. */
+export function samePackage(
+  a: { packageSize?: string | null; size?: string | null; bundleCount: number | null },
+  b: { packageSize?: string | null; size?: string | null; bundleCount: number | null },
+): boolean {
+  return sameSize(a.packageSize ?? a.size ?? null, b.packageSize ?? b.size ?? null) && a.bundleCount === b.bundleCount
+}
+
 /** What to ask after `answer`, from the product's groups as they are after the change. */
 export function packageSizeQuestion(groups: readonly PackageSizeGroup[], answer: SizeAnswer): PackageSizeQuestion {
   const justSet = new Set(answer.units)
@@ -67,7 +77,7 @@ export function packageSizeQuestion(groups: readonly PackageSizeGroup[], answer:
     const here = justSet.has(group.unitKey)
     if (group.packageSize === null) {
       if (!here) question.fill.push(group)
-    } else if (answer.changed && !sameSize(group.packageSize, answer.size)) {
+    } else if (answer.changed && !samePackage(group, answer)) {
       ;(here ? question.sameUnit : question.otherUnits).push(group)
     }
   }
@@ -85,8 +95,8 @@ export function countItems(groups: readonly PackageSizeGroup[]): number {
 }
 
 /** What identifies a group in a list of choices. */
-export function groupId(group: Pick<PackageSizeGroup, "unitKey" | "packageSize">): string {
-  return JSON.stringify([group.unitKey, group.packageSize])
+export function groupId(group: Pick<PackageSizeGroup, "unitKey" | "packageSize" | "bundleCount">): string {
+  return JSON.stringify([group.unitKey, group.packageSize, group.bundleCount])
 }
 
 /**
@@ -98,16 +108,26 @@ export function answerAfterCreate(groups: readonly PackageSizeGroup[]): SizeAnsw
   const sized = groups.filter((group) => group.packageSize !== null)
   const [first] = sized
   if (first === undefined || first.packageSize === null) return null
-  const totals = new Map<string, number>()
-  for (const group of sized) totals.set(group.packageSize ?? "", (totals.get(group.packageSize ?? "") ?? 0) + group.count)
-  let size = first.packageSize
-  for (const [candidate, total] of totals) if (total > (totals.get(size) ?? 0)) size = candidate
-  return { size, units: sized.map((group) => group.unitKey), changed: false }
+  const totals = new Map<string, { group: PackageSizeGroup; count: number }>()
+  for (const group of sized) {
+    const key = JSON.stringify([group.packageSize, group.bundleCount])
+    const entry = totals.get(key) ?? { group, count: 0 }
+    entry.count += group.count
+    totals.set(key, entry)
+  }
+  let best = totals.values().next().value ?? { group: first, count: 0 }
+  for (const entry of totals.values()) if (entry.count > best.count) best = entry
+  return { size: best.group.packageSize ?? first.packageSize, bundleCount: best.group.bundleCount, units: sized.map((group) => group.unitKey), changed: false }
 }
 
 /** The groups' keys the dialog sends back for the chosen ones: what `POST /products/{id}/package-sizes` takes. */
-export function targetsOf(groups: readonly PackageSizeGroup[], chosen: ReadonlySet<string>): { unitKey: string | null; packageSize: string | null }[] {
-  return groups.filter((group) => chosen.has(groupId(group))).map((group) => ({ unitKey: group.unitKey, packageSize: group.packageSize }))
+export function targetsOf(
+  groups: readonly PackageSizeGroup[],
+  chosen: ReadonlySet<string>,
+): { unitKey: string | null; packageSize: string | null; bundleCount: number | null }[] {
+  return groups
+    .filter((group) => chosen.has(groupId(group)))
+    .map((group) => ({ unitKey: group.unitKey, packageSize: group.packageSize, bundleCount: group.bundleCount }))
 }
 
 /** The size typed in the follow-up dialog as the API takes it; null when empty (nothing to send). */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ui\Http\Purchasing;
 
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -17,6 +18,9 @@ final readonly class ApplyPackageSizeGroupInput
         /** The group's `packageSize`; null: the items with none. */
         #[Assert\Regex(pattern: PurchasedItem::PACKAGE_SIZE_PATTERN, message: 'This is not a decimal number with at most 6 decimals.')]
         public ?string $packageSize,
+        /** The group's `bundleCount`; null: the items that are no bundle. */
+        #[Assert\Range(min: PackageSize::MIN_BUNDLE_COUNT, max: PackageSize::MAX_BUNDLE_COUNT)]
+        public ?int $bundleCount = null,
     ) {
     }
 }

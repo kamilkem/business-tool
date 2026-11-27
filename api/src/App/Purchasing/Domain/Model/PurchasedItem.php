@@ -10,6 +10,7 @@ use App\Expenses\Domain\Model\PurchaseInvoiceItem;
 use App\Organization\Domain\Model\MembershipRole;
 use App\Organization\Domain\Model\TenantAwareInterface;
 use App\Organization\Domain\Model\TenantAwareTrait;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Purchasing\Domain\Matching\ItemReader;
@@ -45,7 +46,9 @@ use Symfony\Component\Uid\Uuid;
  *   the same name is not proposed for this item again). Matching only ever writes the proposal; it never
  *   creates a product.
  * - Quantities and prices are NUMERIC decimal strings (ADR 0040); the package size is a decimal string
- *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3).
+ *   in the product's base unit (L, kg, pc) per one unit of the item's quantity (ADR 0041 §3), or, for a
+ *   bundle (a crate of 20 × 0.5 L), the size of one single package, with the bundle count next to it
+ *   (ADR 0048): the size per unit of the quantity is their product (getPackage()->total()).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'purchased_item')]
@@ -150,6 +153,10 @@ class PurchasedItem implements TenantAwareInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 22, scale: self::PACKAGE_SIZE_SCALE, nullable: true)]
     private ?string $packageSize = null;
 
+    /** Single packages in one unit of the quantity, 2 or more; null: the item is no bundle, and the package size is per unit (ADR 0048). Only with a package size. */
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $bundleCount = null;
+
     /** A person took the product away: matching leaves the item alone until a person links it again (ADR 0042 §4). */
     #[ORM\Column(options: ['default' => false])]
     private bool $matchingSkipped = false;
@@ -230,18 +237,20 @@ class PurchasedItem implements TenantAwareInterface
      * item is `confirmed` with a product and `unassigned` without one; the package size is kept either
      * way, and counts only for a product with a measure other than `none`.
      *
-     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown; of one single package when it is a bundle
+     * @param ?int    $bundleCount single packages in one unit of the quantity, 2 or more, null when it is no bundle (ADR 0048)
      *
      * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
      * @throws InvalidPackageSizeException            when the package size is not a positive decimal
+     * @throws InvalidBundleCountException            when the count is out of range, has no package size, or makes the size per unit too large
      */
-    public function link(?Product $product, ?string $packageSize, Uuid $actorId, MembershipRole $actorRole): void
+    public function link(?Product $product, ?string $packageSize, Uuid $actorId, MembershipRole $actorRole, ?int $bundleCount = null): void
     {
         PurchasingAccess::assertCanManage($actorId, $actorRole);
-        $packageSize = self::packageSizeFor($packageSize);
+        $size = self::packageOf($packageSize, $bundleCount);
 
         $this->product = $product;
-        $this->packageSize = $packageSize;
+        $this->setPackage($size);
         $this->status = null === $product ? PurchasedItemStatus::Unassigned : PurchasedItemStatus::Confirmed;
         $this->matchingSkipped = null === $product;
         $this->matchSource = null;
@@ -251,23 +260,25 @@ class PurchasedItem implements TenantAwareInterface
 
     /**
      * A person sets only the package size of an item that has a product, because they said so for the product's
-     * other items too (ADR 0048): the product, the status, what linked the item and its proposal stay as they were,
+     * other items too (ADR 0049): the product, the status, what linked the item and its proposal stay as they were,
      * so a `confirmed` link is never touched and a suggestion is not confirmed by it.
      *
-     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown; of one single package when it is a bundle
+     * @param ?int    $bundleCount single packages in one unit of the quantity, 2 or more, null when it is no bundle (ADR 0048)
      *
      * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
      * @throws InvalidPackageSizeException            when the package size is not a positive decimal
+     * @throws InvalidBundleCountException            when the count is out of range, has no package size, or makes the size per unit too large
      * @throws \LogicException                        for an item with no product: its size means nothing yet
      */
-    public function changePackageSize(?string $packageSize, Uuid $actorId, MembershipRole $actorRole): void
+    public function changePackageSize(?string $packageSize, ?int $bundleCount, Uuid $actorId, MembershipRole $actorRole): void
     {
         PurchasingAccess::assertCanManage($actorId, $actorRole);
         if (null === $this->product) {
             throw new \LogicException('Only an item that has a product gets a package size on its own.');
         }
 
-        $this->packageSize = self::packageSizeFor($packageSize);
+        $this->setPackage(self::packageOf($packageSize, $bundleCount));
     }
 
     /**
@@ -276,12 +287,14 @@ class PurchasedItem implements TenantAwareInterface
      * `suggested` one for a person to confirm. Never for a `confirmed` item. `$source` is what linked it and
      * `$caveat` why it is only suggested (ADR 0045 §1); they are kept for the review queue.
      *
-     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown; of one single package when it is a bundle
+     * @param ?int    $bundleCount single packages in one unit of the quantity, 2 or more, null when it is no bundle (ADR 0048)
      *
      * @throws \LogicException            for a `confirmed` item or one a person took off its product: matching must not read them
      * @throws InvalidPackageSizeException when the package size is not a positive decimal
+     * @throws InvalidBundleCountException when the count is out of range, has no package size, or makes the size per unit too large
      */
-    public function match(?Product $product, ?string $packageSize, PurchasedItemStatus $status, \DateTimeImmutable $now, ?MatchSource $source = null, ?MatchCaveat $caveat = null): void
+    public function match(?Product $product, ?string $packageSize, PurchasedItemStatus $status, \DateTimeImmutable $now, ?MatchSource $source = null, ?MatchCaveat $caveat = null, ?int $bundleCount = null): void
     {
         if (!$this->isMatchable()) {
             throw new \LogicException('A confirmed item, or one taken off its product by a person, is not changed by matching.');
@@ -296,7 +309,7 @@ class PurchasedItem implements TenantAwareInterface
         }
         $this->clearProposal();
         $this->product = $product;
-        $this->packageSize = self::packageSizeFor($packageSize);
+        $this->setPackage(self::packageOf($packageSize, $bundleCount));
         $this->status = $status;
         $this->matchSource = $source;
         $this->matchCaveat = PurchasedItemStatus::Suggested === $status ? $caveat : null;
@@ -320,7 +333,7 @@ class PurchasedItem implements TenantAwareInterface
         }
 
         $this->product = null;
-        $this->packageSize = null;
+        $this->setPackage(null);
         $this->status = PurchasedItemStatus::Unassigned;
         $this->matchSource = null;
         $this->matchCaveat = null;
@@ -572,27 +585,47 @@ class PurchasedItem implements TenantAwareInterface
         return DecimalString::trimmed($this->packageSize);
     }
 
+    /** Single packages in one unit of the quantity; null when the item is no bundle (ADR 0048). */
+    public function getBundleCount(): ?int
+    {
+        return $this->bundleCount;
+    }
+
+    /** The package size and bundle count together; null until the package size is known. */
+    public function getPackage(): ?PackageSize
+    {
+        return null === $this->packageSize ? null : PackageSize::of(DecimalString::trimmed($this->packageSize) ?? $this->packageSize, $this->bundleCount);
+    }
+
+    /** The size per unit of the quantity: the package size times the bundle count; null until the package size is known. */
+    public function getPackageTotal(): ?string
+    {
+        return $this->getPackage()?->total();
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
 
     /**
-     * The package size to store: null, or the given positive decimal in normal form.
+     * The package to store: null, or the size of one single package (a positive decimal) and the bundle count.
      *
      * @throws InvalidPackageSizeException
+     * @throws InvalidBundleCountException
      */
-    private static function packageSizeFor(?string $value): ?string
+    private static function packageOf(?string $packageSize, ?int $bundleCount): ?PackageSize
     {
-        if (null === $value) {
-            return null;
+        if (null === $packageSize) {
+            return null === $bundleCount ? null : throw InvalidBundleCountException::withoutPackageSize($bundleCount);
         }
 
-        $normalized = DecimalString::normalized($value, self::PACKAGE_SIZE_INTEGER_DIGITS, self::PACKAGE_SIZE_SCALE);
-        if (null === $normalized || '0' === $normalized || str_starts_with($normalized, '-')) {
-            throw InvalidPackageSizeException::of($value);
-        }
+        return PackageSize::of($packageSize, $bundleCount);
+    }
 
-        return $normalized;
+    private function setPackage(?PackageSize $package): void
+    {
+        $this->packageSize = $package?->single;
+        $this->bundleCount = $package?->bundleCount;
     }
 }

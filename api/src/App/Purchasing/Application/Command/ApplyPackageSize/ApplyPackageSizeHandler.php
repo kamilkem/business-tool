@@ -8,6 +8,7 @@ use App\Expenses\Domain\Model\DecimalString;
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Purchasing\Application\PurchasingActor;
 use App\Purchasing\Domain\Event\PurchasedItemsConfirmed;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\ProductNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
@@ -43,6 +44,7 @@ final readonly class ApplyPackageSizeHandler implements CommandHandlerInterface
      * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
      * @throws ProductNotFoundException               when the product is not one of the organization's
      * @throws InvalidPackageSizeException            when a package size is not a positive decimal
+     * @throws InvalidBundleCountException            when the bundle count is out of range or makes the size per unit too large
      * @throws \InvalidArgumentException              when there are more targets than ApplyPackageSizeCommand::MAX_TARGETS
      */
     public function __invoke(ApplyPackageSizeCommand $command): void
@@ -55,13 +57,13 @@ final readonly class ApplyPackageSizeHandler implements CommandHandlerInterface
         $product = Uuid::isValid($command->productId) ? $this->products->findById(Uuid::fromString($command->productId)) : null;
         $product ??= throw ProductNotFoundException::withId($command->productId);
 
-        $targets = array_map(static fn (array $target): PackageSizeGroup => new PackageSizeGroup($target['unitKey'], null, self::normalized($target['packageSize']), 0, 0), $command->targets);
+        $targets = array_map(static fn (array $target): PackageSizeGroup => new PackageSizeGroup($target['unitKey'], null, self::normalized($target['packageSize']), $target['bundleCount'], 0, 0), $command->targets);
 
         $changed = [];
         foreach ($this->items->findByProduct($product->getId()) as $item) {
             foreach ($targets as $target) {
                 if ($target->holds($item)) {
-                    $item->changePackageSize($command->packageSize, $actor->id, $actor->role);
+                    $item->changePackageSize($command->packageSize, $command->bundleCount, $actor->id, $actor->role);
                     $changed[] = $item;
                     break;
                 }

@@ -1490,13 +1490,13 @@ export interface paths {
         };
         /**
          * The items of a product by unit and package size.
-         * @description Owners and managers only (403 otherwise); a product that is not the selected organization's is a 404. One group per unit (`szt.` and `SZT` are one) and package size, whatever the items' status, with how many items it holds and how many of them a person confirmed. What the dialog that sets a package size asks about: the groups with no size under other units, and the groups with another size.
+         * @description Owners and managers only (403 otherwise); a product that is not the selected organization's is a 404. One group per unit (`szt.` and `SZT` are one), package size and bundle count, whatever the items' status, with how many items it holds and how many of them a person confirmed. What the dialog that sets a package size asks about: the groups with no size under other units, and the groups with another size.
          */
         get: operations["api_products_idpackage-sizes_get"];
         put?: never;
         /**
          * Sets one package size on the product's items of the chosen groups.
-         * @description Owners and managers only (403 otherwise). Writes only the package size of the items of the product that have the unit and the package size of one of the `groups` (as `GET` lists them); their product, status and link stay as they are, so a confirmed link is never changed. Nothing is applied that the person did not choose. A group that holds no item any more changes nothing. At most 100 groups (422). A product that is not the selected organization's is a 404 and nothing changes.
+         * @description Owners and managers only (403 otherwise). Writes only the package of the items of the product that have the unit, package size and bundle count of one of the `groups` (as `GET` lists them): the `packageSize` with the `bundleCount` of the body (null: no bundle; for a bundle the size is that of one single package, ADR 0048); their product, status and link stay as they are, so a confirmed link is never changed. Nothing is applied that the person did not choose. A group that holds no item any more changes nothing. At most 100 groups (422). A product that is not the selected organization's is a 404 and nothing changes.
          */
         post: operations["api_products_idpackage-sizes_post"];
         delete?: never;
@@ -1636,7 +1636,7 @@ export interface paths {
         put?: never;
         /**
          * Links several purchased items to one product: the review queue's bulk action.
-         * @description Owners and managers only (403 otherwise). All or nothing: when an item, or the product, is not one of the selected organization's (another organization's is not found either), the answer is a 404 and no item changes. Every item becomes `confirmed`. With a `packageSize` every item gets it; left out or null, each item keeps its own. At most 500 distinct items at once (422). Creating a product from an item is `POST /products` followed by this call.
+         * @description Owners and managers only (403 otherwise). All or nothing: when an item, or the product, is not one of the selected organization's (another organization's is not found either), the answer is a 404 and no item changes. Every item becomes `confirmed`. With a `packageSize` every item gets it, with `bundleCount` (null: no bundle); left out or null, each item keeps its own size and bundle count. A `bundleCount` needs a `packageSize` (422). At most 500 distinct items at once (422). Creating a product from an item is `POST /products` followed by this call.
          */
         post: operations["api_purchased-itemsassign_post"];
         delete?: never;
@@ -1664,7 +1664,7 @@ export interface paths {
         head?: never;
         /**
          * Links a purchased item to a product, takes it off its product, or sets its package size.
-         * @description Owners and managers only (403 otherwise); an item that is not the selected organization's is a 404. A field left out keeps its value; `productId: null` takes the item off its product, `packageSize: null` clears the package size. Any change by a person confirms the link: the item becomes `confirmed` with a product (also when only the package size changes, or nothing does, which confirms a suggestion) and `unassigned` without one. The package size is a positive decimal in the product's base unit (L, kg, pc) per one unit of the item's quantity, with at most 6 decimals (422). A `productId` that is not one of the organization's products is a 404.
+         * @description Owners and managers only (403 otherwise); an item that is not the selected organization's is a 404. A field left out keeps its value; `productId: null` takes the item off its product, `packageSize: null` clears the package size. Any change by a person confirms the link: the item becomes `confirmed` with a product (also when only the package size changes, or nothing does, which confirms a suggestion) and `unassigned` without one. The package size is a positive decimal in the product's base unit (L, kg, pc) per one unit of the item's quantity, with at most 6 decimals (422). For a bundle, `bundleCount` is the number of single packages in one unit (2 to 9999) and the package size is that of one single package; `bundleCount: null` makes it no bundle, and a count needs a package size (422). A `productId` that is not one of the organization's products is a 404.
          */
         patch: operations["api_purchased-items_id_patch"];
         trace?: never;
@@ -2178,6 +2178,8 @@ export interface components {
             unitKey: string | null;
             /** @description The group's `packageSize`; null: the items with none. */
             packageSize: string | null;
+            /** @description The group's `bundleCount`; null: the items that are no bundle. */
+            bundleCount?: number | null;
         };
         /**
          * @description The business figures of the organization selected by the X-Organization-Id header for each month
@@ -5307,8 +5309,10 @@ export interface components {
             unitKey: string | null;
             /** @description The unit as the seller printed it most often; null: no unit. */
             unit: string | null;
-            /** @description A decimal string in the product's base unit per one unit of the quantity; null: the items have none. */
+            /** @description A decimal string in the product's base unit per one unit of the quantity (of one single package for a bundle); null: the items have none. */
             packageSize: string | null;
+            /** @description Single packages per unit of the quantity (ADR 0048); null: the items are no bundle. */
+            bundleCount: number | null;
             count: number;
             /** @description How many of them a person confirmed. */
             confirmedCount: number;
@@ -5318,15 +5322,17 @@ export interface components {
             unitKey: string | null;
             /** @description The unit as the seller printed it most often; null: no unit. */
             unit: string | null;
-            /** @description A decimal string in the product's base unit per one unit of the quantity; null: the items have none. */
+            /** @description A decimal string in the product's base unit per one unit of the quantity (of one single package for a bundle); null: the items have none. */
             packageSize: string | null;
+            /** @description Single packages per unit of the quantity (ADR 0048); null: the items are no bundle. */
+            bundleCount: number | null;
             count: number;
             /** @description How many of them a person confirmed. */
             confirmedCount: number;
         };
         /**
          * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
-         *     (ADR 0048). Owners and managers only.
+         *     (ADR 0049). Owners and managers only.
          */
         ProductPackageSizes: {
             productId: string;
@@ -5335,17 +5341,19 @@ export interface components {
         };
         /**
          * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
-         *     (ADR 0048). Owners and managers only.
+         *     (ADR 0049). Owners and managers only.
          */
         "ProductPackageSizes.ApplyPackageSizeInput": {
             /** @description The package size the items of the chosen groups get. */
             packageSize: string;
             /** @description The groups to set it on: at least one. */
             groups: components["schemas"]["ApplyPackageSizeGroupInput"][];
+            /** @description Single packages per unit of the quantity, with the package size of one single package; left out or null: no bundle (ADR 0048). */
+            bundleCount?: number | null;
         };
         /**
          * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
-         *     (ADR 0048). Owners and managers only.
+         *     (ADR 0049). Owners and managers only.
          */
         "ProductPackageSizes.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             productId: string;
@@ -5405,8 +5413,10 @@ export interface components {
             itemName: string;
             /** @description The item's quantity as printed, a decimal string. */
             quantity: string;
-            /** @description In the product's base unit per unit of the quantity: a decimal string. */
+            /** @description In the product's base unit: a decimal string, of one single package when the item is a bundle (`bundleCount`), else per unit of the quantity. */
             packageSize: string;
+            /** @description Single packages per unit of the quantity, 2 or more; null when the item is no bundle. The price uses `quantity × bundleCount × packageSize`. */
+            bundleCount: number | null;
             /** @description The net price per reference quantity; null when the item has no net value to derive. */
             net: components["schemas"]["PurchaseAnalysisPrice"] | null;
             gross: components["schemas"]["PurchaseAnalysisPrice"] | null;
@@ -5426,8 +5436,10 @@ export interface components {
             itemName: string;
             /** @description The item's quantity as printed, a decimal string. */
             quantity: string;
-            /** @description In the product's base unit per unit of the quantity: a decimal string. */
+            /** @description In the product's base unit: a decimal string, of one single package when the item is a bundle (`bundleCount`), else per unit of the quantity. */
             packageSize: string;
+            /** @description Single packages per unit of the quantity, 2 or more; null when the item is no bundle. The price uses `quantity × bundleCount × packageSize`. */
+            bundleCount: number | null;
             /** @description The net price per reference quantity; null when the item has no net value to derive. */
             net: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
             gross: components["schemas"]["PurchaseAnalysisPrice.jsonld"] | null;
@@ -5739,8 +5751,10 @@ export interface components {
              * @enum {string}
              */
             status: "unassigned" | "suggested" | "assigned" | "confirmed";
-            /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
+            /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. For a bundle (`bundleCount`), the size of one single package. */
             packageSize: string | null;
+            /** @description Single packages in one unit of the item's quantity (a crate of 20 × 0.5 L: 20), 2 or more; null when the item is no bundle. The size per unit of the quantity is `bundleCount × packageSize`. */
+            bundleCount: number | null;
             /**
              * @description What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept.
              * @enum {string|null}
@@ -5766,8 +5780,10 @@ export interface components {
              * @description The product they are linked to.
              */
             productId: string;
-            /** @description Every item gets this package size; null or left out: each keeps its own. */
+            /** @description Every item gets this package size, and the bundle count below; null or left out: each keeps its own size and count. */
             packageSize?: string | null;
+            /** @description Single packages per unit of the quantity for every item that gets the package size; null: no bundle. Needs a package size. */
+            bundleCount?: number | null;
         };
         /**
          * @description One item of a purchase invoice of the organization selected by the X-Organization-Id header, as
@@ -5783,6 +5799,8 @@ export interface components {
             productId?: string | null;
             /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity; null for unknown. */
             packageSize?: string | null;
+            /** @description Single packages in one unit of the quantity, with the package size of one single package; null: the item is no bundle (ADR 0048). */
+            bundleCount?: number | null;
         };
         /**
          * @description One item of a purchase invoice of the organization selected by the X-Organization-Id header, as
@@ -5836,8 +5854,10 @@ export interface components {
              * @enum {string}
              */
             status: "unassigned" | "suggested" | "assigned" | "confirmed";
-            /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
+            /** @description In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. For a bundle (`bundleCount`), the size of one single package. */
             packageSize: string | null;
+            /** @description Single packages in one unit of the item's quantity (a crate of 20 × 0.5 L: 20), 2 or more; null when the item is no bundle. The size per unit of the quantity is `bundleCount × packageSize`. */
+            bundleCount: number | null;
             /**
              * @description What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept.
              * @enum {string|null}
@@ -6751,7 +6771,7 @@ export interface components {
          * @description The stable code of a domain error: `<module>.<error>[.<variant>]`. Clients translate it with its parameters.
          * @enum {string}
          */
-        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.items_on_manual" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "purchasing.invalid_package_size" | "purchasing.invalid_product_category_name" | "purchasing.invalid_product_name" | "purchasing.invalid_product_reference_quantity.not_allowed_for_measure" | "purchasing.invalid_product_reference_quantity.not_positive" | "purchasing.management_forbidden" | "purchasing.product_category_cycle" | "purchasing.product_category_in_use.has_products" | "purchasing.product_category_in_use.has_subcategories" | "purchasing.product_category_name_taken" | "purchasing.product_category_not_found" | "purchasing.product_category_parent_not_found" | "purchasing.product_in_use" | "purchasing.product_merge_into_itself" | "purchasing.product_merge_target_not_found" | "purchasing.product_name_taken" | "purchasing.product_not_found" | "purchasing.product_proposal_not_found" | "purchasing.purchase_analysis_period_too_long" | "purchasing.purchased_item_not_found" | "purchasing.purchased_item_product_not_found" | "purchasing.unknown_product_category" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
+        ErrorCode: "cash_flow.access_forbidden.to_correct_day_closes" | "cash_flow.access_forbidden.to_manage" | "cash_flow.access_forbidden.to_read_day_closes" | "cash_flow.access_forbidden.to_read_ledger" | "cash_flow.audit_count_needs_deposit_storage" | "cash_flow.day_already_closed.by_member" | "cash_flow.day_already_closed.concurrently" | "cash_flow.day_close_not_found" | "cash_flow.day_close_out_of_order" | "cash_flow.day_close_period_too_long" | "cash_flow.denomination_in_use" | "cash_flow.denomination_not_found" | "cash_flow.denomination_not_offered.deactivated" | "cash_flow.denomination_not_offered.other_currency" | "cash_flow.denomination_value_taken" | "cash_flow.income_month_closed.for_date" | "cash_flow.income_month_closed.recalculated_close" | "cash_flow.invalid_day_close.amount" | "cash_flow.invalid_day_close.cash_income" | "cash_flow.invalid_day_close.duplicate_denomination" | "cash_flow.invalid_day_close.duplicate_payment_method" | "cash_flow.invalid_day_close.duplicate_storage" | "cash_flow.invalid_day_close.missing_payment_method" | "cash_flow.invalid_day_close.missing_storage" | "cash_flow.invalid_day_close.nothing_to_book" | "cash_flow.invalid_day_close.nothing_to_close" | "cash_flow.invalid_day_close.payment_method_not_in_close" | "cash_flow.invalid_day_close.payment_method_not_offered" | "cash_flow.invalid_day_close.pieces" | "cash_flow.invalid_day_close.register_not_offered" | "cash_flow.invalid_day_close.storage_not_in_close" | "cash_flow.invalid_day_close_date.in_the_future" | "cash_flow.invalid_day_close_date.not_chosen_by_employee" | "cash_flow.invalid_day_close_date.not_today_or_yesterday" | "cash_flow.invalid_day_end_time" | "cash_flow.invalid_denomination_value" | "cash_flow.invalid_movement.duplicate_denomination" | "cash_flow.invalid_movement.note" | "cash_flow.invalid_movement.pieces" | "cash_flow.invalid_movement.same_storage" | "cash_flow.invalid_movement.without_lines" | "cash_flow.invalid_storage_name" | "cash_flow.movement_in_the_future" | "cash_flow.movement_not_found" | "cash_flow.movement_period_too_long" | "cash_flow.storage_balance_negative" | "cash_flow.storage_deactivated" | "cash_flow.storage_in_use" | "cash_flow.storage_name_taken" | "cash_flow.storage_not_found" | "expenses.expense_period_too_long" | "expenses.invalid_purchase_invoice.blank" | "expenses.invalid_purchase_invoice.corrected_invoice_on_manual" | "expenses.invalid_purchase_invoice.corrected_invoice_on_non_correction" | "expenses.invalid_purchase_invoice.duplicate_vat_rate" | "expenses.invalid_purchase_invoice.empty_document" | "expenses.invalid_purchase_invoice.invalid" | "expenses.invalid_purchase_invoice.invalid_currency" | "expenses.invalid_purchase_invoice.items_on_manual" | "expenses.invalid_purchase_invoice.missing_external_id" | "expenses.invalid_purchase_invoice.missing_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.not_imported" | "expenses.invalid_purchase_invoice.too_long" | "expenses.invalid_purchase_invoice.unexpected_vat_in_tax_currency" | "expenses.invalid_purchase_invoice.unknown_kind" | "expenses.invalid_purchase_invoice.unknown_vat_rate" | "expenses.invalid_purchase_invoice.vat_on_zero_rate" | "expenses.management_forbidden" | "expenses.purchase_invoice_already_imported" | "expenses.purchase_invoice_document_not_found" | "expenses.purchase_invoice_not_found" | "expenses.purchase_invoice_read_only" | "income.cash_payment_method_taken" | "income.invalid_payment_lines.amount_out_of_range" | "income.invalid_payment_lines.duplicate_method" | "income.invalid_payment_lines.empty" | "income.invalid_payment_lines.method_deactivated" | "income.invalid_payment_lines.unknown_method" | "income.invalid_payment_method_name" | "income.invalid_register_name" | "income.invalid_vat_lines.duplicate_rate" | "income.invalid_vat_lines.gross_out_of_range" | "income.invalid_vat_lines.no_rates_for_country" | "income.invalid_vat_lines.unknown_rate" | "income.invalid_vat_lines.vat_on_zero_rate" | "income.invalid_vat_lines.vat_out_of_range" | "income.management_forbidden" | "income.payment_method_in_use" | "income.payment_method_name_taken" | "income.payment_method_not_found" | "income.payment_method_order_mismatch" | "income.register_deactivated" | "income.register_in_use" | "income.register_name_taken" | "income.register_not_found" | "income.revenue_entry_already_exists" | "income.revenue_entry_booked_by_day_close" | "income.revenue_entry_in_the_future" | "income.revenue_entry_not_found" | "income.revenue_month_already_closed" | "income.revenue_month_close_forbidden" | "income.revenue_month_closed" | "income.revenue_month_not_closed" | "income.revenue_month_not_ended" | "income.revenue_period_too_long" | "ksef.connection_forbidden.to_manage_token" | "ksef.connection_forbidden.to_use" | "ksef.connection_not_found" | "ksef.credentials_rejected.authentication_failed" | "ksef.credentials_rejected.missing_permission" | "ksef.import_too_soon" | "ksef.invalid_fa3_invoice.doctype" | "ksef.invalid_fa3_invoice.invalid_value" | "ksef.invalid_fa3_invoice.missing" | "ksef.invalid_fa3_invoice.not_xml" | "ksef.invalid_fa3_invoice.repeated" | "ksef.invalid_sync_start_date.before_ksef" | "ksef.invalid_sync_start_date.in_the_future" | "ksef.not_available.invalid_nip" | "ksef.not_available.outside_poland" | "ksef.rate_limited" | "ksef.request_failed.malformed_response" | "ksef.request_failed.no_symmetric_key_encryption_key" | "ksef.request_failed.no_token_encryption_key" | "ksef.request_failed.unexpected_status" | "ksef.token_not_set" | "ksef.token_rejected" | "ksef.unavailable.after_retries" | "ksef.unavailable.authentication_cancelled" | "ksef.unavailable.authentication_not_finished" | "ksef.unsupported_invoice_form.form_code" | "ksef.unsupported_invoice_form.root_element" | "organization.already_a_member" | "organization.last_owner" | "organization.management_forbidden" | "organization.member_deactivated" | "organization.member_not_found" | "organization.no_organization_selected" | "organization.not_found" | "organization.role_assignment_forbidden" | "payroll.access_forbidden.to_approve" | "payroll.access_forbidden.to_manage" | "payroll.access_forbidden.to_manage_runs" | "payroll.access_forbidden.to_pay" | "payroll.access_forbidden.to_read" | "payroll.invalid_pay_rate" | "payroll.invalid_paycheck_adjustment.amount" | "payroll.invalid_paycheck_adjustment.label" | "payroll.invalid_rounding" | "payroll.month_in_the_future" | "payroll.pay_rate_date_taken.day_rate" | "payroll.pay_rate_date_taken.hourly_rate" | "payroll.pay_rate_not_found.day_rate" | "payroll.pay_rate_not_found.hourly_rate" | "payroll.pay_rate_period_locked" | "payroll.paycheck_adjustment_not_found" | "payroll.paycheck_not_found" | "payroll.paycheck_payment.already_paid" | "payroll.paycheck_payment.not_paid" | "payroll.paycheck_payment.run_has_payments" | "payroll.payment_date_in_the_future" | "payroll.run_empty" | "payroll.run_month_taken" | "payroll.run_not_approvable.lines_without_rate" | "payroll.run_not_approvable.month_not_ended" | "payroll.run_not_approvable.negative_total" | "payroll.run_not_approvable.nothing_to_pay" | "payroll.run_not_approvable.open_shifts" | "payroll.run_not_approvable.out_of_date" | "payroll.run_not_approvable.pending_change_requests" | "payroll.run_not_found" | "payroll.run_status.not_approved" | "payroll.run_status.not_draft" | "purchasing.invalid_bundle_count.out_of_range" | "purchasing.invalid_bundle_count.too_large" | "purchasing.invalid_bundle_count.without_package_size" | "purchasing.invalid_package_size" | "purchasing.invalid_product_category_name" | "purchasing.invalid_product_name" | "purchasing.invalid_product_reference_quantity.not_allowed_for_measure" | "purchasing.invalid_product_reference_quantity.not_positive" | "purchasing.management_forbidden" | "purchasing.product_category_cycle" | "purchasing.product_category_in_use.has_products" | "purchasing.product_category_in_use.has_subcategories" | "purchasing.product_category_name_taken" | "purchasing.product_category_not_found" | "purchasing.product_category_parent_not_found" | "purchasing.product_in_use" | "purchasing.product_merge_into_itself" | "purchasing.product_merge_target_not_found" | "purchasing.product_name_taken" | "purchasing.product_not_found" | "purchasing.product_proposal_not_found" | "purchasing.purchase_analysis_period_too_long" | "purchasing.purchased_item_not_found" | "purchasing.purchased_item_product_not_found" | "purchasing.unknown_product_category" | "reporting.business_summary_forbidden" | "reporting.business_summary_month_in_the_future" | "reporting.business_summary_period_too_long" | "secret.management_forbidden" | "secret.organization_secret_not_found" | "secret.unreadable.authentication_failed" | "secret.unreadable.malformed" | "secret.unreadable.of_secret" | "secret.unreadable.unknown_key" | "time.invalid_business_date.not_a_calendar_date" | "time.invalid_business_date.not_ymd" | "time.invalid_business_period.ends_before_it_starts" | "time.invalid_business_period.not_a_month" | "time.invalid_business_period.not_a_month_string" | "time_tracking.invalid_max_shift_length" | "time_tracking.not_clocked_in" | "time_tracking.open_shift_cannot_be_deleted" | "time_tracking.settings_change_forbidden" | "time_tracking.shift_already_closed" | "time_tracking.shift_already_open" | "time_tracking.shift_cannot_be_reopened" | "time_tracking.shift_change_forbidden" | "time_tracking.shift_change_request_already_decided" | "time_tracking.shift_change_request_changes_nothing" | "time_tracking.shift_change_request_decision_forbidden" | "time_tracking.shift_change_request_not_found" | "time_tracking.shift_change_request_note_required" | "time_tracking.shift_change_request_withdrawal_forbidden" | "time_tracking.shift_change_request_withdrawn" | "time_tracking.shift_end_not_after_start.of" | "time_tracking.shift_end_not_after_start.requested" | "time_tracking.shift_has_pending_change_request" | "time_tracking.shift_in_the_future" | "time_tracking.shift_not_found.current_of" | "time_tracking.shift_not_found.with_id" | "time_tracking.shift_overlap" | "time_tracking.shift_period_locked" | "time_tracking.shift_period_too_long" | "user.email_already_registered" | "user.invalid_password_token" | "user.invalid_refresh_token" | "user.not_found" | "user.password_already_set";
     };
     responses: never;
     parameters: never;
@@ -12208,7 +12228,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The package size is missing or not a positive decimal with at most 6 decimals, or a group is missing, repeated, has a size that is not one, or there are too many. */
+            /** @description The package size is missing or not a positive decimal with at most 6 decimals, the bundle count is not a whole number from 2 to 9999 or makes the size per unit too large, or a group is missing, has a size or count that is not valid, or there are too many. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -12692,7 +12712,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The product id is not a UUID, or the package size is not a positive decimal with at most 6 decimals. */
+            /** @description The product id is not a UUID, the package size is not a positive decimal with at most 6 decimals, or the bundle count is not a whole number from 2 to 9999 or has no package size. */
             422: {
                 headers: {
                     [name: string]: unknown;

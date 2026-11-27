@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\Purchasing;
 
 use App\Purchasing\Application\Command\ApplyPackageSize\ApplyPackageSizeCommand;
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -22,6 +23,9 @@ final readonly class ApplyPackageSizeInput
         #[Assert\Count(min: 1, max: ApplyPackageSizeCommand::MAX_TARGETS)]
         #[Assert\Valid]
         public array $groups,
+        /** Single packages per unit of the quantity, with the package size of one single package; left out or null: no bundle (ADR 0048). */
+        #[Assert\Range(min: PackageSize::MIN_BUNDLE_COUNT, max: PackageSize::MAX_BUNDLE_COUNT)]
+        public ?int $bundleCount = null,
     ) {
     }
 }

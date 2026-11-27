@@ -1,6 +1,6 @@
 # 0041. The purchase analysis is a Purchasing module: invoice items grouped into products, a category tree, and prices per a reference quantity the owner picks
 
-Status: Accepted
+Status: Accepted (points 3 and 7 amended for bundles by [0048](0048-bundles-next-to-the-package-size.md))
 
 Date: 2026-11-25
 

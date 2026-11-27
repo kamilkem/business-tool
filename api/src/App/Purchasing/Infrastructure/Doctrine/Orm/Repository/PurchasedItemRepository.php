@@ -10,6 +10,7 @@ use App\Purchasing\Domain\Matching\MatchScope;
 use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Matching\ModelOutcomeCounts;
 use App\Purchasing\Domain\Matching\PriceSanity;
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
@@ -204,9 +205,9 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
             array_filter(PurchaseInvoiceKind::cases(), static fn (PurchaseInvoiceKind $kind): bool => $kind->isCorrection()),
         );
 
-        /** @var list<array{net: int|string|null, quantity: string|null, packageSize: string|null}> $rows */
+        /** @var list<array{net: int|string|null, quantity: string|null, packageSize: string|null, bundleCount: int|null}> $rows */
         $rows = $this->createQueryBuilder('i')
-            ->select('COALESCE(i.netAmount, i.grossAmount - i.vatAmount) AS net', 'i.quantity AS quantity', 'i.packageSize AS packageSize')
+            ->select('COALESCE(i.netAmount, i.grossAmount - i.vatAmount) AS net', 'i.quantity AS quantity', 'i.packageSize AS packageSize', 'i.bundleCount AS bundleCount')
             ->where('i.product = :product')
             ->andWhere('i.status = :confirmed')
             ->andWhere('i.currency = :currency')
@@ -225,7 +226,7 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
 
         $prices = [];
         foreach ($rows as $row) {
-            $price = PriceSanity::perBaseUnit(null === $row['net'] ? null : (int) $row['net'], DecimalString::trimmed($row['quantity']), DecimalString::trimmed($row['packageSize']));
+            $price = PriceSanity::perBaseUnit(null === $row['net'] ? null : (int) $row['net'], DecimalString::trimmed($row['quantity']), self::sizePerUnit($row['packageSize'], $row['bundleCount']));
             if (null !== $price) {
                 $prices[] = $price;
             }
@@ -278,17 +279,17 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
 
     public function countPackageSizesOfProduct(Uuid $productId): array
     {
-        /** @var list<array{unit: string|null, packageSize: string|null, confirmed: bool|int|string, total: int|string}> $rows */
+        /** @var list<array{unit: string|null, packageSize: string|null, bundleCount: int|null, confirmed: bool|int|string, total: int|string}> $rows */
         $rows = $this->createQueryBuilder('i')
-            ->select('i.unit AS unit', 'i.packageSize AS packageSize', '(CASE WHEN i.status = :confirmed THEN 1 ELSE 0 END) AS confirmed', 'COUNT(i.id) AS total')
+            ->select('i.unit AS unit', 'i.packageSize AS packageSize', 'i.bundleCount AS bundleCount', '(CASE WHEN i.status = :confirmed THEN 1 ELSE 0 END) AS confirmed', 'COUNT(i.id) AS total')
             ->where('i.product = :product')
             ->setParameter('product', $productId, 'uuid')
             ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value)
-            ->groupBy('i.unit', 'i.packageSize', 'confirmed')
+            ->groupBy('i.unit', 'i.packageSize', 'i.bundleCount', 'confirmed')
             ->getQuery()
             ->getArrayResult();
 
-        return array_map(static fn (array $row): PackageSizeCount => new PackageSizeCount($row['unit'], $row['packageSize'], 1 === (int) $row['confirmed'], (int) $row['total']), $rows);
+        return array_map(static fn (array $row): PackageSizeCount => new PackageSizeCount($row['unit'], $row['packageSize'], null === $row['bundleCount'] ? null : (int) $row['bundleCount'], 1 === (int) $row['confirmed'], (int) $row['total']), $rows);
     }
 
     public function hasItemsOfProduct(Uuid $productId): bool
@@ -343,5 +344,13 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
         }
 
         return $query;
+    }
+
+    /** The size per unit of the quantity of a stored package size and bundle count (ADR 0048); null when the size is unknown. */
+    private static function sizePerUnit(?string $packageSize, ?int $bundleCount): ?string
+    {
+        $size = DecimalString::trimmed($packageSize);
+
+        return null === $size ? null : PackageSize::of($size, $bundleCount)->total();
     }
 }

@@ -40,7 +40,7 @@ final readonly class ChangePurchasedItemProcessor implements ProcessorInterface
         $itemId = $uriVariables['id'];
         \assert(\is_string($itemId));
 
-        $this->commandBus->handle(new ChangePurchasedItemCommand($organizationId, $actorId, $itemId, $data->productId, $data->packageSize));
+        $this->commandBus->handle(new ChangePurchasedItemCommand($organizationId, $actorId, $itemId, $data->productId, $data->packageSize, $data->bundleCount));
 
         /** @var PurchasedItemView $view */
         $view = $this->queryBus->ask(new GetPurchasedItemQuery($organizationId, $actorId, $itemId));

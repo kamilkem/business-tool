@@ -19,6 +19,7 @@ import { Input } from "@business-tool/ui/components/input"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { api } from "@/lib/api"
+import { bundleCountToSend, bundleInput, packageLabel } from "@/lib/package-size"
 import {
   type PackageSizeGroup,
   type PackageSizeQuestion,
@@ -51,7 +52,7 @@ interface PackageSizeFollowUpProps {
 
 /**
  * Asks, after a package size was set (an item edited, items assigned, a product made from a proposal), whether to
- * set it on the product's other items too (ADR 0048, #271): the ones with no size under other units, and, when an
+ * set it on the product's other items too (ADR 0049, #271): the ones with no size under other units, and, when an
  * existing size was changed, the ones with another size. The owner chooses the groups and may edit the size,
  * because a case is not the same size as a bottle; nothing is applied without that choice. It opens only when there is
  * something to ask, and says nothing otherwise.
@@ -96,15 +97,19 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
   const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const [size, setSize] = useState(answer.size)
+  const [bundleText, setBundleText] = useState(answer.bundleCount === null ? "" : String(answer.bundleCount))
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const all = [...question.fill, ...question.sameUnit, ...question.otherUnits]
   const targets = targetsOf(all, chosen)
   const packageSize = sizeToApply(size)
+  // An empty count is no bundle; a count that is not a whole number from 2 to 9999 is refused before it is sent.
+  const bundle = bundleInput(bundleText.trim() !== "", bundleText)
+  const bundleCount = bundleCountToSend(bundle)
   const count = countItems(all.filter((group) => chosen.has(groupId(group))))
 
   const apply = useMutation({
-    mutationFn: (body: { packageSize: string; groups: typeof targets }) =>
+    mutationFn: (body: { packageSize: string; bundleCount: number | null; groups: typeof targets }) =>
       unwrap(api.POST("/api/products/{id}/package-sizes", { params: { path: { id: request.productId } }, body })),
     onSuccess: async () => {
       toast.success(t("product.packageSizes.toast", { count }))
@@ -124,8 +129,8 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    if (packageSize === null || targets.length === 0) return
-    apply.mutate({ packageSize, groups: targets })
+    if (packageSize === null || bundle.state === "invalid" || targets.length === 0) return
+    apply.mutate({ packageSize, bundleCount, groups: targets })
   }
 
   const sections = [
@@ -139,7 +144,7 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
       <DialogHeader>
         <DialogTitle>{t("product.packageSizes.title")}</DialogTitle>
         <DialogDescription className="break-words">
-          {t("product.packageSizes.description", { name: request.productName, size: answer.size })}
+          {t("product.packageSizes.description", { name: request.productName, size: packageLabel(answer.size, answer.bundleCount, null) })}
         </DialogDescription>
       </DialogHeader>
       <fieldset disabled={apply.isPending} className="py-4">
@@ -155,6 +160,23 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
               aria-invalid={error ? true : undefined}
             />
             {error ? <FieldError>{error}</FieldError> : <FieldDescription>{t("product.packageSizes.sizeDescription")}</FieldDescription>}
+          </Field>
+
+          <Field data-invalid={bundle.state === "invalid" ? true : undefined}>
+            <FieldLabel htmlFor="follow-up-bundle-count">{t("product.packageSizes.bundleCount")}</FieldLabel>
+            <Input
+              id="follow-up-bundle-count"
+              value={bundleText}
+              onChange={(event) => setBundleText(event.target.value)}
+              inputMode="numeric"
+              autoComplete="off"
+              aria-invalid={bundle.state === "invalid" ? true : undefined}
+            />
+            {bundle.state === "invalid" ? (
+              <FieldError>{t("product.item.bundleCountInvalid")}</FieldError>
+            ) : (
+              <FieldDescription>{t("product.packageSizes.bundleCountDescription")}</FieldDescription>
+            )}
           </Field>
 
           {sections.map(
@@ -177,7 +199,7 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
                           {(group.packageSize !== null || group.confirmedCount > 0) && (
                             <FieldDescription>
                               {[
-                                group.packageSize !== null ? t("product.packageSizes.group.now", { size: group.packageSize }) : null,
+                                group.packageSize !== null ? t("product.packageSizes.group.now", { size: packageLabel(group.packageSize, group.bundleCount, null) }) : null,
                                 group.confirmedCount > 0 ? t("product.packageSizes.group.confirmed", { count: group.confirmedCount }) : null,
                               ]
                                 .filter((part) => part !== null)
@@ -197,7 +219,7 @@ function Form({ organizationId, request, answer, question, onClose }: FormProps)
         <Button type="button" variant="outline" disabled={apply.isPending} onClick={onClose}>
           {t("product.packageSizes.skip")}
         </Button>
-        <Button type="submit" disabled={apply.isPending || packageSize === null || targets.length === 0}>
+        <Button type="submit" disabled={apply.isPending || packageSize === null || bundle.state === "invalid" || targets.length === 0}>
           {apply.isPending ? t("common.saving", { ns: "ui" }) : t("product.packageSizes.apply", { count })}
         </Button>
       </DialogFooter>

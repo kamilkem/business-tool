@@ -224,8 +224,8 @@ final class InMemoryPurchasedItemRepository implements PurchasedItemRepositoryIn
         $counts = [];
         foreach ($this->findByProduct($productId) as $item) {
             $confirmed = PurchasedItemStatus::Confirmed === $item->getStatus();
-            $index = ($item->getUnit() ?? '').'|'.($item->getPackageSize() ?? '').'|'.($confirmed ? '1' : '0');
-            $counts[$index] = new PackageSizeCount($item->getUnit(), $item->getPackageSize(), $confirmed, ($counts[$index]->count ?? 0) + 1);
+            $index = ($item->getUnit() ?? '').'|'.($item->getPackageSize() ?? '').'|'.($item->getBundleCount() ?? '').'|'.($confirmed ? '1' : '0');
+            $counts[$index] = new PackageSizeCount($item->getUnit(), $item->getPackageSize(), $item->getBundleCount(), $confirmed, ($counts[$index]->count ?? 0) + 1);
         }
 
         return array_values($counts);

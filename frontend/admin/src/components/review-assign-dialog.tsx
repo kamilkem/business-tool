@@ -23,7 +23,8 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 import { PackageSizeFollowUp, type PackageSizeFollowUpRequest } from "@/components/package-size-follow-up"
 import { ProductPicker } from "@/components/product-picker"
 import { api } from "@/lib/api"
-import { sameSize, unitKeyOf } from "@/lib/package-sizes"
+import { bundleCountToSend, bundleInput, commonBundleCount } from "@/lib/package-size"
+import { samePackage, unitKeyOf } from "@/lib/package-sizes"
 import { type ProductCategory, parentChoices } from "@/lib/product-categories"
 import { MEASURES, PRODUCT_NAME_MAX_LENGTH, type Measure, type Product, normalizeDecimal } from "@/lib/product-prices"
 import { invalidatePurchasing, productCategoriesQuery, productsQuery } from "@/lib/queries"
@@ -65,7 +66,7 @@ interface ReviewAssignDialogProps {
  * items (name prefilled with what the invoice printed), and the package size the owner types, which
  * every item gets. Excluding is assigning to an excluded product. The assignment is all or nothing;
  * a product that was created stays when the assignment then fails, and the retry uses it. A package size
- * that was typed is then offered to the product's other items, which the owner chooses (ADR 0048, #271).
+ * that was typed is then offered to the product's other items, which the owner chooses (ADR 0049, #271).
  */
 export function ReviewAssignDialog({ organizationId, request, onClose, onAssigned }: ReviewAssignDialogProps) {
   const [followUp, setFollowUp] = useState<PackageSizeFollowUpRequest | null>(null)
@@ -140,6 +141,9 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
   const [reference, setReference] = useState("")
   const [excluded, setExcluded] = useState(preset === "exclude")
   const [packageSize, setPackageSize] = useState(commonPackageSize(items) ?? "")
+  const commonBundle = commonBundleCount(items)
+  const [bundled, setBundled] = useState(commonBundle !== null)
+  const [bundleCount, setBundleCount] = useState(commonBundle === null ? "" : String(commonBundle))
   const [errors, setErrors] = useState<AssignErrors>({})
   // The product this form made, kept when the assignment failed: a retry must not make it again.
   const [created, setCreated] = useState<Product | null>(null)
@@ -151,7 +155,10 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
   const sizeApplies = sizeProduct === null || packageSizeApplies(sizeProduct)
   const unitMeasure = sizeProduct === null || !sizeApplies ? null : sizeProduct.measure
   const tooMany = items.length > MAX_ASSIGN_ITEMS
-  const canSubmit = !tooMany && (mode === "existing" ? target !== null : name.trim() !== "" || created !== null)
+  // A bundle goes with a package size sent to every item: with none, each item keeps its own size and count (ADR 0048 §7).
+  const hasSize = sizeApplies && normalizeDecimal(packageSize) !== null
+  const bundle = bundleInput(bundled && hasSize, bundleCount)
+  const canSubmit = !tooMany && bundle.state !== "invalid" && (mode === "existing" ? target !== null : name.trim() !== "" || created !== null)
 
   const assign = useMutation({
     mutationFn: async () => {
@@ -176,14 +183,15 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
         setCreated(product)
       }
       const sizeSent = packageSizeToSend(packageSize, packageSizeApplies(product))
+      const sizeBundle = packageSizeApplies(product) ? bundleCountToSend(bundle) : null
       await unwrap(
         api.POST("/api/purchased-items/assign", {
-          body: { itemIds: items.map((item) => item.id), productId: product.id, packageSize: sizeSent },
+          body: { itemIds: items.map((item) => item.id), productId: product.id, packageSize: sizeSent, bundleCount: sizeBundle },
         }),
       )
-      return { product, sizeSent }
+      return { product, sizeSent, sizeBundle }
     },
-    onSuccess: async ({ product, sizeSent }) => {
+    onSuccess: async ({ product, sizeSent, sizeBundle }) => {
       toast.success(t(product.excluded ? "review.toast.excluded" : "review.toast.assigned", { count: items.length, name: product.name }))
       await invalidatePurchasing(queryClient, organizationId)
       onAssigned()
@@ -195,8 +203,9 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
           productName: product.name,
           answer: {
             size: sizeSent,
+            bundleCount: sizeBundle,
             units: [...new Set(items.map((item) => unitKeyOf(item.unit)))],
-            changed: items.some((item) => item.packageSize !== null && !sameSize(item.packageSize, sizeSent)),
+            changed: items.some((item) => item.packageSize !== null && !samePackage(item, { size: sizeSent, bundleCount: sizeBundle })),
           },
         })
       }
@@ -366,6 +375,42 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
                 <FieldDescription>{t("review.assign.packageSizeDescription", { count: items.length })}</FieldDescription>
               )}
             </Field>
+          )}
+
+          {sizeApplies && (
+            <>
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="review-bundle"
+                  checked={bundled && hasSize}
+                  disabled={!hasSize}
+                  onCheckedChange={(checked) => setBundled(checked === true)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="review-bundle">{t("review.assign.bundle")}</FieldLabel>
+                  <FieldDescription>{t("review.assign.bundleDescription")}</FieldDescription>
+                </FieldContent>
+              </Field>
+              {bundled && hasSize && (
+                <Field data-invalid={bundle.state === "invalid" ? true : undefined}>
+                  <FieldLabel htmlFor="review-bundle-count">{t("review.assign.bundleCount")}</FieldLabel>
+                  <Input
+                    id="review-bundle-count"
+                    value={bundleCount}
+                    onChange={(event) => setBundleCount(event.target.value)}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="20"
+                    aria-invalid={bundle.state === "invalid" ? true : undefined}
+                  />
+                  {bundle.state === "invalid" ? (
+                    <FieldError>{t("product.item.bundleCountInvalid")}</FieldError>
+                  ) : (
+                    <FieldDescription>{t("review.assign.bundleCountDescription")}</FieldDescription>
+                  )}
+                </Field>
+              )}
+            </>
           )}
 
           {errors.form && (
