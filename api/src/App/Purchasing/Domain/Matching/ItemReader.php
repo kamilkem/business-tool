@@ -16,7 +16,7 @@ use App\Purchasing\Domain\Model\ProductMeasure;
  * 2. one size in the name; a multipack (`6x0,5L`, `0,5l x 6`) is its total;
  * 3. a size in the unit's text (`op. 0,2l`) when the name has none;
  * 4. otherwise none. Two different sizes in one name are ambiguous: none.
- * A bare number (`0,7`, `No.7`, `12 YO`, `40%`) is never a size.
+ * A bare number (`0,7`, `No.7`, `12 YO`, `40%`) is never a size; an ABV is read on its own (`abvOf()`).
  *
  * Arithmetic is exact integer arithmetic on millionths of the base unit, never floats (ADR 0040 §4);
  * sizes above 10 000 or with more than six decimals are not read.
@@ -44,6 +44,12 @@ final class ItemReader
     private const array SINGLE_UNITS = [
         'szt', 'sztuk', 'sztuka', 'but', 'butelka', 'fl', 'puszka', 'pusz', 'keg', 'kega', 'beczka', 'worek', 'wor', 'kanister', 'kan',
     ];
+
+    /**
+     * An alcohol strength: `40%`, `40 %`, `40,0%`, `40% vol`, `4 proc.`, `40 vol`. At most three digits and three decimals;
+     * not after a digit, a separator or a minus (`-20%` is a discount).
+     */
+    private const string ABV = '(?<![\d.,\-])(?<abv>\d{1,3}(?:[.,]\d{1,3})?)\s*(?:%|proc(?:ent\w*)?(?![a-z0-9])|vol(?![a-z0-9]))(?:\s*(?:vol|obj|alk)(?![a-z0-9])\.?)?';
 
     private const string SIZE = '(?<n>\d+(?:[.,]\d+)?)\s*(?<u>ml|cl|dl|hl|ltr|lt|litr\w*|l|mg|dkg|dag|kg|gr|g)(?![a-z0-9])';
 
@@ -152,20 +158,71 @@ final class ItemReader
     }
 
     /**
-     * The name key: lower case, diacritics folded, apostrophes dropped, punctuation to spaces, and
-     * sizes, multipacks, ABV and packaging words removed, so "JACK DANIELS 0,7L 40%" and "Jack Daniels
-     * 1L" are one key. Word order and extra words stay: they are left to the aliases the owner
-     * confirms and to the model.
+     * The name key: lower case, diacritics folded, apostrophes dropped, punctuation to spaces, and sizes,
+     * multipacks and packaging words removed, so "JACK DANIELS 0,7L 40%" and "Jack Daniels 1L 40 %" are
+     * one key. **The ABV stays, as one token** (`abv40`, `abv0p5`, whatever way it was printed), because a
+     * beer of 4% and one of 0,5% are two products (ADR 0047); a name without one has none. Word order and
+     * extra words stay: they are left to the aliases the owner confirms and to the model.
      */
     public static function nameKey(string $name): string
     {
         $text = self::fold($name);
         $text = preg_replace('/(?<![\d.,])\d{1,3}\s*[x*×]\s*(?=\d)/u', ' ', $text) ?? $text;
         $text = preg_replace('/(?<![\d.,])\d+(?:[.,]\d+)?\s*(?:ml|cl|dl|hl|ltr|lt|litr\w*|l|mg|dkg|dag|kg|gr|g)(?![a-z0-9])(\s*[x*×]\s*\d{1,3}(?![\d.,a-z]))?/u', ' ', $text) ?? $text;
-        $text = preg_replace('/\d+(?:[.,]\d+)?\s*(?:%|proc\b|vol\b)/u', ' ', $text) ?? $text;
+        $text = preg_replace_callback('/'.self::ABV.'/u', static function (array $match): string {
+            $abv = self::canonicalAbv($match['abv']);
+
+            return null === $abv ? ' ' : ' abv'.str_replace('.', 'p', $abv).' ';
+        }, $text) ?? $text;
         $text = preg_replace('/\b(?:szt|sztuk|zgrz|zgrzewka|kart|karton|krt|op|opak|but|butelka|puszka|keg|kega|fl)\b/u', ' ', $text) ?? $text;
 
         return self::words($text);
+    }
+
+    /**
+     * The alcohol strength the name states, in percent as a decimal string with a point and no trailing zeros
+     * (`40`, `0.5`): "40%", "40 %", "40,0% vol" and "40 proc." are all `40`. Null when the name states none, or
+     * two different ones (ambiguous: nothing is guessed). A percent above 100 is no strength.
+     */
+    public static function abvOf(string $name): ?string
+    {
+        if (false === preg_match_all('/'.self::ABV.'/u', self::fold($name), $matches)) {
+            return null;
+        }
+        $found = [];
+        foreach ($matches['abv'] as $text) {
+            $abv = self::canonicalAbv($text);
+            if (null !== $abv) {
+                $found[$abv] = true;
+            }
+        }
+
+        return 1 === \count($found) ? (string) array_key_first($found) : null;
+    }
+
+    /**
+     * Whether both names state an alcohol strength and the two differ: then they are two products, whatever
+     * else they share (ADR 0047). A name that states none, or an ambiguous one, contradicts nothing.
+     */
+    public static function abvContradicts(string $itemName, string $productName): bool
+    {
+        $item = self::abvOf($itemName);
+        $product = self::abvOf($productName);
+
+        return null !== $item && null !== $product && $item !== $product;
+    }
+
+    /** `40,0` → `40`, `0,50` → `0.5`, `04` → `4`; null above 100. */
+    private static function canonicalAbv(string $text): ?string
+    {
+        [$whole, $fraction] = array_pad(explode('.', str_replace(',', '.', $text), 2), 2, '');
+        $whole = (string) (int) $whole;
+        $fraction = rtrim($fraction, '0');
+        if ((int) $whole > 100 || (100 === (int) $whole && '' !== $fraction)) {
+            return null;
+        }
+
+        return '' === $fraction ? $whole : $whole.'.'.$fraction;
     }
 
     /** The full normalized name, sizes kept: what a seller's exact name is remembered by. */

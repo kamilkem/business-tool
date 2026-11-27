@@ -626,7 +626,7 @@ final class PurchasedItemApiTest extends ApiTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(
-            [['name', 'jack daniels', null], ['seller_name', '5265877635|jack daniels 0 7l 40', '0.700000']],
+            [['name', 'jack daniels abv40', null], ['seller_name', '5265877635|jack daniels 0 7l 40', '0.700000']],
             self::aliasRows($jack),
         );
         $queued = self::queuedJobs();

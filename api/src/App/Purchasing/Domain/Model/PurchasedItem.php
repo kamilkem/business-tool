@@ -282,6 +282,31 @@ class PurchasedItem implements TenantAwareInterface
     }
 
     /**
+     * Matching takes back a link it made itself and that turned out to be wrong (ADR 0047): the item is `unassigned`
+     * again and the model has not been through it, so the next pass over such items asks it. Never for a link a
+     * person made (`confirmed`) or one an owner's alias of a pack (GTIN, seller code, seller name) made: that is the
+     * owner's word.
+     *
+     * @throws \LogicException for an item matching must not change, or one an alias of a pack linked
+     */
+    public function releaseMatch(): void
+    {
+        if (!$this->isMatchable()) {
+            throw new \LogicException('A confirmed item, or one taken off its product by a person, is not changed by matching.');
+        }
+        if (\in_array($this->matchSource, [MatchSource::Gtin, MatchSource::SellerCode, MatchSource::SellerName], true)) {
+            throw new \LogicException('A link the owner\'s alias of a pack made is the owner\'s word, not matching\'s to take back.');
+        }
+
+        $this->product = null;
+        $this->packageSize = null;
+        $this->status = PurchasedItemStatus::Unassigned;
+        $this->matchSource = null;
+        $this->matchCaveat = null;
+        $this->matchedAt = null;
+    }
+
+    /**
      * Matching proposes a product for the item, which no product of the catalog is (ADR 0044), or, with
      * `$name` or `$measure` null, finds nothing to propose, which replaces an earlier proposal. A blank or too long
      * name, one with no letters or digits, and the name a person dismissed for this item are no proposal.

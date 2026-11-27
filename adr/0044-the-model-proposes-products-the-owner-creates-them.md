@@ -1,6 +1,6 @@
 # 0044. The model proposes products for items the catalog lacks; only a person creates one
 
-Status: Accepted
+Status: Accepted (the `proposedName` rule "without ABV" amended by [0047](0047-a-different-abv-is-a-different-product.md))
 
 Date: 2026-11-26
 

@@ -15,6 +15,7 @@ use App\Purchasing\Domain\Matching\ItemReader;
 use App\Purchasing\Domain\Matching\ItemReading;
 use App\Purchasing\Domain\Matching\ItemToInterpret;
 use App\Purchasing\Domain\Matching\MatchDecision;
+use App\Purchasing\Domain\Matching\MatchSource;
 use App\Purchasing\Domain\Model\AliasKeys;
 use App\Purchasing\Domain\Model\AliasKind;
 use App\Purchasing\Domain\Model\Product;
@@ -44,6 +45,9 @@ use Symfony\Component\Uid\Uuid;
  *    what the rules read from the item (MatchDecision).
  * 3. Items are saved in one flush. When the model cannot answer, what the aliases decided is saved and
  *    the exception is rethrown, so the job stops and the unanswered items stay for a later run.
+ *
+ * A product whose name states another ABV than the item's is never the answer, and a link matching made to one is
+ * taken back first (ADR 0047).
  *
  * An `assigned` decision whose price per base unit is far from the median of the product's confirmed items
  * is lowered to `suggested` (ADR 0045 §2), whatever decided it.
@@ -92,6 +96,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         }
 
         $now = $this->clock->now();
+        $this->releaseContradictedMatches($items);
         $multipliers = $this->unitMultipliers($items);
         $prices = new PriceSamples($this->items);
         $open = $this->matchByAliases($items, $multipliers, $prices, $now);
@@ -115,6 +120,27 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
 
         if (null !== $unavailable) {
             throw $unavailable;
+        }
+    }
+
+    /**
+     * Takes back the links matching made to a product whose name states another ABV than the item's (ADR 0047): a
+     * 4% beer under the product of the 0,5% one. They are `unassigned` again and go through the aliases and the model
+     * like the rest. Links a person made and the owner's aliases of a pack made are not touched.
+     *
+     * @param list<PurchasedItem> $items
+     */
+    private function releaseContradictedMatches(array $items): void
+    {
+        foreach ($items as $item) {
+            $product = $item->getProduct();
+            if (null === $product || !ItemReader::abvContradicts($item->getName(), $product->getName())) {
+                continue;
+            }
+            if (\in_array($item->getMatchSource(), [MatchSource::Gtin, MatchSource::SellerCode, MatchSource::SellerName], true)) {
+                continue;
+            }
+            $item->releaseMatch();
         }
     }
 
@@ -229,6 +255,10 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
     private function apply(PurchasedItem $item, ?ItemInterpretation $answer, array $products, array $categories, array $multipliers, PriceSamples $prices, \DateTimeImmutable $now): void
     {
         $product = null === $answer || null === $answer->productId ? null : ($products[$answer->productId] ?? null);
+        if (null !== $product && ItemReader::abvContradicts($item->getName(), $product->getName())) {
+            // A 4% beer is not the product named for 0,5%, whatever the model says (ADR 0047).
+            $product = null;
+        }
         $decision = null === $answer || null === $product
             ? null
             : MatchDecision::fromInterpretation($product, $answer, $this->readingOf($item, $multipliers));
@@ -236,7 +266,7 @@ final readonly class MatchPurchasedItemsHandler implements CommandHandlerInterfa
         if (null === $decision && null !== $answer?->proposal) {
             // No product of the catalog, but the proposed name is one that exists: that is a match to it, for a person to confirm.
             $named = $this->productNamed($answer->proposal->name, $products);
-            if (null !== $named) {
+            if (null !== $named && !ItemReader::abvContradicts($item->getName(), $named->getName())) {
                 $decision = MatchDecision::fromInterpretation($named, new ItemInterpretation($answer->key, $named->getId()->toRfc4122(), InterpretationConfidence::Medium, $answer->packageSize), $this->readingOf($item, $multipliers), fromProposedName: true);
             }
         }

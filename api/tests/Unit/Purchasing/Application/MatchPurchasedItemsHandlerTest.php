@@ -447,6 +447,76 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertSame(PurchasedItemStatus::Assigned, $rent->getStatus());
     }
 
+    public function test_it_does_not_let_a_name_alias_of_a_beer_settle_one_of_another_abv(): void
+    {
+        $light = $this->product('Piwo Litovel Black Lemon 0,5%');
+        $this->learn($this->item('PIWO LITOVEL BLACK LEMON 0,5% 0,5l BUT ZWROTNA'), $light);
+        $same = $this->item('Piwo Litovel Black Lemon 0,50 % 0,5l but zwrotna', sellerTaxId: '1111111111');
+        $stronger = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA', sellerTaxId: '1111111111');
+
+        $this->match([$same, $stronger]);
+
+        self::assertSame($light, $same->getProduct(), 'The same ABV printed another way is the same product.');
+        self::assertSame(MatchSource::Name, $same->getMatchSource());
+        self::assertNull($stronger->getProduct(), 'A 4% beer is not the 0,5% one: no alias knows it, the model said nothing.');
+        self::assertSame(PurchasedItemStatus::Unassigned, $stronger->getStatus());
+        self::assertSame(['PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA'], array_map(static fn ($question): string => $question->name, $this->interpreter->calls[0]['items']), 'Only the one the alias did not know goes to the model.');
+    }
+
+    public function test_it_never_links_what_the_model_says_to_a_product_of_another_abv(): void
+    {
+        $light = $this->product('Piwo Litovel Black Lemon 0,5%');
+        $strong = $this->product('Piwo Litovel Black Lemon 4%');
+        $item = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA');
+        $this->interpreter->answer($item->getName(), $light->getId()->toRfc4122());
+
+        $this->match([$item]);
+
+        self::assertNull($item->getProduct());
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+
+        $other = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,33l');
+        $this->interpreter->answer($other->getName(), $strong->getId()->toRfc4122());
+        $this->match([$other]);
+        self::assertSame($strong, $other->getProduct());
+    }
+
+    public function test_it_does_not_take_a_product_of_another_abv_by_a_proposed_name(): void
+    {
+        $light = $this->product('Piwo Litovel Black Lemon 0,5%');
+        $item = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA');
+        $this->interpreter->propose($item->getName(), new ProductProposal($light->getName(), ProductMeasure::Volume, null));
+
+        $this->match([$item]);
+
+        self::assertNull($item->getProduct());
+    }
+
+    public function test_it_takes_back_a_link_matching_made_to_a_product_of_another_abv_and_leaves_the_owners_words(): void
+    {
+        $light = $this->product('Piwo Litovel Black Lemon 0,5%');
+        $now = new \DateTimeImmutable('2026-11-02 10:00:00');
+        $byModel = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA');
+        $byModel->match($light, '0.5', PurchasedItemStatus::Suggested, $now, MatchSource::Model);
+        $byNameAlias = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA');
+        $byNameAlias->match($light, '0.5', PurchasedItemStatus::Suggested, $now, MatchSource::Name);
+        $byCode = $this->item('PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA', sellerCode: 'LB-05');
+        $byCode->match($light, '0.5', PurchasedItemStatus::Assigned, $now, MatchSource::SellerCode);
+        $fine = $this->item('Piwo Litovel Black Lemon 0,5% 0,5l');
+        $fine->match($light, '0.5', PurchasedItemStatus::Suggested, $now, MatchSource::Model);
+
+        $this->match([$byModel, $byNameAlias, $byCode, $fine], useInterpreter: false);
+
+        foreach ([$byModel, $byNameAlias] as $item) {
+            self::assertNull($item->getProduct());
+            self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+            self::assertNull($item->getMatchSource());
+            self::assertNull($item->getMatchedAt(), 'The model has not been through it since: the next pass asks it.');
+        }
+        self::assertSame($light, $byCode->getProduct(), 'A link the owner\'s alias of a pack made is the owner\'s word.');
+        self::assertSame($light, $fine->getProduct());
+    }
+
     public function test_it_refuses_another_organization(): void
     {
         $this->expectException(\LogicException::class);
@@ -498,6 +568,14 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         $this->items->addAll([$item]);
 
         return $item;
+    }
+
+    private function product(string $name, ProductMeasure $measure = ProductMeasure::Volume): Product
+    {
+        $product = Product::create(Uuid::v7(), $name, null, $measure, null, false, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
+        $this->products->add($product);
+
+        return $product;
     }
 
     private function organizationId(): string

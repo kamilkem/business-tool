@@ -272,6 +272,39 @@ final class PurchasedItemTest extends TestCase
         self::item()->match(self::product('Jack Daniel\'s'), '0.7', PurchasedItemStatus::Confirmed, new \DateTimeImmutable('2026-11-26 03:00:00'));
     }
 
+    public function test_it_gives_back_a_link_matching_made_and_is_asked_by_the_model_again(): void
+    {
+        $item = self::item();
+        $item->match(self::product('Jack Daniel\'s'), '0.7', PurchasedItemStatus::Suggested, new \DateTimeImmutable('2026-11-26 03:00:00'), MatchSource::Model, MatchCaveat::ModelUnsure);
+
+        $item->releaseMatch();
+
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+        self::assertNull($item->getProduct());
+        self::assertNull($item->getPackageSize());
+        self::assertNull($item->getMatchSource());
+        self::assertNull($item->getMatchCaveat());
+        self::assertNull($item->getMatchedAt());
+        self::assertTrue($item->isMatchable());
+    }
+
+    public function test_it_does_not_give_back_a_link_of_a_person_or_of_the_owners_alias_of_a_pack(): void
+    {
+        $confirmed = self::item();
+        $confirmed->link(self::product('Jack Daniel\'s'), '0.7', $this->actorId, MembershipRole::Owner);
+        $byCode = self::item();
+        $byCode->match(self::product('Jack Daniel\'s'), '0.7', PurchasedItemStatus::Assigned, new \DateTimeImmutable('2026-11-26 03:00:00'), MatchSource::SellerCode);
+
+        foreach ([$confirmed, $byCode] as $item) {
+            try {
+                $item->releaseMatch();
+                self::fail('The link is not matching\'s to take back.');
+            } catch (\LogicException) {
+                self::assertNotNull($item->getProduct());
+            }
+        }
+    }
+
     public function test_it_carries_a_proposal_keyed_by_the_proposed_names_normal_form(): void
     {
         $item = self::item();
