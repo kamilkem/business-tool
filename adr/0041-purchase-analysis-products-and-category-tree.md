@@ -1,6 +1,6 @@
 # 0041. The purchase analysis is a Purchasing module: invoice items grouped into products, a category tree, and prices per a reference quantity the owner picks
 
-Status: Accepted (points 3 and 7 amended for bundles by [0048](0048-bundles-next-to-the-package-size.md))
+Status: Accepted (points 3 and 7 amended for bundles by [0048](0048-bundles-next-to-the-package-size.md); point 6, the gross of an item that prints only its net, by [0051](0051-gross-of-net-priced-items-is-derived-from-the-vat-rate.md))
 
 Date: 2026-11-25
 

@@ -184,6 +184,39 @@ final class PurchaseAnalysisRepositoryTest extends KernelTestCase
         self::assertSame(1, $analysis->itemsWithoutPackageSize, 'The 3 items of an unknown size; the unassigned and the correction rows are not.');
     }
 
+    public function test_it_derives_the_gross_of_an_item_that_prints_only_its_net_from_its_vat_rate(): void
+    {
+        $this->arrangeNetPriced();
+
+        $analysis = $this->analysis->overview(BusinessPeriod::fromStrings('2026-11-01', '2026-11-30'), 'PLN');
+        $wine = self::byName($analysis->products)['Wino'];
+
+        // Gross: 10 000 at 23% = 12 300; 4 000 at 8% = 4 320; 1 000 exempt = 1 000; 333 at 23% = 409.59, rounded per item to 410;
+        // the correction's rows 1 000 and 800 at 23% = -1 230 + 984; the item with no rate has none.
+        self::assertSame(18_030 - 246, $wine->spend->gross);
+        self::assertSame(15_833 - 200, $wine->spend->net, 'The net is as printed; the item with no rate counts in it.');
+        // The average over the points that have a gross: 18 030 ÷ 5 L (the item with no rate is left out of the litres too).
+        self::assertSame(3_606, $wine->averageGrossPrice);
+        self::assertSame(1, $analysis->itemsWithoutGross, 'The item with no rate.');
+    }
+
+    public function test_it_derives_the_gross_price_of_a_net_priced_point_and_leaves_one_with_a_printed_gross_alone(): void
+    {
+        $this->arrangeNetPriced();
+
+        $points = $this->analysis->priceHistory(Uuid::fromString($this->ids['Wino']), 'PLN', null, null);
+
+        self::assertSame(['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14'], array_map(static fn (PricePoint $point): string => $point->date, $points));
+        [$first, $second, , , $withoutRate] = $points;
+        self::assertNotNull($first->net);
+        self::assertNotNull($first->gross);
+        self::assertSame([5_000, 6_150], [$first->net->price, $first->gross->price], '2 L for 10 000 net at 23%.');
+        self::assertNotNull($second->gross);
+        self::assertSame([4_320, -1_830], [$second->gross->price, $second->gross->change], '4 000 net at 8% against the previous 6 150.');
+        self::assertNotNull($withoutRate->net);
+        self::assertNull($withoutRate->gross, 'A rate with no percentage gives no gross.');
+    }
+
     public function test_it_counts_only_the_invoices_issued_in_the_period(): void
     {
         $analysis = $this->analysis->overview(BusinessPeriod::fromStrings('2026-10-01', '2026-10-31'), 'PLN');
@@ -317,17 +350,44 @@ final class PurchaseAnalysisRepositoryTest extends KernelTestCase
         $this->tenantContext->switchTo($this->organization);
     }
 
+    /**
+     * Items of invoices priced net, with a VAT rate and no gross, for the derivation of ADR 0051: Wino, per 1 L,
+     * 2026-11-10..14, net / the gross they get.
+     *  - 11-10: 2 × 1 L at 23%   10 000 / 12 300
+     *  - 11-11: 1 × 1 L at 8%     4 000 /  4 320
+     *  - 11-12: 1 × 1 L exempt    1 000 /  1 000
+     *  - 11-13: 1 × 1 L at 23%      333 /    410 (409.59 rounded per item)
+     *  - 11-14: 1 × 1 L, no rate    500 /      –
+     *  - 11-20 correction at 23%: the row before 1 000 / 1 230, the row after 800 / 984 (no price points)
+     */
+    private function arrangeNetPriced(): void
+    {
+        $owner = OrganizationMother::ownerOf($this->organization);
+        $now = new \DateTimeImmutable('2026-11-25 03:00:00');
+        $wine = Product::create(Uuid::v7(), 'Wino', null, ProductMeasure::Volume, '1', false, null, $owner->getId(), MembershipRole::Owner, $now);
+        self::getContainer()->get(ProductRepositoryInterface::class)->add($wine);
+        $this->ids['Wino'] = $wine->getId()->toRfc4122();
+
+        $this->item($wine, '2026-11-10', 'A', 'Wino 1 l', '2', '1', 10_000, null, vatRate: '23');
+        $this->item($wine, '2026-11-11', 'A', 'Wino 1 l', '1', '1', 4_000, null, vatRate: '8');
+        $this->item($wine, '2026-11-12', 'A', 'Wino 1 l', '1', '1', 1_000, null, vatRate: 'zw');
+        $this->item($wine, '2026-11-13', 'A', 'Wino 1 l', '1', '1', 333, null, vatRate: '23');
+        $this->item($wine, '2026-11-14', 'A', 'Wino 1 l', '1', '1', 500, null);
+        $this->item($wine, '2026-11-20', 'A', 'Wino 1 l', '1', '1', 1_000, null, kind: 'correction', beforeCorrection: true, vatRate: '23');
+        $this->item($wine, '2026-11-20', 'A', 'Wino 1 l', '1', '1', 800, null, kind: 'correction', invoiceId: $this->lastInvoiceId, index: 2, vatRate: '23');
+    }
+
     private string $lastInvoiceId = '';
 
     /** @return string the invoice's id */
-    private function item(?Product $product, string $issueDate, string $seller, string $name, string $quantity, ?string $packageSize, ?int $net, ?int $gross, string $kind = 'regular', string $currency = 'PLN', bool $beforeCorrection = false, ?string $invoiceId = null, int $index = 1, ?int $vat = null): string
+    private function item(?Product $product, string $issueDate, string $seller, string $name, string $quantity, ?string $packageSize, ?int $net, ?int $gross, string $kind = 'regular', string $currency = 'PLN', bool $beforeCorrection = false, ?string $invoiceId = null, int $index = 1, ?int $vat = null, ?string $vatRate = null): string
     {
         $invoiceId ??= Uuid::v7()->toRfc4122();
         $this->lastInvoiceId = $invoiceId;
         $taxIds = ['A' => '111', 'B' => '222', 'C' => '333'];
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
             Uuid::fromString($invoiceId), $index, BusinessDate::fromString($issueDate), $kind, $currency, $taxIds[$seller], 'Hurtownia '.$seller,
-            1, $name, null, null, 'szt.', $quantity, null, null, null, $net, $gross, $vat, null, $beforeCorrection,
+            1, $name, null, null, 'szt.', $quantity, null, null, null, $net, $gross, $vat, $vatRate, $beforeCorrection,
         ), new \DateTimeImmutable('2026-11-25 03:00:00')->modify('+'.(++$this->stored).' seconds'));
         self::getContainer()->get(PurchasedItemRepositoryInterface::class)->addAll([$item]);
 
