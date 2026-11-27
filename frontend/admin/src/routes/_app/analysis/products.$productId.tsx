@@ -18,7 +18,7 @@ import { type BusinessPeriod, thisMonth } from "@business-tool/ui/lib/date-time"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { BasisToggle } from "@/components/basis-toggle"
-import { ExpensesNav } from "@/components/expenses-nav"
+import { AnalysisNav } from "@/components/analysis-nav"
 import { InvoiceSheet } from "@/components/invoice-sheet"
 import { PriceChangeLabel } from "@/components/price-change"
 import { ProductMergeDialog } from "@/components/product-merge-dialog"
@@ -43,13 +43,13 @@ import { priceHistoryQuery, productCategoriesQuery, productQuery } from "@/lib/q
  * One product of the purchase analysis (#245, ADR 0041 §9): the price per reference quantity over
  * the issue date as a chart, with the points coloured by seller; the purchases behind it, each with
  * its invoice; the product's settings, merging and moving an item to another product. It is the
- * drill-down of the Analiza overview (the net/gross choice is shared with it) and shows the last 12
+ * drill-down of the Analysis overview (the net/gross choice is shared with it) and shows the last 12
  * months unless a period is picked. The price change is the API's: against the previous purchase of
  * the product from any seller, also one before the period, as in the overview.
  */
-export const Route = createFileRoute("/_app/expenses/analysis_/products/$productId")({
+export const Route = createFileRoute("/_app/analysis/products/$productId")({
   validateSearch: (search: Record<string, unknown>): ProductSearch => validateProductSearch(search),
-  beforeLoad: requireCapability("expenses"),
+  beforeLoad: requireCapability("analysis"),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, params, deps }) => {
     const { organization } = context.membership
@@ -75,9 +75,9 @@ function PageTop({ children }: { children?: ReactNode }) {
   const { t } = useTranslation("admin")
   return (
     <div className="flex flex-col gap-3">
-      <ExpensesNav />
+      <AnalysisNav />
       <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
-        <Link to="/expenses/analysis">
+        <Link to="/analysis">
           <ArrowLeftIcon />
           {t("product.back")}
         </Link>
@@ -274,7 +274,7 @@ function ProductPage() {
         open={mergeOpen}
         onOpenChange={setMergeOpen}
         onMerged={(into) =>
-          void navigate({ to: "/expenses/analysis/products/$productId", params: { productId: into.id }, search: (previous) => previous })
+          void navigate({ to: "/analysis/products/$productId", params: { productId: into.id }, search: (previous) => previous })
         }
       />
     </div>

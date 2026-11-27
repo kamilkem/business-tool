@@ -29,6 +29,8 @@ export type Capability =
   | "incomeClose"
   /** Expenses: purchase invoices, and the product category tree (ADR 0041). */
   | "expenses"
+  /** Analysis: what is bought, the review queue and the proposed products (ADR 0041, ADR 0044). */
+  | "analysis"
   /** Cash flow: review, correct, delete and record end-of-day closes (ADR 0033 §6, §7). */
   | "cashFlow"
   /** Payroll: rates, and runs that are generated, reviewed and adjusted (ADR 0027 §10). */
@@ -52,6 +54,7 @@ const allowedRoles: Record<Capability, readonly Role[]> = {
   income: OWNERS_AND_MANAGERS,
   incomeClose: ["owner"],
   expenses: OWNERS_AND_MANAGERS,
+  analysis: OWNERS_AND_MANAGERS,
   cashFlow: OWNERS_AND_MANAGERS,
   payroll: OWNERS_AND_MANAGERS,
   payrollApprove: ["owner"],

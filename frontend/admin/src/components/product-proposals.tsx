@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react"
 import { ApiError, unwrap } from "@business-tool/api-client"
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
-import { PlusIcon, SparklesIcon } from "lucide-react"
+import { CircleCheckIcon, PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Badge } from "@business-tool/ui/components/badge"
 import { Button } from "@business-tool/ui/components/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@business-tool/ui/components/card"
+import { Card, CardContent } from "@business-tool/ui/components/card"
 import {
   Dialog,
   DialogContent,
@@ -40,9 +40,10 @@ interface ProductProposalsProps {
 }
 
 /**
- * The products the model proposes for items that matched nothing in the catalog (ADR 0044), above the
- * review queue. Each is a decision for the owner: create the product (editing its name, category and
- * measure first), add its items to a product that exists, or dismiss it. Nothing is created until then.
+ * The products the model proposes for items that matched nothing in the catalog (ADR 0044), on the
+ * Proposed products page (#269), which carries the heading. Each is a decision for the owner: create the
+ * product (editing its name, category and measure first), add its items to a product that exists, or
+ * dismiss it. Nothing is created until then.
  */
 export function ProductProposals({ organizationId }: ProductProposalsProps) {
   const { t } = useTranslation("admin")
@@ -81,20 +82,22 @@ export function ProductProposals({ organizationId }: ProductProposalsProps) {
     onSettled: refresh,
   })
 
-  if (proposals.data.length === 0) return null
+  if (proposals.data.length === 0) {
+    return (
+      <Card className="py-0">
+        <CardContent className="flex flex-col items-center gap-2 px-6 py-10 text-center text-sm text-muted-foreground">
+          <CircleCheckIcon className="size-6" />
+          {t("review.proposals.empty")}
+        </CardContent>
+      </Card>
+    )
+  }
 
   const busy = dismiss.isPending || addToSame.isPending
 
   return (
     <>
       <Card className="gap-0 overflow-hidden py-0">
-        <CardHeader className="border-b px-4 py-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <SparklesIcon className="size-4" />
-            {t("review.proposals.title")}
-          </CardTitle>
-          <CardDescription>{t("review.proposals.description")}</CardDescription>
-        </CardHeader>
         <CardContent className="px-0">
           <ul className="divide-y">
             {proposals.data.map((proposal) => {

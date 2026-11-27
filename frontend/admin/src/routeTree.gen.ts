@@ -19,23 +19,26 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppShiftRequestsRouteImport } from './routes/_app/shift-requests'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTimeRouteImport } from './routes/_app/time'
+import { Route as AppAnalysisIndexRouteImport } from './routes/_app/analysis/index'
+import { Route as AppAnalysisProposalsRouteImport } from './routes/_app/analysis/proposals'
+import { Route as AppAnalysisReviewRouteImport } from './routes/_app/analysis/review'
 import { Route as AppCashFlowIndexRouteImport } from './routes/_app/cash-flow/index'
 import { Route as AppCashFlowDenominationsRouteImport } from './routes/_app/cash-flow/denominations'
 import { Route as AppCashFlowStoragesRouteImport } from './routes/_app/cash-flow/storages'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
-import { Route as AppExpensesAnalysisRouteImport } from './routes/_app/expenses/analysis'
 import { Route as AppExpensesCategoriesRouteImport } from './routes/_app/expenses/categories'
 import { Route as AppIncomeIndexRouteImport } from './routes/_app/income/index'
 import { Route as AppIncomePaymentMethodsRouteImport } from './routes/_app/income/payment-methods'
 import { Route as AppIncomeRegistersRouteImport } from './routes/_app/income/registers'
 import { Route as AppPayrollIndexRouteImport } from './routes/_app/payroll/index'
 import { Route as AppPayrollRatesRouteImport } from './routes/_app/payroll/rates'
+import { Route as AppAnalysisProductsProductIdRouteImport } from './routes/_app/analysis/products.$productId'
 import { Route as AppCashFlowClosesIndexRouteImport } from './routes/_app/cash-flow/closes/index'
 import { Route as AppCashFlowClosesNewRouteImport } from './routes/_app/cash-flow/closes/new'
-import { Route as AppExpensesAnalysisReviewRouteImport } from './routes/_app/expenses/analysis_.review'
+import { Route as AppExpensesAnalysisIndexRouteImport } from './routes/_app/expenses/analysis/index'
+import { Route as AppExpensesAnalysisSplatRouteImport } from './routes/_app/expenses/analysis/$'
 import { Route as AppCashFlowClosesCloseIdIndexRouteImport } from './routes/_app/cash-flow/closes/$closeId/index'
 import { Route as AppCashFlowClosesCloseIdCorrectRouteImport } from './routes/_app/cash-flow/closes/$closeId/correct'
-import { Route as AppExpensesAnalysisProductsProductIdRouteImport } from './routes/_app/expenses/analysis_.products.$productId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -86,6 +89,21 @@ const AppTimeRoute = AppTimeRouteImport.update({
   path: '/time',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAnalysisIndexRoute = AppAnalysisIndexRouteImport.update({
+  id: '/analysis/',
+  path: '/analysis/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalysisProposalsRoute = AppAnalysisProposalsRouteImport.update({
+  id: '/analysis/proposals',
+  path: '/analysis/proposals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalysisReviewRoute = AppAnalysisReviewRouteImport.update({
+  id: '/analysis/review',
+  path: '/analysis/review',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCashFlowIndexRoute = AppCashFlowIndexRouteImport.update({
   id: '/cash-flow/',
   path: '/cash-flow/',
@@ -105,11 +123,6 @@ const AppCashFlowStoragesRoute = AppCashFlowStoragesRouteImport.update({
 const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
   id: '/expenses/',
   path: '/expenses/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppExpensesAnalysisRoute = AppExpensesAnalysisRouteImport.update({
-  id: '/expenses/analysis',
-  path: '/expenses/analysis',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExpensesCategoriesRoute = AppExpensesCategoriesRouteImport.update({
@@ -142,6 +155,12 @@ const AppPayrollRatesRoute = AppPayrollRatesRouteImport.update({
   path: '/payroll/rates',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAnalysisProductsProductIdRoute =
+  AppAnalysisProductsProductIdRouteImport.update({
+    id: '/analysis/products/$productId',
+    path: '/analysis/products/$productId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppCashFlowClosesIndexRoute = AppCashFlowClosesIndexRouteImport.update({
   id: '/cash-flow/closes/',
   path: '/cash-flow/closes/',
@@ -152,10 +171,16 @@ const AppCashFlowClosesNewRoute = AppCashFlowClosesNewRouteImport.update({
   path: '/cash-flow/closes/new',
   getParentRoute: () => AppRoute,
 } as any)
-const AppExpensesAnalysisReviewRoute =
-  AppExpensesAnalysisReviewRouteImport.update({
-    id: '/expenses/analysis_/review',
-    path: '/expenses/analysis/review',
+const AppExpensesAnalysisIndexRoute =
+  AppExpensesAnalysisIndexRouteImport.update({
+    id: '/expenses/analysis/',
+    path: '/expenses/analysis/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppExpensesAnalysisSplatRoute =
+  AppExpensesAnalysisSplatRouteImport.update({
+    id: '/expenses/analysis/$',
+    path: '/expenses/analysis/$',
     getParentRoute: () => AppRoute,
   } as any)
 const AppCashFlowClosesCloseIdIndexRoute =
@@ -170,12 +195,6 @@ const AppCashFlowClosesCloseIdCorrectRoute =
     path: '/cash-flow/closes/$closeId/correct',
     getParentRoute: () => AppRoute,
   } as any)
-const AppExpensesAnalysisProductsProductIdRoute =
-  AppExpensesAnalysisProductsProductIdRouteImport.update({
-    id: '/expenses/analysis_/products/$productId',
-    path: '/expenses/analysis/products/$productId',
-    getParentRoute: () => AppRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -187,22 +206,25 @@ export interface FileRoutesByFullPath {
   '/shift-requests': typeof AppShiftRequestsRoute
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
+  '/analysis/proposals': typeof AppAnalysisProposalsRoute
+  '/analysis/review': typeof AppAnalysisReviewRoute
   '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/cash-flow/storages': typeof AppCashFlowStoragesRoute
-  '/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
+  '/analysis/': typeof AppAnalysisIndexRoute
   '/cash-flow/': typeof AppCashFlowIndexRoute
   '/expenses/': typeof AppExpensesIndexRoute
   '/income/': typeof AppIncomeIndexRoute
   '/payroll/': typeof AppPayrollIndexRoute
+  '/analysis/products/$productId': typeof AppAnalysisProductsProductIdRoute
   '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
-  '/expenses/analysis/review': typeof AppExpensesAnalysisReviewRoute
+  '/expenses/analysis/$': typeof AppExpensesAnalysisSplatRoute
   '/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
+  '/expenses/analysis/': typeof AppExpensesAnalysisIndexRoute
   '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
-  '/expenses/analysis/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
   '/cash-flow/closes/$closeId/': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -215,22 +237,25 @@ export interface FileRoutesByTo {
   '/team': typeof AppTeamRoute
   '/time': typeof AppTimeRoute
   '/': typeof AppIndexRoute
+  '/analysis/proposals': typeof AppAnalysisProposalsRoute
+  '/analysis/review': typeof AppAnalysisReviewRoute
   '/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/cash-flow/storages': typeof AppCashFlowStoragesRoute
-  '/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/expenses/categories': typeof AppExpensesCategoriesRoute
   '/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/income/registers': typeof AppIncomeRegistersRoute
   '/payroll/rates': typeof AppPayrollRatesRoute
+  '/analysis': typeof AppAnalysisIndexRoute
   '/cash-flow': typeof AppCashFlowIndexRoute
   '/expenses': typeof AppExpensesIndexRoute
   '/income': typeof AppIncomeIndexRoute
   '/payroll': typeof AppPayrollIndexRoute
+  '/analysis/products/$productId': typeof AppAnalysisProductsProductIdRoute
   '/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
-  '/expenses/analysis/review': typeof AppExpensesAnalysisReviewRoute
+  '/expenses/analysis/$': typeof AppExpensesAnalysisSplatRoute
   '/cash-flow/closes': typeof AppCashFlowClosesIndexRoute
+  '/expenses/analysis': typeof AppExpensesAnalysisIndexRoute
   '/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
-  '/expenses/analysis/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
   '/cash-flow/closes/$closeId': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRoutesById {
@@ -245,22 +270,25 @@ export interface FileRoutesById {
   '/_app/team': typeof AppTeamRoute
   '/_app/time': typeof AppTimeRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/analysis/proposals': typeof AppAnalysisProposalsRoute
+  '/_app/analysis/review': typeof AppAnalysisReviewRoute
   '/_app/cash-flow/denominations': typeof AppCashFlowDenominationsRoute
   '/_app/cash-flow/storages': typeof AppCashFlowStoragesRoute
-  '/_app/expenses/analysis': typeof AppExpensesAnalysisRoute
   '/_app/expenses/categories': typeof AppExpensesCategoriesRoute
   '/_app/income/payment-methods': typeof AppIncomePaymentMethodsRoute
   '/_app/income/registers': typeof AppIncomeRegistersRoute
   '/_app/payroll/rates': typeof AppPayrollRatesRoute
+  '/_app/analysis/': typeof AppAnalysisIndexRoute
   '/_app/cash-flow/': typeof AppCashFlowIndexRoute
   '/_app/expenses/': typeof AppExpensesIndexRoute
   '/_app/income/': typeof AppIncomeIndexRoute
   '/_app/payroll/': typeof AppPayrollIndexRoute
+  '/_app/analysis/products/$productId': typeof AppAnalysisProductsProductIdRoute
   '/_app/cash-flow/closes/new': typeof AppCashFlowClosesNewRoute
-  '/_app/expenses/analysis_/review': typeof AppExpensesAnalysisReviewRoute
+  '/_app/expenses/analysis/$': typeof AppExpensesAnalysisSplatRoute
   '/_app/cash-flow/closes/': typeof AppCashFlowClosesIndexRoute
+  '/_app/expenses/analysis/': typeof AppExpensesAnalysisIndexRoute
   '/_app/cash-flow/closes/$closeId/correct': typeof AppCashFlowClosesCloseIdCorrectRoute
-  '/_app/expenses/analysis_/products/$productId': typeof AppExpensesAnalysisProductsProductIdRoute
   '/_app/cash-flow/closes/$closeId/': typeof AppCashFlowClosesCloseIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -275,22 +303,25 @@ export interface FileRouteTypes {
     | '/shift-requests'
     | '/team'
     | '/time'
+    | '/analysis/proposals'
+    | '/analysis/review'
     | '/cash-flow/denominations'
     | '/cash-flow/storages'
-    | '/expenses/analysis'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
+    | '/analysis/'
     | '/cash-flow/'
     | '/expenses/'
     | '/income/'
     | '/payroll/'
+    | '/analysis/products/$productId'
     | '/cash-flow/closes/new'
-    | '/expenses/analysis/review'
+    | '/expenses/analysis/$'
     | '/cash-flow/closes/'
+    | '/expenses/analysis/'
     | '/cash-flow/closes/$closeId/correct'
-    | '/expenses/analysis/products/$productId'
     | '/cash-flow/closes/$closeId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -303,22 +334,25 @@ export interface FileRouteTypes {
     | '/team'
     | '/time'
     | '/'
+    | '/analysis/proposals'
+    | '/analysis/review'
     | '/cash-flow/denominations'
     | '/cash-flow/storages'
-    | '/expenses/analysis'
     | '/expenses/categories'
     | '/income/payment-methods'
     | '/income/registers'
     | '/payroll/rates'
+    | '/analysis'
     | '/cash-flow'
     | '/expenses'
     | '/income'
     | '/payroll'
+    | '/analysis/products/$productId'
     | '/cash-flow/closes/new'
-    | '/expenses/analysis/review'
+    | '/expenses/analysis/$'
     | '/cash-flow/closes'
+    | '/expenses/analysis'
     | '/cash-flow/closes/$closeId/correct'
-    | '/expenses/analysis/products/$productId'
     | '/cash-flow/closes/$closeId'
   id:
     | '__root__'
@@ -332,22 +366,25 @@ export interface FileRouteTypes {
     | '/_app/team'
     | '/_app/time'
     | '/_app/'
+    | '/_app/analysis/proposals'
+    | '/_app/analysis/review'
     | '/_app/cash-flow/denominations'
     | '/_app/cash-flow/storages'
-    | '/_app/expenses/analysis'
     | '/_app/expenses/categories'
     | '/_app/income/payment-methods'
     | '/_app/income/registers'
     | '/_app/payroll/rates'
+    | '/_app/analysis/'
     | '/_app/cash-flow/'
     | '/_app/expenses/'
     | '/_app/income/'
     | '/_app/payroll/'
+    | '/_app/analysis/products/$productId'
     | '/_app/cash-flow/closes/new'
-    | '/_app/expenses/analysis_/review'
+    | '/_app/expenses/analysis/$'
     | '/_app/cash-flow/closes/'
+    | '/_app/expenses/analysis/'
     | '/_app/cash-flow/closes/$closeId/correct'
-    | '/_app/expenses/analysis_/products/$productId'
     | '/_app/cash-flow/closes/$closeId/'
   fileRoutesById: FileRoutesById
 }
@@ -430,6 +467,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTimeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/analysis/': {
+      id: '/_app/analysis/'
+      path: '/analysis'
+      fullPath: '/analysis/'
+      preLoaderRoute: typeof AppAnalysisIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analysis/proposals': {
+      id: '/_app/analysis/proposals'
+      path: '/analysis/proposals'
+      fullPath: '/analysis/proposals'
+      preLoaderRoute: typeof AppAnalysisProposalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analysis/review': {
+      id: '/_app/analysis/review'
+      path: '/analysis/review'
+      fullPath: '/analysis/review'
+      preLoaderRoute: typeof AppAnalysisReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cash-flow/': {
       id: '/_app/cash-flow/'
       path: '/cash-flow'
@@ -456,13 +514,6 @@ declare module '@tanstack/react-router' {
       path: '/expenses'
       fullPath: '/expenses/'
       preLoaderRoute: typeof AppExpensesIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/expenses/analysis': {
-      id: '/_app/expenses/analysis'
-      path: '/expenses/analysis'
-      fullPath: '/expenses/analysis'
-      preLoaderRoute: typeof AppExpensesAnalysisRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/expenses/categories': {
@@ -507,6 +558,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollRatesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/analysis/products/$productId': {
+      id: '/_app/analysis/products/$productId'
+      path: '/analysis/products/$productId'
+      fullPath: '/analysis/products/$productId'
+      preLoaderRoute: typeof AppAnalysisProductsProductIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cash-flow/closes/': {
       id: '/_app/cash-flow/closes/'
       path: '/cash-flow/closes'
@@ -521,11 +579,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashFlowClosesNewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/expenses/analysis_/review': {
-      id: '/_app/expenses/analysis_/review'
-      path: '/expenses/analysis/review'
-      fullPath: '/expenses/analysis/review'
-      preLoaderRoute: typeof AppExpensesAnalysisReviewRouteImport
+    '/_app/expenses/analysis/': {
+      id: '/_app/expenses/analysis/'
+      path: '/expenses/analysis'
+      fullPath: '/expenses/analysis/'
+      preLoaderRoute: typeof AppExpensesAnalysisIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/expenses/analysis/$': {
+      id: '/_app/expenses/analysis/$'
+      path: '/expenses/analysis/$'
+      fullPath: '/expenses/analysis/$'
+      preLoaderRoute: typeof AppExpensesAnalysisSplatRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cash-flow/closes/$closeId/': {
@@ -542,13 +607,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashFlowClosesCloseIdCorrectRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/expenses/analysis_/products/$productId': {
-      id: '/_app/expenses/analysis_/products/$productId'
-      path: '/expenses/analysis/products/$productId'
-      fullPath: '/expenses/analysis/products/$productId'
-      preLoaderRoute: typeof AppExpensesAnalysisProductsProductIdRouteImport
-      parentRoute: typeof AppRoute
-    }
   }
 }
 
@@ -559,22 +617,25 @@ interface AppRouteChildren {
   AppTeamRoute: typeof AppTeamRoute
   AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAnalysisProposalsRoute: typeof AppAnalysisProposalsRoute
+  AppAnalysisReviewRoute: typeof AppAnalysisReviewRoute
   AppCashFlowDenominationsRoute: typeof AppCashFlowDenominationsRoute
   AppCashFlowStoragesRoute: typeof AppCashFlowStoragesRoute
-  AppExpensesAnalysisRoute: typeof AppExpensesAnalysisRoute
   AppExpensesCategoriesRoute: typeof AppExpensesCategoriesRoute
   AppIncomePaymentMethodsRoute: typeof AppIncomePaymentMethodsRoute
   AppIncomeRegistersRoute: typeof AppIncomeRegistersRoute
   AppPayrollRatesRoute: typeof AppPayrollRatesRoute
+  AppAnalysisIndexRoute: typeof AppAnalysisIndexRoute
   AppCashFlowIndexRoute: typeof AppCashFlowIndexRoute
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
   AppIncomeIndexRoute: typeof AppIncomeIndexRoute
   AppPayrollIndexRoute: typeof AppPayrollIndexRoute
+  AppAnalysisProductsProductIdRoute: typeof AppAnalysisProductsProductIdRoute
   AppCashFlowClosesNewRoute: typeof AppCashFlowClosesNewRoute
-  AppExpensesAnalysisReviewRoute: typeof AppExpensesAnalysisReviewRoute
+  AppExpensesAnalysisSplatRoute: typeof AppExpensesAnalysisSplatRoute
   AppCashFlowClosesIndexRoute: typeof AppCashFlowClosesIndexRoute
+  AppExpensesAnalysisIndexRoute: typeof AppExpensesAnalysisIndexRoute
   AppCashFlowClosesCloseIdCorrectRoute: typeof AppCashFlowClosesCloseIdCorrectRoute
-  AppExpensesAnalysisProductsProductIdRoute: typeof AppExpensesAnalysisProductsProductIdRoute
   AppCashFlowClosesCloseIdIndexRoute: typeof AppCashFlowClosesCloseIdIndexRoute
 }
 
@@ -585,23 +646,25 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeamRoute: AppTeamRoute,
   AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAnalysisProposalsRoute: AppAnalysisProposalsRoute,
+  AppAnalysisReviewRoute: AppAnalysisReviewRoute,
   AppCashFlowDenominationsRoute: AppCashFlowDenominationsRoute,
   AppCashFlowStoragesRoute: AppCashFlowStoragesRoute,
-  AppExpensesAnalysisRoute: AppExpensesAnalysisRoute,
   AppExpensesCategoriesRoute: AppExpensesCategoriesRoute,
   AppIncomePaymentMethodsRoute: AppIncomePaymentMethodsRoute,
   AppIncomeRegistersRoute: AppIncomeRegistersRoute,
   AppPayrollRatesRoute: AppPayrollRatesRoute,
+  AppAnalysisIndexRoute: AppAnalysisIndexRoute,
   AppCashFlowIndexRoute: AppCashFlowIndexRoute,
   AppExpensesIndexRoute: AppExpensesIndexRoute,
   AppIncomeIndexRoute: AppIncomeIndexRoute,
   AppPayrollIndexRoute: AppPayrollIndexRoute,
+  AppAnalysisProductsProductIdRoute: AppAnalysisProductsProductIdRoute,
   AppCashFlowClosesNewRoute: AppCashFlowClosesNewRoute,
-  AppExpensesAnalysisReviewRoute: AppExpensesAnalysisReviewRoute,
+  AppExpensesAnalysisSplatRoute: AppExpensesAnalysisSplatRoute,
   AppCashFlowClosesIndexRoute: AppCashFlowClosesIndexRoute,
+  AppExpensesAnalysisIndexRoute: AppExpensesAnalysisIndexRoute,
   AppCashFlowClosesCloseIdCorrectRoute: AppCashFlowClosesCloseIdCorrectRoute,
-  AppExpensesAnalysisProductsProductIdRoute:
-    AppExpensesAnalysisProductsProductIdRoute,
   AppCashFlowClosesCloseIdIndexRoute: AppCashFlowClosesCloseIdIndexRoute,
 }
 

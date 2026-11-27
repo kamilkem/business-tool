@@ -24,7 +24,7 @@ import {
 } from "@/lib/purchase-analysis"
 
 /*
- * The rows of the Analiza overview (#244): categories that open to subcategories and products, and
+ * The rows of the Analysis overview (#244): categories that open to subcategories and products, and
  * at the end the items that have no product yet. Wide containers show a table of seven columns;
  * narrower ones stack each row: name, spend and share on top, the rest below with its labels, so
  * the page never scrolls sideways. The width is the list's own (a container query), not the
@@ -122,7 +122,7 @@ function AnalysisBranch({ node, depth, basis, total, expanded, onToggle }: Branc
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 self-center">
               {node.kind === "product" ? (
                 <Link
-                  to="/expenses/analysis/products/$productId"
+                  to="/analysis/products/$productId"
                   params={{ productId: node.product.id }}
                   className="break-words underline-offset-4 hover:underline focus-visible:underline @5xl:truncate"
                 >
@@ -254,7 +254,7 @@ export function NotAssignedRow({ total, amount, count }: NotAssignedProps) {
       </div>
       <p className="text-xs text-muted-foreground @5xl:col-span-full" style={{ paddingLeft: 8 + CHEVRON }}>
         {t("analysis.notAssigned.hint")}{" "}
-        <Link to="/expenses/analysis/review" className="font-medium text-foreground underline underline-offset-2">
+        <Link to="/analysis/review" className="font-medium text-foreground underline underline-offset-2">
           {t("analysis.notAssigned.review")}
         </Link>
       </p>
