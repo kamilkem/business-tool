@@ -155,13 +155,18 @@ final class ItemReaderTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function nameKeys(): iterable
     {
-        yield 'size and ABV removed' => ['JACK DANIELS 0,7L 40%', 'jack daniels'];
+        yield 'size removed, ABV kept as one token' => ['JACK DANIELS 0,7L 40%', 'jack daniels abv40'];
         yield 'an abbreviation stays' => ['J.DANIELS 1L', 'j daniels'];
         yield 'word order and extra words stay' => ["Whiskey Jack Daniel's Old No.7 700ml", 'whiskey jack daniels old no 7'];
         yield 'a flavour stays' => ["Jack Daniel's Honey 0,7l", 'jack daniels honey'];
         yield 'multipack removed' => ['Piwo Demo 6x0,5L zgrz.', 'piwo demo'];
         yield 'the same without the pack' => ['Piwo Demo 24x330ml', 'piwo demo'];
-        yield 'diacritics folded' => ['Wódka Żołądkowa Gorzka 0,5L 40%', 'wodka zoladkowa gorzka'];
+        yield 'diacritics folded' => ['Wódka Żołądkowa Gorzka 0,5L 40%', 'wodka zoladkowa gorzka abv40'];
+        yield 'a decimal ABV' => ['PIWO LITOVEL BLACK LEMON 0,5% 0,5l BUT ZWROTNA', 'piwo litovel black lemon abv0p5 zwrotna'];
+        yield 'a whole ABV' => ['PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA', 'piwo litovel black lemon abv4 zwrotna'];
+        yield 'an age stays' => ['Whisky Demo 12 YO 0,7l', 'whisky demo 12 yo'];
+        yield 'a vintage stays' => ['Wino Demo 2015 0,75l', 'wino demo 2015'];
+        yield 'a discount is no ABV' => ['Piwo Demo -20% 0,5l', 'piwo demo 20'];
         yield 'nothing left' => ['0,5l', ''];
     }
 
@@ -169,6 +174,75 @@ final class ItemReaderTest extends TestCase
     public function test_it_normalizes_the_name_to_a_key_without_sizes(string $name, string $key): void
     {
         self::assertSame($key, ItemReader::nameKey($name));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function sameProductDifferentlyPrinted(): iterable
+    {
+        yield 'a space before the percent' => ['Jack Daniels 0,7l 40%', 'Jack Daniels 0,7l 40 %'];
+        yield 'with vol' => ['Jack Daniels 0,7l 40%', 'Jack Daniels 0,7l 40% vol'];
+        yield 'with vol and a dot' => ['Jack Daniels 0,7l 40%', 'JACK DANIELS 0,7L 40 % VOL.'];
+        yield 'a decimal with a zero' => ['Jack Daniels 0,7l 40%', 'Jack Daniels 0,7l 40,0%'];
+        yield 'a decimal point' => ['Piwo Demo 0,5% 0,5l', 'Piwo Demo 0.50 % 0,5l'];
+        yield 'proc' => ['Jack Daniels 0,7l 40%', 'Jack Daniels 0,7l 40 proc.'];
+        yield 'another size' => ['Jack Daniels 0,7l 40%', 'Jack Daniels 1L 40%'];
+        yield 'a multipack' => ['Piwo Demo 4% 0,5l', 'Piwo Demo 4% 6x0,5L zgrz.'];
+    }
+
+    #[DataProvider('sameProductDifferentlyPrinted')]
+    public function test_it_gives_one_key_and_one_abv_to_an_abv_printed_differently(string $a, string $b): void
+    {
+        self::assertSame(ItemReader::nameKey($a), ItemReader::nameKey($b));
+        self::assertSame(ItemReader::abvOf($a), ItemReader::abvOf($b));
+        self::assertFalse(ItemReader::abvContradicts($a, $b));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function differentProducts(): iterable
+    {
+        yield 'a beer of 4% and one of 0,5%' => ['PIWO LITOVEL BLACK LEMON 4% 0,5l BUT ZWROTNA', 'PIWO LITOVEL BLACK LEMON 0,5% 0,5l BUT ZWROTNA'];
+        yield 'a vodka of 37,5% and one of 40%' => ['Wodka Demo 37,5% 0,5l', 'Wodka Demo 40% 0,5l'];
+        yield 'a flavour' => ["Jack Daniel's Honey 0,7l 35%", "Jack Daniel's 0,7l 35%"];
+        yield 'a flavour without ABV' => ["Jack Daniel's Honey 0,7l", "Jack Daniel's 0,7l"];
+        yield 'an age' => ['Whisky Demo 12 YO 0,7l 40%', 'Whisky Demo 18 YO 0,7l 40%'];
+        yield 'a vintage' => ['Wino Demo 2015 0,75l 13%', 'Wino Demo 2018 0,75l 13%'];
+        yield 'with and without ABV' => ['Piwo Demo 4% 0,5l', 'Piwo Demo 0,5l'];
+    }
+
+    #[DataProvider('differentProducts')]
+    public function test_it_keeps_names_that_differ_in_abv_or_variant_apart_in_the_key(string $a, string $b): void
+    {
+        self::assertNotSame(ItemReader::nameKey($a), ItemReader::nameKey($b));
+    }
+
+    /** @return iterable<string, array{?string, string}> */
+    public static function abvs(): iterable
+    {
+        yield 'whole' => ['40', 'Jack Daniels 0,7L 40%'];
+        yield 'decimal comma' => ['0.5', 'Piwo 0,5% 0,5l'];
+        yield 'trailing zero' => ['4', 'Piwo 4,0% 0,5l'];
+        yield 'proc' => ['4.5', 'Piwo 4,5 proc'];
+        yield 'none' => [null, 'Jack Daniels 0,7L'];
+        yield 'a size is no ABV' => [null, 'Cola 0,5l'];
+        yield 'two different ones are ambiguous' => [null, 'Mix 4% 0,5% 0,5l'];
+        yield 'the same twice' => ['4', 'Piwo 4% (4 % vol) 0,5l'];
+        yield 'above 100 is none' => [null, 'Promo 150% 0,5l'];
+        yield 'a discount is none' => [null, 'Piwo -20% 0,5l'];
+        yield 'a size next to it' => ['40', 'Jack Daniels 700ml 40% vol'];
+    }
+
+    #[DataProvider('abvs')]
+    public function test_it_reads_the_alcohol_strength_of_a_name(?string $abv, string $name): void
+    {
+        self::assertSame($abv, ItemReader::abvOf($name));
+    }
+
+    public function test_it_says_two_names_contradict_only_when_both_state_a_different_abv(): void
+    {
+        self::assertTrue(ItemReader::abvContradicts('PIWO LITOVEL BLACK LEMON 4% 0,5l', 'Piwo Litovel Black Lemon 0,5%'));
+        self::assertFalse(ItemReader::abvContradicts('Piwo Litovel Black Lemon 4% 0,5l', 'Piwo Litovel Black Lemon'), 'A product that states no ABV contradicts nothing.');
+        self::assertFalse(ItemReader::abvContradicts('Piwo Litovel Black Lemon 0,5l', 'Piwo Litovel Black Lemon 0,5%'), 'An item that states no ABV contradicts nothing.');
+        self::assertFalse(ItemReader::abvContradicts('Mix 4% 0,5%', 'Mix 4%'), 'An ambiguous name is not read.');
     }
 
     public function test_it_keeps_the_size_in_the_full_key(): void

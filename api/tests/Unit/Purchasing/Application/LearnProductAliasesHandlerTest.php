@@ -66,7 +66,7 @@ final class LearnProductAliasesHandlerTest extends TestCase
         self::assertSame('5099873089798', $byKind['gtin']->getKey());
         self::assertSame('5265877635|JD-07', $byKind['seller_code']->getKey());
         self::assertSame('5265877635|jack daniels 0 7l 40', $byKind['seller_name']->getKey());
-        self::assertSame('jack daniels', $byKind['name']->getKey());
+        self::assertSame('jack daniels abv40', $byKind['name']->getKey());
         foreach ([AliasKind::Gtin, AliasKind::SellerCode, AliasKind::SellerName] as $kind) {
             self::assertSame('0.7', $byKind[$kind->value]->getPackageSize());
         }

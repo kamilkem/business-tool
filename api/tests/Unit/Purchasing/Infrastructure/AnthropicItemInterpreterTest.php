@@ -99,6 +99,23 @@ final class AnthropicItemInterpreterTest extends TestCase
         self::assertStringNotContainsString('Hurtownia', $user.$body['system'][0]['text']);
     }
 
+    public function test_it_tells_the_model_that_another_abv_or_variant_is_another_product(): void
+    {
+        $this->interpreter('sk-test', $this->fixture('messages-answers.json'))->interpret($this->catalog(), $this->categories(), $this->items());
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode((string) $this->requests[0]['options']['body'], true, flags: \JSON_THROW_ON_ERROR);
+        $rules = $body['system'][0]['text'];
+
+        self::assertStringContainsString('A different alcohol strength is a different product', $rules);
+        self::assertStringContainsString('"Litovel Black Lemon 4%" is not "Litovel Black Lemon 0,5%"', $rules);
+        self::assertStringContainsString('"40 %", "40% vol"', $rules, 'The same strength printed differently is one product.');
+        self::assertStringContainsString('A vintage ("2015") or an age ("12 YO") that differs is a different product too', $rules);
+        self::assertStringContainsString('"Jack Daniel\'s Honey" is not "Jack Daniel\'s"', $rules);
+        self::assertStringContainsString('with the alcohol strength when the line states one', $rules, 'A proposed name keeps the strength.');
+        self::assertStringNotContainsString('without package size, ABV', $rules);
+    }
+
     public function test_it_says_there_are_no_products_or_categories_yet_instead_of_leaving_the_catalog_out(): void
     {
         $this->interpreter('sk-test', $this->fixture('messages-answers.json'))->interpret([], [], $this->items());
