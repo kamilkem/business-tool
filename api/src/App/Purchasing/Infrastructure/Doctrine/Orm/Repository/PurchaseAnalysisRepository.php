@@ -28,7 +28,9 @@ use Symfony\Component\Uid\Uuid;
  *
  * Shared building blocks, as CTEs:
  *  - `item`: every item of the organization with its signed net and gross (ADR 0041 §6): the printed
- *    value, or the other one less or plus the VAT, null when neither can be derived; `sign` is -1 for a
+ *    value, or the other one less or plus the VAT, null when neither can be derived. An item that prints
+ *    only its net (no gross, no line VAT) gets its gross from its VAT rate, per item (ADR 0051): a
+ *    numeric rate code is the percentage, `zw` is 0, any other code gives none; `sign` is -1 for a
  *    correction's "before" rows;
  *  - `point`: the price points (§7) with their prices per reference quantity;
  *  - `priced`: the points with the previous price on each basis, in the order issue date, when it was
@@ -236,7 +238,14 @@ final readonly class PurchaseAnalysisRepository implements PurchaseAnalysisRepos
                        i.package_size * COALESCE(i.bundle_count, 1) AS unit_size,
                        CASE WHEN i.before_correction THEN -1 ELSE 1 END AS sign,
                        COALESCE(i.net_amount, i.gross_amount - i.vat_amount) AS net,
-                       COALESCE(i.gross_amount, i.net_amount + i.vat_amount) AS gross
+                       COALESCE(
+                           i.gross_amount,
+                           i.net_amount + i.vat_amount,
+                           ROUND(i.net_amount * (100 + CASE
+                               WHEN i.vat_rate ~ \'^[0-9]+$\' THEN CAST(i.vat_rate AS NUMERIC)
+                               WHEN i.vat_rate = \'zw\' THEN 0
+                           END) / 100)
+                       ) AS gross
                 FROM purchased_item i
                 WHERE i.organization_id = CAST(:org AS uuid)
             )';
