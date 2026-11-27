@@ -242,6 +242,11 @@
       }
     },
     "purchasing": {
+      "invalid_bundle_count": {
+        "out_of_range": "The bundle must hold a whole number of packages, from 2 to 9999.",
+        "too_large": "That many packages of this size are too much for one unit: the whole must stay below 1 000 000 000 000.",
+        "without_package_size": "A bundle needs the package size of one single package."
+      },
       "invalid_package_size": "The package size must be a positive number with at most 6 decimals.",
       "invalid_product_category_name": "A category name must have 1 to {{maxLength}} characters.",
       "invalid_product_name": "A product name must have 1 to {{maxLength}} characters.",

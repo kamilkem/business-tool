@@ -477,6 +477,20 @@ final class PurchasedItemRepositoryTest extends KernelTestCase
         self::assertSame([1_000_000_000], $this->items->confirmedPricesPerBaseUnit($otherJack->getId(), 'PLN', 10));
     }
 
+    public function test_it_prices_a_bundle_in_the_sample_as_the_same_goods_entered_as_a_total(): void
+    {
+        $this->tenantContext->switchTo(OrganizationFactory::createOne());
+        $beer = $this->product('Beer');
+        $this->items->addAll([
+            self::confirmed($beer, '2026-11-01', 9_000, '3', '0.5', bundleCount: 20),
+            self::confirmed($beer, '2026-10-01', 9_000, '3', '10'),
+        ]);
+        $this->entityManager->clear();
+
+        // 9 000 grosze for 30 L: 300 grosze a litre, in thousandths of a grosz, whichever way the 10 L were entered (ADR 0048 §3).
+        self::assertSame([300_000, 300_000], $this->items->confirmedPricesPerBaseUnit($beer->getId(), 'PLN', 10));
+    }
+
     /** @param list<PurchasedItemStatus> $statuses */
     private static function filter(array $statuses = [], ?Uuid $product = null, ?string $from = null, ?string $to = null, ?string $name = null): PurchasedItemFilter
     {
@@ -515,13 +529,13 @@ final class PurchasedItemRepositoryTest extends KernelTestCase
     }
 
     /** An item a person confirmed to the product, with the amounts of one row (`$grossOnly`: no net printed, 23% VAT in the gross). */
-    private static function confirmed(Product $product, string $issueDate, int $amount, string $quantity, ?string $packageSize, string $currency = 'PLN', string $kind = 'regular', bool $beforeCorrection = false, bool $grossOnly = false): PurchasedItem
+    private static function confirmed(Product $product, string $issueDate, int $amount, string $quantity, ?string $packageSize, string $currency = 'PLN', string $kind = 'regular', bool $beforeCorrection = false, bool $grossOnly = false, ?int $bundleCount = null): PurchasedItem
     {
         $item = PurchasedItem::record(Uuid::v7(), new PurchasedItemDetails(
             Uuid::v7(), 1, BusinessDate::fromString($issueDate), $kind, $currency, '5265877635', 'Hurtownia', 1, 'Piwo', null, null, 'szt.', $quantity, null, null, null,
             $grossOnly ? null : $amount, $grossOnly ? $amount + 2_300 : null, $grossOnly ? 2_300 : null, null, $beforeCorrection,
         ), new \DateTimeImmutable('2026-11-25 03:00:00'));
-        $item->link($product, $packageSize, Uuid::v7(), MembershipRole::Owner);
+        $item->link($product, $packageSize, Uuid::v7(), MembershipRole::Owner, $bundleCount);
 
         return $item;
     }

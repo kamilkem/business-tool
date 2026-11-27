@@ -90,6 +90,7 @@ final class PurchasedItemApiTest extends ApiTestCase
             'productName' => 'Jack Daniel\'s',
             'status' => 'confirmed',
             'packageSize' => '0.7',
+            'bundleCount' => null,
             'matchSource' => null,
             'matchCaveat' => null,
         ], $page['items'][0]);
@@ -346,6 +347,14 @@ final class PurchasedItemApiTest extends ApiTestCase
         yield 'seven decimals' => [['packageSize' => '0.0000001']];
         yield 'seventeen integer digits' => [['packageSize' => '10000000000000000']];
         yield 'a number instead of text' => [['packageSize' => 0.7]];
+        yield 'a bundle of one' => [['packageSize' => '0.5', 'bundleCount' => 1]];
+        yield 'a bundle of zero' => [['packageSize' => '0.5', 'bundleCount' => 0]];
+        yield 'a negative bundle' => [['packageSize' => '0.5', 'bundleCount' => -6]];
+        yield 'a bundle above 9999' => [['packageSize' => '0.5', 'bundleCount' => 10_000]];
+        yield 'a bundle count that is not a number' => [['packageSize' => '0.5', 'bundleCount' => 'six']];
+        yield 'a fractional bundle count' => [['packageSize' => '0.5', 'bundleCount' => 2.5]];
+        yield 'a bundle with no package size' => [['packageSize' => null, 'bundleCount' => 6]];
+        yield 'a bundle of a trillion base units' => [['packageSize' => '500000000000', 'bundleCount' => 2]];
         yield 'product that is not a UUID' => [['productId' => 'jack']];
         yield 'product of the wrong type' => [['productId' => 5]];
     }
@@ -363,6 +372,42 @@ final class PurchasedItemApiTest extends ApiTestCase
         self::assertResponseStatusCodeSame(422);
         $item = self::get($owner, $organization, $id)->toArray();
         self::assertSame(['suggested', '0.7'], [$item['status'], $item['packageSize']]);
+    }
+
+    #[DataProvider('managingRoles')]
+    public function test_it_makes_an_item_a_bundle_and_back(MembershipRole $role): void
+    {
+        [$user, $organization] = self::memberWithRole($role);
+        $beer = self::addProduct($organization, 'Beer');
+        $id = self::addItem($organization, ['name' => 'Piwo 0,5l skrzynka']);
+
+        $item = self::change($user, $organization, $id, ['productId' => $beer->getId()->toRfc4122(), 'packageSize' => '0.50', 'bundleCount' => 20])->toArray();
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['confirmed', '0.5', 20], [$item['status'], $item['packageSize'], $item['bundleCount']]);
+        self::assertSame($item, self::get($user, $organization, $id)->toArray());
+
+        // A field left out keeps its value: the size alone changes, the count stays.
+        $item = self::change($user, $organization, $id, ['packageSize' => '0.33'])->toArray();
+        self::assertSame(['0.33', 20], [$item['packageSize'], $item['bundleCount']]);
+
+        $item = self::change($user, $organization, $id, ['bundleCount' => null])->toArray();
+        self::assertResponseIsSuccessful();
+        self::assertSame(['0.33', null], [$item['packageSize'], $item['bundleCount']]);
+    }
+
+    public function test_it_names_the_reason_when_a_bundle_is_refused(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $id = self::addItem($organization, ['packageSize' => '0.7']);
+
+        $response = self::change($owner, $organization, $id, ['packageSize' => null, 'bundleCount' => 6]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['purchasing.invalid_bundle_count.without_package_size', ['bundleCount' => 6]], [$response->toArray(false)['code'], $response->toArray(false)['parameters']]);
+
+        $response = self::change($owner, $organization, $id, ['packageSize' => '500000000000', 'bundleCount' => 2]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('purchasing.invalid_bundle_count.too_large', $response->toArray(false)['code']);
     }
 
     public function test_it_answers_404_for_changing_an_unknown_item_or_linking_to_an_unknown_product(): void
@@ -401,6 +446,50 @@ final class PurchasedItemApiTest extends ApiTestCase
         }
         $item = self::get($user, $organization, $untouched)->toArray();
         self::assertSame(['unassigned', null, null], [$item['status'], $item['productName'], $item['packageSize']]);
+    }
+
+    public function test_it_assigns_items_as_bundles_and_lets_each_keep_its_own_when_no_package_size_is_sent(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $beer = self::addProduct($organization, 'Beer');
+        $first = self::addItem($organization, ['name' => 'First']);
+        $second = self::addItem($organization, ['name' => 'Second', 'packageSize' => '0.33', 'bundleCount' => 24]);
+
+        self::assign($owner, $organization, ['itemIds' => [$first, $second], 'productId' => $beer->getId()->toRfc4122(), 'packageSize' => '0.5', 'bundleCount' => 20]);
+        self::assertResponseStatusCodeSame(204);
+        foreach ([$first, $second] as $id) {
+            $item = self::get($owner, $organization, $id)->toArray();
+            self::assertSame(['0.5', 20], [$item['packageSize'], $item['bundleCount']], $id);
+        }
+
+        self::assign($owner, $organization, ['itemIds' => [$first], 'productId' => $beer->getId()->toRfc4122(), 'packageSize' => '1']);
+        self::assertSame(['1', null], [self::get($owner, $organization, $first)->toArray()['packageSize'], self::get($owner, $organization, $first)->toArray()['bundleCount']], 'A size sent with no count is no bundle.');
+
+        self::assign($owner, $organization, ['itemIds' => [$second], 'productId' => $beer->getId()->toRfc4122()]);
+        $kept = self::get($owner, $organization, $second)->toArray();
+        self::assertSame(['0.5', 20], [$kept['packageSize'], $kept['bundleCount']], 'With no package size sent, each item keeps its own size and count.');
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, int}> */
+    public static function invalidBundleAssignments(): iterable
+    {
+        yield 'a count of one' => [['packageSize' => '0.5', 'bundleCount' => 1], 422];
+        yield 'above 9999' => [['packageSize' => '0.5', 'bundleCount' => 10_000], 422];
+        yield 'a count with no package size' => [['bundleCount' => 6], 422];
+    }
+
+    /** @param array<string, mixed> $extra */
+    #[DataProvider('invalidBundleAssignments')]
+    public function test_it_answers_422_for_an_invalid_bundle_when_assigning_and_assigns_nothing(array $extra, int $status): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $beer = self::addProduct($organization, 'Beer');
+        $id = self::addItem($organization, ['name' => 'First']);
+
+        self::assign($owner, $organization, ['itemIds' => [$id], 'productId' => $beer->getId()->toRfc4122()] + $extra);
+
+        self::assertResponseStatusCodeSame($status);
+        self::assertSame('unassigned', self::get($owner, $organization, $id)->toArray()['status']);
     }
 
     public function test_it_lets_each_item_keep_its_package_size_when_assigning_without_one(): void
@@ -717,7 +806,7 @@ final class PurchasedItemApiTest extends ApiTestCase
      * Records an item in the organization, linked the way matching (#233) or a person would have
      * linked it: its product, status and package size.
      *
-     * @param array{invoiceId?: string, name?: string, issueDate?: string, product?: Product, status?: string, packageSize?: string, matchSource?: string, matchCaveat?: string} $overrides
+     * @param array{invoiceId?: string, name?: string, issueDate?: string, product?: Product, status?: string, packageSize?: string, bundleCount?: int, matchSource?: string, matchCaveat?: string} $overrides
      *
      * @return string the item's id
      */
@@ -733,10 +822,11 @@ final class PurchasedItemApiTest extends ApiTestCase
         });
 
         if (isset($overrides['product']) || isset($overrides['packageSize']) || isset($overrides['status'])) {
-            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size, match_source = :source, match_caveat = :caveat WHERE id = :id', [
+            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size, bundle_count = :bundle, match_source = :source, match_caveat = :caveat WHERE id = :id', [
                 'product' => isset($overrides['product']) ? $overrides['product']->getId()->toRfc4122() : null,
                 'status' => $overrides['status'] ?? 'unassigned',
                 'size' => $overrides['packageSize'] ?? null,
+                'bundle' => $overrides['bundleCount'] ?? null,
                 'source' => $overrides['matchSource'] ?? null,
                 'caveat' => $overrides['matchCaveat'] ?? null,
                 'id' => $id->toRfc4122(),

@@ -52,8 +52,8 @@ final readonly class AssignProductProposalHandler implements CommandHandlerInter
         }
 
         foreach ($items as $item) {
-            $size = $item->getPackageSize() ?? ItemReader::read($item->getName(), $item->getUnit())->packageSizeFor($product->getMeasure());
-            $item->link($product, $size, $actor->id, $actor->role);
+            $package = $item->getPackage() ?? ItemReader::read($item->getName(), $item->getUnit())->packageFor($product->getMeasure());
+            $item->link($product, $package?->single, $actor->id, $actor->role, $package?->bundleCount);
         }
 
         $this->items->saveAll($items);

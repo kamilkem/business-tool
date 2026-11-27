@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Purchasing\Domain;
 
 use App\Organization\Domain\Model\MembershipRole;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasingManagementForbiddenException;
 use App\Purchasing\Domain\Matching\MatchCaveat;
@@ -118,6 +119,92 @@ final class PurchasedItemTest extends TestCase
         $item->link(self::product('Beer'), null, $this->actorId, MembershipRole::Owner);
         self::assertNull($item->getPackageSize());
         self::assertSame(PurchasedItemStatus::Confirmed, $item->getStatus());
+    }
+
+    public function test_it_is_no_bundle_until_a_person_says_so(): void
+    {
+        $item = self::item();
+        self::assertNull($item->getBundleCount());
+
+        $item->link(self::product('Beer'), '0.5', $this->actorId, MembershipRole::Owner);
+
+        self::assertNull($item->getBundleCount());
+        self::assertSame('0.5', $item->getPackageTotal());
+    }
+
+    public function test_it_is_a_bundle_of_single_packages_whose_total_is_their_product(): void
+    {
+        $item = self::item();
+
+        $item->link(self::product('Beer'), '0.50', $this->actorId, MembershipRole::Owner, 20);
+
+        self::assertSame('0.5', $item->getPackageSize());
+        self::assertSame(20, $item->getBundleCount());
+        self::assertSame('10', $item->getPackageTotal());
+        self::assertSame('20 × 0.5', (string) $item->getPackage());
+    }
+
+    public function test_it_stops_being_a_bundle_when_a_person_sends_no_count_or_no_package_size(): void
+    {
+        $item = self::item();
+        $beer = self::product('Beer');
+        $item->link($beer, '0.5', $this->actorId, MembershipRole::Owner, 20);
+
+        $item->link($beer, '10', $this->actorId, MembershipRole::Owner);
+        self::assertSame([null, '10'], [$item->getBundleCount(), $item->getPackageTotal()]);
+
+        $item->link($beer, '0.5', $this->actorId, MembershipRole::Owner, 20);
+        $item->link($beer, null, $this->actorId, MembershipRole::Owner);
+        self::assertSame([null, null], [$item->getBundleCount(), $item->getPackageTotal()]);
+    }
+
+    public function test_it_keeps_a_bundle_without_a_product(): void
+    {
+        $item = self::item();
+
+        $item->link(null, '0.5', $this->actorId, MembershipRole::Owner, 6);
+
+        self::assertSame(PurchasedItemStatus::Unassigned, $item->getStatus());
+        self::assertSame(6, $item->getBundleCount());
+    }
+
+    /** @return iterable<string, array{?string, int, string}> */
+    public static function invalidBundles(): iterable
+    {
+        yield 'a count of one' => ['0.5', 1, 'out_of_range'];
+        yield 'a count above 9999' => ['0.5', 10_000, 'out_of_range'];
+        yield 'a count with no package size' => [null, 6, 'without_package_size'];
+        yield 'a total of a trillion base units' => ['500000000000', 2, 'too_large'];
+    }
+
+    #[DataProvider('invalidBundles')]
+    public function test_it_refuses_a_bundle_that_is_not_valid_and_changes_nothing(?string $size, int $count, string $variant): void
+    {
+        $item = self::item();
+        $item->link(null, '0.7', $this->actorId, MembershipRole::Owner);
+
+        try {
+            $item->link(self::product('Beer'), $size, $this->actorId, MembershipRole::Owner, $count);
+            self::fail('The bundle is not valid.');
+        } catch (InvalidBundleCountException $e) {
+            self::assertSame('purchasing.invalid_bundle_count.'.$variant, $e->errorCode());
+        }
+
+        self::assertNull($item->getProduct());
+        self::assertSame(['0.7', null], [$item->getPackageSize(), $item->getBundleCount()]);
+    }
+
+    public function test_it_is_matched_as_a_bundle_and_loses_it_when_matching_takes_the_link_back(): void
+    {
+        $item = self::item();
+
+        $item->match(self::product('Beer'), '0.5', PurchasedItemStatus::Suggested, new \DateTimeImmutable('2026-11-26 10:00:00'), MatchSource::Model, MatchCaveat::SizeReadWeakly, 6);
+
+        self::assertSame([6, '3'], [$item->getBundleCount(), $item->getPackageTotal()]);
+
+        $item->releaseMatch();
+
+        self::assertSame([null, null], [$item->getBundleCount(), $item->getPackageSize()]);
     }
 
     /** @return iterable<string, array{string, string}> */

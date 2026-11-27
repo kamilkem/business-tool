@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ui\Http\Purchasing;
 
 use App\Purchasing\Application\Query\GetPurchasedItem\PurchasedItemView;
+use App\Purchasing\Domain\Model\PackageSize;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -25,11 +26,16 @@ final class ChangePurchasedItemInput
     #[Assert\Positive]
     public ?string $packageSize = null;
 
+    /** Single packages in one unit of the quantity, with the package size of one single package; null: the item is no bundle (ADR 0048). */
+    #[Assert\Range(min: PackageSize::MIN_BUNDLE_COUNT, max: PackageSize::MAX_BUNDLE_COUNT)]
+    public ?int $bundleCount = null;
+
     public static function fromView(PurchasedItemView $view): self
     {
         $input = new self();
         $input->productId = $view->productId;
         $input->packageSize = $view->packageSize;
+        $input->bundleCount = $view->bundleCount;
 
         return $input;
     }

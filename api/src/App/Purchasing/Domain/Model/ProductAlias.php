@@ -47,24 +47,28 @@ class ProductAlias implements TenantAwareInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 22, scale: PurchasedItem::PACKAGE_SIZE_SCALE, nullable: true)]
     private ?string $packageSize;
 
+    /** Single packages in one unit of the quantity, with the package size of one single package (ADR 0048); null: the alias remembers no bundle. */
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $bundleCount;
+
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
-    public function __construct(Uuid $id, AliasKind $kind, string $key, Product $product, ?string $packageSize, \DateTimeImmutable $now)
+    public function __construct(Uuid $id, AliasKind $kind, string $key, Product $product, ?string $packageSize, \DateTimeImmutable $now, ?int $bundleCount = null)
     {
         $this->id = $id;
         $this->kind = $kind;
         $this->key = mb_substr($key, 0, self::KEY_MAX_LENGTH);
         $this->product = $product;
-        $this->packageSize = $kind->carriesPackageSize() ? $packageSize : null;
+        $this->remember($packageSize, $bundleCount);
         $this->updatedAt = $now;
     }
 
     /** A later confirmation of the same key: it points to the product it was confirmed to, with the size it was confirmed with. */
-    public function repoint(Product $product, ?string $packageSize, \DateTimeImmutable $now): void
+    public function repoint(Product $product, ?string $packageSize, \DateTimeImmutable $now, ?int $bundleCount = null): void
     {
         $this->product = $product;
-        $this->packageSize = $this->kind->carriesPackageSize() ? $packageSize : null;
+        $this->remember($packageSize, $bundleCount);
         $this->updatedAt = $now;
     }
 
@@ -88,9 +92,30 @@ class ProductAlias implements TenantAwareInterface
         return $this->product;
     }
 
-    /** A decimal string with trailing zeros trimmed; null when the alias remembers none. */
+    /** A decimal string with trailing zeros trimmed: the size of one single package when it is a bundle; null when the alias remembers none. */
     public function getPackageSize(): ?string
     {
         return DecimalString::trimmed($this->packageSize);
+    }
+
+    public function getBundleCount(): ?int
+    {
+        return $this->bundleCount;
+    }
+
+    /** The remembered package size and bundle count together; null when it remembers no size. */
+    public function getPackage(): ?PackageSize
+    {
+        $size = $this->getPackageSize();
+
+        return null === $size ? null : PackageSize::of($size, $this->bundleCount);
+    }
+
+    /** Only the alias kinds that name a pack remember a size, and a count goes with a size. */
+    private function remember(?string $packageSize, ?int $bundleCount): void
+    {
+        $carries = $this->kind->carriesPackageSize() && null !== $packageSize;
+        $this->packageSize = $carries ? $packageSize : null;
+        $this->bundleCount = $carries ? $bundleCount : null;
     }
 }

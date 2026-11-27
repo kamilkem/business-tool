@@ -151,6 +151,7 @@ api_platform:
         App\Purchasing\Domain\Exception\ProductProposalNotFoundException: 404
         App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException: 404
         App\Purchasing\Domain\Exception\InvalidPackageSizeException: 422
+        App\Purchasing\Domain\Exception\InvalidBundleCountException: 422
         App\Purchasing\Domain\Exception\PurchaseAnalysisPeriodTooLongException: 422
         # KSeF errors are recorded by the sync, not thrown at HTTP clients; mapped in case one escapes.
         App\Ksef\Domain\Exception\KsefCredentialsRejectedException: 422

@@ -6,6 +6,7 @@ namespace App\Purchasing\Application\Command\ChangePurchasedItem;
 
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Purchasing\Application\PurchasingActor;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasedItemNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException;
@@ -34,6 +35,7 @@ final readonly class ChangePurchasedItemHandler implements CommandHandlerInterfa
      * @throws PurchasedItemNotFoundException           when the item is not one of the organization's
      * @throws PurchasedItemProductNotFoundException    when the product is not one of the organization's
      * @throws InvalidPackageSizeException              when the package size is not a positive decimal
+     * @throws InvalidBundleCountException              when the bundle count is out of range, has no package size, or makes the size per unit too large
      */
     public function __invoke(ChangePurchasedItemCommand $command): void
     {
@@ -48,7 +50,7 @@ final readonly class ChangePurchasedItemHandler implements CommandHandlerInterfa
             $product ??= throw PurchasedItemProductNotFoundException::withId($command->productId);
         }
 
-        $item->link($product, $command->packageSize, $actor->id, $actor->role);
+        $item->link($product, $command->packageSize, $actor->id, $actor->role, $command->bundleCount);
 
         $this->items->save($item);
         if (null !== $product) {

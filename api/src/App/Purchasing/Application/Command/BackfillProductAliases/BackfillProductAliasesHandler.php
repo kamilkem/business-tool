@@ -85,7 +85,7 @@ final readonly class BackfillProductAliasesHandler implements CommandHandlerInte
                     continue;
                 }
                 $known[$index] = true;
-                $created[] = new ProductAlias(Uuid::v7(), AliasKind::from($kind), $key, $product, $item->getPackageSize(), $now);
+                $created[] = new ProductAlias(Uuid::v7(), AliasKind::from($kind), $key, $product, $item->getPackageSize(), $now, $item->getBundleCount());
             }
         }
 

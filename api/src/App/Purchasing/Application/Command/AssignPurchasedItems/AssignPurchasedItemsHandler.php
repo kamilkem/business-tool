@@ -6,6 +6,7 @@ namespace App\Purchasing\Application\Command\AssignPurchasedItems;
 
 use App\Organization\Domain\Exception\OrganizationNotFoundException;
 use App\Purchasing\Application\PurchasingActor;
+use App\Purchasing\Domain\Exception\InvalidBundleCountException;
 use App\Purchasing\Domain\Exception\InvalidPackageSizeException;
 use App\Purchasing\Domain\Exception\PurchasedItemNotFoundException;
 use App\Purchasing\Domain\Exception\PurchasedItemProductNotFoundException;
@@ -40,6 +41,7 @@ final readonly class AssignPurchasedItemsHandler implements CommandHandlerInterf
      * @throws PurchasedItemNotFoundException           when an item is not one of the organization's
      * @throws PurchasedItemProductNotFoundException    when the product is not one of the organization's
      * @throws InvalidPackageSizeException              when the package size is not a positive decimal
+     * @throws InvalidBundleCountException              when the bundle count is out of range, has no package size, or makes the size per unit too large
      * @throws \InvalidArgumentException                when there are more items than AssignPurchasedItemsCommand::MAX_ITEMS
      */
     public function __invoke(AssignPurchasedItemsCommand $command): void
@@ -47,6 +49,10 @@ final readonly class AssignPurchasedItemsHandler implements CommandHandlerInterf
         $actor = PurchasingActor::resolve($this->queryBus, $command->organizationId, $command->actorId);
         if (\count($command->itemIds) > AssignPurchasedItemsCommand::MAX_ITEMS) {
             throw new \InvalidArgumentException(\sprintf('At most %d items are assigned at once.', AssignPurchasedItemsCommand::MAX_ITEMS));
+        }
+
+        if (null !== $command->bundleCount && null === $command->packageSize) {
+            throw InvalidBundleCountException::withoutPackageSize($command->bundleCount);
         }
 
         $product = Uuid::isValid($command->productId) ? $this->products->findById(Uuid::fromString($command->productId)) : null;
@@ -69,7 +75,14 @@ final readonly class AssignPurchasedItemsHandler implements CommandHandlerInterf
         // Every item is validated by link() before the flush, and the flush is one transaction.
         $items = array_values($found);
         foreach ($items as $item) {
-            $item->link($product, $command->packageSize ?? $item->getPackageSize(), $actor->id, $actor->role);
+            // A package size sent goes with its own count (null: no bundle); with none, the item keeps its size and its count.
+            $item->link(
+                $product,
+                $command->packageSize ?? $item->getPackageSize(),
+                $actor->id,
+                $actor->role,
+                null === $command->packageSize ? $item->getBundleCount() : $command->bundleCount,
+            );
         }
 
         $this->items->saveAll($items);

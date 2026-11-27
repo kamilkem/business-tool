@@ -61,7 +61,44 @@ final class MatchDecisionTest extends TestCase
         $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume)), false, ItemReader::read('Piwo 6x0,5L', 'zgrz.'));
 
         self::assertSame(PurchasedItemStatus::Suggested, $decision->status);
-        self::assertSame('3', $decision->packageSize);
+        self::assertSame(['0.5', 6], [$decision->packageSize, $decision->bundleCount], 'A multipack is a bundle: its count and the size of one package (ADR 0048).');
+        self::assertSame('3', $decision->package?->total());
+    }
+
+    public function test_it_shows_the_multipack_the_name_states_when_the_alias_agrees_on_the_total(): void
+    {
+        // The alias remembers 3 L (entered as a total, before bundles existed): the name says 6 × 0,5 L, the same 3 L.
+        $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '3'), false, ItemReader::read('Piwo 6x0,5L', 'szt.'));
+
+        self::assertSame(['0.5', 6], [$decision->packageSize, $decision->bundleCount]);
+        self::assertSame(PurchasedItemStatus::Assigned, $decision->status, 'A multipack agreeing with the owner\'s alias is as sure as it was as a total.');
+    }
+
+    public function test_it_gives_the_item_the_bundle_an_alias_remembers_when_the_name_has_no_size(): void
+    {
+        $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '0.5', 20), false, ItemReader::read('Piwo jasne', 'zgrz.'));
+
+        self::assertSame(PurchasedItemStatus::Assigned, $decision->status);
+        self::assertSame(['0.5', 20, '10'], [$decision->packageSize, $decision->bundleCount, $decision->package?->total()]);
+    }
+
+    public function test_it_compares_totals_when_a_bundle_alias_and_the_name_disagree(): void
+    {
+        $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '0.5', 20), false, ItemReader::read('Piwo 6x0,5L', 'zgrz.'));
+
+        self::assertSame(PurchasedItemStatus::Suggested, $decision->status);
+        self::assertSame(MatchCaveat::SizeDisagrees, $decision->caveat);
+        self::assertSame(['0.5', 20], [$decision->packageSize, $decision->bundleCount], 'What the owner remembered is offered, to confirm.');
+    }
+
+    public function test_it_gives_a_size_from_the_model_as_a_total_with_no_bundle(): void
+    {
+        $product = self::product(ProductMeasure::Volume);
+        $answer = new ItemInterpretation('k', $product->getId()->toRfc4122(), InterpretationConfidence::High, '10');
+
+        $decision = MatchDecision::fromInterpretation($product, $answer, ItemReader::read('Piwo jasne', 'szt.'));
+
+        self::assertSame(['10', null], [$decision?->packageSize, $decision?->bundleCount]);
     }
 
     public function test_it_only_suggests_when_the_weak_reading_and_the_alias_disagree(): void
@@ -97,7 +134,8 @@ final class MatchDecisionTest extends TestCase
         $decision = MatchDecision::fromAlias($this->alias(self::product(ProductMeasure::Volume), '1'), false, $reading);
 
         self::assertSame(PurchasedItemStatus::Assigned, $decision->status);
-        self::assertSame('6', $decision->packageSize, 'The learned multiplier wins over the size an alias remembers for one piece.');
+        self::assertSame('6', $decision->package?->total(), 'The learned multiplier wins over the size an alias remembers for one piece.');
+        self::assertSame(['1', 6], [$decision->packageSize, $decision->bundleCount], 'The seller\'s multiplier is the bundle count (ADR 0048).');
     }
 
     public function test_it_only_suggests_when_the_aliases_of_an_item_point_to_different_products(): void
@@ -222,8 +260,8 @@ final class MatchDecisionTest extends TestCase
         return Product::create(Uuid::v7(), 'Product', null, $measure, null, false, null, Uuid::v7(), MembershipRole::Owner, new \DateTimeImmutable('2026-11-01 10:00:00'));
     }
 
-    private function alias(Product $product, ?string $size = null): ProductAlias
+    private function alias(Product $product, ?string $size = null, ?int $bundleCount = null): ProductAlias
     {
-        return new ProductAlias(Uuid::v7(), AliasKind::SellerCode, 'KEY', $product, $size, new \DateTimeImmutable('2026-11-01 10:00:00'));
+        return new ProductAlias(Uuid::v7(), AliasKind::SellerCode, 'KEY', $product, $size, new \DateTimeImmutable('2026-11-01 10:00:00'), $bundleCount);
     }
 }

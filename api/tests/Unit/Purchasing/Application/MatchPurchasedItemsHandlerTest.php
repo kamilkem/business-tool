@@ -96,6 +96,29 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
         self::assertSame([], $this->interpreter->calls, 'An alias is the owner\'s word: the model is not asked.');
     }
 
+    public function test_it_stores_a_multipack_its_alias_agrees_with_as_a_count_of_single_packages(): void
+    {
+        // The owner entered this pack as one size of 3 L, before bundles; the name says 6 × 0,5 L: the same 3 L (ADR 0048 §5).
+        $this->aliases->saveAll([new ProductAlias(Uuid::v7(), AliasKind::SellerCode, '5265877635|PL-05', $this->jack, '3', new \DateTimeImmutable('2026-11-02 10:00:00'))]);
+        $pack = $this->item('Piwo 6x0,5L', sellerCode: 'PL-05');
+
+        $this->match([$pack]);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $pack->getStatus());
+        self::assertSame(['0.5', 6, '3'], [$pack->getPackageSize(), $pack->getBundleCount(), $pack->getPackageTotal()]);
+    }
+
+    public function test_it_gives_an_item_the_bundle_its_alias_remembers(): void
+    {
+        $this->aliases->saveAll([new ProductAlias(Uuid::v7(), AliasKind::SellerCode, '5265877635|PL-05', $this->jack, '0.5', new \DateTimeImmutable('2026-11-02 10:00:00'), 20)]);
+        $crate = $this->item('Piwo jasne skrzynka', sellerCode: 'PL-05');
+
+        $this->match([$crate]);
+
+        self::assertSame(PurchasedItemStatus::Assigned, $crate->getStatus());
+        self::assertSame(['0.5', 20, '10'], [$crate->getPackageSize(), $crate->getBundleCount(), $crate->getPackageTotal()]);
+    }
+
     public function test_it_does_not_assign_a_case_on_the_size_of_one_bottle(): void
     {
         // The owner confirmed the bottle row; the same seller's case row says 1 L too, but a case holds more.
@@ -117,7 +140,7 @@ final class MatchPurchasedItemsHandlerTest extends TestCase
 
         $this->match([$case, $otherSeller]);
 
-        self::assertSame([PurchasedItemStatus::Assigned, '6'], [$case->getStatus(), $case->getPackageSize()]);
+        self::assertSame([PurchasedItemStatus::Assigned, '6', '1', 6], [$case->getStatus(), $case->getPackageTotal(), $case->getPackageSize(), $case->getBundleCount()]);
         // Another seller's CO is another unit: the product is found by the name alias, the size is only the one read.
         self::assertSame([PurchasedItemStatus::Suggested, '1'], [$otherSeller->getStatus(), $otherSeller->getPackageSize()]);
     }

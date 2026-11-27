@@ -146,11 +146,15 @@ export function measureGuess(unit: string | null): Exclude<Product["measure"], "
   return "count"
 }
 
-/** The package size every item already has when they all have the same one: what the form starts with. */
+/**
+ * The package size every item already has when they all have the same one, and the same bundle count: what
+ * the form starts with (of a single package when they are bundles, ADR 0048). Items that differ in the count
+ * start with none, so that saving does not turn a bundle into a plain size or the other way round.
+ */
 export function commonPackageSize(items: readonly QueueItem[]): string | null {
   const [first] = items
   if (first === undefined || first.packageSize === null) return null
-  return items.every((item) => item.packageSize === first.packageSize) ? first.packageSize : null
+  return items.every((item) => item.packageSize === first.packageSize && item.bundleCount === first.bundleCount) ? first.packageSize : null
 }
 
 /** The package size field's unit: what the product is counted in; null for a product without one. */

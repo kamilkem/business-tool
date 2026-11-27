@@ -271,6 +271,7 @@ final class PurchaseAnalysisApiTest extends ApiTestCase
                     'itemName' => 'JACK DANIELS 0,7L',
                     'quantity' => '6',
                     'packageSize' => '0.7',
+                    'bundleCount' => null,
                     'net' => ['price' => 1_500, 'change' => null, 'changePercent' => null],
                     'gross' => ['price' => 1_845, 'change' => null, 'changePercent' => null],
                 ],
@@ -284,11 +285,48 @@ final class PurchaseAnalysisApiTest extends ApiTestCase
                     'itemName' => 'Jack 1 l',
                     'quantity' => '1',
                     'packageSize' => '1',
+                    'bundleCount' => null,
                     'net' => null,
                     'gross' => ['price' => 2_030, 'change' => 185, 'changePercent' => '10'],
                 ],
             ],
         ], $history);
+    }
+
+    public function test_it_gives_a_bundle_and_the_same_goods_entered_as_a_total_the_same_prices(): void
+    {
+        [$owner, $organization] = self::memberWithRole(MembershipRole::Owner);
+        $asTotal = self::addProduct($organization, 'Beer as a total', null, ProductMeasure::Volume, '0.5');
+        $asBundle = self::addProduct($organization, 'Beer as a bundle', null, ProductMeasure::Volume, '0.5');
+        // 3 crates of 20 × 0.5 L on one invoice and 2 trays of 24 × 0.33 L on another, entered both ways (ADR 0048 §3).
+        $purchases = [
+            ['issueDate' => '2026-11-05', 'quantity' => '3', 'total' => '10', 'single' => '0.5', 'count' => 20, 'net' => 9_000, 'gross' => 11_070],
+            ['issueDate' => '2026-11-12', 'quantity' => '2', 'total' => '7.92', 'single' => '0.33', 'count' => 24, 'net' => 7_200, 'gross' => 8_856],
+        ];
+        foreach ($purchases as $purchase) {
+            self::addItem($organization, ['product' => $asTotal, 'issueDate' => $purchase['issueDate'], 'quantity' => $purchase['quantity'], 'packageSize' => $purchase['total'], 'net' => $purchase['net'], 'gross' => $purchase['gross']]);
+            self::addItem($organization, ['product' => $asBundle, 'issueDate' => $purchase['issueDate'], 'quantity' => $purchase['quantity'], 'packageSize' => $purchase['single'], 'bundleCount' => $purchase['count'], 'net' => $purchase['net'], 'gross' => $purchase['gross']]);
+        }
+
+        $overview = self::analysis($owner, $organization, '2026-11-01', '2026-11-30')->toArray();
+        $byName = [];
+        foreach ($overview['products'] as $product) {
+            $byName[$product['name']] = array_diff_key($product, ['id' => true, 'name' => true]);
+        }
+        self::assertSame($byName['Beer as a total'], $byName['Beer as a bundle'], 'The overview: quantity, average, last price and change.');
+        // 30 L + 15.84 L = 45.84 L = 91.68 × 0.5 L for 16 200 net.
+        self::assertSame('91.68', $byName['Beer as a bundle']['quantity']);
+
+        $totals = self::history($owner, $organization, $asTotal->getId()->toRfc4122())->toArray()['points'];
+        $bundles = self::history($owner, $organization, $asBundle->getId()->toRfc4122())->toArray()['points'];
+        self::assertCount(2, $bundles);
+        foreach ($bundles as $index => $point) {
+            self::assertSame($totals[$index]['net'], $point['net'], 'The price history.');
+            self::assertSame($totals[$index]['gross'], $point['gross']);
+            self::assertSame($purchases[$index]['single'], $point['packageSize']);
+            self::assertSame($purchases[$index]['count'], $point['bundleCount']);
+            self::assertNull($totals[$index]['bundleCount']);
+        }
     }
 
     public function test_it_limits_the_history_to_a_period_and_changes_against_the_point_before_it(): void
@@ -439,7 +477,7 @@ final class PurchaseAnalysisApiTest extends ApiTestCase
     /**
      * Records an item in the organization, linked to the product when it has one.
      *
-     * @param array{product?: Product, invoiceId?: string, issueDate?: string, kind?: string, currency?: string, sellerTaxId?: ?string, sellerName?: string, name?: string, quantity?: string, packageSize?: string, net?: ?int, gross?: ?int} $overrides
+     * @param array{product?: Product, invoiceId?: string, issueDate?: string, kind?: string, currency?: string, sellerTaxId?: ?string, sellerName?: string, name?: string, quantity?: string, packageSize?: string, bundleCount?: int, net?: ?int, gross?: ?int} $overrides
      *
      * @return string the item's id
      */
@@ -458,7 +496,8 @@ final class PurchaseAnalysisApiTest extends ApiTestCase
         });
 
         if (isset($overrides['product'])) {
-            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size WHERE id = :id', [
+            static::getContainer()->get(Connection::class)->executeStatement('UPDATE purchased_item SET product_id = :product, status = :status, package_size = :size, bundle_count = :bundle WHERE id = :id', [
+                'bundle' => $overrides['bundleCount'] ?? null,
                 'product' => $overrides['product']->getId()->toRfc4122(),
                 'status' => 'confirmed',
                 'size' => $overrides['packageSize'] ?? null,

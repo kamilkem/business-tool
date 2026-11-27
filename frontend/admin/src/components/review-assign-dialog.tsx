@@ -22,6 +22,7 @@ import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
 import { ProductPicker } from "@/components/product-picker"
 import { api } from "@/lib/api"
+import { bundleCountToSend, bundleInput, commonBundleCount } from "@/lib/package-size"
 import { type ProductCategory, parentChoices } from "@/lib/product-categories"
 import { MEASURES, PRODUCT_NAME_MAX_LENGTH, type Measure, type Product, normalizeDecimal } from "@/lib/product-prices"
 import { invalidatePurchasing, productCategoriesQuery, productsQuery } from "@/lib/queries"
@@ -130,6 +131,9 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
   const [reference, setReference] = useState("")
   const [excluded, setExcluded] = useState(preset === "exclude")
   const [packageSize, setPackageSize] = useState(commonPackageSize(items) ?? "")
+  const commonBundle = commonBundleCount(items)
+  const [bundled, setBundled] = useState(commonBundle !== null)
+  const [bundleCount, setBundleCount] = useState(commonBundle === null ? "" : String(commonBundle))
   const [errors, setErrors] = useState<AssignErrors>({})
   // The product this form made, kept when the assignment failed: a retry must not make it again.
   const [created, setCreated] = useState<Product | null>(null)
@@ -141,7 +145,10 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
   const sizeApplies = sizeProduct === null || packageSizeApplies(sizeProduct)
   const unitMeasure = sizeProduct === null || !sizeApplies ? null : sizeProduct.measure
   const tooMany = items.length > MAX_ASSIGN_ITEMS
-  const canSubmit = !tooMany && (mode === "existing" ? target !== null : name.trim() !== "" || created !== null)
+  // A bundle goes with a package size sent to every item: with none, each item keeps its own size and count (ADR 0048 §7).
+  const hasSize = sizeApplies && normalizeDecimal(packageSize) !== null
+  const bundle = bundleInput(bundled && hasSize, bundleCount)
+  const canSubmit = !tooMany && bundle.state !== "invalid" && (mode === "existing" ? target !== null : name.trim() !== "" || created !== null)
 
   const assign = useMutation({
     mutationFn: async () => {
@@ -171,6 +178,7 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
             itemIds: items.map((item) => item.id),
             productId: product.id,
             packageSize: packageSizeToSend(packageSize, packageSizeApplies(product)),
+            bundleCount: packageSizeApplies(product) ? bundleCountToSend(bundle) : null,
           },
         }),
       )
@@ -347,6 +355,42 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
                 <FieldDescription>{t("review.assign.packageSizeDescription", { count: items.length })}</FieldDescription>
               )}
             </Field>
+          )}
+
+          {sizeApplies && (
+            <>
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="review-bundle"
+                  checked={bundled && hasSize}
+                  disabled={!hasSize}
+                  onCheckedChange={(checked) => setBundled(checked === true)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="review-bundle">{t("review.assign.bundle")}</FieldLabel>
+                  <FieldDescription>{t("review.assign.bundleDescription")}</FieldDescription>
+                </FieldContent>
+              </Field>
+              {bundled && hasSize && (
+                <Field data-invalid={bundle.state === "invalid" ? true : undefined}>
+                  <FieldLabel htmlFor="review-bundle-count">{t("review.assign.bundleCount")}</FieldLabel>
+                  <Input
+                    id="review-bundle-count"
+                    value={bundleCount}
+                    onChange={(event) => setBundleCount(event.target.value)}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="20"
+                    aria-invalid={bundle.state === "invalid" ? true : undefined}
+                  />
+                  {bundle.state === "invalid" ? (
+                    <FieldError>{t("product.item.bundleCountInvalid")}</FieldError>
+                  ) : (
+                    <FieldDescription>{t("review.assign.bundleCountDescription")}</FieldDescription>
+                  )}
+                </Field>
+              )}
+            </>
           )}
 
           {errors.form && (

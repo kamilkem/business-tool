@@ -50,11 +50,11 @@ use Ui\Http\Purchasing\Provider\PurchasedItemProvider;
             requirements: ['id' => Requirement::UUID],
             openapi: new Operation(
                 summary: 'Links a purchased item to a product, takes it off its product, or sets its package size.',
-                description: 'Owners and managers only (403 otherwise); an item that is not the selected organization\'s is a 404. A field left out keeps its value; `productId: null` takes the item off its product, `packageSize: null` clears the package size. Any change by a person confirms the link: the item becomes `confirmed` with a product (also when only the package size changes, or nothing does, which confirms a suggestion) and `unassigned` without one. The package size is a positive decimal in the product\'s base unit (L, kg, pc) per one unit of the item\'s quantity, with at most 6 decimals (422). A `productId` that is not one of the organization\'s products is a 404.',
+                description: 'Owners and managers only (403 otherwise); an item that is not the selected organization\'s is a 404. A field left out keeps its value; `productId: null` takes the item off its product, `packageSize: null` clears the package size. Any change by a person confirms the link: the item becomes `confirmed` with a product (also when only the package size changes, or nothing does, which confirms a suggestion) and `unassigned` without one. The package size is a positive decimal in the product\'s base unit (L, kg, pc) per one unit of the item\'s quantity, with at most 6 decimals (422). For a bundle, `bundleCount` is the number of single packages in one unit (2 to 9999) and the package size is that of one single package; `bundleCount: null` makes it no bundle, and a count needs a package size (422). A `productId` that is not one of the organization\'s products is a 404.',
                 responses: [
                     '403' => new Response('The signed-in user is not an owner or manager.'),
                     '404' => new Response('The item, or the product to link it to, is not one of the selected organization\'s.'),
-                    '422' => new Response('The product id is not a UUID, or the package size is not a positive decimal with at most 6 decimals.'),
+                    '422' => new Response('The product id is not a UUID, the package size is not a positive decimal with at most 6 decimals, or the bundle count is not a whole number from 2 to 9999 or has no package size.'),
                 ],
             ),
             input: ChangePurchasedItemInput::class,
@@ -66,7 +66,7 @@ use Ui\Http\Purchasing\Provider\PurchasedItemProvider;
             status: 204,
             openapi: new Operation(
                 summary: 'Links several purchased items to one product: the review queue\'s bulk action.',
-                description: 'Owners and managers only (403 otherwise). All or nothing: when an item, or the product, is not one of the selected organization\'s (another organization\'s is not found either), the answer is a 404 and no item changes. Every item becomes `confirmed`. With a `packageSize` every item gets it; left out or null, each item keeps its own. At most '.AssignPurchasedItemsCommand::MAX_ITEMS.' distinct items at once (422). Creating a product from an item is `POST /products` followed by this call.',
+                description: 'Owners and managers only (403 otherwise). All or nothing: when an item, or the product, is not one of the selected organization\'s (another organization\'s is not found either), the answer is a 404 and no item changes. Every item becomes `confirmed`. With a `packageSize` every item gets it, with `bundleCount` (null: no bundle); left out or null, each item keeps its own size and bundle count. A `bundleCount` needs a `packageSize` (422). At most '.AssignPurchasedItemsCommand::MAX_ITEMS.' distinct items at once (422). Creating a product from an item is `POST /products` followed by this call.',
                 responses: [
                     '204' => new Response('The items are linked to the product.'),
                     '403' => new Response('The signed-in user is not an owner or manager.'),
@@ -126,8 +126,10 @@ final readonly class PurchasedItemResource
         public ?string $productName,
         /** `unassigned`, `suggested` (by matching, to confirm), `assigned` (by matching) or `confirmed` (by a person). */
         public PurchasedItemStatus $status,
-        /** In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. */
+        /** In the product's base unit (L, kg, pc) per one unit of the item's quantity, a decimal string; null until known. For a bundle (`bundleCount`), the size of one single package. */
         public ?string $packageSize,
+        /** Single packages in one unit of the item's quantity (a crate of 20 × 0.5 L: 20), 2 or more; null when the item is no bundle. The size per unit of the quantity is `bundleCount × packageSize`. */
+        public ?int $bundleCount,
         /** What matching linked the item by (ADR 0045 §1): `gtin`, `seller_code`, `seller_name` or `name` (the owner's remembered alias of that kind), `model`, or `proposed_name` (the model proposed a product by a name the catalog has); null when a person linked it, it is unassigned, or it was matched before this was kept. */
         public ?MatchSource $matchSource,
         /** Why matching only suggested the product: `aliases_conflict`, `model_unsure`, `proposed_name_only`, `measure_mismatch`, `size_unknown`, `size_read_weakly`, `size_disagrees`, `size_unverified` or `price_outlier` (the price per base unit is far from the product's median); null for any other status. */
@@ -164,6 +166,7 @@ final readonly class PurchasedItemResource
             $view->productName,
             $view->status,
             $view->packageSize,
+            $view->bundleCount,
             $view->matchSource,
             $view->matchCaveat,
         );
