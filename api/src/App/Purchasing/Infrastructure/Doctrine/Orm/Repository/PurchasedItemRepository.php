@@ -13,6 +13,7 @@ use App\Purchasing\Domain\Matching\PriceSanity;
 use App\Purchasing\Domain\Model\ProductMeasure;
 use App\Purchasing\Domain\Model\PurchasedItem;
 use App\Purchasing\Domain\Model\PurchasedItemStatus;
+use App\Purchasing\Domain\PackageSize\PackageSizeCount;
 use App\Purchasing\Domain\Repository\PurchasedItemFilter;
 use App\Purchasing\Domain\Proposal\ProposedItem;
 use App\Purchasing\Domain\Repository\PurchasedItemRepositoryInterface;
@@ -262,6 +263,32 @@ final class PurchasedItemRepository extends ServiceEntityRepository implements P
             ->orderBy('i.id', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    public function findByProduct(Uuid $productId): array
+    {
+        /** @var list<PurchasedItem> */
+        return $this->createQueryBuilder('i')
+            ->where('i.product = :product')
+            ->setParameter('product', $productId, 'uuid')
+            ->orderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countPackageSizesOfProduct(Uuid $productId): array
+    {
+        /** @var list<array{unit: string|null, packageSize: string|null, confirmed: bool|int|string, total: int|string}> $rows */
+        $rows = $this->createQueryBuilder('i')
+            ->select('i.unit AS unit', 'i.packageSize AS packageSize', '(CASE WHEN i.status = :confirmed THEN 1 ELSE 0 END) AS confirmed', 'COUNT(i.id) AS total')
+            ->where('i.product = :product')
+            ->setParameter('product', $productId, 'uuid')
+            ->setParameter('confirmed', PurchasedItemStatus::Confirmed->value)
+            ->groupBy('i.unit', 'i.packageSize', 'confirmed')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): PackageSizeCount => new PackageSizeCount($row['unit'], $row['packageSize'], 1 === (int) $row['confirmed'], (int) $row['total']), $rows);
     }
 
     public function hasItemsOfProduct(Uuid $productId): bool

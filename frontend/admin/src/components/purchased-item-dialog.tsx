@@ -18,8 +18,10 @@ import { Input } from "@business-tool/ui/components/input"
 import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { PackageSizeFollowUp, type PackageSizeFollowUpRequest } from "@/components/package-size-follow-up"
 import { ProductPicker } from "@/components/product-picker"
 import { api } from "@/lib/api"
+import { unitKeyOf } from "@/lib/package-sizes"
 import { type ProductCategory } from "@/lib/product-categories"
 import { type Product, normalizeDecimal } from "@/lib/product-prices"
 import { invalidatePurchasing, productsQuery } from "@/lib/queries"
@@ -45,19 +47,41 @@ interface PurchasedItemDialogProps {
 /**
  * One purchased item of the product (ADR 0041 §3, #242): move it to another product, take it off the
  * product (it goes back to the items without one), or set its package size, which decides whether
- * it counts in the prices. A change by a person confirms the link.
+ * it counts in the prices. A change by a person confirms the link. A package size that was set or
+ * changed is then offered to the product's other items, which the owner chooses (ADR 0048, #271).
  */
 export function PurchasedItemDialog({ organizationId, item, product, categories, onClose }: PurchasedItemDialogProps) {
+  const [followUp, setFollowUp] = useState<PackageSizeFollowUpRequest | null>(null)
   return (
-    <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
-        {item && <ItemForm key={item.id} organizationId={organizationId} item={item} product={product} categories={categories} onClose={onClose} />}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+          {item && (
+            <ItemForm
+              key={item.id}
+              organizationId={organizationId}
+              item={item}
+              product={product}
+              categories={categories}
+              onClose={onClose}
+              onSizeSet={setFollowUp}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <PackageSizeFollowUp organizationId={organizationId} request={followUp} onClose={() => setFollowUp(null)} />
+    </>
   )
 }
 
-function ItemForm({ organizationId, item, product, categories, onClose }: Omit<PurchasedItemDialogProps, "item"> & { item: ItemRef }) {
+function ItemForm({
+  organizationId,
+  item,
+  product,
+  categories,
+  onClose,
+  onSizeSet,
+}: Omit<PurchasedItemDialogProps, "item"> & { item: ItemRef; onSizeSet: (request: PackageSizeFollowUpRequest) => void }) {
   const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const products = useQuery(productsQuery(organizationId))
@@ -78,7 +102,7 @@ function ItemForm({ organizationId, item, product, categories, onClose }: Omit<P
           headers: { "Content-Type": "application/merge-patch+json" },
         }),
       ),
-    onSuccess: async (_, body) => {
+    onSuccess: async (saved, body) => {
       toast.success(
         body.productId === undefined
           ? t("product.item.toast.size")
@@ -88,6 +112,14 @@ function ItemForm({ organizationId, item, product, categories, onClose }: Omit<P
       )
       await invalidatePurchasing(queryClient, organizationId)
       onClose()
+      // A package size the owner set or changed: the product's other items may want it too, which is the owner's call.
+      if (typeof body.packageSize === "string" && saved.productId !== null && saved.packageSize !== null) {
+        onSizeSet({
+          productId: saved.productId,
+          productName: saved.productName ?? "",
+          answer: { size: saved.packageSize, units: [unitKeyOf(saved.unit)], changed: item.packageSize !== null },
+        })
+      }
     },
     onError: (failure) => setError(requestErrorMessage(failure)),
   })

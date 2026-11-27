@@ -600,6 +600,38 @@
       "mergeDescription": "For the same thing printed under two names. Its items move to the other product.",
       "save": "Save",
       "saved": "{{name}} saved"
+    },
+    "packageSizes": {
+      "title": "The same package size on the other items?",
+      "description": "{{name}}: you set the package size to {{size}}. Sizes are not assumed equal across units, so nothing else changes unless you choose it here.",
+      "size": "Package size to set",
+      "sizeDescription": "In the product's unit per one unit of the quantity. A case or carton holds several pieces: type the size of the whole unit.",
+      "fill": {
+        "title": "Without a package size",
+        "description": "These items are not counted in the price analysis."
+      },
+      "sameUnit": {
+        "title": "Same unit, another size",
+        "description": "Items on the unit you just changed that still have a different size."
+      },
+      "otherUnits": {
+        "title": "Other units, another size",
+        "description": "Items on other units that have a size of their own."
+      },
+      "group": {
+        "items_one": "{{count}} item on {{unit}}",
+        "items_other": "{{count}} items on {{unit}}",
+        "noUnit_one": "{{count}} item with no unit",
+        "noUnit_other": "{{count}} items with no unit",
+        "now": "now {{size}}",
+        "confirmed_one": "{{count}} confirmed by you",
+        "confirmed_other": "{{count}} confirmed by you"
+      },
+      "skip": "Leave them",
+      "apply_one": "Set on {{count}} item",
+      "apply_other": "Set on {{count}} items",
+      "toast_one": "Package size set on {{count}} more item",
+      "toast_other": "Package size set on {{count}} more items"
     }
   },
   "review": {

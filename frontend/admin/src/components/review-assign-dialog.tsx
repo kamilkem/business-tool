@@ -20,8 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@business-tool/ui/components/skeleton"
 import { requestErrorMessage } from "@business-tool/ui/lib/request-error"
 
+import { PackageSizeFollowUp, type PackageSizeFollowUpRequest } from "@/components/package-size-follow-up"
 import { ProductPicker } from "@/components/product-picker"
 import { api } from "@/lib/api"
+import { sameSize, unitKeyOf } from "@/lib/package-sizes"
 import { type ProductCategory, parentChoices } from "@/lib/product-categories"
 import { MEASURES, PRODUCT_NAME_MAX_LENGTH, type Measure, type Product, normalizeDecimal } from "@/lib/product-prices"
 import { invalidatePurchasing, productCategoriesQuery, productsQuery } from "@/lib/queries"
@@ -62,20 +64,27 @@ interface ReviewAssignDialogProps {
  * Gives the items a product (ADR 0041 §3, §9; #242): an existing one, or a new one made from the
  * items (name prefilled with what the invoice printed), and the package size the owner types, which
  * every item gets. Excluding is assigning to an excluded product. The assignment is all or nothing;
- * a product that was created stays when the assignment then fails, and the retry uses it.
+ * a product that was created stays when the assignment then fails, and the retry uses it. A package size
+ * that was typed is then offered to the product's other items, which the owner chooses (ADR 0048, #271).
  */
 export function ReviewAssignDialog({ organizationId, request, onClose, onAssigned }: ReviewAssignDialogProps) {
+  const [followUp, setFollowUp] = useState<PackageSizeFollowUpRequest | null>(null)
   return (
-    <Dialog open={request !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        {request && <Loader organizationId={organizationId} request={request} onClose={onClose} onAssigned={onAssigned} />}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={request !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+          {request && <Loader organizationId={organizationId} request={request} onClose={onClose} onAssigned={onAssigned} onSizeSet={setFollowUp} />}
+        </DialogContent>
+      </Dialog>
+      <PackageSizeFollowUp organizationId={organizationId} request={followUp} onClose={() => setFollowUp(null)} />
+    </>
   )
 }
 
+type SizeSetHandler = (request: PackageSizeFollowUpRequest) => void
+
 /** Waits for the products and the category tree the form picks from. */
-function Loader(props: Omit<ReviewAssignDialogProps, "request"> & { request: AssignRequest }) {
+function Loader(props: Omit<ReviewAssignDialogProps, "request"> & { request: AssignRequest; onSizeSet: SizeSetHandler }) {
   const { t } = useTranslation("admin")
   const products = useQuery(productsQuery(props.organizationId))
   const categories = useQuery(productCategoriesQuery(props.organizationId))
@@ -109,11 +118,12 @@ type Mode = "existing" | "new"
 
 interface AssignFormProps extends Omit<ReviewAssignDialogProps, "request"> {
   request: AssignRequest
+  onSizeSet: SizeSetHandler
   products: readonly Product[]
   categories: readonly ProductCategory[]
 }
 
-function AssignForm({ organizationId, request, products, categories, onClose, onAssigned }: AssignFormProps) {
+function AssignForm({ organizationId, request, products, categories, onClose, onAssigned, onSizeSet }: AssignFormProps) {
   const { t } = useTranslation("admin")
   const queryClient = useQueryClient()
   const { items, preset } = request
@@ -165,22 +175,31 @@ function AssignForm({ organizationId, request, products, categories, onClose, on
         )
         setCreated(product)
       }
+      const sizeSent = packageSizeToSend(packageSize, packageSizeApplies(product))
       await unwrap(
         api.POST("/api/purchased-items/assign", {
-          body: {
-            itemIds: items.map((item) => item.id),
-            productId: product.id,
-            packageSize: packageSizeToSend(packageSize, packageSizeApplies(product)),
-          },
+          body: { itemIds: items.map((item) => item.id), productId: product.id, packageSize: sizeSent },
         }),
       )
-      return product
+      return { product, sizeSent }
     },
-    onSuccess: async (product) => {
+    onSuccess: async ({ product, sizeSent }) => {
       toast.success(t(product.excluded ? "review.toast.excluded" : "review.toast.assigned", { count: items.length, name: product.name }))
       await invalidatePurchasing(queryClient, organizationId)
       onAssigned()
       onClose()
+      // A package size the owner typed: the product's other items may want it too, which is the owner's call.
+      if (sizeSent !== null) {
+        onSizeSet({
+          productId: product.id,
+          productName: product.name,
+          answer: {
+            size: sizeSent,
+            units: [...new Set(items.map((item) => unitKeyOf(item.unit)))],
+            changed: items.some((item) => item.packageSize !== null && !sameSize(item.packageSize, sizeSent)),
+          },
+        })
+      }
     },
     onError: async (error) => {
       setErrors(assignErrors(error))

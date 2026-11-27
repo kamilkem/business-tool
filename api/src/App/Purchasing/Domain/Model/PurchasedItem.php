@@ -250,6 +250,27 @@ class PurchasedItem implements TenantAwareInterface
     }
 
     /**
+     * A person sets only the package size of an item that has a product, because they said so for the product's
+     * other items too (ADR 0048): the product, the status, what linked the item and its proposal stay as they were,
+     * so a `confirmed` link is never touched and a suggestion is not confirmed by it.
+     *
+     * @param ?string $packageSize a positive decimal with at most 6 decimals, null for unknown
+     *
+     * @throws PurchasingManagementForbiddenException when the actor is not an owner or manager
+     * @throws InvalidPackageSizeException            when the package size is not a positive decimal
+     * @throws \LogicException                        for an item with no product: its size means nothing yet
+     */
+    public function changePackageSize(?string $packageSize, Uuid $actorId, MembershipRole $actorRole): void
+    {
+        PurchasingAccess::assertCanManage($actorId, $actorRole);
+        if (null === $this->product) {
+            throw new \LogicException('Only an item that has a product gets a package size on its own.');
+        }
+
+        $this->packageSize = self::packageSizeFor($packageSize);
+    }
+
+    /**
      * Matching links the item to a product, or notes that it found none (`$product` null: the item
      * keeps what it had), and that the model went through it. `assigned` is a confident match,
      * `suggested` one for a person to confirm. Never for a `confirmed` item. `$source` is what linked it and

@@ -55,3 +55,4 @@ its `Status`, not a removal. Check with `make adr-check`.
 | [0045](0045-matching-explains-itself-checks-prices-and-learns-from-history.md) | Matching says why an item is only suggested, checks prices against the owner's confirmed ones, and learns aliases from items confirmed before aliases existed | Accepted |
 | [0046](0046-matching-reruns-on-catalog-changes-and-on-demand.md) | Matching runs again when the catalog changes and when the owner asks, and each run is recorded | Accepted |
 | [0047](0047-a-different-abv-is-a-different-product.md) | A different alcohol strength is a different product: the name alias key keeps the ABV, and a link to a product of another ABV is never made | Accepted |
+| [0048](0048-a-package-size-is-offered-to-the-products-other-items-never-applied.md) | A package size set on one item is offered to the product's other items, never applied to them silently | Accepted |

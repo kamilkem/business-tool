@@ -1481,6 +1481,30 @@ export interface paths {
         patch: operations["api_product-categories_id_patch"];
         trace?: never;
     };
+    "/api/products/{id}/package-sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The items of a product by unit and package size.
+         * @description Owners and managers only (403 otherwise); a product that is not the selected organization's is a 404. One group per unit (`szt.` and `SZT` are one) and package size, whatever the items' status, with how many items it holds and how many of them a person confirmed. What the dialog that sets a package size asks about: the groups with no size under other units, and the groups with another size.
+         */
+        get: operations["api_products_idpackage-sizes_get"];
+        put?: never;
+        /**
+         * Sets one package size on the product's items of the chosen groups.
+         * @description Owners and managers only (403 otherwise). Writes only the package size of the items of the product that have the unit and the package size of one of the `groups` (as `GET` lists them); their product, status and link stay as they are, so a confirmed link is never changed. Nothing is applied that the person did not choose. A group that holds no item any more changes nothing. At most 100 groups (422). A product that is not the selected organization's is a 404 and nothing changes.
+         */
+        post: operations["api_products_idpackage-sizes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/products/{id}/price-history": {
         parameters: {
             query?: never;
@@ -2149,6 +2173,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ApplyPackageSizeGroupInput: {
+            /** @description The group's `unitKey`; null: the items with no unit. */
+            unitKey: string | null;
+            /** @description The group's `packageSize`; null: the items with none. */
+            packageSize: string | null;
+        };
         /**
          * @description The business figures of the organization selected by the X-Organization-Id header for each month
          *     of a period (ADR 0029): income, expenses, payroll and the result. Owners and managers only.
@@ -5271,6 +5301,56 @@ export interface components {
             parentId: string | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        ProductPackageSizeGroup: {
+            /** @description The unit's key (lower case, no diacritics, no trailing dot): what `POST /products/{id}/package-sizes` takes back; null: the items have no unit. */
+            unitKey: string | null;
+            /** @description The unit as the seller printed it most often; null: no unit. */
+            unit: string | null;
+            /** @description A decimal string in the product's base unit per one unit of the quantity; null: the items have none. */
+            packageSize: string | null;
+            count: number;
+            /** @description How many of them a person confirmed. */
+            confirmedCount: number;
+        };
+        "ProductPackageSizeGroup.jsonld": {
+            /** @description The unit's key (lower case, no diacritics, no trailing dot): what `POST /products/{id}/package-sizes` takes back; null: the items have no unit. */
+            unitKey: string | null;
+            /** @description The unit as the seller printed it most often; null: no unit. */
+            unit: string | null;
+            /** @description A decimal string in the product's base unit per one unit of the quantity; null: the items have none. */
+            packageSize: string | null;
+            count: number;
+            /** @description How many of them a person confirmed. */
+            confirmedCount: number;
+        };
+        /**
+         * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
+         *     (ADR 0048). Owners and managers only.
+         */
+        ProductPackageSizes: {
+            productId: string;
+            /** @description By unit (no unit last), then the items with no package size first, then by size. */
+            groups: components["schemas"]["ProductPackageSizeGroup"][];
+        };
+        /**
+         * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
+         *     (ADR 0048). Owners and managers only.
+         */
+        "ProductPackageSizes.ApplyPackageSizeInput": {
+            /** @description The package size the items of the chosen groups get. */
+            packageSize: string;
+            /** @description The groups to set it on: at least one. */
+            groups: components["schemas"]["ApplyPackageSizeGroupInput"][];
+        };
+        /**
+         * @description A product's items by unit and package size, and the owner's answer to "the same size on the other items?"
+         *     (ADR 0048). Owners and managers only.
+         */
+        "ProductPackageSizes.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            productId: string;
+            /** @description By unit (no unit last), then the items with no package size first, then by size. */
+            groups: components["schemas"]["ProductPackageSizeGroup.jsonld"][];
         };
         /**
          * @description The price points of one product of the organization selected by the X-Organization-Id header (ADR
@@ -12028,6 +12108,107 @@ export interface operations {
                 content?: never;
             };
             /** @description The name is blank or too long, or the parent is not a category of the organization. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    "api_products_idpackage-sizes_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ProductPackageSizes identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ProductPackageSizes resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ProductPackageSizes.jsonld"];
+                    "application/json": components["schemas"]["ProductPackageSizes"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The product is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "api_products_idpackage-sizes_post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ProductPackageSizes identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new ProductPackageSizes resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["ProductPackageSizes.ApplyPackageSizeInput"];
+                "application/json": components["schemas"]["ProductPackageSizes.ApplyPackageSizeInput"];
+            };
+        };
+        responses: {
+            /** @description The package size is set on the items of the groups. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The signed-in user is not an owner or manager. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The product is not one of the selected organization's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The package size is missing or not a positive decimal with at most 6 decimals, or a group is missing, repeated, has a size that is not one, or there are too many. */
             422: {
                 headers: {
                     [name: string]: unknown;

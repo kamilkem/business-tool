@@ -188,6 +188,54 @@ final class PurchasedItemTest extends TestCase
         }
     }
 
+    #[DataProvider('statusesBeforeAPersonChangesTheLink')]
+    public function test_it_changes_only_the_package_size_and_keeps_the_link_and_status(PurchasedItemStatus $status): void
+    {
+        $item = self::item();
+        $jack = self::product('Jack Daniel\'s');
+        $item->link($jack, '0.7', $this->actorId, MembershipRole::Owner);
+        self::arrangeStatus($item, $status);
+
+        $item->changePackageSize('4.20', $this->actorId, MembershipRole::Manager);
+
+        self::assertSame('4.2', $item->getPackageSize());
+        self::assertSame($jack, $item->getProduct());
+        self::assertSame($status, $item->getStatus());
+    }
+
+    public function test_it_refuses_a_package_size_on_its_own_for_an_item_with_no_product_and_for_an_employee(): void
+    {
+        $item = self::item();
+        try {
+            $item->changePackageSize('1', $this->actorId, MembershipRole::Owner);
+            self::fail('An item with no product has no package size of its own.');
+        } catch (\LogicException) {
+            self::assertNull($item->getPackageSize());
+        }
+
+        $item->link(self::product('Jack Daniel\'s'), '0.7', $this->actorId, MembershipRole::Owner);
+        $this->expectException(PurchasingManagementForbiddenException::class);
+        try {
+            $item->changePackageSize('1', $this->actorId, MembershipRole::Employee);
+        } finally {
+            self::assertSame('0.7', $item->getPackageSize());
+        }
+    }
+
+    #[DataProvider('invalidPackageSizes')]
+    public function test_it_refuses_an_invalid_package_size_on_its_own_and_keeps_the_old_one(string $given): void
+    {
+        $item = self::item();
+        $item->link(self::product('Jack Daniel\'s'), '0.7', $this->actorId, MembershipRole::Owner);
+
+        $this->expectException(InvalidPackageSizeException::class);
+        try {
+            $item->changePackageSize($given, $this->actorId, MembershipRole::Owner);
+        } finally {
+            self::assertSame('0.7', $item->getPackageSize());
+        }
+    }
+
     public function test_it_is_matched_as_assigned_or_suggested_without_being_confirmed(): void
     {
         $item = self::item();
